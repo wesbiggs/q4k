@@ -74,9 +74,21 @@ static char line[SCR_W + 1];
    pressed a key it is unpredictable. */
 #define CIA1_TIMER (*(volatile unsigned int *)0xDC04)
 
+unsigned int last_seed;
+static unsigned int entropy;
+
+void rng_stir(unsigned int spins)
+{
+    /* Mix rather than replace: a slow decision and a fast one should both
+       leave a mark, and the timer catches what the spin count is too coarse
+       to see. */
+    entropy = (entropy << 3) ^ (entropy >> 13) ^ spins ^ CIA1_TIMER;
+}
+
 void reseed(void)
 {
-    srand(CIA1_TIMER);
+    last_seed = entropy;
+    srand(last_seed);
 }
 
 void heal_full(void)

@@ -196,6 +196,22 @@ def apply_pokes(mon, syms, pokes):
               % (name, offset, v, syms[name] + offset), file=sys.stderr)
 
 
+def report_peeks(mon, syms, peeks):
+    for spec in peeks:
+        name, _, width = spec.partition(":")
+        name, _, offset = name.partition("+")
+        offset = int(offset, 0) if offset else 0
+        width = int(width) if width else 1
+        if name not in syms:
+            raise SystemExit("screendump: no symbol %r" % name)
+        addr = syms[name] + offset
+        data = mon.mem_get(addr, addr + width - 1)
+        value = int.from_bytes(data[:width], "little")
+        print("screendump: %s+%d @ $%04X = %d ($%0*X)"
+              % (name, offset, addr, value, width * 2, value),
+              file=sys.stderr)
+
+
 def free_port():
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -373,6 +389,8 @@ def main():
     ap.add_argument("--poke", action="append", metavar="SYM=VALUE",
                     default=[],
                     help="set a global by name once the program is running")
+    ap.add_argument("--peek", action="append", metavar="SYM[+OFF][:WIDTH]",
+                    default=[], help="print a global by name")
     ap.add_argument("--shot", metavar="PNG",
                     help="also render the screen to a PNG from emulated memory")
     ap.add_argument("--settle", type=float, metavar="SECS",
@@ -410,7 +428,9 @@ def main():
         charset_base = (mon.mem_get(VIC_ADDR, VIC_ADDR)[0] & 0x0E) << 10
         lowercase = charset_base != 0x1000
         colors = mon.mem_get(COLOR_RAM, COLOR_RAM + SCR_W * SCR_H - 1)
-        scratch = mon.mem_get(PROBE, PROBE + 15)
+        if args.peek:
+            report_peeks(mon, load_symbols(args.prg), args.peek)
+        scratch = mon.mem_get(PROBE, PROBE + 19)
         if args.shot:
             if charset_base in (0x1000, 0x1800):
                 print("screendump: charset is in ROM; --shot needs a RAM "
@@ -431,7 +451,7 @@ def main():
             vice.kill()
 
     print("probe: stage=%d counter=%d scratch=%s | charset=%s"
-          % (stage, scratch[3], " ".join("%02x" % b for b in scratch[4:15]),
+          % (stage, scratch[3], " ".join("%02x" % b for b in scratch[4:20]),
              "$%04X %s" % (charset_base,
                            "lowercase" if lowercase else "uppercase")),
           file=sys.stderr)

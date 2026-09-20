@@ -110,4 +110,5 @@ int main(void)
             }
         }
     }
+    /* not reached; the loop is the program */
 }

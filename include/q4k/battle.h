@@ -33,10 +33,22 @@ unsigned char battle_dragon(void);
 
 void          heal_full(void);
 
-/* Reseed the wandering-monster rolls from the machine itself. cc65's rand()
-   starts from a fixed seed, so without this every playthrough meets the same
-   monsters at the same squares -- and the opening stretch of that sequence
-   happens to be a long quiet one. */
+/* Where the randomness comes from.
+ *
+ * cc65's rand() starts from a fixed seed, so without help every playthrough
+ * meets the same monsters on the same squares. Sampling a timer at startup
+ * is not enough either: the machine is doing the same thing at the same
+ * cycle on every boot, and measured across runs the same seed comes up again
+ * and again.
+ *
+ * The one thing here that genuinely is not repeatable is how long the player
+ * takes to press a key. rng_stir() folds that in -- how long the wait was,
+ * and where the CIA's free-running timer had got to -- and reseed() uses the
+ * accumulated result. dungeon_build() seeds deliberately so a level is
+ * reproducible, so anything calling it reseeds afterwards. */
+void          rng_stir(unsigned int spins);
 void          reseed(void);
+extern unsigned int last_seed;
+extern unsigned char last_chance, last_roll;   /* what reseed() last used */
 
 #endif /* Q4K_BATTLE_H */

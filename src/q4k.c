@@ -48,7 +48,13 @@ static const unsigned char boss_stage[NUM_DUNGEONS] = {
 /* Test instrumentation: how many encounter rolls have happened and how many
    turned into a fight. Published on the probe page so a headless run can say
    something about the encounter rate. */
-static unsigned char enc_rolls, enc_fights;
+/* Test instrumentation: how many encounter rolls have happened and how many
+   became a fight. Deliberately not static, so a headless run can read them
+   by name with screendump's --peek. Reading them off the probe page is not
+   enough -- that only updates between turns, so it misses every fight that
+   is still in progress, which is exactly how an encounter rate of 7 percent
+   once looked like zero. */
+unsigned char enc_rolls, enc_fights;
 
 /* Mirror progress into the probe page so the headless harness can assert on
    it. Stage doubles as a turn counter, which is what lets a test say "walk
@@ -64,6 +70,7 @@ static void publish(void)
     PROBE_SCRATCH[7] = depth;
     PROBE_SCRATCH[8] = enc_rolls;
     PROBE_SCRATCH[9] = enc_fights;
+
     PROBE_COUNTER    = (unsigned char)game_turn;
     probe_stage(game_turn < 254 ? (unsigned char)game_turn + 1 : 255);
 }
@@ -75,6 +82,21 @@ static void drain_keyboard(void)
     while (kbhit()) {
         cgetc();
     }
+}
+
+/* Wait for a key, and time the wait.
+ *
+ * The spin count is how long the player took to decide, which is the only
+ * unrepeatable thing the machine has to offer -- see rng_stir(). */
+static unsigned char wait_key(void)
+{
+    unsigned int spins = 0;
+
+    while (!kbhit()) {
+        ++spins;
+    }
+    rng_stir(spins);
+    return cgetc();
 }
 
 static void back_to_map(void)
@@ -380,11 +402,11 @@ static void try_talk(void)
 int main(void)
 {
     unsigned char key;
+    unsigned char seeded = 0;
 
     game_init();
     view_init();
     drain_keyboard();
-    reseed();
 
     view_message("A LETTER COMES, UNDER THE KING'S SEAL.");
     view_message("MATHESON SUMMONS YOU TO THE CASTLE.");
@@ -395,7 +417,13 @@ int main(void)
         view_draw_panel();
         publish();
 
-        key = cgetc();
+        key = wait_key();
+        if (!seeded) {
+            /* First input: entropy has something in it now, so start the
+               wandering-monster sequence from it. */
+            reseed();
+            seeded = 1;
+        }
         if (key >= 0xC1 && key <= 0xDA) {
             key -= 0x80;            /* fold SHIFTed letters onto unshifted */
         }
