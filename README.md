@@ -80,8 +80,9 @@ to feed the keyboard, `--stage N` to wait for a later checkpoint, `--shot` to
 render a PNG from emulated memory.
 
 `--poke quest_stage=7 --poke items=0x38` sets any global by name, resolved
-from ld65's label file. That is how a test reaches the middle of a long quest
-without walking there, and it keeps cheat hooks out of the game itself.
+from ld65's label file, and `--peek enc_fights` reads one back afterwards.
+That is how a test reaches the middle of a long quest without walking there,
+and it keeps cheat hooks out of the game itself.
 
 ## How the headless harness works
 

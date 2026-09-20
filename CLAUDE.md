@@ -70,11 +70,22 @@ Call `probe_stage(n)` at points worth asserting on, then
 the whole 40x25 screen, so any layout change shows up as a diff. Re-bless
 deliberately, never reflexively.
 
-**cc65's `rand()` starts from a fixed seed**, so without `reseed()` every
+**cc65's `rand()` starts from a fixed seed**, so without help every
 playthrough meets the same monsters on the same squares — and the opening of
-that sequence happens to be a long quiet one, which looked exactly like
-encounters being broken. `dungeon_build()` seeds deliberately, for repeatable
+that sequence happens to be a long quiet one, which looks exactly like
+encounters being broken.
+
+Sampling a timer at startup is **not** a fix, though it passes a casual
+glance. `srand(CIA1_TIMER)` at a fixed point after boot gave the same seed
+two runs in four when measured: the machine is doing the same thing at the
+same cycle on every boot. What is genuinely unrepeatable is how long the
+player takes to press a key, so `wait_key()` counts the wait and
+`rng_stir()` folds that plus the CIA timer into an accumulator that
+`reseed()` draws from. `dungeon_build()` seeds deliberately, for repeatable
 levels, so anything that calls it reseeds afterwards.
+
+`src/rngtest.c` measures `rand()`'s distribution after `srand()`; it is what
+ruled the generator out when the encounter rate looked wrong.
 
 **People block movement**, so two NPCs in a line make the inner one
 unreachable. `tools/checkmap.py` checks this; run `make test` after editing
@@ -92,8 +103,16 @@ charset), so it can capture a screen mid-conversation; VICE's own
 Note that `make check` opens a real VICE window that takes keyboard focus.
 Typing into it while a test runs will change the result.
 
-`--poke SYM=VALUE` (and `SYM+OFFSET=VALUE`) writes any global by name, using
-the label file ld65 emits next to the binary. Prefer it over adding debug
+**Do not measure anything mid-fight from the probe page.** `publish()` only
+runs between turns, so a battle still in progress never reaches it: an
+encounter rate of about 8 percent read as a flat zero across 127 rolls, and
+the bug was entirely in the measurement. `--peek enc_rolls --peek
+enc_fights` reads the counters directly and gets it right. Those two are
+deliberately non-static so they have labels.
+
+`--peek SYM[+OFF][:WIDTH]` prints any global after the run; `--poke
+SYM=VALUE` (and `SYM+OFFSET=VALUE`) writes one before it. Both use the label
+file ld65 emits next to the binary. Prefer it over adding debug
 hooks to the game: the quest, the inventory and the party struct are all
 reachable from a test this way, and none of it ships.
 
