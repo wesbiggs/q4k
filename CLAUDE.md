@@ -87,6 +87,14 @@ levels, so anything that calls it reseeds afterwards.
 `src/rngtest.c` measures `rand()`'s distribution after `srand()`; it is what
 ruled the generator out when the encounter rate looked wrong.
 
+**NPCs will invent geography** unless you hand them the real thing.
+`tools/mkgeo.py` measures bearings and walking distances off the actual map
+into `assets/geography.json`, and the daemon gives each speaker only the
+lines for where they stand, plus an instruction not to guess at the rest.
+Anything that moves a place on the map must regenerate it -- `make` does,
+and `assets/places.txt` makes a moved dungeon a hard error rather than a
+wrong direction.
+
 **People block movement**, so two NPCs in a line make the inner one
 unreachable. `tools/checkmap.py` checks this; run `make test` after editing
 `assets/towns.txt`.

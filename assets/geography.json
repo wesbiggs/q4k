@@ -1,0 +1,170 @@
+{
+ "from": {
+  "ashcombe": [
+   "MILLFORD lies east, about 38 leagues on foot.",
+   "CASTLE MATHESON lies south-east, about 44 leagues on foot.",
+   "WARDLOW lies north-east, about 26 leagues on foot, though the road bends a long way round.",
+   "STONEREACH lies south-west, about 67 leagues on foot, though the road bends a long way round.",
+   "THE HOLLOW CROWN lies south-east, about 46 leagues on foot, though the road bends a long way round.",
+   "THE DROWNED STAIR lies north-east, about 13 leagues on foot.",
+   "BLACKPIT lies south-west, about 17 leagues on foot.",
+   "MALDRATH'S LAIR lies south, about 18 leagues on foot."
+  ],
+  "blackpit": [
+   "MILLFORD lies north-east, about 55 leagues on foot, though the road bends a long way round.",
+   "CASTLE MATHESON lies south-east, about 33 leagues on foot, though the road bends a long way round.",
+   "WARDLOW lies north-east, about 43 leagues on foot, though the road bends a long way round.",
+   "ASHCOMBE lies north-east, about 17 leagues on foot.",
+   "STONEREACH lies west, about 56 leagues on foot, though the road bends a long way round.",
+   "THE HOLLOW CROWN lies east, about 35 leagues on foot.",
+   "THE DROWNED STAIR lies north-east, about 30 leagues on foot.",
+   "MALDRATH'S LAIR lies east, about 15 leagues on foot."
+  ],
+  "castle": [
+   "MILLFORD lies south, about 64 leagues on foot, though the road bends a long way round.",
+   "WARDLOW lies south, about 70 leagues on foot, though the road bends a long way round.",
+   "ASHCOMBE lies north-west, about 44 leagues on foot.",
+   "STONEREACH lies east, about 33 leagues on foot.",
+   "THE HOLLOW CROWN lies north-east, about 14 leagues on foot.",
+   "THE DROWNED STAIR lies south, about 57 leagues on foot, though the road bends a long way round.",
+   "BLACKPIT lies north-west, about 33 leagues on foot, though the road bends a long way round.",
+   "MALDRATH'S LAIR lies north-west, about 42 leagues on foot, though the road bends a long way round."
+  ],
+  "drownedstair": [
+   "MILLFORD lies east, about 25 leagues on foot.",
+   "CASTLE MATHESON lies north, about 57 leagues on foot, though the road bends a long way round.",
+   "WARDLOW lies north-east, about 13 leagues on foot.",
+   "ASHCOMBE lies south-west, about 13 leagues on foot.",
+   "STONEREACH lies south-east, about 62 leagues on foot, though the road bends a long way round.",
+   "THE HOLLOW CROWN lies south-east, about 59 leagues on foot, though the road bends a long way round.",
+   "BLACKPIT lies south-west, about 30 leagues on foot.",
+   "MALDRATH'S LAIR lies south, about 25 leagues on foot."
+  ],
+  "hollowcrown": [
+   "MILLFORD lies north, about 50 leagues on foot, though the road bends a long way round.",
+   "CASTLE MATHESON lies south-west, about 14 leagues on foot.",
+   "WARDLOW lies south, about 70 leagues on foot, though the road bends a long way round.",
+   "ASHCOMBE lies north-west, about 46 leagues on foot, though the road bends a long way round.",
+   "STONEREACH lies east, about 21 leagues on foot.",
+   "THE DROWNED STAIR lies north-west, about 59 leagues on foot, though the road bends a long way round.",
+   "BLACKPIT lies west, about 35 leagues on foot.",
+   "MALDRATH'S LAIR lies west, about 44 leagues on foot, though the road bends a long way round."
+  ],
+  "lair": [
+   "MILLFORD lies north-east, about 50 leagues on foot, though the road bends a long way round.",
+   "CASTLE MATHESON lies south-east, about 42 leagues on foot, though the road bends a long way round.",
+   "WARDLOW lies north, about 38 leagues on foot.",
+   "ASHCOMBE lies north, about 18 leagues on foot.",
+   "STONEREACH lies west, about 65 leagues on foot, though the road bends a long way round.",
+   "THE HOLLOW CROWN lies east, about 44 leagues on foot, though the road bends a long way round.",
+   "THE DROWNED STAIR lies north, about 25 leagues on foot.",
+   "BLACKPIT lies west, about 15 leagues on foot."
+  ],
+  "millford": [
+   "CASTLE MATHESON lies south, about 64 leagues on foot, though the road bends a long way round.",
+   "WARDLOW lies north-west, about 20 leagues on foot.",
+   "ASHCOMBE lies west, about 38 leagues on foot.",
+   "STONEREACH lies south-east, about 37 leagues on foot.",
+   "THE HOLLOW CROWN lies south, about 50 leagues on foot, though the road bends a long way round.",
+   "THE DROWNED STAIR lies west, about 25 leagues on foot.",
+   "BLACKPIT lies south-west, about 55 leagues on foot, though the road bends a long way round.",
+   "MALDRATH'S LAIR lies south-west, about 50 leagues on foot, though the road bends a long way round."
+  ],
+  "stonereach": [
+   "MILLFORD lies north-west, about 37 leagues on foot.",
+   "CASTLE MATHESON lies west, about 33 leagues on foot.",
+   "WARDLOW lies south-west, about 57 leagues on foot, though the road bends a long way round.",
+   "ASHCOMBE lies north-east, about 67 leagues on foot, though the road bends a long way round.",
+   "THE HOLLOW CROWN lies west, about 21 leagues on foot.",
+   "THE DROWNED STAIR lies north-west, about 62 leagues on foot, though the road bends a long way round.",
+   "BLACKPIT lies east, about 56 leagues on foot, though the road bends a long way round.",
+   "MALDRATH'S LAIR lies east, about 65 leagues on foot, though the road bends a long way round."
+  ],
+  "wardlow": [
+   "MILLFORD lies south-east, about 20 leagues on foot.",
+   "CASTLE MATHESON lies north, about 70 leagues on foot, though the road bends a long way round.",
+   "ASHCOMBE lies south-west, about 26 leagues on foot, though the road bends a long way round.",
+   "STONEREACH lies north-east, about 57 leagues on foot, though the road bends a long way round.",
+   "THE HOLLOW CROWN lies north, about 70 leagues on foot, though the road bends a long way round.",
+   "THE DROWNED STAIR lies south-west, about 13 leagues on foot.",
+   "BLACKPIT lies south-west, about 43 leagues on foot, though the road bends a long way round.",
+   "MALDRATH'S LAIR lies south, about 38 leagues on foot."
+  ]
+ },
+ "npc_place": {
+  "alda": "stonereach",
+  "ash": "ashcombe",
+  "brann": "wardlow",
+  "coyle": "millford",
+  "king": "castle",
+  "smith": "millford",
+  "steward": "castle",
+  "tam": "millford",
+  "vane": "wardlow"
+ },
+ "places": {
+  "ashcombe": {
+   "id": "ashcombe",
+   "kind": "town",
+   "name": "ASHCOMBE",
+   "x": 16,
+   "y": 23
+  },
+  "blackpit": {
+   "id": "blackpit",
+   "kind": "dungeon",
+   "name": "BLACKPIT",
+   "x": 11,
+   "y": 35
+  },
+  "castle": {
+   "id": "castle",
+   "kind": "castle",
+   "name": "CASTLE MATHESON",
+   "x": 28,
+   "y": 51
+  },
+  "drownedstair": {
+   "id": "drownedstair",
+   "kind": "dungeon",
+   "name": "THE DROWNED STAIR",
+   "x": 22,
+   "y": 16
+  },
+  "hollowcrown": {
+   "id": "hollowcrown",
+   "kind": "dungeon",
+   "name": "THE HOLLOW CROWN",
+   "x": 36,
+   "y": 45
+  },
+  "lair": {
+   "id": "lair",
+   "kind": "lair",
+   "name": "MALDRATH'S LAIR",
+   "x": 19,
+   "y": 38
+  },
+  "millford": {
+   "id": "millford",
+   "kind": "town",
+   "name": "MILLFORD",
+   "x": 40,
+   "y": 19
+  },
+  "stonereach": {
+   "id": "stonereach",
+   "kind": "town",
+   "name": "STONEREACH",
+   "x": 53,
+   "y": 43
+  },
+  "wardlow": {
+   "id": "wardlow",
+   "kind": "town",
+   "name": "WARDLOW",
+   "x": 29,
+   "y": 10
+  }
+ }
+}

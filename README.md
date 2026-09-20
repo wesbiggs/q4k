@@ -39,15 +39,16 @@ Besides the game, `make` builds four dev tools: `tiles` (the whole tile set),
 `charset` (all 256 screen codes), `dungeontest` (preview generated dungeon
 levels) and `serialtest` (a modem loopback).
 
-Generated C (`src/lib/*_data.c`, `include/q4k/tiles.h`, `world_data.h`,
-`town_data.h`) is checked in so the build needs no Python. `tools/mktiles.py`,
-`mkmap.py` and `mktowns.py` regenerate it; `tools/genworld.py` drafted the
-overworld once and is not part of the build.
+Generated files (`src/lib/*_data.c`, `include/q4k/tiles.h`, `world_data.h`,
+`town_data.h`, `assets/geography.json`) are checked in so the build needs no
+Python, and `make` regenerates any whose assets have changed.
+`tools/genworld.py` drafted the overworld once and is not part of the build.
 
 ## Playing
 
-`WASD` or the cursor keys move. Walk into someone to talk to them or open
-their shop. `T` talks to whoever is beside you, `SPACE` waits, `Q` quits.
+`WASD` or the cursor keys move. The panel shows what you are carrying and
+wearing, alongside your stats and any quest items. Walk into someone to talk
+to them or open their shop. `T` talks to whoever is beside you, `SPACE` waits, `Q` quits.
 In a fight: `A`ttack, `D`efend, `P`otion, `R`un.
 
 ## Workflow
@@ -147,6 +148,20 @@ a compatible proxy.
 
 If Ollama is unreachable or the model is not pulled, the daemon says so and
 serves canned lines rather than failing.
+
+### Directions they can be trusted on
+
+Left to itself a model invents geography — it will send you north to a town
+that is south, over a mountain range that is not there.
+[tools/mkgeo.py](tools/mkgeo.py) measures the real map instead: compass
+bearing on the wrapping grid, and walking distance by flood fill over
+passable ground, which is what actually matters when the Sundering runs down
+the middle of the continent. The result goes to `assets/geography.json`, and
+the daemon puts the lines for wherever the speaker is standing in front of
+them, with an instruction not to guess at anything else.
+
+    from Millford: CASTLE MATHESON lies south, about 64 leagues on foot,
+                   though the road bends a long way round.
 
 **The C64 sends only an NPC id.** Every system prompt lives host-side and is
 looked up by that id: [assets/canon.md](assets/canon.md) is the world bible

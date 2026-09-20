@@ -12,6 +12,7 @@
 #   make check      headless run, dump the C64 screen as text
 #   make test       headless run, diff every program against its golden
 #   make bless      accept current output as the new goldens
+#   make assets     regenerate the C and JSON built from assets/
 #   make shot       headless run, save a PNG screenshot
 #   make d64        build a bootable disk image
 #   make clean
@@ -55,10 +56,36 @@ ifneq ($(strip $(LIBOBJ)),)
 LIB      := $(BUILD)/q4k.lib
 endif
 
-.PHONY: all run play check shot test bless d64 clean dirs
+.PHONY: all run play check shot test bless d64 clean dirs assets
 .SECONDARY: $(BUILD)/$(PROG).o
 
-all: dirs $(PRGS)
+all: dirs assets $(PRGS)
+
+# --- generated from assets ---------------------------------------------------
+#
+# The generated C and the geography the NPCs are given are checked in, so a
+# plain build needs no Python. These rules keep them from going stale: edit
+# an asset and the next make regenerates whatever depended on it.
+
+GEN_TILES := include/q4k/tiles.h src/lib/tiles_data.c src/lib/tiles_names.c
+GEN_MAP   := include/q4k/world_data.h src/lib/map_data.c
+GEN_TOWN  := include/q4k/town_data.h src/lib/town_data.c
+GEN_GEO   := assets/geography.json
+
+assets: $(GEN_TILES) $(GEN_MAP) $(GEN_TOWN) $(GEN_GEO)
+
+$(GEN_TILES): assets/tiles.txt tools/mktiles.py
+	tools/mktiles.py
+
+$(GEN_MAP): assets/overworld.txt assets/tiles.txt tools/mkmap.py tools/mktiles.py
+	tools/mkmap.py
+
+$(GEN_TOWN): assets/towns.txt assets/tiles.txt assets/npcs.json tools/mktowns.py
+	tools/mktowns.py
+
+$(GEN_GEO): assets/overworld.txt assets/towns.txt assets/places.txt \
+            assets/tiles.txt tools/mkgeo.py
+	tools/mkgeo.py
 
 dirs:
 	@mkdir -p $(BUILD)/lib $(DIST)

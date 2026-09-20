@@ -1,0 +1,13 @@
+# Named places that are not towns. Towns and the castle come from
+# assets/towns.txt; these are the map markers that have names but no
+# interior of their own.
+#
+#   place <id> <x> <y> <marker> <NAME>
+#
+# <marker> is the overworld character the place must sit on, so a map edit
+# that moves it is caught rather than silently producing wrong directions.
+
+place hollowcrown 36 45 D THE HOLLOW CROWN
+place drownedstair 22 16 D THE DROWNED STAIR
+place blackpit 11 35 D BLACKPIT
+place lair 19 38 L MALDRATH'S LAIR

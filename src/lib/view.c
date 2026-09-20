@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include <q4k/actor.h>
+#include <q4k/battle.h>
 #include <q4k/game.h>
 #include <q4k/charset.h>
 #include <q4k/tiles.h>
@@ -163,62 +164,78 @@ static void put_hp(unsigned char y)
     cputsxy(VAL_X, y, buf);
 }
 
-/* One short label per key item, so the player can see the quest in the
-   margin instead of remembering it. */
+/* Key items, packed so they read as a list of what you have rather than a
+   column of mostly-blank slots. */
 static void put_items(unsigned char y)
 {
     static const char *const labels[7] = {
         "IRON SIGIL", "TIDAL KEY", "ASHEN KEY",
         "EMBERSTONE", "SILVER TEAR", "DRAGON HEART", "DRAGONBANE",
     };
-    unsigned char i, bit = 1;
+    unsigned char i, bit = 1, row = y;
 
     for (i = 0; i < 7; ++i, bit <<= 1) {
-        cclearxy(PANEL_X, y + i, PANEL_W);
-        if (items & bit) {
-            textcolor(i == 6 ? COLOR_YELLOW : COLOR_LIGHTGREEN);
-            cputsxy(PANEL_X, y + i, labels[i]);
+        if (!(items & bit)) {
+            continue;
         }
+        cclearxy(PANEL_X, row, PANEL_W);
+        textcolor(i == 6 ? COLOR_YELLOW : COLOR_LIGHTGREEN);
+        cputsxy(PANEL_X, row, labels[i]);
+        ++row;
+    }
+    while (row <= 18) {
+        cclearxy(PANEL_X, row++, PANEL_W);
     }
 }
 
+/* The panel is eighteen columns by nineteen rows and every one is spoken
+   for, so the blank lines between groups are the only spacing there is. */
 void view_draw_panel(void)
 {
     textcolor(COLOR_YELLOW);
     cputsxy(PANEL_X, 0, hero.name);
 
     textcolor(COLOR_GRAY1);
-    put_label(2, "HP");
-    put_label(3, "LEVEL");
-    put_label(4, "EXP");
-    put_label(5, "GOLD");
-    put_label(6, "DRAUGHTS");
+    put_label(1, "HP");
+    put_label(2, "LEVEL");
+    put_label(3, "EXP");
+    put_label(4, "GOLD");
+    put_label(5, "DRAUGHTS");
 
     textcolor(COLOR_WHITE);
-    put_hp(2);
-    put_num(VAL_X, 3, hero.level);
-    put_num(VAL_X, 4, hero.xp);
-    put_num(VAL_X, 5, gold);
-    put_num(VAL_X, 6, potions);
+    put_hp(1);
+    put_num(VAL_X, 2, hero.level);
+    put_num(VAL_X, 3, hero.xp);
+    put_num(VAL_X, 4, gold);
+    put_num(VAL_X, 5, potions);
+
+    /* What you are actually carrying, which the shop screen otherwise
+       keeps to itself. */
+    textcolor(COLOR_CYAN);
+    cclearxy(PANEL_X, 7, PANEL_W);
+    if (has(IT_BLADE)) {
+        cputsxy(PANEL_X, 7, "DRAGONBANE");
+    } else {
+        cputsxy(PANEL_X, 7, weapon_names[weapon_lv]);
+    }
+    cclearxy(PANEL_X, 8, PANEL_W);
+    cputsxy(PANEL_X, 8, armour_names[armour_lv]);
 
     /* Where you are: the land, a town by name, or how deep you have gone. */
-    cclearxy(PANEL_X, 8, PANEL_W);
+    cclearxy(PANEL_X, 10, PANEL_W);
+    cclearxy(PANEL_X, 11, PANEL_W);
     textcolor(COLOR_LIGHTBLUE);
     if (scene == SCENE_TOWN) {
-        cputsxy(PANEL_X, 8, town_names[place]);
+        cputsxy(PANEL_X, 10, town_names[place]);
     } else if (scene == SCENE_DUNGEON) {
-        cputsxy(PANEL_X, 8, dungeon_names[place]);
-        cclearxy(PANEL_X, 9, PANEL_W);
-        cputsxy(PANEL_X, 9, "LEVEL");
-        put_num(PANEL_X + 6, 9, depth);
+        cputsxy(PANEL_X, 10, dungeon_names[place]);
+        cputsxy(PANEL_X, 11, "LEVEL");
+        put_num(PANEL_X + 6, 11, depth);
     } else {
-        cputsxy(PANEL_X, 8, "KELDMARCH");
-    }
-    if (scene != SCENE_DUNGEON) {
-        cclearxy(PANEL_X, 9, PANEL_W);
+        cputsxy(PANEL_X, 10, "KELDMARCH");
     }
 
-    put_items(11);
+    put_items(13);
 }
 
 void view_message(const char *text)

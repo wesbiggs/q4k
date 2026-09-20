@@ -98,6 +98,13 @@ Your manner: {voice}
 
 Something you know, and may share if it comes up: {knows}
 
+The ways out of here, which you have walked and know to be right:
+{directions}
+
+Those are the only directions you know. If you are asked the way to
+somewhere not on that list, say you do not know the road -- do not guess a
+direction, a distance or a landmark.
+
 How things stand with the traveller in front of you: {situation}
 
 That traveller has just spoken to you. Answer them, as yourself.
@@ -115,6 +122,8 @@ How to answer, every single time:
   names, dates, places or events that are not in it. If you are asked about
   something it does not cover, say plainly that you do not know, the way
   {name} would.
+- Do not invent landmarks. No oak trees, inns, bridges, rivers or waymarks
+  unless the world above names them. Give the direction and leave it there.
 - You are a person in this world, not an assistant. Never say otherwise.
 """
 
@@ -172,9 +181,21 @@ def for_c64(text, limit=MAX_REPLY, speaker=None, max_sentences=None):
 
 
 class Npcs:
-    def __init__(self, canon_path, npcs_path):
+    def __init__(self, canon_path, npcs_path, geo_path=None):
         self.canon = open(canon_path).read()
         self.npcs = json.load(open(npcs_path))
+        # Measured from the actual map by tools/mkgeo.py. Without it a model
+        # will cheerfully send the player north to somewhere that is south.
+        self.geo = {}
+        if geo_path and os.path.exists(geo_path):
+            self.geo = json.load(open(geo_path))
+
+    def directions_for(self, npc_id):
+        where = self.geo.get("npc_place", {}).get(npc_id)
+        lines = self.geo.get("from", {}).get(where) if where else None
+        if not lines:
+            return "You are not sure of the distances to anywhere else."
+        return "\n".join("- " + line for line in lines)
 
     def system_for(self, npc_id, stage=0):
         """The whole system prompt for one NPC, assembled host-side.
@@ -188,6 +209,7 @@ class Npcs:
         return (SYSTEM_PREFACE.format(**npc)
                 + "\n" + self.canon + "\n"
                 + SYSTEM_RULES.format(limit=MAX_REPLY, situation=situation,
+                                      directions=self.directions_for(npc_id),
                                       **npc))
 
     def mock_reply(self, npc_id, text):
@@ -357,11 +379,12 @@ def main():
                     help="OpenAI-compatible base URL (default: local ollama)")
     ap.add_argument("--temperature", type=float, default=0.7)
     ap.add_argument("--canon", default="assets/canon.md")
+    ap.add_argument("--geography", default="assets/geography.json")
     ap.add_argument("--npcs", default="assets/npcs.json")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
 
-    npcs = Npcs(args.canon, args.npcs)
+    npcs = Npcs(args.canon, args.npcs, args.geography)
     dialogue = Dialogue(npcs, url=args.url, model=args.model,
                         temperature=args.temperature, mock=args.mock)
 
