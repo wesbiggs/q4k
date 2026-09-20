@@ -30,6 +30,9 @@
 
 void view_init(void);
 
+/* Draw whichever scene the player is standing in. */
+void view_draw(void);
+
 /* Redraw the frame after another screen (the dialogue view) took over. */
 void view_chrome(void);
 void view_restore(void);

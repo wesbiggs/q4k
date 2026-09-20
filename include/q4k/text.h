@@ -18,6 +18,23 @@ unsigned char petscii_to_ascii(unsigned char c);
 
 void text_clear(unsigned char x, unsigned char y, unsigned char len);
 
+/* Building ASCII strings.
+ *
+ * cc65 encodes C string literals as PETSCII, so a literal cannot be handed
+ * to anything that expects ASCII -- it comes out as blanks. These append to
+ * `dst` and return the new end, so they chain:
+ *
+ *     end = str_lit(buf, "HP ");
+ *     end = str_num(end, hero.hp);
+ *     end = str_lit(end, " OF ");
+ *
+ * str_lit converts as it copies; str_asc is for text that is already ASCII,
+ * such as anything that arrived from the host. */
+char *str_lit(char *dst, const char *literal);
+char *str_asc(char *dst, const char *ascii);
+char *str_num(char *dst, unsigned int value);
+char *str_pad(char *dst, unsigned char to_width, const char *start);
+
 /* Write an ASCII string. Returns how many characters landed. */
 unsigned char text_put(unsigned char x, unsigned char y,
                        const char *s, unsigned char color);

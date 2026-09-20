@@ -48,12 +48,11 @@ int main(void)
 
     clrscr();
     textcolor(COLOR_LIGHTBLUE);
-    cputsxy(0, 0, "Q4K TILE SET");
+    cputsxy(0, 0, "TILE SET");
 
-    for (i = 0; i <= TILE_COUNT; ++i) {
-        y = 2 + i;
-        /* Terrain runs contiguously from TILE_BASE; the player sits apart. */
-        code = (i < TILE_COUNT) ? (TILE_BASE + i) : T_PLAYER;
+    for (i = 0; i < TILE_TOTAL; ++i) {
+        y = 1 + i;
+        code = tile_codes[i];
 
         textcolor(COLOR_GRAY1);
         cputsxy(0, y, tile_names[i]);

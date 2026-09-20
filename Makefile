@@ -31,14 +31,25 @@ C1541    := c1541
 # frame juggling) at the cost of no recursion. Right trade for a tile RPG.
 CFLAGS   := -t $(TARGET) -Osir --static-locals -I include
 ASFLAGS  := -t $(TARGET) -I include
-LDFLAGS  := -t $(TARGET) -C cfg/c64-q4k.cfg
+# The game gets the full memory map; the demos and tools get a lean one that
+# skips the HIGH region and its contiguity padding.
+LDFLAGS  := -t $(TARGET)
+LDCFG     = cfg/c64-$(if $(filter q4k,$*),q4k,tool).cfg
 
 MAINS    := $(wildcard src/*.c)
 PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 
+# Modules whose code lives above the character set, in the HIGH region.
+# Twelve kilobytes under the charset does not hold the whole game; these are
+# the biggest and least performance-critical parts (menus and set-piece
+# screens), so putting them out of the way costs nothing.
+HIMODS   := dialog battle shop dungeon panel
+
 LIBSRC   := $(wildcard src/lib/*.c) $(wildcard src/lib/*.s)
 LIBOBJ   := $(patsubst src/lib/%.c,$(BUILD)/lib/%.o,$(wildcard src/lib/*.c)) \
             $(patsubst src/lib/%.s,$(BUILD)/lib/%.o,$(wildcard src/lib/*.s))
+
+$(foreach m,$(HIMODS),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE))
 
 ifneq ($(strip $(LIBOBJ)),)
 LIB      := $(BUILD)/q4k.lib
@@ -76,7 +87,8 @@ $(BUILD)/%.o: src/%.c
 
 $(DIST)/%.prg: $(BUILD)/%.o $(LIB)
 	@mkdir -p $(DIST)
-	$(CL65) $(LDFLAGS) -m $(BUILD)/$*.map -o $@ $< $(LIB)
+	$(CL65) $(LDFLAGS) -C $(LDCFG) -m $(BUILD)/$*.map \
+	    -Wl -Ln,$(BUILD)/$*.lbl -o $@ $< $(LIB)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
 # --- run / verify -----------------------------------------------------------

@@ -1,59 +1,63 @@
-# The Land of Q4K — world canon
+# Quest for the King — world canon
 
 This file is the shared truth every NPC speaks from. The dialogue daemon sends
 it to the model as a system prompt, so anything written here becomes fact in
 the world, and anything absent is something NPCs should not invent.
 
-## The land
+## The land of Keldmarch
 
-Q4K is a single continent ringed by ocean, and the ocean wraps: sail far
-enough west and you return from the east. Sailors call this the Girdle, and
-take it as proof the world is finished — that nothing lies beyond.
+A single continent ringed by ocean. The ocean wraps: sail far enough west and
+you return from the east. A spine of grey mountains, the **Sundering**, runs
+north to south and splits the land in two. The eastern side is open farmland.
+The west is forest, marsh and rock.
 
-A spine of grey mountains, the **Sundering**, runs north to south down the
-middle of the continent and splits it in two. The eastern plains are open and
-farmed. The western side is forest, marsh and rock. Crossing the Sundering on
-foot is not possible; the passes are the only way, and the passes are watched.
+**King Matheson** has ruled from Castle Matheson in the south for nineteen
+years. He is fair, tired, and out of options.
 
-## The Castle of Lord Q (28, 51)
+## The dragon
 
-In the south, where the land narrows to shore. **Lord Q** has ruled for
-thirty-one years. He is old, precise, and increasingly hard to see in person.
-The castle issues the coin, the maps and the writs of passage.
+**Maldrath** came over the Sundering three winters ago and has not left. He
+burns what he likes and takes what he wants. Two armies have gone against him;
+neither came back. Steel does not mark him.
 
-## The four towns
+The old books say Maldrath cannot be killed, only **banished**, and only by
+the blade **Dragonbane** — which was broken long ago, its three binding stones
+scattered into three deep places and sealed there.
 
-- **Wardlow** (29, 10) — northernmost, cold, a shore town. Fishers and
-  salt-boilers. Suspicious of southerners.
-- **Greenhollow** (40, 19) — eastern plains, the granary of Q4K. Prosperous,
-  complacent, loyal to the castle because the castle buys its grain.
-- **Millbrook** (16, 23) — western, hemmed in by forest. Timber and charcoal.
-  Quietly resentful of Greenhollow's easy wealth.
-- **Stonereach** (53, 43) — southeast, closest to the castle. Masons and
-  tax-clerks. Everyone there has an opinion about Lord Q.
+To reforge it a person must recover all three stones:
 
-## The three dungeons
+- the **Emberstone**, in the Hollow Crown
+- the **Silver Tear**, in the Drowned Stair
+- the **Dragon's Heart**, in Blackpit
 
-Old workings, older than the castle, cut into the rock. Nobody agrees who made
-them. Lord Q's writ forbids entering them, which has never stopped anyone.
+Each of those places is sealed, and each seal answers to a different token.
+Whoever holds all three stones can have the blade reforged at a good anvil.
 
-- **The Drowned Stair** (22, 16) — northern, floods at high tide.
-- **Blackpit** (11, 35) — western, in the deep forest. Charcoal burners avoid it.
-- **The Hollow Crown** (36, 45) — southern, nearest the castle, and the one
-  Lord Q's writ names first.
+Maldrath lairs high in the Sundering, at (19, 38), in a burnt hollow on the
+western face. Everyone knows roughly where. Nobody goes.
 
-## What is happening now
+## Places
 
-For two years the passes through the Sundering have been closing, one by one,
-on the castle's orders and without explanation. Trade between east and west has
-thinned to nothing. The official reason is bandits. Nobody has seen a bandit.
+- **Millford** (40, 19) — eastern plains, a farming village. Home. Garrett's
+  forge and Mistress Coyle's shop are here.
+- **Castle Matheson** (28, 51) — in the south, where the land narrows.
+- **Wardlow** (29, 10) — northern shore town. Fishers, salt, and the last
+  library in Keldmarch.
+- **Ashcombe** (16, 23) — western, hemmed in by forest. Timber and charcoal.
+- **Stonereach** (53, 43) — southeast, masons and the king's armoury.
 
-Rumours, believed unevenly: that something came up out of the Hollow Crown;
-that Lord Q has not been seen because Lord Q is dead; that the closures are a
-tax dodge; that the Girdle is not a girdle at all, and the world has an edge.
+## The three deep places
+
+- **The Hollow Crown** (36, 45) — southern, nearest the castle. Sealed by the
+  **Iron Sigil**, which the king keeps. Its keeper is called **the Gaoler**.
+- **The Drowned Stair** (22, 16) — northern, floods at high tide. Sealed by
+  the **Tidal Key**, held in Wardlow. Its keeper is **the Drowned King**.
+- **Blackpit** (11, 35) — western, in the deep forest. Sealed by the **Ashen
+  Key**, held in Ashcombe. Its keeper is **the Pit Warden**.
 
 ## Tone
 
 Plain, grounded, medieval. People talk about weather, prices, family and
 grievances before they talk about destiny. Nobody speaks in prophecy. Nobody
-says "adventurer" or "hero". The player is a stranger with a sword.
+says "adventurer" or "hero". The stranger they are talking to is a villager
+from Millford with a sword and a letter from the king.

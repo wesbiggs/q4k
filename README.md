@@ -1,7 +1,17 @@
-# q4k
+# Quest for the King
 
 A grid-based RPG roguelike for the Commodore 64, in the spirit of Ultima III.
 Written in C (cc65) with assembly where it pays, run and tested under VICE.
+
+A letter comes from King Matheson. The dragon Maldrath has been burning
+Keldmarch for three winters and two armies have not come back. The blade that
+can banish him was broken, and its three binding stones are sealed in three
+deep places. Buy a sword, walk south, and start asking people questions.
+
+The plot is deliberately the oldest one there is. What is not old is who you
+talk to: every NPC answers in their own voice, from the world's canon and
+from how far you have got, through a model running on the host at the other
+end of the C64's modem port.
 
 ## Setup
 
@@ -15,19 +25,30 @@ That is the whole toolchain: `cc65`/`ca65`/`ld65`/`ar65` build, `x64sc` runs,
 ## Layout
 
 ```
-src/<name>.c      a program with main() -> dist/<name>.prg
-src/lib/          shared modules, archived into build/q4k.lib
-include/q4k/      public headers
-cfg/c64-q4k.cfg   memory map (charset, probe page, RS-232 buffers)
-assets/           tiles, overworld, world canon, NPC roster
-host/             daemons that answer the C64's modem
-tools/            run, screenshot, screen dump, tests
-tests/            expected screen output
+src/<name>.c        a program with main() -> dist/<name>.prg
+src/lib/            shared modules, archived into build/q4k.lib
+include/q4k/        public headers
+cfg/c64-q4k.cfg     the game's memory map; c64-tool.cfg for the small tools
+assets/             tiles, overworld, towns, world canon, NPC roster
+host/               daemons that answer the C64's modem
+tools/              build, run, screenshot, screen dump, tests
+tests/              expected screen output
 ```
 
-Generated files (`src/lib/tiles_data.c`, `src/lib/map_data.c`,
-`include/q4k/tiles.h`, `include/q4k/world_data.h`) are checked in so the build
-needs no Python; `tools/mktiles.py` and `tools/mkmap.py` regenerate them.
+Besides the game, `make` builds four dev tools: `tiles` (the whole tile set),
+`charset` (all 256 screen codes), `dungeontest` (preview generated dungeon
+levels) and `serialtest` (a modem loopback).
+
+Generated C (`src/lib/*_data.c`, `include/q4k/tiles.h`, `world_data.h`,
+`town_data.h`) is checked in so the build needs no Python. `tools/mktiles.py`,
+`mkmap.py` and `mktowns.py` regenerate it; `tools/genworld.py` drafted the
+overworld once and is not part of the build.
+
+## Playing
+
+`WASD` or the cursor keys move. Walk into someone to talk to them or open
+their shop. `T` talks to whoever is beside you, `SPACE` waits, `Q` quits.
+In a fight: `A`ttack, `D`efend, `P`otion, `R`un.
 
 ## Workflow
 
@@ -55,7 +76,12 @@ waits for a handshake, and prints the 40x25 screen:
 ```
 
 Add `--hex` for raw screen codes, `--color` for colour RAM, `--keys "wasd"`
-to feed the keyboard, `--stage N` to wait for a later checkpoint.
+to feed the keyboard, `--stage N` to wait for a later checkpoint, `--shot` to
+render a PNG from emulated memory.
+
+`--poke quest_stage=7 --poke items=0x38` sets any global by name, resolved
+from ld65's label file. That is how a test reaches the middle of a long quest
+without walking there, and it keeps cheat hooks out of the game itself.
 
 ## How the headless harness works
 
@@ -69,6 +95,20 @@ out of emulated memory.
 Polling a handshake rather than sleeping means tests run at whatever speed the
 emulator manages (currently under a second each) and never race a half-drawn
 screen.
+
+## The map
+
+The overworld is a wrapping 64x64 grid; towns and dungeon levels are exactly
+one 21x19 viewport, so they never scroll. Towns are authored in
+[assets/towns.txt](assets/towns.txt); dungeon levels are generated, seeded
+from the dungeon and depth so a level you walk back into is the level you
+left.
+
+`tools/checkmap.py` (run by `make test`) floods the overworld from the start
+square and each town from its arrival square, and fails if any town, dungeon,
+lair or shopkeeper cannot be walked to. It has already caught two bugs a
+screen test never would: the dragon's lair walled inside the mountains, and a
+shopkeeper standing in a doorway blocking the smith behind him.
 
 ## Picking tile glyphs
 

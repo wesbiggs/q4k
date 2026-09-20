@@ -13,6 +13,9 @@
 #define DIALOG_ENOLINE   1   /* the port would not open   */
 #define DIALOG_ESILENT   2   /* nobody answered in time   */
 
-unsigned char dialog_talk(const char *npc_id, const char *place);
+/* `stage` is the quest stage; the daemon uses it to tell the NPC where the
+   story has got to. Stays a single digit -- see Q_* in game.h. */
+unsigned char dialog_talk(const char *npc_id, const char *place,
+                          unsigned char stage);
 
 #endif /* Q4K_DIALOG_H */

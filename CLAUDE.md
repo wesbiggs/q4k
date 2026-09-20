@@ -1,7 +1,7 @@
-# q4k — working notes
+# Quest for the King — working notes
 
 Grid-based RPG roguelike for the Commodore 64 (Ultima III lineage).
-cc65 + VICE on macOS. See README.md for the workflow.
+cc65 + VICE on macOS. See README.md for the workflow and the story.
 
 ## Conventions
 
@@ -12,6 +12,25 @@ cc65 + VICE on macOS. See README.md for the workflow.
   pulls in only what each program references. Adding a module to `src/lib/`
   costs nothing in programs that don't call it.
 - Anything with `main()` goes directly in `src/` and becomes its own `.prg`.
+
+## Memory
+
+Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
+
+- `$0801-$37FF` **MAIN** — code and rodata. Twelve kilobytes, and the game
+  does not fit in it.
+- `$3800-$3FFF` **charset**, built at runtime. Must be in VIC bank 0 and not
+  at `$1000`/`$1800`, where the VIC sees character ROM whatever RAM holds.
+- `$4000-$9FFF` **HIGH** — `HIDATA` for bulk tables (the overworld, the
+  towns) and `HICODE` for module code that will not fit below. Modules listed
+  in the Makefile's `HIMODS` are compiled with `--code-name HICODE`; add to
+  that list when MAIN overflows. Changing the list needs the objects rebuilt,
+  because a target-specific `CFLAGS` will not invalidate them on its own.
+- `$A000-$C4FF` **BSS**, then the RS-232 buffers, C stack and probe page.
+
+The PRG is one contiguous load, so MAIN and the charset gap are `fill = yes`.
+That is why the small tools use `cfg/c64-tool.cfg` instead: without it a
+1.4K hello world becomes a 14K one.
 
 ## Things that will bite you
 
@@ -51,6 +70,18 @@ Call `probe_stage(n)` at points worth asserting on, then
 the whole 40x25 screen, so any layout change shows up as a diff. Re-bless
 deliberately, never reflexively.
 
+**cc65's `rand()` starts from a fixed seed**, so without `reseed()` every
+playthrough meets the same monsters on the same squares — and the opening of
+that sequence happens to be a long quiet one, which looked exactly like
+encounters being broken. `dungeon_build()` seeds deliberately, for repeatable
+levels, so anything that calls it reseeds afterwards.
+
+**People block movement**, so two NPCs in a line make the inner one
+unreachable. `tools/checkmap.py` checks this; run `make test` after editing
+`assets/towns.txt`.
+
+## Testing
+
 `tools/screendump.py --keys "..."` types into the KERNAL's keyboard buffer
 (`$0277`/`$C6`) directly — VICE's own key injection proved unreliable — which
 is how to drive turn-based input, and typed dialogue, without a human.
@@ -60,6 +91,11 @@ charset), so it can capture a screen mid-conversation; VICE's own
 
 Note that `make check` opens a real VICE window that takes keyboard focus.
 Typing into it while a test runs will change the result.
+
+`--poke SYM=VALUE` (and `SYM+OFFSET=VALUE`) writes any global by name, using
+the label file ld65 emits next to the binary. Prefer it over adding debug
+hooks to the game: the quest, the inventory and the party struct are all
+reachable from a test this way, and none of it ships.
 
 **The modem.** `tools/screendump.py --rs232 PORT` wires the user port to a TCP
 socket and drops warp mode. `host/npcd.py --mock` serves deterministic canned

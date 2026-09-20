@@ -11,6 +11,7 @@
 #        block impassable
 #        water impassable on foot; a boat will change that
 #        enter stepping on it enters a town/castle/dungeon
+#        actor  not terrain at all -- drawn on top of it
 
 tile grass . 0x60 pass green
 ........
@@ -132,12 +133,92 @@ tile floor _ 0x6B pass gray1
 ........
 ....#...
 
-tile player @ 0x70 pass white
+tile door + 0x6C pass brown
+........
+.######.
+.#....#.
+.#...##.
+.#....#.
+.#....#.
+.######.
+........
+
+tile stairdn > 0x6D pass gray3
+........
+##......
+##......
+####....
+####....
+######..
+######..
+########
+
+tile stairup < 0x6E pass gray3
+........
+......##
+......##
+....####
+....####
+..######
+..######
+########
+
+tile chest * 0x6F pass yellow
+........
+..####..
+.######.
+.##..##.
+.######.
+.##..##.
+.######.
+........
+
+tile lair L 0x70 enter red
+........
+..#..#..
+.##..##.
+.######.
+.#.##.#.
+.######.
+..#..#..
+........
+
+tile player @ 0x78 actor white
 ...##...
 ..####..
 ...##...
 .######.
 ...##...
 ...##...
+..#..#..
+.##..##.
+
+tile villager v 0x79 actor cyan
+...##...
+..####..
+...##...
+..####..
+.#.##.#.
+...##...
+..#..#..
+.##..##.
+
+tile monster m 0x7A actor lightred
+........
+.#....#.
+..#..#..
+.######.
+.#.##.#.
+.######.
+.#.##.#.
+.#....#.
+
+tile dragon Y 0x7B actor red
+##....##
+.##..##.
+..####..
+.######.
+##.##.##
+.######.
 ..#..#..
 .##..##.

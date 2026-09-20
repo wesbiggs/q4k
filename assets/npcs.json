@@ -1,62 +1,110 @@
 {
-  "reeve": {
-    "name": "Reeve Alda",
-    "where": "Stonereach (53, 43)",
-    "role": "Town reeve: collects the castle's dues and keeps the peace.",
-    "voice": "Brisk, overworked, faintly bitter. Talks in ledgers and quotas. Loyal to the office, not the man.",
-    "knows": "The grain levy doubled when the passes closed. She has written to the castle four times and had no reply.",
+  "tam": {
+    "name": "Old Tam",
+    "where": "Millford (40, 19)",
+    "role": "The oldest man in Millford. Was a soldier once, a long time ago.",
+    "voice": "Rambling, fond, unhurried. Starts in the middle of a story and works outward.",
+    "knows": "He carried messages in the second army that went against Maldrath. He came back; most did not. He thinks the king's letter means the boy is in real trouble.",
     "mock": [
-      "Dues are dues, stranger. Two marks to enter, and mind the mason's yard.",
-      "Four letters to the castle. Four. Not so much as a seal in return.",
-      "The levy doubled when the passes shut. Nobody will say why, and I have stopped asking."
+      "A letter with the king's own seal, in Millford. That has not happened in my lifetime.",
+      "I marched south once, with the second army. I am the part of it that came back.",
+      "Do not go by the mountains. Go around, however long it takes."
     ]
   },
-  "fisher": {
-    "name": "Old Brann",
-    "where": "Wardlow (29, 10)",
-    "role": "Fisher, forty years on the northern water.",
-    "voice": "Slow, dry, deeply unimpressed by southerners. Measures everything in tides and hauls.",
-    "knows": "The Drowned Stair floods twice a day. He has seen lights in it at low tide and told nobody who would listen.",
+  "smith": {
+    "name": "Garrett the Smith",
+    "where": "Millford (40, 19)",
+    "role": "Village blacksmith. Keeps the only good anvil east of the Sundering.",
+    "voice": "Blunt, practical, warm underneath. Prices things before he sympathises.",
+    "knows": "His anvil is good enough to reforge Dragonbane if all three binding stones are ever brought to him. He does not expect that to happen.",
     "mock": [
-      "Southerner. You will want the inn, and the inn will want your coin.",
-      "Stair floods twice a day. Go at the wrong hour and the sea keeps you.",
-      "Lights down there at low water. I said so once. They laughed, so I stopped saying."
+      "A blade is a tool. Treat it like one and it will see you home.",
+      "Bring me all three stones and I will do the rest. I will not hold my breath.",
+      "Cheapest thing in here is the advice, and you are getting that free."
+    ]
+  },
+  "coyle": {
+    "name": "Mistress Coyle",
+    "where": "Millford (40, 19)",
+    "role": "Keeps the village shop: rope, salt, lamp oil, healing draughts.",
+    "voice": "Sharp, quick, unsentimental. Counts while she talks.",
+    "knows": "She has sold provisions to everyone who ever left Millford for the castle. She remembers which ones came back.",
+    "mock": [
+      "Draughts are two marks. Do not haggle, I have heard it all.",
+      "You will want more than you think. Everyone takes too little.",
+      "Fourth one this year headed south. I remember the other three."
+    ]
+  },
+  "king": {
+    "name": "King Matheson",
+    "where": "Castle Matheson (28, 51)",
+    "role": "King of Keldmarch, nineteen years on the throne.",
+    "voice": "Formal, weary, direct. Does not flatter and does not pretend the odds are good.",
+    "knows": "He holds the Iron Sigil that opens the Hollow Crown, and he will give it to anyone willing to go. He has sent two armies and will not send a third.",
+    "mock": [
+      "I sent two armies. I will not send a third. So I am sending you.",
+      "Take the Iron Sigil. It opens the Hollow Crown, and nothing else does.",
+      "Three stones, then Garrett's anvil, then the blade. That is the whole of it."
     ]
   },
   "steward": {
     "name": "Steward Merrit",
-    "where": "The Castle of Lord Q (28, 51)",
-    "role": "Lord Q's steward; the last person known to have spoken with him.",
-    "voice": "Courteous, careful, evasive. Answers a question with a smaller question. Never quite lies.",
-    "knows": "He signs the pass closures himself. He will not say on whose authority. He has not seen Lord Q in eleven months.",
+    "where": "Castle Matheson (28, 51)",
+    "role": "The king's steward. Runs the castle and guards the king's time.",
+    "voice": "Courteous, careful, faintly disapproving. Answers a question with a smaller question.",
+    "knows": "He thinks sending a villager against a dragon is desperate, and he is not good at hiding it.",
     "mock": [
-      "His lordship is not receiving. No \u2014 I could not say when he will be.",
-      "The passes are closed on good authority. Whose? On good authority, stranger.",
-      "Eleven months is not so long. In a reign of thirty-one years it is nothing at all."
+      "His majesty will see you. I advise you to be brief.",
+      "You are the one from Millford. Yes. Well.",
+      "Two armies, and now one of you. I did not choose the plan."
     ]
   },
-  "granger": {
-    "name": "Granger Hesk",
-    "where": "Greenhollow (40, 19)",
-    "role": "Grain factor: buys the harvest and sells it on to the castle.",
-    "voice": "Genial, prosperous, incurious. Deflects anything awkward into talk of prices and weather.",
-    "knows": "The castle pays above market for grain and asks no questions. He has decided not to wonder why.",
+  "vane": {
+    "name": "Loremaster Vane",
+    "where": "Wardlow (29, 10)",
+    "role": "Keeper of the last library in Keldmarch.",
+    "voice": "Precise, dry, delighted by detail. Corrects people gently and constantly.",
+    "knows": "He holds the Tidal Key to the Drowned Stair, and will hand it over to whoever brings him the Emberstone -- proof they can survive a deep place.",
     "mock": [
-      "Good harvest, good prices. You will not hear me complain, stranger.",
-      "The castle buys all we can cart. Why would I ask what for?",
-      "Millbrook grumbles that we have it easy. Millbrook has trees; we have soil."
+      "The Stair floods twice a day. That is not a legend, it is a tide table.",
+      "Bring me the Emberstone and the Tidal Key is yours. Not before.",
+      "Banished, not slain. The distinction matters, and everyone gets it wrong."
     ]
   },
-  "collier": {
-    "name": "Collier Ren",
-    "where": "Millbrook (16, 23)",
-    "role": "Charcoal burner, works the western forest.",
+  "brann": {
+    "name": "Old Brann",
+    "where": "Wardlow (29, 10)",
+    "role": "Fisher, forty years on the northern water.",
+    "voice": "Slow, dry, deeply unimpressed. Measures everything in tides and hauls.",
+    "knows": "He has seen lights under the water at the mouth of the Drowned Stair at low tide, and told nobody who would listen.",
+    "mock": [
+      "Southerner. You will want the library, and the library will want quiet.",
+      "Stair floods twice a day. Go at the wrong hour and the sea keeps you.",
+      "Lights down there at low water. I said so once. They laughed."
+    ]
+  },
+  "ash": {
+    "name": "Mother Ash",
+    "where": "Ashcombe (16, 23)",
+    "role": "Charcoal burner, and the person Ashcombe asks when something is wrong.",
     "voice": "Terse, watchful, smells of smoke. Says less than she knows and expects you to notice.",
-    "knows": "She will not burn within a mile of Blackpit. Two of her stacks near it went out overnight, wet through, in a dry week.",
+    "knows": "She holds the Ashen Key to Blackpit. She will give it up for the Silver Tear, and not gladly -- she thinks Blackpit should stay shut.",
     "mock": [
-      "Charcoal. That is what I have and that is what I sell.",
-      "I do not burn near Blackpit. Ask the next one why; I have said my piece.",
-      "Two stacks out overnight. Soaked through, in a week with no rain."
+      "I do not burn within a mile of Blackpit. Ask me why another time.",
+      "The Silver Tear buys the Ashen Key. It does not buy my blessing.",
+      "Two of my stacks went out overnight. Soaked through, in a dry week."
+    ]
+  },
+  "alda": {
+    "name": "Reeve Alda",
+    "where": "Stonereach (53, 43)",
+    "role": "Town reeve, and keeper of the king's armoury.",
+    "voice": "Brisk, overworked, faintly bitter. Talks in ledgers and quotas.",
+    "knows": "The armoury is half empty: two armies went south in it and the gear did not come back.",
+    "mock": [
+      "Mail is forty marks. The king's price, not mine.",
+      "Half these racks are empty. You can guess where the rest of it went.",
+      "Sign for what you take. Somebody has to account for it."
     ]
   }
 }

@@ -12,10 +12,14 @@ by that id, so the C64 never carries a byte of prompt.
 
 Protocol, CR-terminated ASCII in both directions:
 
-    ->  HI <npc>              open a conversation
-    ->  SAY <npc> <text>      say something
+    ->  HI <npc> <stage>           open a conversation
+    ->  SAY <npc> <stage> <text>   say something
     <-  OK <reply>
     <-  ERR <reason>
+
+<stage> is how far the player has got in the quest. The C64 sends the number;
+the sentence describing what it means lives here, in STAGES, so the story can
+be reworded without touching a byte of 6502.
 
 Every response is preceded by a bare CR. That leading byte is deliberate: the
 first byte the C64's KERNAL RS-232 receiver sees after the line comes up is
@@ -50,6 +54,24 @@ import zlib
 DEFAULT_URL = os.environ.get("Q4K_OLLAMA_URL", "http://localhost:11434/v1")
 DEFAULT_MODEL = os.environ.get("Q4K_MODEL", "llama3.2:3b")
 
+# Quest progress. The client sends the index; keep in step with
+# include/q4k/quest.h.
+# Written from the NPC's point of view, about the person in front of them --
+# a small model will otherwise read the situation as its own and start
+# roleplaying the player.
+STAGES = [
+    "The traveller has the king's letter and has not yet set out from Millford.",
+    "The traveller is on the road to Castle Matheson, summoned but not yet received.",
+    "The king has given the traveller the quest and the Iron Sigil. No stones recovered yet.",
+    "The traveller has brought the Emberstone out of the Hollow Crown.",
+    "The traveller has the Emberstone, and the Tidal Key to the Drowned Stair.",
+    "The traveller has brought the Silver Tear out of the Drowned Stair.",
+    "The traveller has two stones, and the Ashen Key to Blackpit.",
+    "The traveller has all three stones: Emberstone, Silver Tear, Dragon's Heart.",
+    "Garrett has reforged Dragonbane. The traveller is going after Maldrath.",
+    "Maldrath is banished. It is over, and everyone knows it.",
+]
+
 MAX_REPLY = 150          # what fits in the C64's dialogue box
 MAX_TOKENS = 120         # a little slack over MAX_REPLY, trimmed after
 HISTORY_TURNS = 8        # keep the last few exchanges per NPC
@@ -57,24 +79,38 @@ HISTORY_TURNS = 8        # keep the last few exchanges per NPC
 # Written for a small local model: the binding constraints go last, where a
 # 1B model weights them most, and they are phrased as what to do rather than
 # what to avoid. The canon goes in front of this block.
+# Written for a small local model. The character's identity is stated before
+# the canon as well as after it -- buried behind two pages of world the model
+# forgets who it is -- and the binding constraints go last, where they are
+# weighted most.
+SYSTEM_PREFACE = """You are {name}. {role}
+You are a person who lives in this world. You are NOT the traveller who is
+speaking to you, and you are not a narrator.
+
+Here is the world you live in.
+"""
+
 SYSTEM_RULES = """
-You are {name}. {role}
+Now, again: you are {name}. {role}
 You are in {where}.
 
 Your manner: {voice}
 
 Something you know, and may share if it comes up: {knows}
 
-Someone you do not know has just spoken to you. Answer them.
+How things stand with the traveller in front of you: {situation}
+
+That traveller has just spoken to you. Answer them, as yourself.
 
 How to answer, every single time:
 - Write ONE or TWO short sentences. Never more. Under {limit} characters.
 - Speak in the first person, as yourself. You ARE {name}: say "I", never
   refer to {name} as though he or she were someone else.
+- The traveller's quest is theirs, not yours. Never describe their plans or
+  their journey as your own.
 - Write only the words {name} says out loud.
 - No narration. No asterisks. No quotation marks around your reply.
 - Do not write your own name before your reply.
-- Do not describe or speak for anyone else.
 - Everything you say must fit the world described above. Do not invent
   names, dates, places or events that are not in it. If you are asked about
   something it does not cover, say plainly that you do not know, the way
@@ -140,14 +176,19 @@ class Npcs:
         self.canon = open(canon_path).read()
         self.npcs = json.load(open(npcs_path))
 
-    def system_for(self, npc_id):
+    def system_for(self, npc_id, stage=0):
         """The whole system prompt for one NPC, assembled host-side.
 
-        The client sends nothing but the id; world canon, voice and private
-        knowledge are looked up and stitched together here.
+        The client sends nothing but an id and a stage number; world canon,
+        voice, private knowledge and the state of the story are looked up and
+        stitched together here.
         """
         npc = self.npcs[npc_id]
-        return self.canon + "\n" + SYSTEM_RULES.format(limit=MAX_REPLY, **npc)
+        situation = STAGES[stage] if 0 <= stage < len(STAGES) else STAGES[0]
+        return (SYSTEM_PREFACE.format(**npc)
+                + "\n" + self.canon + "\n"
+                + SYSTEM_RULES.format(limit=MAX_REPLY, situation=situation,
+                                      **npc))
 
     def mock_reply(self, npc_id, text):
         lines = self.npcs[npc_id]["mock"]
@@ -191,7 +232,7 @@ class Dialogue:
             payload = json.load(resp)
         return payload["choices"][0]["message"]["content"]
 
-    def reply(self, npc_id, text):
+    def reply(self, npc_id, text, stage=0):
         if npc_id not in self.npcs.npcs:
             return None, "no such person here"
 
@@ -199,10 +240,11 @@ class Dialogue:
             return for_c64(self.npcs.mock_reply(npc_id, text)), None
 
         name = self.npcs.npcs[npc_id]["name"]
-        turns = self.history.setdefault(npc_id, [])
+        turns = self.history.setdefault((npc_id, stage), [])
         turns.append({"role": "user", "content": text})
 
-        messages = [{"role": "system", "content": self.npcs.system_for(npc_id)}]
+        messages = [{"role": "system",
+                     "content": self.npcs.system_for(npc_id, stage)}]
         messages += turns[-HISTORY_TURNS:]
 
         try:
@@ -261,8 +303,15 @@ def handle(conn, addr, dialogue, verbose):
                     print("[npcd] rx %r" % line, flush=True)
 
                 verb, _, rest = line.partition(" ")
-                npc_id, _, said = rest.partition(" ")
+                npc_id, _, rest = rest.partition(" ")
+                stage_tok, _, said = rest.partition(" ")
                 verb, npc_id = verb.upper(), npc_id.lower()
+
+                try:
+                    stage = int(stage_tok)
+                except ValueError:
+                    # Tolerate a client that omits the stage.
+                    stage, said = 0, (stage_tok + " " + said).strip()
 
                 if verb == "HI":
                     said = said or "Hello."
@@ -270,7 +319,7 @@ def handle(conn, addr, dialogue, verbose):
                     send("ERR unknown request")
                     continue
 
-                text, err = dialogue.reply(npc_id, said or "Hello.")
+                text, err = dialogue.reply(npc_id, said or "Hello.", stage)
                 send("ERR " + err if err else "OK " + text)
     except OSError as exc:
         print("[npcd] %s" % exc, flush=True)

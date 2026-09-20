@@ -4,6 +4,7 @@
 
 #include <q4k/dialog.h>
 #include <q4k/modem.h>
+#include <q4k/panel.h>
 #include <q4k/text.h>
 #include <q4k/view.h>
 
@@ -30,68 +31,14 @@ static char input[INPUT_MAX];
 static char reply[REPLY_MAX];
 static char seg[SCR_W + 1];
 
-static unsigned char tr_next;
 static unsigned char line_open;
-
-static void scroll_transcript(void)
-{
-    unsigned char y;
-    unsigned int  dst;
-
-    for (y = 0; y < TR_H - 1; ++y) {
-        dst = (unsigned int)(TR_Y + y) * SCR_W;
-        memcpy(SCREEN_RAM + dst, SCREEN_RAM + dst + SCR_W, SCR_W);
-        memcpy(COLOR_RAM + dst, COLOR_RAM + dst + SCR_W, SCR_W);
-    }
-    text_clear(0, TR_Y + TR_H - 1, SCR_W);
-}
-
-static void say_line(const char *s, unsigned char color)
-{
-    if (tr_next >= TR_H) {
-        scroll_transcript();
-        tr_next = TR_H - 1;
-    }
-    text_clear(0, TR_Y + tr_next, SCR_W);
-    text_put(0, TR_Y + tr_next, s, color);
-    ++tr_next;
-}
-
-/* Append ASCII text, wrapped at word boundaries. */
-static void say_wrapped(const char *s, unsigned char color)
-{
-    unsigned char i, brk;
-
-    while (*s) {
-        brk = 0;
-        for (i = 0; i < SCR_W && s[i]; ++i) {
-            if (s[i] == 0x20) {
-                brk = i;
-            }
-        }
-        if (s[i] == '\0') {
-            brk = i;            /* the rest fits on one line */
-        } else if (brk == 0) {
-            brk = SCR_W;        /* one very long word: hard-split */
-        }
-
-        memcpy(seg, s, brk);
-        seg[brk] = '\0';
-        say_line(seg, color);
-
-        s += brk;
-        while (*s == 0x20) {
-            ++s;
-        }
-    }
-}
 
 static void frame(const char *place)
 {
     unsigned char x;
 
     clrscr();
-    tr_next = 0;
+    panel_begin(TR_Y, TR_H);
 
     textcolor(COLOR_YELLOW);
     cputsxy(0, 0, place);
@@ -114,7 +61,8 @@ static unsigned char read_input(void)
 
     for (;;) {
         text_clear(0, IN_Y, SCR_W);
-        text_put(0, IN_Y, "> ", COLOR_GRAY1);
+        str_lit(seg, "> ");
+        text_put(0, IN_Y, seg, COLOR_GRAY1);
         input[n] = '\0';
         text_put(2, IN_Y, input, COLOR_WHITE);
         /* Block cursor, drawn as a reversed space. */
@@ -146,7 +94,7 @@ static unsigned char read_input(void)
 
 /* Send one request and show the answer. */
 static unsigned char exchange(const char *verb, const char *npc_id,
-                              const char *said)
+                              unsigned char stage, const char *said)
 {
     unsigned char err, i;
     char *start;
@@ -154,12 +102,14 @@ static unsigned char exchange(const char *verb, const char *npc_id,
     modem_put_literal(verb);
     modem_put_literal(npc_id);
     modem_put(0x20);
+    modem_put(0x30 + stage);   /* Q_* never reaches ten, so one digit does */
+    modem_put(0x20);
     if (said) {
         modem_puts(said);        /* already ASCII: the player typed it */
     }
     modem_put_cr();
 
-    say_line("...", COLOR_GRAY2);
+    panel_lit("...", COLOR_GRAY2);
     err = modem_getline(reply, REPLY_MAX, REPLY_TICKS);
 
     /* The host prefixes every answer with a bare CR to absorb the first-byte
@@ -168,10 +118,10 @@ static unsigned char exchange(const char *verb, const char *npc_id,
         err = modem_getline(reply, REPLY_MAX, REPLY_TICKS);
     }
 
-    --tr_next;                   /* drop the "..." placeholder */
+    panel_undo();                /* drop the "..." placeholder */
 
     if (err != MODEM_OK) {
-        say_line("(no answer)", COLOR_LIGHTRED);
+        panel_lit("(no answer)", COLOR_LIGHTRED);
         return DIALOG_ESILENT;
     }
 
@@ -187,33 +137,34 @@ static unsigned char exchange(const char *verb, const char *npc_id,
     /* "OK <text>" / "ERR <text>". Numeric: start[] holds ASCII from the wire,
        and cc65 would compile 'O' to PETSCII $CF. */
     if (start[0] == 0x4F && start[1] == 0x4B && start[2] == 0x20) {
-        say_wrapped(start + 3, COLOR_LIGHTGREEN);
+        panel_wrap(start + 3, COLOR_LIGHTGREEN);
     } else if (start[0] == 0x45) {
-        say_wrapped(start, COLOR_LIGHTRED);
+        panel_wrap(start, COLOR_LIGHTRED);
     } else {
-        say_wrapped(start, COLOR_GRAY1);
+        panel_wrap(start, COLOR_GRAY1);
     }
     return DIALOG_OK;
 }
 
-unsigned char dialog_talk(const char *npc_id, const char *place)
+unsigned char dialog_talk(const char *npc_id, const char *place,
+                          unsigned char stage)
 {
     unsigned char n;
 
     frame(place);
 
     if (!line_open) {
-        say_line("DIALLING...", COLOR_GRAY1);
+        panel_lit("DIALLING...", COLOR_GRAY1);
         if (modem_open(MODEM_300) != MODEM_OK) {
-            say_line("THE LINE IS DEAD.", COLOR_LIGHTRED);
+            panel_lit("THE LINE IS DEAD.", COLOR_LIGHTRED);
             cgetc();
             return DIALOG_ENOLINE;
         }
         line_open = 1;
-        --tr_next;
+        panel_undo();
     }
 
-    if (exchange("HI ", npc_id, 0) != DIALOG_OK) {
+    if (exchange("HI ", npc_id, stage, 0) != DIALOG_OK) {
         cgetc();
         return DIALOG_ESILENT;
     }
@@ -228,13 +179,10 @@ unsigned char dialog_talk(const char *npc_id, const char *place)
         }
 
         text_clear(0, IN_Y, SCR_W);
-        say_line("", COLOR_WHITE);
-        seg[0] = 0x3E;   /* '>' in ASCII */
-        seg[1] = 0x20;
-        memcpy(seg + 2, input, n + 1);
-        say_wrapped(seg, COLOR_WHITE);
+        str_asc(str_lit(seg, "> "), input);
+        panel_wrap(seg, COLOR_WHITE);
 
-        exchange("SAY ", npc_id, input);
+        exchange("SAY ", npc_id, stage, input);
     }
 
     return DIALOG_OK;

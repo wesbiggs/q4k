@@ -1,4 +1,6 @@
 #include <c64.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <q4k/text.h>
 #include <q4k/view.h>
@@ -71,4 +73,46 @@ unsigned char text_put(unsigned char x, unsigned char y,
         ++n;
     }
     return n;
+}
+
+char *str_lit(char *dst, const char *literal)
+{
+    unsigned char c;
+
+    while (*literal) {
+        c = petscii_to_ascii((unsigned char)*literal++);
+        if (c) {
+            *dst++ = (char)c;
+        }
+    }
+    *dst = '\0';
+    return dst;
+}
+
+char *str_asc(char *dst, const char *ascii)
+{
+    while (*ascii) {
+        *dst++ = *ascii++;
+    }
+    *dst = '\0';
+    return dst;
+}
+
+char *str_num(char *dst, unsigned int value)
+{
+    /* Decimal digits are $30-$39 in both encodings, so utoa's output needs
+       no conversion. */
+    utoa(value, dst, 10);
+    return dst + strlen(dst);
+}
+
+/* Pad with spaces until the string is `to_width` characters long, counting
+   from `start`. Useful for lining up columns. */
+char *str_pad(char *dst, unsigned char to_width, const char *start)
+{
+    while ((unsigned char)(dst - start) < to_width) {
+        *dst++ = 0x20;
+    }
+    *dst = '\0';
+    return dst;
 }

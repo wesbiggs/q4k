@@ -1,15 +1,15 @@
     +----------------------------------------+
-  0 |THE CASTLE -- STEWARD MERRIT            |
+  0 |GARRETT THE SMITH                       |
   1 |········································|
   2 |                                        |
-  3 |The passes are closed on good           |
-  4 |authority. Whose? On good authority,    |
-  5 |stranger.                               |
-  6 |                                        |
-  7 |> what of lord q                        |
-  8 |Eleven months is not so long. In a      |
-  9 |reign of thirty-one years it is nothing |
- 10 |at all.                                 |
+  3 |Bring me all three stones and I will do |
+  4 |the rest. I will not hold my breath.    |
+  5 |> what of the blade                     |
+  6 |A blade is a tool. Treat it like one    |
+  7 |and it will see you home.               |
+  8 |                                        |
+  9 |                                        |
+ 10 |                                        |
  11 |                                        |
  12 |                                        |
  13 |                                        |

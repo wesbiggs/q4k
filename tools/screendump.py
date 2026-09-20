@@ -159,6 +159,43 @@ class Monitor:
             pass
 
 
+def load_symbols(prg):
+    """Read ld65's label file for the program, so tests can name globals.
+
+    Poking state directly is how a test reaches the middle of a long quest
+    without walking there -- and it keeps the debug hooks out of the game
+    itself, which would otherwise have to carry a cheat channel it does not
+    need.
+    """
+    lbl = os.path.join("build",
+                       os.path.splitext(os.path.basename(prg))[0] + ".lbl")
+    syms = {}
+    if not os.path.exists(lbl):
+        return syms
+    for line in open(lbl):
+        parts = line.split()
+        # "al 00A370 ._quest_stage"
+        if len(parts) == 3 and parts[0] == "al" and parts[2].startswith("._"):
+            syms[parts[2][2:]] = int(parts[1], 16)
+    return syms
+
+
+def apply_pokes(mon, syms, pokes):
+    for spec in pokes:
+        name, _, value = spec.partition("=")
+        # "party+1=16" addresses into an array or struct.
+        name, _, offset = name.partition("+")
+        offset = int(offset, 0) if offset else 0
+        if name not in syms:
+            raise SystemExit("screendump: no symbol %r (is it referenced by "
+                             "the program?)" % name)
+        v = int(value, 0)
+        data = bytes([v & 0xFF]) if v < 256 else bytes([v & 0xFF, v >> 8])
+        mon.mem_set(syms[name] + offset, data)
+        print("screendump: poked %s+%d=%d at $%04X"
+              % (name, offset, v, syms[name] + offset), file=sys.stderr)
+
+
 def free_port():
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -333,6 +370,9 @@ def main():
     ap.add_argument("--rs232", type=int, metavar="PORT",
                     help="bridge the user port modem to 127.0.0.1:PORT")
     ap.add_argument("--baud", type=int, default=300)
+    ap.add_argument("--poke", action="append", metavar="SYM=VALUE",
+                    default=[],
+                    help="set a global by name once the program is running")
     ap.add_argument("--shot", metavar="PNG",
                     help="also render the screen to a PNG from emulated memory")
     ap.add_argument("--settle", type=float, metavar="SECS",
@@ -352,6 +392,9 @@ def main():
         mon = Monitor(sock)
         mon.resume()   # connecting drops VICE into the monitor; let it boot
         stage = wait_for_stage(mon, args.ready, args.timeout)
+        if args.poke:
+            apply_pokes(mon, load_symbols(args.prg), args.poke)
+
         if args.keys:
             mon.resume()
             mon.type_keys(args.keys)
@@ -388,7 +431,7 @@ def main():
             vice.kill()
 
     print("probe: stage=%d counter=%d scratch=%s | charset=%s"
-          % (stage, scratch[3], " ".join("%02x" % b for b in scratch[4:12]),
+          % (stage, scratch[3], " ".join("%02x" % b for b in scratch[4:15]),
              "$%04X %s" % (charset_base,
                            "lowercase" if lowercase else "uppercase")),
           file=sys.stderr)

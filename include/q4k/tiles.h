@@ -4,7 +4,8 @@
 
 /* Terrain properties are indexed by screen code - TILE_BASE. */
 #define TILE_BASE   0x60
-#define TILE_COUNT  12
+#define TILE_COUNT  17   /* terrain only, contiguous */
+#define TILE_TOTAL  21   /* terrain + actors          */
 
 #define TF_PASS     0  /* walk onto it freely        */
 #define TF_BLOCK    1  /* impassable                 */
@@ -23,14 +24,23 @@
 #define T_BRIDGE    0x69
 #define T_WALL      0x6A
 #define T_FLOOR     0x6B
-#define T_PLAYER    0x70
+#define T_DOOR      0x6C
+#define T_STAIRDN   0x6D
+#define T_STAIRUP   0x6E
+#define T_CHEST     0x6F
+#define T_LAIR      0x70
+#define T_PLAYER    0x78
+#define T_VILLAGER  0x79
+#define T_MONSTER   0x7A
+#define T_DRAGON    0x7B
 
 extern const unsigned char tile_flags[TILE_COUNT];
 extern const unsigned char tile_colors[TILE_COUNT];
 
 /* Names, indexed as the tile list is declared. Kept in a
    separate module so only tools that print them pay for it. */
-extern const char *const tile_names[TILE_COUNT + 1];
+extern const char *const tile_names[TILE_TOTAL];
+extern const unsigned char tile_codes[TILE_TOTAL];
 
 /* Copy the ROM font to RAM and patch every tile glyph in. */
 void tiles_install(void);

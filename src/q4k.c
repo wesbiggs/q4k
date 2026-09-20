@@ -1,23 +1,26 @@
 /*
- * q4k -- a grid RPG roguelike for the Commodore 64.
+ * Quest for the King -- a grid RPG roguelike for the Commodore 64.
  *
- * Overworld walkabout: wrapping 64x64 map, centred viewport, terrain-aware
- * movement. One hero, steered through the party array so a full party can be
- * added without touching the movement or drawing code.
+ * Three scenes share one movement loop: the wrapping overworld, one-screen
+ * towns, and generated dungeon levels. The plot is deliberately the oldest
+ * one there is -- a letter, a king, three sealed places, a dragon -- because
+ * the new thing here is who you talk to, not what you are asked to do.
  */
 
 #include <conio.h>
 #include <c64.h>
 
 #include <q4k/actor.h>
+#include <q4k/battle.h>
 #include <q4k/charset.h>
 #include <q4k/dialog.h>
+#include <q4k/dungeon.h>
+#include <q4k/game.h>
 #include <q4k/probe.h>
+#include <q4k/shop.h>
 #include <q4k/tiles.h>
 #include <q4k/view.h>
 #include <q4k/world.h>
-
-unsigned int game_turn;
 
 /* PETSCII key codes, spelled numerically on purpose: cc65 translates C
    character literals to PETSCII at compile time, and relying on that for
@@ -34,32 +37,33 @@ unsigned int game_turn;
 #define K_Q           0x51
 #define K_T           0x54
 
-/* Who lives where. The npc id goes on the wire to the dialogue daemon (see
-   assets/npcs.json); the place name is only ever printed. */
-typedef struct {
-    unsigned char x, y;
-    const char   *npc;
-    const char   *place;
-} Place;
-
-static const Place places[] = {
-    { 29, 10, "fisher",  "WARDLOW -- OLD BRANN"        },
-    { 40, 19, "granger", "GREENHOLLOW -- GRANGER HESK" },
-    { 16, 23, "collier", "MILLBROOK -- COLLIER REN"    },
-    { 53, 43, "reeve",   "STONEREACH -- REEVE ALDA"    },
-    { 28, 51, "steward", "THE CASTLE -- STEWARD MERRIT" },
+/* Which stone each keeper is sitting on. */
+static const unsigned char boss_prize[NUM_DUNGEONS] = {
+    IT_EMBER, IT_TEAR, IT_HEART,
+};
+static const unsigned char boss_stage[NUM_DUNGEONS] = {
+    Q_EMBER, Q_TEAR, Q_HEART,
 };
 
-#define NUM_PLACES (sizeof(places) / sizeof(places[0]))
+/* Test instrumentation: how many encounter rolls have happened and how many
+   turned into a fight. Published on the probe page so a headless run can say
+   something about the encounter rate. */
+static unsigned char enc_rolls, enc_fights;
 
-/* Mirror the hero's state into the probe page so the headless harness can
-   assert on it. Stage doubles as a turn counter, which is what lets a test
-   say "run three moves, then show me the screen". */
+/* Mirror progress into the probe page so the headless harness can assert on
+   it. Stage doubles as a turn counter, which is what lets a test say "walk
+   three squares, then show me the screen". */
 static void publish(void)
 {
     PROBE_SCRATCH[0] = hero.x;
     PROBE_SCRATCH[1] = hero.y;
-    PROBE_SCRATCH[2] = world_tile(hero.x, hero.y);
+    PROBE_SCRATCH[2] = scene;
+    PROBE_SCRATCH[4] = quest_stage;
+    PROBE_SCRATCH[5] = items;
+    PROBE_SCRATCH[6] = hero.hp;
+    PROBE_SCRATCH[7] = depth;
+    PROBE_SCRATCH[8] = enc_rolls;
+    PROBE_SCRATCH[9] = enc_fights;
     PROBE_COUNTER    = (unsigned char)game_turn;
     probe_stage(game_turn < 254 ? (unsigned char)game_turn + 1 : 255);
 }
@@ -73,83 +77,325 @@ static void drain_keyboard(void)
     }
 }
 
-static void arrive(unsigned char code)
+static void back_to_map(void)
 {
-    switch (code) {
-        case T_TOWN:    view_message("A TOWN. PRESS T TO TALK.");     break;
-        case T_CASTLE:  view_message("THE CASTLE. PRESS T TO TALK.");  break;
-        case T_DUNGEON: view_message("A DARK OPENING IN THE ROCK.");   break;
-        default:                                                     break;
+    view_restore();
+}
+
+static void died(void)
+{
+    gold /= 2;
+    heal_full();
+    enter_town(TOWN_MILLFORD);
+    view_restore();
+    view_message("YOU WAKE IN MILLFORD, LIGHTER OF PURSE.");
+}
+
+/* A keeper defeated: take the stone and move the story on. */
+static void keeper_beaten(void)
+{
+    give(boss_prize[place]);
+    if (quest_stage < boss_stage[place]) {
+        quest_stage = boss_stage[place];
+    }
+    map_set(hero.x, hero.y, T_FLOOR);
+
+    switch (place) {
+        case 0: view_message("YOU TAKE THE EMBERSTONE."); break;
+        case 1: view_message("YOU TAKE THE SILVER TEAR."); break;
+        default: view_message("YOU TAKE THE DRAGON'S HEART."); break;
     }
 }
 
-/* Talk to whoever is at the hero's feet, over the modem port. */
-static void try_talk(void)
+/* Hand over quest items after the conversation has happened. */
+static void quest_after_talk(unsigned char npc)
+{
+    switch (npc) {
+        case NPC_KING:
+            if (quest_stage < Q_QUESTED) {
+                quest_stage = Q_QUESTED;
+                give(IT_SIGIL);
+                view_message("THE KING GIVES YOU THE IRON SIGIL.");
+            }
+            break;
+
+        case NPC_VANE:
+            if (has(IT_EMBER) && !has(IT_TIDAL)) {
+                quest_stage = Q_TIDAL;
+                give(IT_TIDAL);
+                view_message("VANE GIVES YOU THE TIDAL KEY.");
+            }
+            break;
+
+        case NPC_ASH:
+            if (has(IT_TEAR) && !has(IT_ASHEN)) {
+                quest_stage = Q_ASHEN;
+                give(IT_ASHEN);
+                view_message("MOTHER ASH GIVES YOU THE ASHEN KEY.");
+            }
+            break;
+
+        case NPC_SMITH:
+            if (has(IT_EMBER) && has(IT_TEAR) && has(IT_HEART)
+                && !has(IT_BLADE)) {
+                quest_stage = Q_FORGED;
+                give(IT_BLADE);
+                weapon_lv = NUM_WEAPONS - 1;
+                view_message("GARRETT REFORGES DRAGONBANE.");
+            }
+            break;
+
+        default:
+            break;
+    }
+}
+
+static void interact(unsigned char index)
+{
+    const TownEnt *e = &town_ents[index];
+
+    if (e->kind == ENT_SHOP) {
+        shop_open(e->param);
+        back_to_map();
+        return;
+    }
+
+    dialog_talk(npc_ids[e->param], npc_names[e->param], quest_stage);
+    back_to_map();
+    quest_after_talk(e->param);
+    ++game_turn;
+}
+
+/* The entity standing on (x,y), or -1. */
+static signed char entity_at(unsigned char x, unsigned char y)
 {
     unsigned char i;
 
-    for (i = 0; i < NUM_PLACES; ++i) {
-        if (places[i].x == hero.x && places[i].y == hero.y) {
-            dialog_talk(places[i].npc, places[i].place);
-            view_restore();
-            view_message("YOU TAKE YOUR LEAVE.");
-            ++game_turn;
-            return;
+    if (scene != SCENE_TOWN) {
+        return -1;
+    }
+    for (i = town_ent_first[place]; i < town_ent_first[place + 1]; ++i) {
+        if (town_ents[i].x == x && town_ents[i].y == y) {
+            return (signed char)i;
         }
     }
-    view_message("THERE IS NOBODY HERE TO TALK TO.");
+    return -1;
+}
+
+static void enter_dungeon(unsigned char index)
+{
+    if (!has(dungeon_key[index])) {
+        view_message("THE WAY IN IS SEALED.");
+        return;
+    }
+    scene = SCENE_DUNGEON;
+    place = index;
+    depth = 1;
+    dungeon_build(index, depth);
+    reseed();            /* dungeon_build seeds for repeatable levels */
+    hero.x = dun_up_x;
+    hero.y = dun_up_y;
+    view_message(dungeon_names[index]);
+}
+
+static void descend(void)
+{
+    ++depth;
+    dungeon_build(place, depth);
+    reseed();
+    hero.x = dun_up_x;
+    hero.y = dun_up_y;
+    view_message("YOU GO DOWN.");
+}
+
+static void ascend(void)
+{
+    if (depth <= 1) {
+        leave_local();
+        view_message("DAYLIGHT.");
+        return;
+    }
+    --depth;
+    dungeon_build(place, depth);
+    reseed();
+    hero.x = dun_dn_x;
+    hero.y = dun_dn_y;
+    view_message("YOU CLIMB BACK UP.");
+}
+
+static void face_the_dragon(void)
+{
+    if (!has(IT_BLADE)) {
+        view_message("THE HEAT DRIVES YOU BACK.");
+        return;
+    }
+    if (battle_dragon() == BATTLE_DEAD) {
+        died();
+        return;
+    }
+    quest_stage = Q_VICTORY;
+    back_to_map();
+    view_message("MALDRATH IS BANISHED. KELDMARCH IS FREE.");
+}
+
+/* Stepping onto something on the overworld. */
+static void arrive(unsigned char code, unsigned char x, unsigned char y)
+{
+    signed char i;
+
+    if (code == T_LAIR) {
+        face_the_dragon();
+        return;
+    }
+
+    i = town_at(x, y);
+    if (i >= 0) {
+        /* Leaving home for the first time is the story starting. */
+        enter_town((unsigned char)i);
+        view_message(town_names[place]);
+        return;
+    }
+
+    i = dungeon_at(x, y);
+    if (i >= 0) {
+        enter_dungeon((unsigned char)i);
+    }
+}
+
+static void wander_check(void)
+{
+    if (scene == SCENE_TOWN) {
+        return;
+    }
+    ++enc_rolls;
+    if (!encounter_roll(map_at(hero.x, hero.y))) {
+        return;
+    }
+    ++enc_fights;
+    if (battle_wander() == BATTLE_DEAD) {
+        died();
+    } else {
+        back_to_map();
+    }
 }
 
 static void try_move(signed char dx, signed char dy)
 {
-    unsigned char nx   = (hero.x + dx) & WORLD_MASK;
-    unsigned char ny   = (hero.y + dy) & WORLD_MASK;
-    unsigned char code = world_tile(nx, ny);
+    int nx = (int)hero.x + dx;
+    int ny = (int)hero.y + dy;
+    unsigned char code, flag;
+    signed char ent;
 
-    switch (tile_flags[code - TILE_BASE]) {
-        case TF_BLOCK:
-            /* Bumping into terrain costs no turn -- roguelike convention,
-               and it keeps misclicks from burning food. */
-            view_message("BLOCKED.");
-            return;
-
-        case TF_WATER:
-            view_message("THOU CANST NOT SWIM.");
-            return;
-
-        case TF_ENTER:
-            hero.x = nx;
-            hero.y = ny;
-            arrive(code);
-            break;
-
-        default:
-            hero.x = nx;
-            hero.y = ny;
-            break;
+    if (scene == SCENE_WORLD) {
+        nx &= WORLD_MASK;
+        ny &= WORLD_MASK;
+    } else if (nx < 0 || ny < 0 || nx >= LOCAL_W || ny >= LOCAL_H) {
+        view_message("BLOCKED.");
+        return;
     }
 
+    ent = entity_at((unsigned char)nx, (unsigned char)ny);
+    if (ent >= 0) {
+        interact((unsigned char)ent);
+        return;
+    }
+
+    code = map_at((unsigned char)nx, (unsigned char)ny);
+
+    /* The keeper does not step aside. */
+    if (code == T_MONSTER) {
+        hero.x = (unsigned char)nx;
+        hero.y = (unsigned char)ny;
+        if (battle_boss(place) == BATTLE_DEAD) {
+            died();
+        } else {
+            back_to_map();
+            keeper_beaten();
+        }
+        ++game_turn;
+        return;
+    }
+
+    flag = tile_flags[code - TILE_BASE];
+    if (flag == TF_BLOCK) {
+        /* Bumping into terrain costs no turn -- roguelike convention. */
+        view_message("BLOCKED.");
+        return;
+    }
+    if (flag == TF_WATER) {
+        view_message("THOU CANST NOT SWIM.");
+        return;
+    }
+
+    hero.x = (unsigned char)nx;
+    hero.y = (unsigned char)ny;
     ++game_turn;
+
+    if (scene == SCENE_WORLD) {
+        if (flag == TF_ENTER) {
+            arrive(code, hero.x, hero.y);
+        } else {
+            wander_check();
+        }
+        return;
+    }
+
+    if (scene == SCENE_TOWN) {
+        if (hero.x == town_ex[place] && hero.y == town_ey[place]) {
+            if (place == TOWN_MILLFORD && quest_stage == Q_START) {
+                quest_stage = Q_SUMMONED;
+            }
+            leave_local();
+            view_message("YOU TAKE THE ROAD.");
+        }
+        return;
+    }
+
+    if (code == T_STAIRDN) {
+        descend();
+    } else if (code == T_STAIRUP) {
+        ascend();
+    } else {
+        wander_check();
+    }
+}
+
+/* Talk to whoever is next to you. */
+static void try_talk(void)
+{
+    signed char e;
+
+    e = entity_at(hero.x, hero.y - 1);
+    if (e < 0) { e = entity_at(hero.x, hero.y + 1); }
+    if (e < 0) { e = entity_at(hero.x - 1, hero.y); }
+    if (e < 0) { e = entity_at(hero.x + 1, hero.y); }
+
+    if (e < 0) {
+        view_message("THERE IS NOBODY HERE.");
+        return;
+    }
+    interact((unsigned char)e);
 }
 
 int main(void)
 {
     unsigned char key;
 
-    party_init();
+    game_init();
     view_init();
     drain_keyboard();
-    view_message("THOU ART IN THE LAND OF Q4K.");
-    view_message("MOVE: W A S D OR CURSOR KEYS.");
-    view_message("T TO TALK, SPACE TO WAIT, Q TO QUIT.");
+    reseed();
+
+    view_message("A LETTER COMES, UNDER THE KING'S SEAL.");
+    view_message("MATHESON SUMMONS YOU TO THE CASTLE.");
+    view_message("WALK INTO SOMEONE TO SPEAK WITH THEM.");
 
     for (;;) {
-        view_draw_map();
+        view_draw();
         view_draw_panel();
         publish();
 
         key = cgetc();
-        PROBE_SCRATCH[3] = key;   /* last key read, for the test harness */
         if (key >= 0xC1 && key <= 0xDA) {
             key -= 0x80;            /* fold SHIFTed letters onto unshifted */
         }
@@ -165,8 +411,8 @@ int main(void)
                 break;
 
             case K_SPACE:
-                view_message("THOU WAITEST.");
                 ++game_turn;
+                wander_check();
                 break;
 
             case K_Q:

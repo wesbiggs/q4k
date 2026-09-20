@@ -1,0 +1,132 @@
+#include <string.h>
+
+#include <q4k/actor.h>
+#include <q4k/game.h>
+#include <q4k/tiles.h>
+#include <q4k/world.h>
+
+unsigned char scene;
+unsigned char place;
+unsigned char depth;
+unsigned char local[LOCAL_W * LOCAL_H];
+
+unsigned int  game_turn;
+unsigned int  gold;
+unsigned char potions;
+unsigned char weapon_lv;
+unsigned char armour_lv;
+unsigned char quest_stage;
+unsigned char items;
+
+/* The three deep places, in the order the quest opens them. */
+const unsigned char dungeon_wx[NUM_DUNGEONS]   = { 36, 22, 11 };
+const unsigned char dungeon_wy[NUM_DUNGEONS]   = { 45, 16, 35 };
+const unsigned char dungeon_key[NUM_DUNGEONS]  = { IT_SIGIL, IT_TIDAL, IT_ASHEN };
+const unsigned char dungeon_deep[NUM_DUNGEONS] = { 3, 3, 4 };
+
+const char *const dungeon_names[NUM_DUNGEONS] = {
+    "THE HOLLOW CROWN",
+    "THE DROWNED STAIR",
+    "BLACKPIT",
+};
+
+void game_init(void)
+{
+    party_init();
+
+    scene       = SCENE_TOWN;
+    place       = TOWN_MILLFORD;
+    depth       = 0;
+    game_turn   = 0;
+    gold        = 60;
+    potions     = 1;
+    weapon_lv   = 0;
+    armour_lv   = 0;
+    quest_stage = Q_START;
+    items       = 0;
+
+    memcpy(local, town_map[TOWN_MILLFORD], sizeof(local));
+    hero.x = town_sx[TOWN_MILLFORD];
+    hero.y = town_sy[TOWN_MILLFORD];
+}
+
+unsigned char map_at(unsigned char x, unsigned char y)
+{
+    if (scene == SCENE_WORLD) {
+        return world_tile(x, y);
+    }
+    if (x >= LOCAL_W || y >= LOCAL_H) {
+        return T_WALL;
+    }
+    return local[(unsigned int)y * LOCAL_W + x];
+}
+
+void map_set(unsigned char x, unsigned char y, unsigned char code)
+{
+    if (scene != SCENE_WORLD && x < LOCAL_W && y < LOCAL_H) {
+        local[(unsigned int)y * LOCAL_W + x] = code;
+    }
+}
+
+unsigned char map_flag(unsigned char x, unsigned char y)
+{
+    return tile_flags[map_at(x, y) - TILE_BASE];
+}
+
+signed char town_at(unsigned char x, unsigned char y)
+{
+    unsigned char i;
+
+    for (i = 0; i < NUM_TOWNS; ++i) {
+        if (town_wx[i] == x && town_wy[i] == y) {
+            return (signed char)i;
+        }
+    }
+    return -1;
+}
+
+signed char dungeon_at(unsigned char x, unsigned char y)
+{
+    unsigned char i;
+
+    for (i = 0; i < NUM_DUNGEONS; ++i) {
+        if (dungeon_wx[i] == x && dungeon_wy[i] == y) {
+            return (signed char)i;
+        }
+    }
+    return -1;
+}
+
+void enter_town(unsigned char index)
+{
+    scene = SCENE_TOWN;
+    place = index;
+    depth = 0;
+    memcpy(local, town_map[index], sizeof(local));
+    hero.x = town_sx[index];
+    hero.y = town_sy[index];
+}
+
+/* Step back out onto the overworld, at the place's own map square. */
+void leave_local(void)
+{
+    if (scene == SCENE_TOWN) {
+        hero.x = town_wx[place];
+        hero.y = town_wy[place];
+    } else {
+        hero.x = dungeon_wx[place];
+        hero.y = dungeon_wy[place];
+    }
+    scene = SCENE_WORLD;
+    depth = 0;
+}
+
+unsigned char has(unsigned char item)
+{
+    return (items & item) != 0;
+}
+
+void give(unsigned char item)
+{
+    items |= item;
+}

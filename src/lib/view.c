@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include <q4k/actor.h>
+#include <q4k/game.h>
 #include <q4k/charset.h>
 #include <q4k/tiles.h>
 #include <q4k/view.h>
@@ -60,7 +61,39 @@ void view_init(void)
     view_chrome();
 }
 
-void view_draw_map(void)
+/* Towns and dungeon levels are exactly one viewport, so they never scroll:
+   walk in and the whole place is in front of you. */
+static void draw_local(void)
+{
+    unsigned char x, y, i, code;
+    unsigned int  offset;
+
+    for (y = 0; y < LOCAL_H; ++y) {
+        for (x = 0; x < LOCAL_W; ++x) {
+            offset = (unsigned int)y * SCR_W + x;
+            code = local[(unsigned int)y * LOCAL_W + x];
+            SCREEN_RAM[offset] = code;
+            COLOR_RAM[offset]  = (code >= TILE_BASE + TILE_COUNT)
+                               ? COLOR_LIGHTRED       /* the keeper */
+                               : tile_colors[code - TILE_BASE];
+        }
+    }
+
+    if (scene == SCENE_TOWN) {
+        for (i = town_ent_first[place]; i < town_ent_first[place + 1]; ++i) {
+            offset = (unsigned int)town_ents[i].y * SCR_W + town_ents[i].x;
+            SCREEN_RAM[offset] = T_VILLAGER;
+            COLOR_RAM[offset]  = (town_ents[i].kind == ENT_SHOP)
+                               ? COLOR_YELLOW : COLOR_CYAN;
+        }
+    }
+
+    offset = (unsigned int)hero.y * SCR_W + hero.x;
+    SCREEN_RAM[offset] = hero.glyph;
+    COLOR_RAM[offset]  = hero.color;
+}
+
+static void draw_world(void)
 {
     unsigned char vx, vy, wx, wy, code;
     unsigned int  row_base;
@@ -89,7 +122,16 @@ void view_draw_map(void)
     *col = hero.color;
 }
 
-#define VAL_X  (PANEL_X + 7)
+void view_draw(void)
+{
+    if (scene == SCENE_WORLD) {
+        draw_world();
+    } else {
+        draw_local();
+    }
+}
+
+#define VAL_X  (PANEL_X + 9)
 
 /* Values sit in a fixed column, cleared first so a shorter number never
    leaves a digit of the previous one behind. */
@@ -121,10 +163,27 @@ static void put_hp(unsigned char y)
     cputsxy(VAL_X, y, buf);
 }
 
+/* One short label per key item, so the player can see the quest in the
+   margin instead of remembering it. */
+static void put_items(unsigned char y)
+{
+    static const char *const labels[7] = {
+        "IRON SIGIL", "TIDAL KEY", "ASHEN KEY",
+        "EMBERSTONE", "SILVER TEAR", "DRAGON HEART", "DRAGONBANE",
+    };
+    unsigned char i, bit = 1;
+
+    for (i = 0; i < 7; ++i, bit <<= 1) {
+        cclearxy(PANEL_X, y + i, PANEL_W);
+        if (items & bit) {
+            textcolor(i == 6 ? COLOR_YELLOW : COLOR_LIGHTGREEN);
+            cputsxy(PANEL_X, y + i, labels[i]);
+        }
+    }
+}
+
 void view_draw_panel(void)
 {
-    unsigned char code = world_tile(hero.x, hero.y);
-
     textcolor(COLOR_YELLOW);
     cputsxy(PANEL_X, 0, hero.name);
 
@@ -132,22 +191,34 @@ void view_draw_panel(void)
     put_label(2, "HP");
     put_label(3, "LEVEL");
     put_label(4, "EXP");
-    put_label(6, "X");
-    put_label(7, "Y");
-    put_label(8, "TURN");
-    put_label(10, "TERRAIN");
+    put_label(5, "GOLD");
+    put_label(6, "DRAUGHTS");
 
     textcolor(COLOR_WHITE);
     put_hp(2);
     put_num(VAL_X, 3, hero.level);
     put_num(VAL_X, 4, hero.xp);
-    put_num(VAL_X, 6, hero.x);
-    put_num(VAL_X, 7, hero.y);
-    put_num(VAL_X, 8, game_turn);
+    put_num(VAL_X, 5, gold);
+    put_num(VAL_X, 6, potions);
 
-    textcolor(tile_colors[code - TILE_BASE]);
-    cputsxy(PANEL_X, 11, "          ");
-    cputsxy(PANEL_X, 11, tile_names[code - TILE_BASE]);
+    /* Where you are: the land, a town by name, or how deep you have gone. */
+    cclearxy(PANEL_X, 8, PANEL_W);
+    textcolor(COLOR_LIGHTBLUE);
+    if (scene == SCENE_TOWN) {
+        cputsxy(PANEL_X, 8, town_names[place]);
+    } else if (scene == SCENE_DUNGEON) {
+        cputsxy(PANEL_X, 8, dungeon_names[place]);
+        cclearxy(PANEL_X, 9, PANEL_W);
+        cputsxy(PANEL_X, 9, "LEVEL");
+        put_num(PANEL_X + 6, 9, depth);
+    } else {
+        cputsxy(PANEL_X, 8, "KELDMARCH");
+    }
+    if (scene != SCENE_DUNGEON) {
+        cclearxy(PANEL_X, 9, PANEL_W);
+    }
+
+    put_items(11);
 }
 
 void view_message(const char *text)

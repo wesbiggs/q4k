@@ -2,7 +2,7 @@
 
 #include <q4k/tiles.h>
 
-const char *const tile_names[TILE_COUNT + 1] = {
+const char *const tile_names[TILE_TOTAL] = {
     "GRASS",
     "FOREST",
     "MOUNTAIN",
@@ -15,5 +15,37 @@ const char *const tile_names[TILE_COUNT + 1] = {
     "BRIDGE",
     "WALL",
     "FLOOR",
+    "DOOR",
+    "STAIRDN",
+    "STAIRUP",
+    "CHEST",
+    "LAIR",
     "PLAYER",
+    "VILLAGER",
+    "MONSTER",
+    "DRAGON",
+};
+
+const unsigned char tile_codes[TILE_TOTAL] = {
+    0x60,
+    0x61,
+    0x62,
+    0x63,
+    0x64,
+    0x65,
+    0x66,
+    0x67,
+    0x68,
+    0x69,
+    0x6A,
+    0x6B,
+    0x6C,
+    0x6D,
+    0x6E,
+    0x6F,
+    0x70,
+    0x78,
+    0x79,
+    0x7A,
+    0x7B,
 };
