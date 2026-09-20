@@ -1,0 +1,27 @@
+    +----------------------------------------+
+  0 |THE CASTLE -- STEWARD MERRIT            |
+  1 |········································|
+  2 |                                        |
+  3 |The passes are closed on good           |
+  4 |authority. Whose? On good authority,    |
+  5 |stranger.                               |
+  6 |                                        |
+  7 |> what of lord q                        |
+  8 |Eleven months is not so long. In a      |
+  9 |reign of thirty-one years it is nothing |
+ 10 |at all.                                 |
+ 11 |                                        |
+ 12 |                                        |
+ 13 |                                        |
+ 14 |                                        |
+ 15 |                                        |
+ 16 |                                        |
+ 17 |                                        |
+ 18 |                                        |
+ 19 |                                        |
+ 20 |········································|
+ 21 |> █                                     |
+ 22 |                                        |
+ 23 |RETURN SENDS   RUN/STOP LEAVES          |
+ 24 |                                        |
+    +----------------------------------------+

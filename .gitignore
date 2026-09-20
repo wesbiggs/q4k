@@ -1,0 +1,6 @@
+build/
+dist/
+*.o
+*.lib
+*.map
+__pycache__/

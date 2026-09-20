@@ -1,0 +1,93 @@
+/*
+ * q4k -- tile set preview.
+ *
+ * Installs the custom charset and shows every tile next to its name, code and
+ * a run of copies so you can see how it looks tiled. Run
+ * `make shot PROG=tiles` and look at build/tiles.png.
+ */
+
+#include <conio.h>
+#include <c64.h>
+
+#include <q4k/charset.h>
+#include <q4k/probe.h>
+#include <q4k/tiles.h>
+
+#define SCREEN_RAM ((unsigned char *)0x0400)
+#define SCR_W      40
+
+static const char hexdigit[] = "0123456789ABCDEF";
+
+static void put_tile(unsigned char x, unsigned char y,
+                     unsigned char code, unsigned char color)
+{
+    unsigned int offset = (unsigned int)y * SCR_W + x;
+    SCREEN_RAM[offset] = code;
+    COLOR_RAM[offset]  = color;
+}
+
+/* A scrap of landscape, to check the tiles read well side by side. */
+static const char patch[6][17] = {
+    "~~~,....FF..^^^^",
+    "~~,.....FFF.^^^^",
+    "~,..T...FF...^^^",
+    "~,......==...^^.",
+    "~~,...%%..D..^..",
+    "~~~,..%%.....,..",
+};
+
+int main(void)
+{
+    unsigned char i, x, y, code;
+
+    tiles_install();
+
+    VIC.bordercolor = COLOR_BLACK;
+    VIC.bgcolor0    = COLOR_BLACK;
+    VIC.addr        = CHARSET_D018;
+
+    clrscr();
+    textcolor(COLOR_LIGHTBLUE);
+    cputsxy(0, 0, "Q4K TILE SET");
+
+    for (i = 0; i <= TILE_COUNT; ++i) {
+        y = 2 + i;
+        /* Terrain runs contiguously from TILE_BASE; the player sits apart. */
+        code = (i < TILE_COUNT) ? (TILE_BASE + i) : T_PLAYER;
+
+        textcolor(COLOR_GRAY1);
+        cputsxy(0, y, tile_names[i]);
+
+        textcolor(COLOR_YELLOW);
+        cputcxy(11, y, '$');
+        cputcxy(12, y, hexdigit[code >> 4]);
+        cputcxy(13, y, hexdigit[code & 0x0F]);
+
+        for (x = 0; x < 8; ++x) {
+            put_tile(16 + x, y, code,
+                     i < TILE_COUNT ? tile_colors[i] : COLOR_WHITE);
+        }
+    }
+
+    for (y = 0; y < 6; ++y) {
+        for (x = 0; x < 16; ++x) {
+            switch (patch[y][x]) {
+                case '~': code = T_WATER;    break;
+                case ',': code = T_SHORE;    break;
+                case 'F': code = T_FOREST;   break;
+                case '^': code = T_MOUNTAIN; break;
+                case 'T': code = T_TOWN;     break;
+                case 'D': code = T_DUNGEON;  break;
+                case '=': code = T_BRIDGE;   break;
+                case '%': code = T_SWAMP;    break;
+                default:  code = T_GRASS;    break;
+            }
+            put_tile(22 + x, 17 + y, code, tile_colors[code - TILE_BASE]);
+        }
+    }
+    put_tile(26, 19, T_PLAYER, COLOR_WHITE);
+
+    probe_stage(1);
+    cgetc();
+    return 0;
+}
