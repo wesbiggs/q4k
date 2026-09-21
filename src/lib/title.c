@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include <q4k/charset.h>
-#include <q4k/font.h>
 #include <q4k/probe.h>
 #include <q4k/tiles.h>
 #include <q4k/title.h>
@@ -49,7 +48,6 @@ void title_screen(char *name, unsigned char max)
        so it looks identical, and it keeps the whole game on one charset --
        which among other things lets the harness screenshot this screen. */
     tiles_install();
-    font_install();
     VIC.bordercolor = COLOR_BLACK;
     VIC.bgcolor0    = COLOR_BLACK;
     VIC.addr        = CHARSET_D018;

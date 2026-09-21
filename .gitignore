@@ -7,3 +7,6 @@ __pycache__/
 
 # VICE writes these when a snapshot hotkey is hit in the emulator window
 *.vsf
+
+# Character sets are somebody's typeface; see assets/fonts/NOTICE.md
+assets/fonts/*.bin

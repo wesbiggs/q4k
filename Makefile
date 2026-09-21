@@ -35,7 +35,8 @@ ASFLAGS  := -t $(TARGET) -I include
 # The game gets the full memory map; the demos and tools get a lean one that
 # skips the HIGH region and its contiguity padding.
 LDFLAGS  := -t $(TARGET)
-LDCFG     = cfg/c64-$(if $(filter q4k,$*),q4k,tool).cfg
+# dungeontest links the maps and the font, so it needs the game's map too.
+LDCFG     = cfg/c64-$(if $(filter q4k dungeontest,$*),q4k,tool).cfg
 
 MAINS    := $(wildcard src/*.c)
 PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
@@ -75,10 +76,15 @@ GEN_TOWN  := include/q4k/town_data.h src/lib/town_data.c
 GEN_GEO   := assets/geography.json
 GEN_FONT  := src/lib/font_data.c
 
-# How the letters are drawn. "serif" puts a foot on the stems and leaves the
-# strokes alone; "bold" thickens them, which looks older and costs legibility
-# at 8x8; "both" does both. Change and `make assets` to see it.
-FONT_STYLE ?= serif
+# Where the letters come from. FONT_SOURCE is "rom" for the machine's own
+# character set, or a path to a C64 charset binary. FONT_STYLE only applies
+# to the rom source: "serif" puts a foot on the stems, "bold" thickens the
+# strokes -- older-looking, and the counters fill in at 8x8.
+#
+# The default is the ROM because a third-party charset is somebody's
+# typeface and usually not ours to ship. See assets/fonts/NOTICE.md.
+FONT_SOURCE ?= rom
+FONT_STYLE  ?= serif
 
 assets: $(GEN_TILES) $(GEN_MAP) $(GEN_TOWN) $(GEN_GEO) $(GEN_FONT)
 
@@ -95,8 +101,21 @@ $(GEN_GEO): assets/overworld.txt assets/towns.txt assets/places.txt \
             assets/tiles.txt tools/mkgeo.py
 	tools/mkgeo.py
 
-$(GEN_FONT): tools/mkfont.py
-	tools/mkfont.py --style $(FONT_STYLE)
+# A stamp holding the chosen font, so that changing FONT_SOURCE on the
+# command line actually rebuilds. Make compares file times, not variables:
+# without this, `make assets FONT_SOURCE=rom` would decide the font was
+# already up to date and quietly do nothing.
+FONT_CONF := $(FONT_SOURCE) $(FONT_STYLE)
+
+.PHONY: FORCE
+FORCE:
+
+$(BUILD)/font.conf: FORCE
+	@mkdir -p $(BUILD)
+	@printf '%s\n' '$(FONT_CONF)' | cmp -s - $@ || printf '%s\n' '$(FONT_CONF)' > $@
+
+$(GEN_FONT): tools/mkfont.py $(BUILD)/font.conf $(wildcard assets/fonts/*.bin)
+	tools/mkfont.py --source $(FONT_SOURCE) --style $(FONT_STYLE)
 
 dirs:
 	@mkdir -p $(BUILD)/lib $(DIST)

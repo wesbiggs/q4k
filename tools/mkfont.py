@@ -1,92 +1,99 @@
 #!/usr/bin/env python3
-"""Derive a heavier, serifed font from the C64's own character ROM.
+"""Build the character set the game runs on.
 
-Eight by eight is too small for real blackletter -- the strokes collide and
-it stops being readable, which is the opposite of the point. What does carry
-at this size is weight and a foot on the stems, so this thickens the ROM
-font and serifs it rather than drawing a new alphabet from nothing.
+The C64's letters are ours to change because the game draws from a copy in
+RAM, not from ROM -- that copy is also where the tiles go. This emits the
+whole 2K image so the machine only has to copy it into place.
 
-Working from the ROM keeps every letter the right width and on the same
-baseline, which hand-drawing 52 glyphs would not.
+Two sources:
 
-    tools/mkfont.py [--style bold|serif|both]
+  --source rom          the machine's own font, optionally restyled
+  --source <file.bin>   a 2K or 4K C64 charset binary, used as it is
+
+Eight by eight is too small for real blackletter drawn by transformation --
+the strokes collide and it stops being readable -- so the ROM styles here
+only add weight and a foot on the stems. A font actually designed at this
+size does far better, which is what a .bin source is for.
+
+Only the mixed-case half of a 4K file is used: that is the set with both
+cases, which is what the interface needs.
 """
 
 import argparse
 import os
 import sys
 
-CHARGEN = "/opt/homebrew/Cellar/vice/3.10/share/vice/C64/chargen-901225-01.bin"
-LOWERCASE_SET = 2048          # second half of the ROM is the mixed-case set
+ROM = "/opt/homebrew/Cellar/vice/3.10/share/vice/C64/chargen-901225-01.bin"
+SET_BYTES = 2048              # 256 glyphs of eight rows
+MIXED_CASE = 2048             # offset of the mixed-case half in a 4K file
 
-# Screen codes worth restyling: letters and digits. The graphics codes are
-# where our tiles live, and punctuation reads better left alone.
-RANGES = [(0x01, 0x1A), (0x41, 0x5A), (0x30, 0x39)]
+# Which codes the ROM styles touch: letters and digits. Punctuation reads
+# better left alone, and $60-$7B is where the tiles land anyway.
+STYLED = [(0x01, 0x1A), (0x41, 0x5A), (0x30, 0x39)]
 
 
 def bolden(rows):
-    """Thicken every stroke to the right, without letting it bleed out of
-    the cell or close up the counters of 'e' and 'a'."""
-    out = []
-    for r in rows:
-        out.append((r | (r >> 1)) & 0xFF)
-    return out
+    return [(r | (r >> 1)) & 0xFF for r in rows]
 
 
 def serif(rows):
-    """Put a foot on whatever touches the top and bottom of the glyph."""
     out = list(rows)
     for edge in (0, len(rows) - 1):
-        r = out[edge]
-        if r:
-            out[edge] = (r | (r << 1) | (r >> 1)) & 0xFF
+        if out[edge]:
+            out[edge] = (out[edge] | (out[edge] << 1) | (out[edge] >> 1)) & 0xFF
     return out
+
+
+def load(path):
+    data = open(path, "rb").read()
+    if len(data) == SET_BYTES:
+        return bytearray(data)
+    if len(data) == SET_BYTES * 2:
+        return bytearray(data[MIXED_CASE:MIXED_CASE + SET_BYTES])
+    sys.exit("mkfont: %s is %d bytes; expected a 2K or 4K charset"
+             % (path, len(data)))
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--style", default="both",
-                    choices=("bold", "serif", "both"))
-    ap.add_argument("--rom", default=CHARGEN)
+    ap.add_argument("--source", default="rom",
+                   help="'rom', or a path to a C64 charset binary")
+    ap.add_argument("--style", default="serif",
+                    choices=("none", "bold", "serif", "both"),
+                    help="only applies to the rom source")
     args = ap.parse_args()
 
-    if not os.path.exists(args.rom):
-        sys.exit("mkfont: no character ROM at %s" % args.rom)
-    rom = open(args.rom, "rb").read()
-
-    codes, glyphs = [], []
-    for first, last in RANGES:
-        for code in range(first, last + 1):
-            rows = list(rom[LOWERCASE_SET + code * 8:LOWERCASE_SET + code * 8 + 8])
-            if args.style in ("bold", "both"):
-                rows = bolden(rows)
-            if args.style in ("serif", "both"):
-                rows = serif(rows)
-            codes.append(code)
-            glyphs.append(rows)
+    if args.source == "rom":
+        if not os.path.exists(ROM):
+            sys.exit("mkfont: no character ROM at %s" % ROM)
+        image = load(ROM)
+        origin = "the character ROM, style=%s" % args.style
+        if args.style != "none":
+            for first, last in STYLED:
+                for code in range(first, last + 1):
+                    rows = list(image[code * 8:code * 8 + 8])
+                    if args.style in ("bold", "both"):
+                        rows = bolden(rows)
+                    if args.style in ("serif", "both"):
+                        rows = serif(rows)
+                    image[code * 8:code * 8 + 8] = bytes(rows)
+    else:
+        image = load(args.source)
+        origin = args.source
 
     with open("src/lib/font_data.c", "w") as f:
-        f.write("/* GENERATED by tools/mkfont.py (--style %s) -- do not edit.\n"
-                "   Derived from the C64 character ROM: same widths, same\n"
-                "   baseline, heavier stroke and a foot on the stems. */\n\n"
-                "#include <q4k/charset.h>\n#include <q4k/font.h>\n\n"
+        f.write("/* GENERATED by tools/mkfont.py from %s -- do not edit.\n"
+                " * The whole character set, copied into RAM at startup so\n"
+                " * the tiles have somewhere to be patched over. */\n\n"
+                "#include <q4k/charset.h>\n\n"
                 "#pragma rodata-name (push, \"HIDATA\")\n\n"
-                "static const unsigned char glyphs[%d][8] = {\n"
-                % (args.style, len(glyphs)))
-        for code, rows in zip(codes, glyphs):
-            f.write("    { %s },  /* $%02X */\n"
-                    % (", ".join("0x%02X" % b for b in rows), code))
-        f.write("};\n\nstatic const unsigned char codes[%d] = {\n" % len(codes))
-        for i in range(0, len(codes), 12):
-            f.write("    " + " ".join("0x%02X," % c for c in codes[i:i + 12]) + "\n")
-        f.write("};\n\n#pragma rodata-name (pop)\n\n"
-                "void font_install(void)\n{\n"
-                "    unsigned char i;\n\n"
-                "    for (i = 0; i < %d; ++i) {\n"
-                "        charset_define(codes[i], glyphs[i]);\n"
-                "    }\n}\n" % len(codes))
+                "const unsigned char font_image[CHARSET_BYTES] = {\n" % origin)
+        for i in range(0, len(image), 16):
+            f.write("    " + " ".join("0x%02X," % b for b in image[i:i + 16])
+                    + "\n")
+        f.write("};\n\n#pragma rodata-name (pop)\n")
 
-    print("mkfont: %d glyphs restyled (%s)" % (len(glyphs), args.style))
+    print("mkfont: 2K charset from %s" % origin)
 
 
 if __name__ == "__main__":

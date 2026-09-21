@@ -101,20 +101,26 @@ shopkeeper standing in a doorway blocking the smith behind him.
 
 ## The letters
 
-The game runs on its own copy of the character set, so the letters are ours
-to change as much as the tiles are. `tools/mkfont.py` derives a restyled face
-from the C64's character ROM rather than drawing 52 glyphs from nothing,
-which keeps every letter the right width and on the same baseline.
-
-Eight by eight is too small for real blackletter — the strokes collide and it
-stops being readable, which is the opposite of the point. What carries at
-this size is weight and a foot on the stems:
+The game draws from its own copy of the character set in RAM -- the same copy
+the tiles are patched into -- so the font is ours to choose.
+[tools/mkfont.py](tools/mkfont.py) builds that 2K image from either source:
 
 ```bash
-make assets FONT_STYLE=serif   # a foot on the stems (default)
-make assets FONT_STYLE=bold    # thicker strokes: older, less legible
-make assets FONT_STYLE=both
+make assets                                   # the committed default: the ROM
+make assets FONT_STYLE=bold                   # thicker; the counters fill in
+make assets FONT_SOURCE=assets/fonts/x.bin    # any C64 charset binary
 ```
+
+No font binary is checked in. `assets/fonts/*.bin` is ignored, because a
+character set is somebody's typeface and most of the good ones are not ours
+to redistribute — [assets/fonts/NOTICE.md](assets/fonts/NOTICE.md) has the
+detail, and how to drop one in locally.
+
+The `rom` styles exist because eight by eight is too small for blackletter
+produced by transformation: the strokes collide and it stops being readable.
+Weight and a foot on the stems is about the limit of what that approach
+buys. A face actually drawn at this size does far better, which is the whole
+argument for taking a `.bin`.
 
 Mixed case needs no special handling. cc65 encodes an upper-case letter in a
 string literal as shifted PETSCII, which draws as a capital, and a lower-case
