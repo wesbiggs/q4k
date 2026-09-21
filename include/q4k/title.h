@@ -1,8 +1,7 @@
 /*
  * Quest for the King -- the screen before the game.
  *
- * Sets the scene and asks who you are. Runs before view_init(), on the ROM
- * character set, because it is nothing but text.
+ * Sets the scene and asks who you are, before view_init() takes over.
  */
 
 #ifndef Q4K_TITLE_H

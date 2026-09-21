@@ -3,7 +3,9 @@
 
 #include <string.h>
 
+#include <q4k/charset.h>
 #include <q4k/probe.h>
+#include <q4k/tiles.h>
 #include <q4k/title.h>
 #include <q4k/view.h>
 
@@ -41,9 +43,14 @@ void title_screen(char *name, unsigned char max)
         max = sizeof(entry);
     }
 
+    /* The game's own character set, even though this screen is all text:
+       it is the ROM font with tiles patched over codes the text never uses,
+       so it looks identical, and it keeps the whole game on one charset --
+       which among other things lets the harness screenshot this screen. */
+    tiles_install();
     VIC.bordercolor = COLOR_BLACK;
     VIC.bgcolor0    = COLOR_BLACK;
-    VIC.addr        = 0x17;   /* ROM mixed-case set: this screen is all text */
+    VIC.addr        = CHARSET_D018;
 
     clrscr();
 
@@ -59,6 +66,7 @@ void title_screen(char *name, unsigned char max)
 
     textcolor(COLOR_GRAY1);
     chlinexy(0, ASK_Y - 1, SCR_W);
+    textcolor(COLOR_YELLOW);
     cputsxy(1, ASK_Y, "AND WHO ARE YOU?");
     textcolor(COLOR_GRAY2);
     cputsxy(1, HINT_Y, "RETURN TO BEGIN AS ");
