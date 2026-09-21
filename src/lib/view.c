@@ -188,8 +188,8 @@ static void put_hp(unsigned char y)
 static void put_items(unsigned char y)
 {
     static const char *const labels[7] = {
-        "IRON SIGIL", "TIDAL KEY", "ASHEN KEY",
-        "EMBERSTONE", "SILVER TEAR", "DRAGON HEART", "DRAGONBANE",
+        "Iron Sigil", "Tidal Key", "Ashen Key",
+        "Emberstone", "Silver Tear", "Dragon Heart", "Dragonbane",
     };
     unsigned char i, bit = 1, row = y;
 
@@ -216,10 +216,10 @@ void view_draw_panel(void)
 
     textcolor(COLOR_GRAY1);
     put_label(1, "HP");
-    put_label(2, "LEVEL");
-    put_label(3, "EXP");
-    put_label(4, "GOLD");
-    put_label(5, "DRAUGHTS");
+    put_label(2, "Level");
+    put_label(3, "Exp");
+    put_label(4, "Gold");
+    put_label(5, "Draughts");
 
     textcolor(COLOR_WHITE);
     put_hp(1);
@@ -233,7 +233,7 @@ void view_draw_panel(void)
     textcolor(COLOR_CYAN);
     cclearxy(PANEL_X, 7, PANEL_W);
     if (has(IT_BLADE)) {
-        cputsxy(PANEL_X, 7, "DRAGONBANE");
+        cputsxy(PANEL_X, 7, "Dragonbane");
     } else {
         cputsxy(PANEL_X, 7, weapon_names[weapon_lv]);
     }
@@ -248,10 +248,10 @@ void view_draw_panel(void)
         cputsxy(PANEL_X, 10, town_names[place]);
     } else if (scene == SCENE_DUNGEON) {
         cputsxy(PANEL_X, 10, dungeon_names[place]);
-        cputsxy(PANEL_X, 11, "LEVEL");
+        cputsxy(PANEL_X, 11, "Level");
         put_num(PANEL_X + 6, 11, depth);
     } else {
-        cputsxy(PANEL_X, 10, "KELDMARCH");
+        cputsxy(PANEL_X, 10, "Keldmarch");
     }
 
     put_items(13);

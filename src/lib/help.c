@@ -8,16 +8,16 @@
 /* What to do next, by quest stage. Two lines each, because the useful
    version of this names the person and the place. */
 static const char *const task[10][2] = {
-    { "A LETTER HAS COME FROM THE KING.",   "GO SOUTH TO CASTLE MATHESON."       },
-    { "GO SOUTH TO CASTLE MATHESON AND",    "SPEAK WITH THE KING."               },
-    { "THE IRON SIGIL OPENS THE HOLLOW",    "CROWN. BRING BACK THE EMBERSTONE."  },
-    { "TAKE THE EMBERSTONE TO LOREMASTER",  "VANE IN WARDLOW."                   },
-    { "THE TIDAL KEY OPENS THE DROWNED",    "STAIR. BRING BACK THE SILVER TEAR." },
-    { "TAKE THE SILVER TEAR TO MOTHER ASH", "IN ASHCOMBE."                       },
-    { "THE ASHEN KEY OPENS BLACKPIT.",      "BRING BACK THE DRAGON'S HEART."     },
-    { "TAKE ALL THREE STONES TO GARRETT",   "THE SMITH IN MILLFORD."             },
-    { "DRAGONBANE IS YOURS. MALDRATH",      "LAIRS HIGH IN THE SUNDERING."       },
-    { "MALDRATH IS BANISHED.",              "KELDMARCH IS FREE."                 },
+    { "A letter has come from the king.",   "Go south to Castle Matheson."       },
+    { "Go south to Castle Matheson and",    "speak with the king."               },
+    { "The Iron Sigil opens the Hollow",    "Crown. Bring back the Emberstone."  },
+    { "Take the Emberstone to Loremaster",  "Vane in Wardlow."                   },
+    { "The Tidal Key opens the Drowned",    "Stair. Bring back the Silver Tear." },
+    { "Take the Silver Tear to Mother Ash", "in Ashcombe."                       },
+    { "The Ashen Key opens Blackpit.",      "Bring back the Dragon's Heart."     },
+    { "Take all three stones to Garrett",   "the smith in Millford."             },
+    { "Dragonbane is yours. Maldrath",      "lairs high in the Sundering."       },
+    { "Maldrath is banished.",              "Keldmarch is free."                 },
 };
 
 void help_screen(void)
@@ -31,41 +31,41 @@ void help_screen(void)
     clrscr();
 
     textcolor(COLOR_YELLOW);
-    cputsxy(1, 0, "QUEST FOR THE KING");
+    cputsxy(1, 0, "Quest for the King");
     textcolor(COLOR_GRAY1);
     chlinexy(0, 1, SCR_W);
 
     textcolor(COLOR_LIGHTBLUE);
-    cputsxy(1, 3, "MOVING");
+    cputsxy(1, 3, "Moving");
     textcolor(COLOR_WHITE);
-    cputsxy(3, 4, "W A S D  OR THE CURSOR KEYS");
-    cputsxy(3, 5, "WALK INTO SOMEONE TO TALK OR TRADE");
+    cputsxy(3, 4, "W A S D  or the cursor keys");
+    cputsxy(3, 5, "Walk into someone to talk or trade");
 
     textcolor(COLOR_LIGHTBLUE);
-    cputsxy(1, 7, "COMMANDS");
+    cputsxy(1, 7, "Commands");
     textcolor(COLOR_WHITE);
-    cputsxy(3,  8, "T      TALK TO WHOEVER IS BESIDE YOU");
-    cputsxy(3,  9, "P      DRINK A HEALING DRAUGHT");
-    cputsxy(3, 10, "F1     SAVE     F3  RESTORE");
-    cputsxy(3, 11, "SPACE  WAIT A TURN");
-    cputsxy(3, 12, "?      THIS SCREEN");
-    cputsxy(3, 13, "Q      QUIT");
+    cputsxy(3,  8, "T      Talk to whoever is beside you");
+    cputsxy(3,  9, "P      Drink a healing draught");
+    cputsxy(3, 10, "F1     Save       F3  Restore");
+    cputsxy(3, 11, "SPACE  Wait a turn");
+    cputsxy(3, 12, "?      This screen");
+    cputsxy(3, 13, "Q      Quit");
 
     textcolor(COLOR_LIGHTBLUE);
-    cputsxy(1, 15, "IN A FIGHT");
+    cputsxy(1, 15, "In a fight");
     textcolor(COLOR_WHITE);
-    cputsxy(3, 16, "A ATTACK  D DEFEND  P POTION  R RUN");
+    cputsxy(3, 16, "A Attack  D Defend  P Potion  R Run");
 
     textcolor(COLOR_GRAY1);
     chlinexy(0, 18, SCR_W);
     textcolor(COLOR_LIGHTBLUE);
-    cputsxy(1, 19, "YOUR TASK");
+    cputsxy(1, 19, "Your task");
     textcolor(COLOR_LIGHTGREEN);
     cputsxy(3, 20, task[stage][0]);
     cputsxy(3, 21, task[stage][1]);
 
     textcolor(COLOR_GRAY2);
-    cputsxy(1, 23, "ANY KEY TO RETURN");
+    cputsxy(1, 23, "Any key to return");
 
     cgetc();
 }

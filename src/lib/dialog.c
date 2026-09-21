@@ -48,7 +48,7 @@ static void frame(const char *place)
     chlinexy(0, IN_Y - 1, SCR_W);
 
     textcolor(COLOR_GRAY2);
-    cputsxy(0, HINT_Y, "RETURN SENDS   RUN/STOP LEAVES");
+    cputsxy(0, HINT_Y, "RETURN sends   RUN/STOP leaves");
     (void)x;
 }
 
@@ -154,9 +154,9 @@ unsigned char dialog_talk(const char *npc_id, const char *place,
     frame(place);
 
     if (!line_open) {
-        panel_lit("DIALLING...", COLOR_GRAY1);
+        panel_lit("Dialling...", COLOR_GRAY1);
         if (modem_open(MODEM_300) != MODEM_OK) {
-            panel_lit("THE LINE IS DEAD.", COLOR_LIGHTRED);
+            panel_lit("The line is dead.", COLOR_LIGHTRED);
             cgetc();
             return DIALOG_ENOLINE;
         }

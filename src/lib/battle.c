@@ -30,34 +30,34 @@ typedef struct {
 
 /* Wandering monsters, weakest first; which one shows up scales with level. */
 static const Monster wanderers[] = {
-    { "A RAT",        4,  2, 0,  2,   2 },
-    { "A GOBLIN",     7,  3, 1,  4,   6 },
-    { "A WOLF",       9,  4, 1,  6,   5 },
-    { "A BANDIT",    12,  5, 2,  9,  15 },
-    { "A SKELETON",  15,  6, 3, 12,  12 },
-    { "AN OGRE",     22,  8, 3, 18,  25 },
-    { "A WRAITH",    26, 10, 4, 25,  30 },
-    { "A DRAKE",     32, 12, 5, 35,  45 },
+    { "A rat",        4,  2, 0,  2,   2 },
+    { "A goblin",     7,  3, 1,  4,   6 },
+    { "A wolf",       9,  4, 1,  6,   5 },
+    { "A bandit",    12,  5, 2,  9,  15 },
+    { "A skeleton",  15,  6, 3, 12,  12 },
+    { "An ogre",     22,  8, 3, 18,  25 },
+    { "A wraith",    26, 10, 4, 25,  30 },
+    { "A drake",     32, 12, 5, 35,  45 },
 };
 #define NUM_WANDERERS (sizeof(wanderers) / sizeof(wanderers[0]))
 
 /* One keeper per deep place, in the order the quest opens them. */
 static const Monster keepers[NUM_DUNGEONS] = {
-    { "THE GAOLER",       45, 12, 5,  60,  80 },
-    { "THE DROWNED KING", 60, 15, 6,  90, 120 },
-    { "THE PIT WARDEN",   80, 18, 8, 140, 180 },
+    { "The Gaoler",       45, 12, 5,  60,  80 },
+    { "The Drowned King", 60, 15, 6,  90, 120 },
+    { "The Pit Warden",   80, 18, 8, 140, 180 },
 };
 
-static const Monster maldrath = { "MALDRATH", 120, 22, 10, 255, 0 };
+static const Monster maldrath = { "Maldrath", 120, 22, 10, 255, 0 };
 
 const char *const weapon_names[NUM_WEAPONS] = {
-    "BARE HANDS", "DAGGER", "SHORT SWORD", "LONG SWORD", "WAR AXE",
+    "Bare hands", "Dagger", "Short sword", "Long sword", "War axe",
 };
 const unsigned char weapon_atk[NUM_WEAPONS]  = { 1, 3, 6, 10, 15 };
 const unsigned int  weapon_cost[NUM_WEAPONS] = { 0, 25, 80, 200, 420 };
 
 const char *const armour_names[NUM_ARMOUR] = {
-    "TRAVEL CLOTHES", "LEATHER", "CHAIN MAIL", "SCALE MAIL", "PLATE",
+    "Travel clothes", "Leather", "Chain mail", "Scale mail", "Plate",
 };
 const unsigned char armour_def[NUM_ARMOUR]  = { 0, 2, 4, 7, 10 };
 const unsigned int  armour_cost[NUM_ARMOUR] = { 0, 30, 110, 260, 500 };
@@ -142,7 +142,7 @@ static void status(const Monster *m, unsigned char m_hp)
 {
     char *p;
 
-    p = str_lit(line, "YOU ");
+    p = str_lit(line, "You ");
     p = str_num(p, hero.hp);
     p = str_lit(p, "/");
     p = str_num(p, hero.hp_max);
@@ -162,11 +162,11 @@ static void award(const Monster *m)
     hero.xp += m->xp;
     gold += m->gold;
 
-    p = str_lit(line, "YOU GAIN ");
+    p = str_lit(line, "You gain ");
     p = str_num(p, m->xp);
-    p = str_lit(p, " EXPERIENCE AND ");
+    p = str_lit(p, " experience and ");
     p = str_num(p, m->gold);
-    p = str_lit(p, " MARKS.");
+    p = str_lit(p, " marks.");
     panel_line(line, COLOR_YELLOW);
 
     while (hero.level < MAX_LEVEL && hero.xp >= level_at[hero.level]) {
@@ -174,7 +174,7 @@ static void award(const Monster *m)
         hero.hp_max += 6;
         hero.hp = hero.hp_max;
 
-        p = str_lit(line, "YOU REACH LEVEL ");
+        p = str_lit(line, "You reach level ");
         p = str_num(p, hero.level);
         p = str_lit(p, ".");
         panel_line(line, COLOR_LIGHTGREEN);
@@ -196,11 +196,11 @@ static unsigned char fight(const Monster *m, unsigned char can_flee)
     chlinexy(0, RULE_A, SCR_W);
     chlinexy(0, RULE_B, SCR_W);
 
-    str_lit(line, can_flee ? "A)TTACK  D)EFEND  P)OTION  R)UN"
-                           : "A)TTACK  D)EFEND  P)OTION");
+    str_lit(line, can_flee ? "A)ttack  D)efend  P)otion  R)un"
+                           : "A)ttack  D)efend  P)otion");
     text_put(0, CMD_Y, line, COLOR_GRAY2);
 
-    panel_lit("IT COMES AT YOU.", COLOR_GRAY1);
+    panel_lit("It comes at you.", COLOR_GRAY1);
 
     for (;;) {
         status(m, m_hp);
@@ -220,7 +220,7 @@ static unsigned char fight(const Monster *m, unsigned char can_flee)
                 } else {
                     m_hp -= hit;
                 }
-                p = str_lit(line, "YOU STRIKE FOR ");
+                p = str_lit(line, "You strike for ");
                 p = str_num(p, hit);
                 p = str_lit(p, ".");
                 panel_line(line, COLOR_WHITE);
@@ -228,35 +228,35 @@ static unsigned char fight(const Monster *m, unsigned char can_flee)
 
             case K_DEFEND:
                 guard = 4;
-                panel_lit("YOU SET YOURSELF.", COLOR_GRAY1);
+                panel_lit("You set yourself.", COLOR_GRAY1);
                 break;
 
             case K_POTION:
                 if (!potions) {
-                    panel_lit("YOU HAVE NO DRAUGHTS.", COLOR_GRAY2);
+                    panel_lit("You have no draughts.", COLOR_GRAY2);
                     continue;
                 }
                 hit = drink_potion();
                 if (!hit) {
-                    panel_lit("YOU ARE UNHURT.", COLOR_GRAY2);
+                    panel_lit("You are unhurt.", COLOR_GRAY2);
                     continue;
                 }
-                p = str_lit(line, "YOU DRINK. ");
+                p = str_lit(line, "You drink. ");
                 p = str_num(p, hit);
-                p = str_lit(p, " RESTORED.");
+                p = str_lit(p, " restored.");
                 panel_line(line, COLOR_LIGHTGREEN);
                 break;
 
             case K_RUN:
                 if (!can_flee) {
-                    panel_lit("THERE IS NOWHERE TO RUN.", COLOR_LIGHTRED);
+                    panel_lit("There is nowhere to run.", COLOR_LIGHTRED);
                     continue;
                 }
                 if ((rand() % 4) != 0) {
-                    panel_lit("YOU GET AWAY.", COLOR_GRAY1);
+                    panel_lit("You get away.", COLOR_GRAY1);
                     return BATTLE_FLED;
                 }
-                panel_lit("IT CUTS YOU OFF.", COLOR_LIGHTRED);
+                panel_lit("It cuts you off.", COLOR_LIGHTRED);
                 break;
 
             default:
@@ -265,9 +265,9 @@ static unsigned char fight(const Monster *m, unsigned char can_flee)
 
         if (m_hp == 0) {
             status(m, 0);
-            panel_lit("IT FALLS.", COLOR_LIGHTGREEN);
+            panel_lit("It falls.", COLOR_LIGHTGREEN);
             award(m);
-            panel_lit("PRESS A KEY.", COLOR_GRAY2);
+            panel_lit("Press a key.", COLOR_GRAY2);
             cgetc();
             return BATTLE_WON;
         }
@@ -277,7 +277,7 @@ static unsigned char fight(const Monster *m, unsigned char can_flee)
         hit = hit > (armour_def[armour_lv] + guard)
               ? hit - armour_def[armour_lv] - guard : 1;
 
-        p = str_lit(line, "IT HITS YOU FOR ");
+        p = str_lit(line, "It hits you for ");
         p = str_num(p, hit);
         p = str_lit(p, ".");
         panel_line(line, COLOR_LIGHTRED);
@@ -285,8 +285,8 @@ static unsigned char fight(const Monster *m, unsigned char can_flee)
         if (hit >= hero.hp) {
             hero.hp = 0;
             status(m, m_hp);
-            panel_lit("YOU FALL.", COLOR_LIGHTRED);
-            panel_lit("PRESS A KEY.", COLOR_GRAY2);
+            panel_lit("You fall.", COLOR_LIGHTRED);
+            panel_lit("Press a key.", COLOR_GRAY2);
             cgetc();
             return BATTLE_DEAD;
         }

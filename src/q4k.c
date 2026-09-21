@@ -53,9 +53,6 @@ static const unsigned char boss_stage[NUM_DUNGEONS] = {
 };
 
 /* Test instrumentation: how many encounter rolls have happened and how many
-   turned into a fight. Published on the probe page so a headless run can say
-   something about the encounter rate. */
-/* Test instrumentation: how many encounter rolls have happened and how many
    became a fight. Deliberately not static, so a headless run can read them
    by name with screendump's --peek. Reading them off the probe page is not
    enough -- that only updates between turns, so it misses every fight that
@@ -108,7 +105,7 @@ static void died(void)
     heal_full();
     enter_town(TOWN_MILLFORD);
     view_restore();
-    view_message("YOU WAKE IN MILLFORD, LIGHTER OF PURSE.");
+    view_message("You wake in Millford, lighter of purse.");
 }
 
 /* A keeper defeated: take the stone and move the story on. */
@@ -121,9 +118,9 @@ static void keeper_beaten(void)
     map_set(hero.x, hero.y, T_FLOOR);
 
     switch (place) {
-        case 0: view_message("YOU TAKE THE EMBERSTONE."); break;
-        case 1: view_message("YOU TAKE THE SILVER TEAR."); break;
-        default: view_message("YOU TAKE THE DRAGON'S HEART."); break;
+        case 0: view_message("You take the Emberstone."); break;
+        case 1: view_message("You take the Silver Tear."); break;
+        default: view_message("You take the Dragon's Heart."); break;
     }
 }
 
@@ -135,7 +132,7 @@ static void quest_after_talk(unsigned char npc)
             if (quest_stage < Q_QUESTED) {
                 quest_stage = Q_QUESTED;
                 give(IT_SIGIL);
-                view_message("THE KING GIVES YOU THE IRON SIGIL.");
+                view_message("The king gives you the Iron Sigil.");
             }
             break;
 
@@ -143,7 +140,7 @@ static void quest_after_talk(unsigned char npc)
             if (has(IT_EMBER) && !has(IT_TIDAL)) {
                 quest_stage = Q_TIDAL;
                 give(IT_TIDAL);
-                view_message("VANE GIVES YOU THE TIDAL KEY.");
+                view_message("Vane gives you the Tidal Key.");
             }
             break;
 
@@ -151,7 +148,7 @@ static void quest_after_talk(unsigned char npc)
             if (has(IT_TEAR) && !has(IT_ASHEN)) {
                 quest_stage = Q_ASHEN;
                 give(IT_ASHEN);
-                view_message("MOTHER ASH GIVES YOU THE ASHEN KEY.");
+                view_message("Mother Ash gives you the Ashen Key.");
             }
             break;
 
@@ -161,7 +158,7 @@ static void quest_after_talk(unsigned char npc)
                 quest_stage = Q_FORGED;
                 give(IT_BLADE);
                 weapon_lv = NUM_WEAPONS - 1;
-                view_message("GARRETT REFORGES DRAGONBANE.");
+                view_message("Garrett reforges Dragonbane.");
             }
             break;
 
@@ -205,7 +202,7 @@ static signed char entity_at(unsigned char x, unsigned char y)
 static void enter_dungeon(unsigned char index)
 {
     if (!has(dungeon_key[index])) {
-        view_message("THE WAY IN IS SEALED.");
+        view_message("The way in is sealed.");
         return;
     }
     scene = SCENE_DUNGEON;
@@ -227,14 +224,14 @@ static void descend(void)
     reseed();
     hero.x = dun_up_x;
     hero.y = dun_up_y;
-    view_message("YOU GO DOWN.");
+    view_message("You go down.");
 }
 
 static void ascend(void)
 {
     if (depth <= 1) {
         leave_local();
-        view_message("DAYLIGHT.");
+        view_message("Daylight.");
         return;
     }
     --depth;
@@ -243,13 +240,13 @@ static void ascend(void)
     reseed();
     hero.x = dun_dn_x;
     hero.y = dun_dn_y;
-    view_message("YOU CLIMB BACK UP.");
+    view_message("You climb back up.");
 }
 
 static void face_the_dragon(void)
 {
     if (!has(IT_BLADE)) {
-        view_message("THE HEAT DRIVES YOU BACK.");
+        view_message("The heat drives you back.");
         return;
     }
     if (battle_dragon() == BATTLE_DEAD) {
@@ -258,7 +255,7 @@ static void face_the_dragon(void)
     }
     quest_stage = Q_VICTORY;
     back_to_map();
-    view_message("MALDRATH IS BANISHED. KELDMARCH IS FREE.");
+    view_message("Maldrath is banished. Keldmarch is free.");
 }
 
 /* Stepping onto something on the overworld. */
@@ -313,7 +310,7 @@ static void try_move(signed char dx, signed char dy)
         nx &= WORLD_MASK;
         ny &= WORLD_MASK;
     } else if (nx < 0 || ny < 0 || nx >= LOCAL_W || ny >= LOCAL_H) {
-        view_message("BLOCKED.");
+        view_message("Blocked.");
         return;
     }
 
@@ -342,11 +339,11 @@ static void try_move(signed char dx, signed char dy)
     flag = tile_flags[code - TILE_BASE];
     if (flag == TF_BLOCK) {
         /* Bumping into terrain costs no turn -- roguelike convention. */
-        view_message("BLOCKED.");
+        view_message("Blocked.");
         return;
     }
     if (flag == TF_WATER) {
-        view_message("THOU CANST NOT SWIM.");
+        view_message("You cannot swim.");
         return;
     }
 
@@ -369,7 +366,7 @@ static void try_move(signed char dx, signed char dy)
                 quest_stage = Q_SUMMONED;
             }
             leave_local();
-            view_message("YOU TAKE THE ROAD.");
+            view_message("You take the road.");
         }
         return;
     }
@@ -388,14 +385,14 @@ static void try_move(signed char dx, signed char dy)
 static void quaff(void)
 {
     if (!potions) {
-        view_message("YOU HAVE NO DRAUGHTS.");
+        view_message("You have no draughts.");
         return;
     }
     if (!drink_potion()) {
-        view_message("YOU ARE UNHURT.");
+        view_message("You are unhurt.");
         return;
     }
-    view_message("YOU DRINK A DRAUGHT.");
+    view_message("You drink a draught.");
     ++game_turn;
 }
 
@@ -409,7 +406,7 @@ static void try_talk(void)
     if (e < 0) { e = entity_at(hero.x + 1, hero.y); }
 
     if (e < 0) {
-        view_message("THERE IS NOBODY HERE.");
+        view_message("There is nobody here.");
         return;
     }
     interact((unsigned char)e);
@@ -431,12 +428,12 @@ int main(void)
     view_init();
 
     /* The story is on the title screen now; this is just the morning. */
-    strcpy(greeting, "HAIL, ");
+    strcpy(greeting, "Hail, ");
     strcat(greeting, hero.name);
     strcat(greeting, "!");
     view_message(greeting);
-    view_message("A NEW DAY DAWNS IN MILLFORD.");
-    view_message("WALK INTO SOMEONE TO SPEAK WITH THEM.");
+    view_message("A new day dawns in Millford.");
+    view_message("Walk into someone to speak with them.");
 
     for (;;) {
         if (scene == SCENE_DUNGEON) {
@@ -473,8 +470,8 @@ int main(void)
 
             case K_F1:
                 switch (save_game()) {
-                    case SAVE_OK: view_message("SAVED."); break;
-                    default:      view_message("THE DRIVE WOULD NOT."); break;
+                    case SAVE_OK: view_message("Saved."); break;
+                    default:      view_message("The drive would not."); break;
                 }
                 break;
 
@@ -482,13 +479,13 @@ int main(void)
                 switch (load_game()) {
                     case SAVE_OK:
                         back_to_map();
-                        view_message("RESTORED.");
+                        view_message("Restored.");
                         break;
                     case SAVE_EFORMAT:
-                        view_message("THAT IS NOT A SAVED GAME.");
+                        view_message("That is not a saved game.");
                         break;
                     default:
-                        view_message("NO SAVED GAME FOUND.");
+                        view_message("No saved game found.");
                         break;
                 }
                 break;

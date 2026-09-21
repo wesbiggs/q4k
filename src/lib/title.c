@@ -18,17 +18,17 @@
 #define KEY_DEL    0x14
 
 static const char *const story[] = {
-    "THE DRAGON MALDRATH CAME OVER THE",
-    "SUNDERING THREE WINTERS AGO, AND HAS",
-    "NOT LEFT. TWO ARMIES WENT AGAINST HIM.",
-    "NEITHER CAME BACK.",
+    "The dragon Maldrath came over the",
+    "Sundering three winters ago, and has",
+    "not left. Two armies went against him.",
+    "Neither came back.",
     "",
-    "A LETTER COMES, UNDER THE KING'S SEAL.",
-    "MATHESON SUMMONS YOU TO THE CASTLE.",
+    "A letter comes, under the king's seal.",
+    "Matheson summons you to the castle.",
     "",
-    "THE BLADE THAT CAN BANISH HIM WAS",
-    "BROKEN, AND ITS THREE BINDING STONES",
-    "LIE SEALED IN THREE DEEP PLACES.",
+    "The blade that can banish him was",
+    "broken, and its three binding stones",
+    "lie sealed in three deep places.",
 };
 #define STORY_LINES (sizeof(story) / sizeof(story[0]))
 
@@ -55,7 +55,7 @@ void title_screen(char *name, unsigned char max)
     clrscr();
 
     textcolor(COLOR_YELLOW);
-    cputsxy(11, 1, "QUEST FOR THE KING");
+    cputsxy(11, 1, "Quest for the King");
     textcolor(COLOR_GRAY1);
     chlinexy(0, 3, SCR_W);
 
@@ -67,9 +67,9 @@ void title_screen(char *name, unsigned char max)
     textcolor(COLOR_GRAY1);
     chlinexy(0, ASK_Y - 1, SCR_W);
     textcolor(COLOR_YELLOW);
-    cputsxy(1, ASK_Y, "AND WHO ARE YOU?");
+    cputsxy(1, ASK_Y, "And who are you, traveller?");
     textcolor(COLOR_GRAY2);
-    cputsxy(1, HINT_Y, "RETURN TO BEGIN AS ");
+    cputsxy(1, HINT_Y, "RETURN to begin as ");
     cputsxy(20, HINT_Y, name);
 
     /* The launcher is still typing RUN when we get here. */

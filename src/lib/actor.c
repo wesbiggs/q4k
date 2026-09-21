@@ -12,7 +12,7 @@ void party_init(void)
     memset(party, 0, sizeof(party));
     party_count = 1;
 
-    strcpy(hero.name, "ALARIC");
+    strcpy(hero.name, "Alaric");
     hero.x      = world_start_x;
     hero.y      = world_start_y;
     hero.glyph  = T_PLAYER;

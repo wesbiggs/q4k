@@ -42,7 +42,7 @@ static void draw(unsigned char kind, unsigned char owned)
         p = str_lit(p, kind == SHOP_WEAPON ? weapon_names[i] : armour_names[i]);
         p = str_pad(p, 26, line);
         p = str_num(p, kind == SHOP_WEAPON ? weapon_cost[i] : armour_cost[i]);
-        p = str_lit(p, " MARKS");
+        p = str_lit(p, " marks");
 
         text_clear(0, LIST_Y + i - 1, SCR_W);
         text_put(0, LIST_Y + i - 1, line,
@@ -50,21 +50,21 @@ static void draw(unsigned char kind, unsigned char owned)
     }
 
     if (kind == SHOP_ITEM) {
-        p = str_lit(line, "  1  HEALING DRAUGHT");
+        p = str_lit(line, "  1  Healing draught");
         p = str_pad(p, 26, line);
         p = str_num(p, potion_price());
-        p = str_lit(p, " MARKS");
+        p = str_lit(p, " marks");
         text_clear(0, LIST_Y, SCR_W);
         text_put(0, LIST_Y, line, COLOR_WHITE);
     }
 
-    p = str_lit(line, "YOU HAVE ");
+    p = str_lit(line, "You have ");
     p = str_num(p, gold);
-    p = str_lit(p, " MARKS");
+    p = str_lit(p, " marks");
     if (kind == SHOP_ITEM) {
         p = str_lit(p, ", ");
         p = str_num(p, potions);
-        p = str_lit(p, " DRAUGHTS");
+        p = str_lit(p, " draughts");
     }
     p = str_lit(p, ".");
     text_clear(0, PURSE_Y, SCR_W);
@@ -78,14 +78,14 @@ void shop_open(unsigned char kind)
 
     clrscr();
     textcolor(COLOR_YELLOW);
-    cputsxy(0, TITLE_Y, kind == SHOP_WEAPON ? "THE FORGE"
-                      : kind == SHOP_ARMOUR ? "THE KING'S ARMOURY"
-                                            : "THE VILLAGE SHOP");
+    cputsxy(0, TITLE_Y, kind == SHOP_WEAPON ? "The Forge"
+                      : kind == SHOP_ARMOUR ? "The King's Armoury"
+                                            : "The Village Shop");
     textcolor(COLOR_GRAY1);
     chlinexy(0, TITLE_Y + 1, SCR_W);
     chlinexy(0, HINT_Y - 1, SCR_W);
 
-    str_lit(line, "NUMBER TO BUY, SPACE TO LEAVE");
+    str_lit(line, "Number to buy, SPACE to leave");
     text_put(0, HINT_Y, line, COLOR_GRAY2);
 
     top = (kind == SHOP_ITEM) ? 1 : NUM_WEAPONS - 1;
@@ -109,24 +109,24 @@ void shop_open(unsigned char kind)
                                      : potion_price();
 
         if (gold < cost) {
-            note("YOU CANNOT AFFORD THAT.", COLOR_LIGHTRED);
+            note("You cannot afford that.", COLOR_LIGHTRED);
             continue;
         }
         if (kind != SHOP_ITEM && pick <= owned) {
-            note("YOU HAVE BETTER ALREADY.", COLOR_GRAY2);
+            note("You have better already.", COLOR_GRAY2);
             continue;
         }
 
         gold -= cost;
         if (kind == SHOP_WEAPON) {
             weapon_lv = pick;
-            note("A FAIR TRADE.", COLOR_LIGHTGREEN);
+            note("A fair trade.", COLOR_LIGHTGREEN);
         } else if (kind == SHOP_ARMOUR) {
             armour_lv = pick;
-            note("SIGN FOR IT ON THE WAY OUT.", COLOR_LIGHTGREEN);
+            note("Sign for it on the way out.", COLOR_LIGHTGREEN);
         } else {
             ++potions;
-            note("DO NOT HAGGLE.", COLOR_LIGHTGREEN);
+            note("Do not haggle.", COLOR_LIGHTGREEN);
         }
     }
 }

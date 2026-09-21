@@ -26,9 +26,9 @@ const unsigned char dungeon_prize[NUM_DUNGEONS] = { IT_EMBER, IT_TEAR, IT_HEART 
 const unsigned char dungeon_deep[NUM_DUNGEONS] = { 3, 3, 4 };
 
 const char *const dungeon_names[NUM_DUNGEONS] = {
-    "THE HOLLOW CROWN",
-    "THE DROWNED STAIR",
-    "BLACKPIT",
+    "The Hollow Crown",
+    "The Drowned Stair",
+    "Blackpit",
 };
 
 void game_init(void)

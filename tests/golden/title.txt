@@ -1,26 +1,26 @@
     +----------------------------------------+
   0 |                                        |
-  1 |           QUEST FOR THE KING           |
+  1 |           Quest for the King           |
   2 |                                        |
   3 |········································|
   4 |                                        |
-  5 | THE DRAGON MALDRATH CAME OVER THE      |
-  6 | SUNDERING THREE WINTERS AGO, AND HAS   |
-  7 | NOT LEFT. TWO ARMIES WENT AGAINST HIM. |
-  8 | NEITHER CAME BACK.                     |
+  5 | The dragon Maldrath came over the      |
+  6 | Sundering three winters ago, and has   |
+  7 | not left. Two armies went against him. |
+  8 | Neither came back.                     |
   9 |                                        |
- 10 | A LETTER COMES, UNDER THE KING'S SEAL. |
- 11 | MATHESON SUMMONS YOU TO THE CASTLE.    |
+ 10 | A letter comes, under the king's seal. |
+ 11 | Matheson summons you to the castle.    |
  12 |                                        |
- 13 | THE BLADE THAT CAN BANISH HIM WAS      |
- 14 | BROKEN, AND ITS THREE BINDING STONES   |
- 15 | LIE SEALED IN THREE DEEP PLACES.       |
+ 13 | The blade that can banish him was      |
+ 14 | broken, and its three binding stones   |
+ 15 | lie sealed in three deep places.       |
  16 |········································|
- 17 | AND WHO ARE YOU?                       |
+ 17 | And who are you, traveller?            |
  18 | █                                      |
  19 |                                        |
  20 |                                        |
- 21 | RETURN TO BEGIN AS ALARIC              |
+ 21 | RETURN to begin as Alaric              |
  22 |                                        |
  23 |                                        |
  24 |                                        |

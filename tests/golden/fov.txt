@@ -1,18 +1,18 @@
     +----------------------------------------+
-  0 |                     ·ALARIC            |
+  0 |                     ·Alaric            |
   1 |                     ·HP       20/20    |
-  2 |                     ·LEVEL    1        |
-  3 |                     ·EXP      0        |
-  4 |                     ·GOLD     60       |
-  5 |                     ·DRAUGHTS 1        |
+  2 |                     ·Level    1        |
+  3 |                     ·Exp      0        |
+  4 |                     ·Gold     60       |
+  5 |                     ·Draughts 1        |
   6 |                     ·                  |
-  7 |                     ·BARE HANDS        |
-  8 |                     ·TRAVEL CLOTHES    |
+  7 |                     ·Bare hands        |
+  8 |                     ·Travel clothes    |
   9 |                     ·                  |
- 10 |             ##_###  ·THE DROWNED STAIR |
- 11 |             #____#  ·LEVEL 1           |
+ 10 |             ##_###  ·The Drowned Stair |
+ 11 |             #____#  ·Level 1           |
  12 |             #____#  ·                  |
- 13 |#_______________@_#  ·TIDAL KEY         |
+ 13 |#_______________@_#  ·Tidal Key         |
  14 |             _____#  ·                  |
  15 |             ######  ·                  |
  16 |                     ·                  |
@@ -20,8 +20,8 @@
  18 |                     ·                  |
  19 |········································|
  20 |                                        |
- 21 |HAIL, ALARIC!                           |
- 22 |A NEW DAY DAWNS IN MILLFORD.            |
- 23 |WALK INTO SOMEONE TO SPEAK WITH THEM.   |
- 24 |THE DROWNED STAIR                       |
+ 21 |Hail, Alaric!                           |
+ 22 |A new day dawns in Millford.            |
+ 23 |Walk into someone to speak with them.   |
+ 24 |The Drowned Stair                       |
     +----------------------------------------+
