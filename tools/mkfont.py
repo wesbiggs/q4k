@@ -36,11 +36,54 @@ def bolden(rows):
     return [(r | (r >> 1)) & 0xFF for r in rows]
 
 
+def runs(row):
+    """The spans of set pixels in one row, as (first, last) bit positions."""
+    out, start = [], None
+    for b in range(8):
+        if row & (0x80 >> b):
+            if start is None:
+                start = b
+        elif start is not None:
+            out.append((start, b - 1))
+            start = None
+    if start is not None:
+        out.append((start, 7))
+    return out
+
+
 def serif(rows):
+    """Put a foot on the end of a stem, and only there.
+
+    The first attempt widened whatever sat in the top and bottom rows, which
+    is wrong twice over. A capital N's top row is two separate stems, and
+    widening each by a pixel welds them into a solid bar across the letter;
+    E, T and R have a bar there already, which then overhangs the stem below
+    it. It also worked on row 7, which is blank in most glyphs, so the feet
+    it was supposed to add never appeared at all.
+
+    So: find the rows that actually have ink, and only touch a span that is
+    a single narrow stem with room either side. Anything ambiguous is left
+    alone. That limits the effect to letters like I and T, which is honest --
+    there is no room for a serif on both stems of an N at this size.
+    """
     out = list(rows)
-    for edge in (0, len(rows) - 1):
-        if out[edge]:
-            out[edge] = (out[edge] | (out[edge] << 1) | (out[edge] >> 1)) & 0xFF
+    inked = [i for i, r in enumerate(out) if r]
+    if not inked:
+        return out
+
+    for edge in (inked[0], inked[-1]):
+        spans = runs(out[edge])
+        if len(spans) != 1:
+            continue                     # two stems, or a stem and a bowl
+        first, last = spans[0]
+        if last - first + 1 > 2:
+            continue                     # a bar, not a stem
+        row = out[edge]
+        if first - 1 >= 0 and not (row & (0x80 >> (first - 1))):
+            row |= 0x80 >> (first - 1)
+        if last + 1 <= 7 and not (row & (0x80 >> (last + 1))):
+            row |= 0x80 >> (last + 1)
+        out[edge] = row & 0xFF
     return out
 
 
