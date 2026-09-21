@@ -203,7 +203,7 @@ def main():
             if n not in roster:
                 sys.exit("town entity names npc %r, which is not in "
                          "assets/npcs.json" % n)
-            f.write('    "%s",\n' % roster[n]["name"].upper())
+            f.write('    "%s",\n' % roster[n]["name"])
         f.write("};\n\nconst TownEnt town_ents[NUM_TOWN_ENTS] = {\n")
         for x, y, kind, param in ents:
             f.write("    { %2d, %2d, %-8s %s },\n" % (x, y, kind + ",", param))

@@ -5,6 +5,7 @@
 
 #include <q4k/actor.h>
 #include <q4k/battle.h>
+#include <q4k/font.h>
 #include <q4k/fov.h>
 #include <q4k/game.h>
 #include <q4k/charset.h>
@@ -53,6 +54,7 @@ void view_restore(void)
 void view_init(void)
 {
     tiles_install();
+    font_install();
 
     VIC.bordercolor = COLOR_BLACK;
     VIC.bgcolor0    = COLOR_BLACK;

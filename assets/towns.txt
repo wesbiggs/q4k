@@ -14,7 +14,7 @@
 #   x  the way out (drawn as a door)
 #   1-6  entity slots declared above
 
-town millford MILLFORD
+town millford Millford
 at 40 19
 ent 1 npc tam
 ent 2 npc smith
@@ -42,7 +42,7 @@ map
 #__________x________#
 #####################
 
-town castle CASTLE MATHESON
+town castle Castle Matheson
 at 28 51
 ent 1 npc king
 ent 2 npc steward
@@ -67,7 +67,7 @@ map
 #_________x_________#
 #####################
 
-town wardlow WARDLOW
+town wardlow Wardlow
 at 29 10
 ent 1 npc vane
 ent 2 npc brann
@@ -92,7 +92,7 @@ map
 #_________x_________#
 #####################
 
-town ashcombe ASHCOMBE
+town ashcombe Ashcombe
 at 16 23
 ent 1 npc ash
 map
@@ -116,7 +116,7 @@ map
 #F________x________F#
 #####################
 
-town stonereach STONEREACH
+town stonereach Stonereach
 at 53 43
 ent 1 npc alda
 ent 2 shop armour

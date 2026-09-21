@@ -99,6 +99,28 @@ lair or shopkeeper cannot be walked to. It has already caught two bugs a
 screen test never would: the dragon's lair walled inside the mountains, and a
 shopkeeper standing in a doorway blocking the smith behind him.
 
+## The letters
+
+The game runs on its own copy of the character set, so the letters are ours
+to change as much as the tiles are. `tools/mkfont.py` derives a restyled face
+from the C64's character ROM rather than drawing 52 glyphs from nothing,
+which keeps every letter the right width and on the same baseline.
+
+Eight by eight is too small for real blackletter — the strokes collide and it
+stops being readable, which is the opposite of the point. What carries at
+this size is weight and a foot on the stems:
+
+```bash
+make assets FONT_STYLE=serif   # a foot on the stems (default)
+make assets FONT_STYLE=bold    # thicker strokes: older, less legible
+make assets FONT_STYLE=both
+```
+
+Mixed case needs no special handling. cc65 encodes an upper-case letter in a
+string literal as shifted PETSCII, which draws as a capital, and a lower-case
+one as unshifted, which draws in lower case — the charset holds both, and
+every slot the tiles use is up in the graphics range at `$60-$7B`.
+
 ## Picking tile glyphs
 
 `make shot PROG=charset` renders all 256 screen codes so you can choose by eye.

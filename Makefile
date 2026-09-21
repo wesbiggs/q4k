@@ -73,8 +73,14 @@ GEN_TILES := include/q4k/tiles.h src/lib/tiles_data.c src/lib/tiles_names.c
 GEN_MAP   := include/q4k/world_data.h src/lib/map_data.c
 GEN_TOWN  := include/q4k/town_data.h src/lib/town_data.c
 GEN_GEO   := assets/geography.json
+GEN_FONT  := src/lib/font_data.c
 
-assets: $(GEN_TILES) $(GEN_MAP) $(GEN_TOWN) $(GEN_GEO)
+# How the letters are drawn. "serif" puts a foot on the stems and leaves the
+# strokes alone; "bold" thickens them, which looks older and costs legibility
+# at 8x8; "both" does both. Change and `make assets` to see it.
+FONT_STYLE ?= serif
+
+assets: $(GEN_TILES) $(GEN_MAP) $(GEN_TOWN) $(GEN_GEO) $(GEN_FONT)
 
 $(GEN_TILES): assets/tiles.txt tools/mktiles.py
 	tools/mktiles.py
@@ -88,6 +94,9 @@ $(GEN_TOWN): assets/towns.txt assets/tiles.txt assets/npcs.json tools/mktowns.py
 $(GEN_GEO): assets/overworld.txt assets/towns.txt assets/places.txt \
             assets/tiles.txt tools/mkgeo.py
 	tools/mkgeo.py
+
+$(GEN_FONT): tools/mkfont.py
+	tools/mkfont.py --style $(FONT_STYLE)
 
 dirs:
 	@mkdir -p $(BUILD)/lib $(DIST)
