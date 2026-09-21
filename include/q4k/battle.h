@@ -31,6 +31,19 @@ unsigned char battle_wander(void);
 unsigned char battle_boss(unsigned char dungeon);
 unsigned char battle_dragon(void);
 
+/* What one draught restores.
+ *
+ * A share of your full health, not a fixed number. Twelve points was most of
+ * a health bar at level one and nothing at level ten -- Maldrath hits for
+ * about that much through plate, so drinking cost you a turn to stand still.
+ * Damage scales with the game; the cure has to as well. */
+unsigned char potion_heal(void);
+
+/* Drink one if there is one and it would do any good. Returns how much it
+   healed, or zero if nothing happened. Shared so the in-fight and
+   on-the-map versions cannot drift apart. */
+unsigned char drink_potion(void);
+
 void          heal_full(void);
 
 /* Where the randomness comes from.

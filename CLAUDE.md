@@ -115,6 +115,12 @@ almost every other save routine on this machine. Passing an end address
 produces a two-byte file containing only the load address, and a silent one:
 the call returns success.
 
+**A screen test that walks in the open is flaky by construction.** Overworld
+and dungeon squares roll for wandering monsters, and the seed now comes from
+the player's own timing, so the roll differs every run. Walk inside a town:
+towns never roll. This is what turned the save test red one run in several,
+with a rat on the screen instead of the map.
+
 **People block movement**, so two NPCs in a line make the inner one
 unreachable. `tools/checkmap.py` checks this; run `make test` after editing
 `assets/towns.txt`.

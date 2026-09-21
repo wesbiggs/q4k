@@ -91,6 +91,32 @@ void reseed(void)
     srand(last_seed);
 }
 
+#define POTION_SHARE 40   /* per cent of full health */
+#define POTION_FLOOR 12   /* ...but never less than the old flat amount */
+
+unsigned char potion_heal(void)
+{
+    unsigned int amount = ((unsigned int)hero.hp_max * POTION_SHARE) / 100;
+
+    return (unsigned char)(amount < POTION_FLOOR ? POTION_FLOOR : amount);
+}
+
+unsigned char drink_potion(void)
+{
+    unsigned char amount;
+
+    if (!potions || hero.hp == hero.hp_max) {
+        return 0;
+    }
+    --potions;
+    amount = potion_heal();
+    if (hero.hp_max - hero.hp < amount) {
+        amount = hero.hp_max - hero.hp;
+    }
+    hero.hp += amount;
+    return amount;
+}
+
 void heal_full(void)
 {
     hero.hp = hero.hp_max;
@@ -210,12 +236,15 @@ static unsigned char fight(const Monster *m, unsigned char can_flee)
                     panel_lit("YOU HAVE NO DRAUGHTS.", COLOR_GRAY2);
                     continue;
                 }
-                --potions;
-                hero.hp += 12;
-                if (hero.hp > hero.hp_max) {
-                    hero.hp = hero.hp_max;
+                hit = drink_potion();
+                if (!hit) {
+                    panel_lit("YOU ARE UNHURT.", COLOR_GRAY2);
+                    continue;
                 }
-                panel_lit("YOU DRINK A DRAUGHT.", COLOR_LIGHTGREEN);
+                p = str_lit(line, "YOU DRINK. ");
+                p = str_num(p, hit);
+                p = str_lit(p, " RESTORED.");
+                panel_line(line, COLOR_LIGHTGREEN);
                 break;
 
             case K_RUN:

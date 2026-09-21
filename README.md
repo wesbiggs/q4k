@@ -62,6 +62,12 @@ talk to them or open their shop.
 
 In a fight: `A`ttack, `D`efend, `P`otion, `R`un.
 
+A healing draught restores a share of your full health rather than a fixed
+number, so it is worth a turn late on as well as early. A flat amount was
+most of a health bar at level one and less than one of Maldrath's blows at
+level ten, which made drinking during the fight that needs it a way to
+stand still.
+
 Saved games go to a disk in unit 8; `make play` creates `dist/saves.d64` the
 first time and attaches it. Only your character, your progress and which
 squares you have explored are written — towns are fixed and dungeon levels

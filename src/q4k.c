@@ -391,14 +391,9 @@ static void quaff(void)
         view_message("YOU HAVE NO DRAUGHTS.");
         return;
     }
-    if (hero.hp == hero.hp_max) {
+    if (!drink_potion()) {
         view_message("YOU ARE UNHURT.");
         return;
-    }
-    --potions;
-    hero.hp += 12;
-    if (hero.hp > hero.hp_max) {
-        hero.hp = hero.hp_max;
     }
     view_message("YOU DRINK A DRAUGHT.");
     ++game_turn;

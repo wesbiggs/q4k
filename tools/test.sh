@@ -63,13 +63,18 @@ done
 # Saving and restoring needs a disk in unit 8. A fresh one each run, so the
 # case does not depend on what a previous run left lying about: walk two
 # squares, save, walk two more, restore, and end up back where you saved.
+#
+# It walks north inside Millford rather than out onto the road. Overworld
+# squares roll for wandering monsters, and now that the seed comes from the
+# player's own timing the roll differs every run -- any test that walks in
+# the open is flaky by construction. Towns never roll.
 if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ]; then
     saves=$(mktemp -t q4ksave).d64
     rm -f "$saves"
     c1541 -format "test,01" d64 "$saves" >/dev/null 2>&1
     compare save tests/golden-save.txt \
         tools/screendump.py dist/q4k.prg --disk "$saves" \
-        --keys '\rss\x85dd\x86' --settle 8
+        --keys '\rww\x85ww\x86' --settle 8
     rm -f "$saves"
 fi
 
