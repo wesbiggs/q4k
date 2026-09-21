@@ -79,12 +79,14 @@ GEN_FONT  := src/lib/font_data.c
 # Where the letters come from. FONT_SOURCE is "rom" for the machine's own
 # character set, or a path to a C64 charset binary. FONT_STYLE only applies
 # to the rom source: "serif" puts a foot on the stems, "bold" thickens the
-# strokes -- older-looking, and the counters fill in at 8x8.
+# strokes first and then does the same. W and w are always taken from the
+# ROM unchanged -- thickening four diagonals in six pixels fills the gaps
+# between them.
 #
 # The default is the ROM because a third-party charset is somebody's
 # typeface and usually not ours to ship. See assets/fonts/NOTICE.md.
 FONT_SOURCE ?= rom
-FONT_STYLE  ?= serif
+FONT_STYLE  ?= bold
 
 assets: $(GEN_TILES) $(GEN_MAP) $(GEN_TOWN) $(GEN_GEO) $(GEN_FONT)
 

@@ -31,8 +31,14 @@ MIXED_CASE = 2048             # offset of the mixed-case half in a 4K file
 # better left alone, and $60-$7B is where the tiles land anyway.
 STYLED = [(0x01, 0x1A), (0x41, 0x5A), (0x30, 0x39)]
 
+# Glyphs the transforms spoil, left exactly as the ROM draws them. W is
+# four diagonals in six pixels; thickening it to the right fills the gaps
+# between them and it stops being a W.
+KEEP_AS_IS = {0x57, 0x17}   # W, w
+
 
 def bolden(rows):
+    """Thicken every stroke one pixel to the right."""
     return [(r | (r >> 1)) & 0xFF for r in rows]
 
 
@@ -101,9 +107,10 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--source", default="rom",
                    help="'rom', or a path to a C64 charset binary")
-    ap.add_argument("--style", default="serif",
-                    choices=("none", "bold", "serif", "both"),
-                    help="only applies to the rom source")
+    ap.add_argument("--style", default="bold",
+                    choices=("none", "serif", "bold"),
+                    help="rom source only: serif puts a foot on the stems, "
+                         "bold thickens the strokes and then does the same")
     args = ap.parse_args()
 
     if args.source == "rom":
@@ -114,11 +121,12 @@ def main():
         if args.style != "none":
             for first, last in STYLED:
                 for code in range(first, last + 1):
+                    if code in KEEP_AS_IS:
+                        continue
                     rows = list(image[code * 8:code * 8 + 8])
-                    if args.style in ("bold", "both"):
+                    if args.style == "bold":
                         rows = bolden(rows)
-                    if args.style in ("serif", "both"):
-                        rows = serif(rows)
+                    rows = serif(rows)
                     image[code * 8:code * 8 + 8] = bytes(rows)
     else:
         image = load(args.source)

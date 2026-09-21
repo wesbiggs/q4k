@@ -106,8 +106,9 @@ the tiles are patched into -- so the font is ours to choose.
 [tools/mkfont.py](tools/mkfont.py) builds that 2K image from either source:
 
 ```bash
-make assets                                   # the committed default: the ROM
-make assets FONT_STYLE=bold                   # thicker; the counters fill in
+make assets                                   # the default: ROM, thickened
+make assets FONT_STYLE=serif                  # feet on the stems only
+make assets FONT_STYLE=none                   # the ROM as Commodore drew it
 make assets FONT_SOURCE=assets/fonts/x.bin    # any C64 charset binary
 ```
 
@@ -121,6 +122,11 @@ produced by transformation: the strokes collide and it stops being readable.
 Weight and a foot on the stems is about the limit of what that approach
 buys. A face actually drawn at this size does far better, which is the whole
 argument for taking a `.bin`.
+
+`KEEP_AS_IS` in [tools/mkfont.py](tools/mkfont.py) lists glyphs the
+transforms spoil, taken from the ROM unchanged. `W` and `w` are there
+because they are four diagonals in six pixels and thickening fills the gaps
+between them.
 
 Mixed case needs no special handling. cc65 encodes an upper-case letter in a
 string literal as shifted PETSCII, which draws as a capital, and a lower-case
