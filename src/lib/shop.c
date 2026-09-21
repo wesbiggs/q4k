@@ -1,6 +1,7 @@
 #include <conio.h>
 #include <c64.h>
 
+#include <q4k/actor.h>
 #include <q4k/battle.h>
 #include <q4k/game.h>
 #include <q4k/shop.h>
@@ -14,6 +15,11 @@
 #define HINT_Y   20
 
 static char line[SCR_W + 1];
+
+unsigned int potion_price(void)
+{
+    return 10u * hero.level;
+}
 
 static void note(const char *literal, unsigned char color)
 {
@@ -46,7 +52,7 @@ static void draw(unsigned char kind, unsigned char owned)
     if (kind == SHOP_ITEM) {
         p = str_lit(line, "  1  HEALING DRAUGHT");
         p = str_pad(p, 26, line);
-        p = str_num(p, POTION_COST);
+        p = str_num(p, potion_price());
         p = str_lit(p, " MARKS");
         text_clear(0, LIST_Y, SCR_W);
         text_put(0, LIST_Y, line, COLOR_WHITE);
@@ -100,7 +106,7 @@ void shop_open(unsigned char kind)
 
         cost = (kind == SHOP_WEAPON) ? weapon_cost[pick]
              : (kind == SHOP_ARMOUR) ? armour_cost[pick]
-                                     : POTION_COST;
+                                     : potion_price();
 
         if (gold < cost) {
             note("YOU CANNOT AFFORD THAT.", COLOR_LIGHTRED);

@@ -30,7 +30,7 @@
     "voice": "Sharp, quick, unsentimental. Counts while she talks.",
     "knows": "She has sold provisions to everyone who ever left Millford for the castle. She remembers which ones came back.",
     "mock": [
-      "Draughts are two marks. Do not haggle, I have heard it all.",
+      "Draughts cost more the further you mean to go. That is not me, that is the road.",
       "You will want more than you think. Everyone takes too little.",
       "Fourth one this year headed south. I remember the other three."
     ]
@@ -102,7 +102,7 @@
     "voice": "Brisk, overworked, faintly bitter. Talks in ledgers and quotas.",
     "knows": "The armoury is half empty: two armies went south in it and the gear did not come back.",
     "mock": [
-      "Mail is forty marks. The king's price, not mine.",
+      "Mail is the king's price, not mine. Take it up with him.",
       "Half these racks are empty. You can guess where the rest of it went.",
       "Sign for what you take. Somebody has to account for it."
     ]

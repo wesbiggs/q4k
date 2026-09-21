@@ -4,7 +4,13 @@
 #ifndef Q4K_SHOP_H
 #define Q4K_SHOP_H
 
-#define POTION_COST 10
+/* A draught costs ten marks a level.
+ *
+ * What one restores scales with your health, so what it costs scales too.
+ * At level seven the eleven or so needed to see off Maldrath come to about
+ * what the best armour costs, which makes the last shopping trip a real
+ * decision rather than small change. */
+unsigned int potion_price(void);
 
 void shop_open(unsigned char kind);
 
