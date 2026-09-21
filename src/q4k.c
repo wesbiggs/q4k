@@ -9,6 +9,7 @@
 
 #include <conio.h>
 #include <c64.h>
+#include <string.h>
 
 #include <q4k/actor.h>
 #include <q4k/battle.h>
@@ -20,6 +21,7 @@
 #include <q4k/probe.h>
 #include <q4k/shop.h>
 #include <q4k/tiles.h>
+#include <q4k/title.h>
 #include <q4k/view.h>
 #include <q4k/world.h>
 
@@ -407,13 +409,21 @@ int main(void)
 {
     unsigned char key;
     unsigned char seeded = 0;
+    /* PETSCII throughout: hero.name and the literals are both what conio
+       expects, so they concatenate straight together. */
+    static char greeting[SCR_W + 1];
 
-    game_init();
+    game_init();                       /* seeds hero.name with the default */
+    title_screen(hero.name, NAME_LEN);
     view_init();
     drain_keyboard();
 
-    view_message("A LETTER COMES, UNDER THE KING'S SEAL.");
-    view_message("MATHESON SUMMONS YOU TO THE CASTLE.");
+    /* The story is on the title screen now; this is just the morning. */
+    strcpy(greeting, "HAIL, ");
+    strcat(greeting, hero.name);
+    strcat(greeting, "!");
+    view_message(greeting);
+    view_message("A NEW DAY DAWNS IN MILLFORD.");
     view_message("WALK INTO SOMEONE TO SPEAK WITH THEM.");
 
     for (;;) {

@@ -1,1 +1,1 @@
-dist/q4k.prg --keys wwwwwwwwwwwwaaaaw --settle 3
+dist/q4k.prg --keys \rwwwwwwwwwwwwaaaaw --settle 3

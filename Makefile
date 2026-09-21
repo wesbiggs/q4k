@@ -44,7 +44,7 @@ PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 # Twelve kilobytes under the charset does not hold the whole game; these are
 # the biggest and least performance-critical parts (menus and set-piece
 # screens), so putting them out of the way costs nothing.
-HIMODS   := dialog battle shop dungeon panel
+HIMODS   := dialog battle shop dungeon panel title
 
 LIBSRC   := $(wildcard src/lib/*.c) $(wildcard src/lib/*.s)
 LIBOBJ   := $(patsubst src/lib/%.c,$(BUILD)/lib/%.o,$(wildcard src/lib/*.c)) \

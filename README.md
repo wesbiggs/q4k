@@ -46,7 +46,8 @@ Python, and `make` regenerates any whose assets have changed.
 
 ## Playing
 
-`WASD` or the cursor keys move. The panel shows what you are carrying and
+The title screen sets the scene and asks your name; RETURN takes the default.
+Then `WASD` or the cursor keys move. The panel shows what you are carrying and
 wearing, alongside your stats and any quest items. Walk into someone to talk
 to them or open their shop. `T` talks to whoever is beside you, `SPACE` waits, `Q` quits.
 In a fight: `A`ttack, `D`efend, `P`otion, `R`un.

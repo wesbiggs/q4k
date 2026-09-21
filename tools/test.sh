@@ -68,7 +68,7 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
     sleep 1
     compare dialog tests/golden-dialog.txt \
         tools/screendump.py dist/q4k.prg --rs232 25299 \
-        --keys 'wwwwwwwwwwwwaaaawaaawhat of the blade\r' --settle 32
+        --keys '\rwwwwwwwwwwwwaaaawaaawhat of the blade\r' --settle 32
     kill "$daemon" 2>/dev/null || true
     wait "$daemon" 2>/dev/null || true   # reap quietly; no job-control noise
 fi

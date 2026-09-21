@@ -1,0 +1,27 @@
+    +----------------------------------------+
+  0 |                                        |
+  1 |           QUEST FOR THE KING           |
+  2 |                                        |
+  3 |········································|
+  4 |                                        |
+  5 | THE DRAGON MALDRATH CAME OVER THE      |
+  6 | SUNDERING THREE WINTERS AGO, AND HAS   |
+  7 | NOT LEFT. TWO ARMIES WENT AGAINST HIM. |
+  8 | NEITHER CAME BACK.                     |
+  9 |                                        |
+ 10 | A LETTER COMES, UNDER THE KING'S SEAL. |
+ 11 | MATHESON SUMMONS YOU TO THE CASTLE.    |
+ 12 |                                        |
+ 13 | THE BLADE THAT CAN BANISH HIM WAS      |
+ 14 | BROKEN, AND ITS THREE BINDING STONES   |
+ 15 | LIE SEALED IN THREE DEEP PLACES.       |
+ 16 |········································|
+ 17 | AND WHO ARE YOU?                       |
+ 18 | █                                      |
+ 19 |                                        |
+ 20 |                                        |
+ 21 | RETURN TO BEGIN AS ALARIC              |
+ 22 |                                        |
+ 23 |                                        |
+ 24 |                                        |
+    +----------------------------------------+
