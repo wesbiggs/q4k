@@ -112,8 +112,12 @@ void dungeon_build(unsigned char index, unsigned char level)
     dun_dn_y = ry[i] + rh[i] / 2;
 
     if (level >= dungeon_deep[index]) {
-        /* The bottom: the keeper stands where the stairs would have been. */
-        local[(unsigned int)dun_dn_y * LOCAL_W + dun_dn_x] = T_MONSTER;
+        /* The bottom: the keeper stands where the stairs would have been --
+           unless it has already been killed, which is what holding its stone
+           means. Levels are rebuilt from scratch every visit, so without this
+           the keeper comes back. */
+        local[(unsigned int)dun_dn_y * LOCAL_W + dun_dn_x] =
+            has(dungeon_prize[index]) ? T_FLOOR : T_MONSTER;
     } else {
         local[(unsigned int)dun_dn_y * LOCAL_W + dun_dn_x] = T_STAIRDN;
     }

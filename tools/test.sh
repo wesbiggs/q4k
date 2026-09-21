@@ -60,6 +60,19 @@ for golden in tests/golden/*.txt; do
     compare "$name" "$golden" tools/screendump.py "$@"
 done
 
+# Saving and restoring needs a disk in unit 8. A fresh one each run, so the
+# case does not depend on what a previous run left lying about: walk two
+# squares, save, walk two more, restore, and end up back where you saved.
+if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ]; then
+    saves=$(mktemp -t q4ksave).d64
+    rm -f "$saves"
+    c1541 -format "test,01" d64 "$saves" >/dev/null 2>&1
+    compare save tests/golden-save.txt \
+        tools/screendump.py dist/q4k.prg --disk "$saves" \
+        --keys '\rss\x85dd\x86' --settle 8
+    rm -f "$saves"
+fi
+
 # The dialogue case needs a daemon on the other end of the modem line, in
 # --mock mode so the replies are the same every run.
 if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then

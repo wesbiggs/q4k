@@ -4,3 +4,6 @@ dist/
 *.lib
 *.map
 __pycache__/
+
+# VICE writes these when a snapshot hotkey is hit in the emulator window
+*.vsf

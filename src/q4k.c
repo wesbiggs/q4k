@@ -18,7 +18,9 @@
 #include <q4k/dungeon.h>
 #include <q4k/fov.h>
 #include <q4k/game.h>
+#include <q4k/help.h>
 #include <q4k/probe.h>
+#include <q4k/savegame.h>
 #include <q4k/shop.h>
 #include <q4k/tiles.h>
 #include <q4k/title.h>
@@ -39,11 +41,13 @@
 #define K_D           0x44
 #define K_Q           0x51
 #define K_T           0x54
+#define K_P           0x50
+#define K_HELP        0x3F
+#define K_F1          0x85   /* save -- S is already "walk south" */
+#define K_F3          0x86   /* load */
 
-/* Which stone each keeper is sitting on. */
-static const unsigned char boss_prize[NUM_DUNGEONS] = {
-    IT_EMBER, IT_TEAR, IT_HEART,
-};
+/* Which stage finding each stone moves the story to. Which stone that is
+   lives in game.c as dungeon_prize[], because the generator needs it too. */
 static const unsigned char boss_stage[NUM_DUNGEONS] = {
     Q_EMBER, Q_TEAR, Q_HEART,
 };
@@ -78,15 +82,6 @@ static void publish(void)
     probe_stage(game_turn < 254 ? (unsigned char)game_turn + 1 : 255);
 }
 
-/* The launcher types RUN and RETURN to start us; drop anything still queued
-   so it is not read as the player's first move. */
-static void drain_keyboard(void)
-{
-    while (kbhit()) {
-        cgetc();
-    }
-}
-
 /* Wait for a key, and time the wait.
  *
  * The spin count is how long the player took to decide, which is the only
@@ -119,7 +114,7 @@ static void died(void)
 /* A keeper defeated: take the stone and move the story on. */
 static void keeper_beaten(void)
 {
-    give(boss_prize[place]);
+    give(dungeon_prize[place]);
     if (quest_stage < boss_stage[place]) {
         quest_stage = boss_stage[place];
     }
@@ -389,6 +384,26 @@ static void try_move(signed char dx, signed char dy)
 }
 
 /* Talk to whoever is next to you. */
+/* A draught is worth drinking before a fight as well as during one. */
+static void quaff(void)
+{
+    if (!potions) {
+        view_message("YOU HAVE NO DRAUGHTS.");
+        return;
+    }
+    if (hero.hp == hero.hp_max) {
+        view_message("YOU ARE UNHURT.");
+        return;
+    }
+    --potions;
+    hero.hp += 12;
+    if (hero.hp > hero.hp_max) {
+        hero.hp = hero.hp_max;
+    }
+    view_message("YOU DRINK A DRAUGHT.");
+    ++game_turn;
+}
+
 static void try_talk(void)
 {
     signed char e;
@@ -414,9 +429,11 @@ int main(void)
     static char greeting[SCR_W + 1];
 
     game_init();                       /* seeds hero.name with the default */
+    /* No keyboard drain here: the title screen already discarded the
+       launcher's RUN before it accepted a name, and draining again would
+       swallow whatever the player typed ahead. */
     title_screen(hero.name, NAME_LEN);
     view_init();
-    drain_keyboard();
 
     /* The story is on the title screen now; this is just the morning. */
     strcpy(greeting, "HAIL, ");
@@ -453,6 +470,37 @@ int main(void)
 
             case K_T:
                 try_talk();
+                break;
+
+            case K_P:
+                quaff();
+                break;
+
+            case K_F1:
+                switch (save_game()) {
+                    case SAVE_OK: view_message("SAVED."); break;
+                    default:      view_message("THE DRIVE WOULD NOT."); break;
+                }
+                break;
+
+            case K_F3:
+                switch (load_game()) {
+                    case SAVE_OK:
+                        back_to_map();
+                        view_message("RESTORED.");
+                        break;
+                    case SAVE_EFORMAT:
+                        view_message("THAT IS NOT A SAVED GAME.");
+                        break;
+                    default:
+                        view_message("NO SAVED GAME FOUND.");
+                        break;
+                }
+                break;
+
+            case K_HELP:
+                help_screen();
+                back_to_map();
                 break;
 
             case K_SPACE:

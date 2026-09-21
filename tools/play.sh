@@ -24,7 +24,15 @@ else
     echo "play.sh: reusing the daemon already on port $PORT"
 fi
 
+# Saves go to a disk in unit 8. Made once and kept.
+SAVES="dist/saves.d64"
+if [ ! -f "$SAVES" ]; then
+    c1541 -format "q4k saves,01" d64 "$SAVES" >/dev/null
+    echo "play.sh: created $SAVES for saved games"
+fi
+
 tools/run.sh dist/q4k.prg \
+    -8 "$SAVES" \
     -userportdevice 2 \
     -rsuserdev 0 \
     -rsuserbaud "$BAUD" \

@@ -104,6 +104,17 @@ touching all 399 squares at all: keeping a list of what was lit took it to
 4.4ms. `--peek` plus the jiffy clock at `$A2` over 64 iterations is enough
 resolution to settle questions like this in a couple of minutes.
 
+**Disk access needs MEMSIZ raised first.** `$0283` points at the top of
+BASIC memory, which is `$A000` on a stock machine — exactly where this
+game's BSS starts. Leave it there and KERNAL SAVE writes nothing and LOAD
+walks into the weeds, both without an error you can see. `savegame.c` and
+`modem.c` both raise it to `$C700` before touching the drive.
+
+**`cbm_save`'s last argument is a byte count, not an end address** — unlike
+almost every other save routine on this machine. Passing an end address
+produces a two-byte file containing only the load address, and a silent one:
+the call returns success.
+
 **People block movement**, so two NPCs in a line make the inner one
 unreachable. `tools/checkmap.py` checks this; run `make test` after editing
 `assets/towns.txt`.

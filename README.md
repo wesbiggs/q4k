@@ -47,57 +47,26 @@ Python, and `make` regenerates any whose assets have changed.
 ## Playing
 
 The title screen sets the scene and asks your name; RETURN takes the default.
-Then `WASD` or the cursor keys move. The panel shows what you are carrying and
-wearing, alongside your stats and any quest items. Walk into someone to talk
-to them or open their shop. `T` talks to whoever is beside you, `SPACE` waits, `Q` quits.
+Then `WASD` or the cursor keys move. The panel shows what you are carrying
+and wearing, alongside your stats and any quest items. Walk into someone to
+talk to them or open their shop.
+
+| key | |
+|---|---|
+| `T` | talk to whoever is beside you |
+| `P` | drink a healing draught |
+| `F1` / `F3` | save / restore |
+| `SPACE` | wait a turn |
+| `?` | keys, and what you are supposed to be doing next |
+| `Q` | quit |
+
 In a fight: `A`ttack, `D`efend, `P`otion, `R`un.
 
-## Workflow
+Saved games go to a disk in unit 8; `make play` creates `dist/saves.d64` the
+first time and attaches it. Only your character, your progress and which
+squares you have explored are written — towns are fixed and dungeon levels
+regenerate exactly from their seed, so the map is rebuilt rather than stored.
 
-```
-make                       build every program
-make run PROG=hello        play it in VICE
-make play                  play the game with NPC dialogue attached
-make check PROG=hello      headless: print the C64 screen as text
-make shot PROG=hello       headless: save build/hello.png
-make test                  headless: diff every program against its golden
-make bless                 accept current output as the new goldens
-make d64 PROG=hello        build a disk image
-```
-
-`make check` is the fast inner loop. It boots the program in a headless VICE,
-waits for a handshake, and prints the 40x25 screen:
-
-```
-  0 |HELLO, WORLD                            |
-  ...
-  8 |               #########                |
-  9 |               #..██...#                |
- 10 |               #..██..T#                |
- 11 |               #...@..T#                |
-```
-
-Add `--hex` for raw screen codes, `--color` for colour RAM, `--keys "wasd"`
-to feed the keyboard, `--stage N` to wait for a later checkpoint, `--shot` to
-render a PNG from emulated memory.
-
-`--poke quest_stage=7 --poke items=0x38` sets any global by name, resolved
-from ld65's label file, and `--peek enc_fights` reads one back afterwards.
-That is how a test reaches the middle of a long quest without walking there,
-and it keeps cheat hooks out of the game itself.
-
-## How the headless harness works
-
-The program writes progress markers to the **probe page** at `$CF00` (see
-[include/q4k/probe.h](include/q4k/probe.h)); `cfg/c64-q4k.cfg` lowers
-`__HIMEM__` to `$CF00` so the C runtime can never clobber it.
-`tools/screendump.py` drives VICE's binary monitor over TCP, polls that page
-until the program reports the stage it wants, then reads screen and colour RAM
-out of emulated memory.
-
-Polling a handshake rather than sleeping means tests run at whatever speed the
-emulator manages (currently under a second each) and never race a half-drawn
-screen.
 
 ## The map
 

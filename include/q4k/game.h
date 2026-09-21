@@ -66,6 +66,7 @@ extern const unsigned char dungeon_wx[NUM_DUNGEONS];
 extern const unsigned char dungeon_wy[NUM_DUNGEONS];
 extern const char *const   dungeon_names[NUM_DUNGEONS];
 extern const unsigned char dungeon_key[NUM_DUNGEONS];   /* IT_* needed  */
+extern const unsigned char dungeon_prize[NUM_DUNGEONS]; /* IT_* it drops */
 extern const unsigned char dungeon_deep[NUM_DUNGEONS];  /* levels       */
 
 /* -1 if (x,y) is not a dungeon mouth. */

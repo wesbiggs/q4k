@@ -127,7 +127,8 @@ class Monitor:
         chunks, each one waiting for the program to drain the last.
         """
         # Unshifted C64 keys produce PETSCII $41-$5A, i.e. upper case.
-        data = text.upper().encode("ascii")
+        # latin-1, not ascii: the function keys are $85-$88.
+        data = text.upper().encode("latin-1")
         for i in range(0, len(data), KBD_MAX):
             chunk = data[i:i + KBD_MAX]
             self.mem_set(KBD_BUFFER, chunk)
@@ -218,7 +219,7 @@ def free_port():
         return s.getsockname()[1]
 
 
-def launch(prg, port, rs232=None):
+def launch(prg, port, rs232=None, disk=None):
     argv = [
         "x64sc",
         "-default",
@@ -230,6 +231,8 @@ def launch(prg, port, rs232=None):
         "+sound",
         "-jamaction", "5",   # a CPU jam quits rather than popping a dialog
     ]
+    if disk:
+        argv += ["-8", disk]
     if not rs232:
         # Warp is free speed for a self-contained program, but it decouples
         # emulated time from wall-clock time. With a live host on the other
@@ -389,6 +392,8 @@ def main():
     ap.add_argument("--poke", action="append", metavar="SYM=VALUE",
                     default=[],
                     help="set a global by name once the program is running")
+    ap.add_argument("--disk", metavar="D64",
+                    help="attach a disk image as unit 8, for save and load")
     ap.add_argument("--peek", action="append", metavar="SYM[+OFF][:WIDTH]",
                     default=[], help="print a global by name")
     ap.add_argument("--shot", metavar="PNG",
@@ -399,11 +404,12 @@ def main():
     args = ap.parse_args()
     if args.keys:
         # So a shell can pass "look\r" without needing $'...' quoting.
-        args.keys = args.keys.encode("ascii", "replace").decode("unicode_escape")
+        args.keys = args.keys.encode("latin-1", "replace").decode("unicode_escape")
 
     port = free_port()
     vice = launch(args.prg, port,
-                  (args.rs232, args.baud) if args.rs232 else None)
+                  (args.rs232, args.baud) if args.rs232 else None,
+                  args.disk)
     sock = None
     try:
         sock = connect(port)
