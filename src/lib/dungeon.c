@@ -5,15 +5,20 @@
 #include <q4k/game.h>
 #include <q4k/tiles.h>
 
-#define MAX_ROOMS 6
 #define MIN_W     3
 #define MIN_H     3
 
 unsigned char dun_up_x, dun_up_y;
 unsigned char dun_dn_x, dun_dn_y;
 
-static unsigned char rx[MAX_ROOMS], ry[MAX_ROOMS];
-static unsigned char rw[MAX_ROOMS], rh[MAX_ROOMS];
+unsigned char dun_rooms;
+unsigned char dun_rx[MAX_ROOMS], dun_ry[MAX_ROOMS];
+unsigned char dun_rw[MAX_ROOMS], dun_rh[MAX_ROOMS];
+
+#define rx dun_rx
+#define ry dun_ry
+#define rw dun_rw
+#define rh dun_rh
 
 static void carve(unsigned char x, unsigned char y)
 {
@@ -90,6 +95,8 @@ void dungeon_build(unsigned char index, unsigned char level)
         carve_room(rooms);
         ++rooms;
     }
+
+    dun_rooms = rooms;
 
     for (i = 1; i < rooms; ++i) {
         corridor(rx[i - 1] + rw[i - 1] / 2, ry[i - 1] + rh[i - 1] / 2,

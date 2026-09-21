@@ -106,6 +106,15 @@ one 21x19 viewport, so they never scroll. Towns are authored in
 from the dungeon and depth so a level you walk back into is the level you
 left.
 
+Dungeons are dark. A room lights up whole when you stand in it, you can see
+straight along a corridor until something stops the eye, and squares you
+have already seen stay on the map drawn dim. That is Rogue's model rather
+than a full symmetric shadowcast, and it is the right one here: the
+generator only cuts corridors along the axes, so four rays capture exactly
+what a corridor shows, for a fraction of the cost of casting at every wall.
+Measured on the emulated machine it costs 4.4ms a turn against a 34ms
+redraw.
+
 `tools/checkmap.py` (run by `make test`) floods the overworld from the start
 square and each town from its arrival square, and fails if any town, dungeon,
 lair or shopkeeper cannot be walked to. It has already caught two bugs a

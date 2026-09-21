@@ -95,6 +95,15 @@ Anything that moves a place on the map must regenerate it -- `make` does,
 and `assets/places.txt` makes a moved dungeon a hard error rather than a
 wrong direction.
 
+**Measure before optimising on this machine; the intuitions do not
+transfer.** Field of view clears the squares lit last turn, and the obvious
+6502 move -- walk the array with a pointer instead of an index -- measured
+*slower* than the indexed loop it replaced (27.1ms against 18.5ms), because
+cc65 keeps the pointer out of zero page. What actually helped was not
+touching all 399 squares at all: keeping a list of what was lit took it to
+4.4ms. `--peek` plus the jiffy clock at `$A2` over 64 iterations is enough
+resolution to settle questions like this in a couple of minutes.
+
 **People block movement**, so two NPCs in a line make the inner one
 unreachable. `tools/checkmap.py` checks this; run `make test` after editing
 `assets/towns.txt`.

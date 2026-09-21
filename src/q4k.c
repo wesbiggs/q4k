@@ -15,6 +15,7 @@
 #include <q4k/charset.h>
 #include <q4k/dialog.h>
 #include <q4k/dungeon.h>
+#include <q4k/fov.h>
 #include <q4k/game.h>
 #include <q4k/probe.h>
 #include <q4k/shop.h>
@@ -214,6 +215,7 @@ static void enter_dungeon(unsigned char index)
     place = index;
     depth = 1;
     dungeon_build(index, depth);
+    fov_reset();
     reseed();            /* dungeon_build seeds for repeatable levels */
     hero.x = dun_up_x;
     hero.y = dun_up_y;
@@ -224,6 +226,7 @@ static void descend(void)
 {
     ++depth;
     dungeon_build(place, depth);
+    fov_reset();
     reseed();
     hero.x = dun_up_x;
     hero.y = dun_up_y;
@@ -239,6 +242,7 @@ static void ascend(void)
     }
     --depth;
     dungeon_build(place, depth);
+    fov_reset();
     reseed();
     hero.x = dun_dn_x;
     hero.y = dun_dn_y;
@@ -413,6 +417,9 @@ int main(void)
     view_message("WALK INTO SOMEONE TO SPEAK WITH THEM.");
 
     for (;;) {
+        if (scene == SCENE_DUNGEON) {
+            fov_update(hero.x, hero.y);
+        }
         view_draw();
         view_draw_panel();
         publish();

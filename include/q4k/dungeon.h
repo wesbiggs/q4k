@@ -10,6 +10,15 @@
 #ifndef Q4K_DUNGEON_H
 #define Q4K_DUNGEON_H
 
+#define MAX_ROOMS 6
+
+/* The rooms this level ended up with. Line of sight needs them: a room you
+   are standing in lights up whole, which is cheaper and truer to the genre
+   than casting rays at every wall. */
+extern unsigned char dun_rooms;
+extern unsigned char dun_rx[MAX_ROOMS], dun_ry[MAX_ROOMS];
+extern unsigned char dun_rw[MAX_ROOMS], dun_rh[MAX_ROOMS];
+
 /* Where this level's stairs ended up, for placing the player. */
 extern unsigned char dun_up_x, dun_up_y;
 extern unsigned char dun_dn_x, dun_dn_y;

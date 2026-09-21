@@ -5,6 +5,7 @@
 
 #include <q4k/actor.h>
 #include <q4k/battle.h>
+#include <q4k/fov.h>
 #include <q4k/game.h>
 #include <q4k/charset.h>
 #include <q4k/tiles.h>
@@ -66,13 +67,31 @@ void view_init(void)
    walk in and the whole place is in front of you. */
 static void draw_local(void)
 {
-    unsigned char x, y, i, code;
+    unsigned char x, y, i, code, state;
     unsigned int  offset;
 
     for (y = 0; y < LOCAL_H; ++y) {
         for (x = 0; x < LOCAL_W; ++x) {
             offset = (unsigned int)y * SCR_W + x;
             code = local[(unsigned int)y * LOCAL_W + x];
+
+            /* Underground you draw what you can see and what you remember
+               seeing, and nothing else. Above ground the whole place is in
+               front of you. */
+            if (scene == SCENE_DUNGEON) {
+                state = lit[(unsigned int)y * LOCAL_W + x];
+                if (state == LIT_UNSEEN) {
+                    SCREEN_RAM[offset] = 0x20;
+                    COLOR_RAM[offset]  = COLOR_BLACK;
+                    continue;
+                }
+                if (state == LIT_REMEMBERED) {
+                    SCREEN_RAM[offset] = code;
+                    COLOR_RAM[offset]  = COLOR_GRAY1;
+                    continue;
+                }
+            }
+
             SCREEN_RAM[offset] = code;
             COLOR_RAM[offset]  = (code >= TILE_BASE + TILE_COUNT)
                                ? COLOR_LIGHTRED       /* the keeper */
