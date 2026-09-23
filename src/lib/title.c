@@ -108,12 +108,10 @@ void title_screen(char *name, unsigned char max)
             continue;
         }
 
-        /* Unshifted letters arrive as $41-$5A, which this character set
-           draws in lower case. Names look better in capitals, and capitals
-           are the shifted range. */
-        if (key >= 0x41 && key <= 0x5A) {
-            key += 0x80;
-        } else if (key < 0x20 || (key > 0x3F && key < 0xC1) || key > 0xDA) {
+        /* PETSCII as typed: unshifted letters arrive as $41-$5A (lower
+           case in this character set), shifted ones as $C1-$DA. */
+        if (key < 0x20 || (key > 0x3F && key < 0x41)
+            || (key > 0x5A && key < 0xC1) || key > 0xDA) {
             continue;               /* not something a name is made of */
         }
 
