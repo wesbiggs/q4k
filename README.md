@@ -124,9 +124,11 @@ buys. A face actually drawn at this size does far better, which is the whole
 argument for taking a `.bin`.
 
 `KEEP_AS_IS` in [tools/mkfont.py](tools/mkfont.py) lists glyphs the
-transforms spoil, taken from the ROM unchanged. `W` and `w` are there
-because they are four diagonals in six pixels and thickening fills the gaps
-between them.
+transforms spoil, taken from the ROM unchanged: `M N W` and their lower
+cases. All three are defined by narrow gaps between diagonals, and
+thickening a stroke rightwards closes them — `W` becomes a solid band, `M`'s
+inner V fills until three rows are identical bars. They come out a shade
+lighter than their neighbours, which is a better trade than illegible.
 
 Mixed case needs no special handling. cc65 encodes an upper-case letter in a
 string literal as shifted PETSCII, which draws as a capital, and a lower-case

@@ -31,10 +31,18 @@ MIXED_CASE = 2048             # offset of the mixed-case half in a 4K file
 # better left alone, and $60-$7B is where the tiles land anyway.
 STYLED = [(0x01, 0x1A), (0x41, 0x5A), (0x30, 0x39)]
 
-# Glyphs the transforms spoil, left exactly as the ROM draws them. W is
-# four diagonals in six pixels; thickening it to the right fills the gaps
-# between them and it stops being a W.
-KEEP_AS_IS = {0x57, 0x17}   # W, w
+# Glyphs the transforms spoil, left exactly as the ROM draws them.
+#
+# All four are the same failure: the letter is defined by narrow gaps
+# between diagonals, and thickening a stroke to the right closes them. W
+# becomes a solid band, M's inner V fills in until rows one to three are
+# identical bars, and N loses its diagonal. The ROM already drew them as
+# heavily as six pixels allow.
+KEEP_AS_IS = {
+    0x57, 0x17,   # W w
+    0x4D, 0x0D,   # M m
+    0x4E, 0x0E,   # N n
+}
 
 
 def bolden(rows):
