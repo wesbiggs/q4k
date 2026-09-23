@@ -416,6 +416,7 @@ int main(void)
 {
     unsigned char key;
     unsigned char seeded = 0;
+    unsigned char restored;
     /* PETSCII throughout: hero.name and the literals are both what conio
        expects, so they concatenate straight together. */
     static char greeting[SCR_W + 1];
@@ -424,16 +425,24 @@ int main(void)
     /* No keyboard drain here: the title screen already discarded the
        launcher's RUN before it accepted a name, and draining again would
        swallow whatever the player typed ahead. */
-    title_screen(hero.name, NAME_LEN);
+    restored = title_screen(hero.name, NAME_LEN);
     view_init();
 
-    /* The story is on the title screen now; this is just the morning. */
-    strcpy(greeting, "Hail, ");
-    strcat(greeting, hero.name);
-    strcat(greeting, "!");
-    view_message(greeting);
-    view_message("A new day dawns in Millford.");
-    view_message("Walk into someone to speak with them.");
+    view_message("Press ? for help.");
+    if (restored) {
+        strcpy(greeting, "Welcome back, ");
+        strcat(greeting, hero.name);
+        strcat(greeting, ".");
+        view_message(greeting);
+    } else {
+        /* The story is on the title screen now; this is just the morning. */
+        strcpy(greeting, "Hail, ");
+        strcat(greeting, hero.name);
+        strcat(greeting, "!");
+        view_message(greeting);
+        view_message("A new day dawns in Millford.");
+        view_message("Walk into someone to speak with them.");
+    }
 
     for (;;) {
         if (scene == SCENE_DUNGEON) {

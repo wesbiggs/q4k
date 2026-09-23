@@ -5,6 +5,7 @@
 
 #include <q4k/charset.h>
 #include <q4k/probe.h>
+#include <q4k/savegame.h>
 #include <q4k/tiles.h>
 #include <q4k/title.h>
 #include <q4k/view.h>
@@ -13,9 +14,12 @@
 #define ASK_Y    17
 #define ENTRY_Y  18
 #define HINT_Y   21
+#define LOAD_Y   22
+#define ERROR_Y  24
 
 #define KEY_RETURN 0x0D
 #define KEY_DEL    0x14
+#define KEY_F3     0x86
 
 static const char *const story[] = {
     "The dragon Maldrath came over the",
@@ -32,7 +36,7 @@ static const char *const story[] = {
 };
 #define STORY_LINES (sizeof(story) / sizeof(story[0]))
 
-void title_screen(char *name, unsigned char max)
+unsigned char title_screen(char *name, unsigned char max)
 {
     /* Typed into a buffer of its own. Terminating `name` as it is drawn
        would erase the caller's default before the player touched a key. */
@@ -71,6 +75,7 @@ void title_screen(char *name, unsigned char max)
     textcolor(COLOR_GRAY2);
     cputsxy(1, HINT_Y, "RETURN to begin as ");
     cputsxy(20, HINT_Y, name);
+    cputsxy(1, LOAD_Y, "F3 to load a saved game");
 
     /* The launcher is still typing RUN when we get here. */
     while (kbhit()) {
@@ -99,7 +104,27 @@ void title_screen(char *name, unsigned char max)
                 entry[n] = '\0';
                 strcpy(name, entry);
             }
-            return;                 /* nothing typed: the default stands */
+            return 0;               /* nothing typed: the default stands */
+        }
+        if (key == KEY_F3) {
+            textcolor(COLOR_GRAY2);
+            cclearxy(1, ERROR_Y, SCR_W - 2);
+            cputsxy(1, ERROR_Y, "Loading...");
+            switch (load_game()) {
+                case SAVE_OK:
+                    return 1;
+                case SAVE_EFORMAT:
+                    textcolor(COLOR_LIGHTRED);
+                    cclearxy(1, ERROR_Y, SCR_W - 2);
+                    cputsxy(1, ERROR_Y, "That is not a saved game.");
+                    break;
+                default:
+                    textcolor(COLOR_LIGHTRED);
+                    cclearxy(1, ERROR_Y, SCR_W - 2);
+                    cputsxy(1, ERROR_Y, "No saved game found.");
+                    break;
+            }
+            continue;
         }
         if (key == KEY_DEL) {
             if (n) {

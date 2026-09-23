@@ -19,7 +19,7 @@
  17 |                     ·                  |
  18 |                     ·                  |
  19 |········································|
- 20 |                                        |
+ 20 |Press ? for help.                       |
  21 |Hail, Alaric!                           |
  22 |A new day dawns in Millford.            |
  23 |Walk into someone to speak with them.   |

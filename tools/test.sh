@@ -75,6 +75,13 @@ if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ]; then
     compare save tests/golden-save.txt \
         tools/screendump.py dist/q4k.prg --disk "$saves" \
         --keys '\rww\x85ww\x86' --settle 8
+    # The same disk now holds a save: restore it from the title screen with
+    # F3, and start back where it was made rather than in a new morning.
+    if [ -f tests/golden-load.txt ]; then
+        compare load tests/golden-load.txt \
+            tools/screendump.py dist/q4k.prg --disk "$saves" \
+            --keys '\x86' --settle 8
+    fi
     rm -f "$saves"
 fi
 

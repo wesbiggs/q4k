@@ -21,7 +21,7 @@
  19 |                                        |
  20 |                                        |
  21 | RETURN to begin as Alaric              |
- 22 |                                        |
+ 22 | F3 to load a saved game                |
  23 |                                        |
  24 |                                        |
     +----------------------------------------+
