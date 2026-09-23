@@ -74,7 +74,7 @@ if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ]; then
     c1541 -format "test,01" d64 "$saves" >/dev/null 2>&1
     compare save tests/golden-save.txt \
         tools/screendump.py dist/q4k.prg --disk "$saves" \
-        --keys '\rww\x85ww\x86' --settle 8
+        --keys 'Alaric\rww\x85ww\x86' --settle 8
     # The same disk now holds a save: restore it from the title screen with
     # F3, and start back where it was made rather than in a new morning.
     if [ -f tests/golden-load.txt ]; then
@@ -93,7 +93,7 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
     sleep 1
     compare dialog tests/golden-dialog.txt \
         tools/screendump.py dist/q4k.prg --rs232 25299 \
-        --keys '\rwwwwwwwwwwwwaaaawaaawhat of the blade\r' --settle 32
+        --keys 'Alaric\rwwwwwwwwwwwwaaaawaaawhat of the blade\r' --settle 32
     kill "$daemon" 2>/dev/null || true
     wait "$daemon" 2>/dev/null || true   # reap quietly; no job-control noise
 fi

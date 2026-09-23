@@ -126,9 +126,17 @@ class Monitor:
         the ordinary KERNAL path. The queue holds ten, so longer text goes in
         chunks, each one waiting for the program to drain the last.
         """
-        # Unshifted C64 keys produce PETSCII $41-$5A, i.e. upper case.
-        # latin-1, not ascii: the function keys are $85-$88.
-        data = text.upper().encode("latin-1")
+        # As the keyboard would send them: unshifted letters are PETSCII
+        # $41-$5A, shifted ones $C1-$DA. So "Alaric" types as a C64 player
+        # would, with SHIFT on the A. Everything else goes through as latin-1
+        # (not ascii: the function keys are $85-$8C).
+        def petscii(c):
+            if "a" <= c <= "z":
+                return ord(c) - 0x20
+            if "A" <= c <= "Z":
+                return ord(c) + 0x80
+            return c.encode("latin-1")[0]
+        data = bytes(petscii(c) for c in text)
         for i in range(0, len(data), KBD_MAX):
             chunk = data[i:i + KBD_MAX]
             self.mem_set(KBD_BUFFER, chunk)

@@ -1,8 +1,10 @@
 #include <conio.h>
 #include <c64.h>
 
+#include <stdlib.h>
 #include <string.h>
 
+#include <q4k/battle.h>
 #include <q4k/charset.h>
 #include <q4k/probe.h>
 #include <q4k/savegame.h>
@@ -36,12 +38,29 @@ static const char *const story[] = {
 };
 #define STORY_LINES (sizeof(story) / sizeof(story[0]))
 
+/* For a player who just presses RETURN. At most 8 letters (NAME_LEN), and
+   none that echo a townsperson's name. */
+static const char *const names[] = {
+    "Aldwin",  "Bramwell", "Caelan",  "Doran",   "Elowen",
+    "Faelan",  "Gareth",   "Halvard", "Isolde",  "Jorund",
+    "Kestrel", "Lirael",   "Maelis",  "Neriah",  "Orrin",
+    "Perrin",  "Quenby",   "Rowena",  "Sigrun",  "Talwyn",
+    "Ulric",   "Vesper",   "Wystan",  "Ysolde",  "Zephyr",
+    "Aveline", "Briony",   "Cedric",  "Dagny",   "Edric",
+    "Fenwick", "Gwyneth",  "Hollis",  "Ingrid",  "Leofric",
+    "Merrow",  "Niamh",    "Osric",   "Rhoswen", "Seren",
+    "Thorne",  "Tristan",  "Wendel",  "Alaric",  "Beren",
+    "Corwin",  "Eira",     "Hadric",  "Idris",   "Morgana",
+};
+#define NUM_NAMES (sizeof(names) / sizeof(names[0]))
+
 unsigned char title_screen(char *name, unsigned char max)
 {
     /* Typed into a buffer of its own. Terminating `name` as it is drawn
        would erase the caller's default before the player touched a key. */
     static char entry[17];
     unsigned char i, n = 0, key;
+    unsigned int spins;
 
     if (max > sizeof(entry)) {
         max = sizeof(entry);
@@ -73,8 +92,7 @@ unsigned char title_screen(char *name, unsigned char max)
     textcolor(COLOR_YELLOW);
     cputsxy(1, ASK_Y, "And who are you, traveller?");
     textcolor(COLOR_GRAY2);
-    cputsxy(1, HINT_Y, "RETURN to begin as ");
-    cputsxy(20, HINT_Y, name);
+    cputsxy(1, HINT_Y, "RETURN alone for a random name");
     cputsxy(1, LOAD_Y, "F3 to load a saved game");
 
     /* The launcher is still typing RUN when we get here. */
@@ -97,14 +115,24 @@ unsigned char title_screen(char *name, unsigned char max)
         SCREEN_RAM[(unsigned int)ENTRY_Y * SCR_W + 1 + n] = 0xA0;
         COLOR_RAM[(unsigned int)ENTRY_Y * SCR_W + 1 + n]  = COLOR_GRAY2;
 
+        /* Time the wait, as the game's own key loop does: how long the
+           player takes is what makes the random name random. */
+        spins = 0;
+        while (!kbhit()) {
+            ++spins;
+        }
+        rng_stir(spins);
         key = cgetc();
 
         if (key == KEY_RETURN) {
             if (n) {
                 entry[n] = '\0';
                 strcpy(name, entry);
+            } else {
+                reseed();
+                strcpy(name, names[rand() % NUM_NAMES]);
             }
-            return 0;               /* nothing typed: the default stands */
+            return 0;
         }
         if (key == KEY_F3) {
             textcolor(COLOR_GRAY2);
