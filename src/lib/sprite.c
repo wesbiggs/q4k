@@ -58,7 +58,10 @@ static void wait_frame(void)
 
 /* Copy the current frame into sprite 0, and its outline into sprite 1.
    The outline is the figure grown a pixel in every direction; sprite 0
-   covers the middle of it, so it only shows as a black edge. */
+   covers the middle of it, so it only shows as a black edge.
+
+   Except downwards: a row of black below the feet lands in the square
+   underneath, and against a wall that reads as the hero standing in it. */
 static void build(void)
 {
     static unsigned int grown[10];
@@ -77,7 +80,7 @@ static void build(void)
         grown[r + 1] |= w;
         grown[r + 2] |= w;
     }
-    for (r = 0; r < 10; ++r) {
+    for (r = 0; r < 9; ++r) {
         SPR_EDGE[r * 3]     = (unsigned char)(grown[r] >> 8);
         SPR_EDGE[r * 3 + 1] = (unsigned char)grown[r];
     }

@@ -176,7 +176,9 @@ static void put_hp(unsigned char y)
     utoa(hero.hp_max, num, 10);
     strcat(buf, num);
 
-    cclearxy(VAL_X, y, 10);
+    /* To the screen edge and no further: one more and conio wraps onto the
+       next row, blanking the map square at its left end every turn. */
+    cclearxy(VAL_X, y, SCR_W - VAL_X);
     cputsxy(VAL_X, y, buf);
 }
 
