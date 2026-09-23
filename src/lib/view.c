@@ -8,6 +8,7 @@
 #include <q4k/fov.h>
 #include <q4k/game.h>
 #include <q4k/charset.h>
+#include <q4k/sprite.h>
 #include <q4k/tiles.h>
 #include <q4k/view.h>
 #include <q4k/world.h>
@@ -61,6 +62,7 @@ void view_init(void)
     clrscr();
     memset(log_lines, 0, sizeof(log_lines));
     view_chrome();
+    sprite_init();
 }
 
 /* Towns and dungeon levels are exactly one viewport, so they never scroll:
@@ -107,10 +109,6 @@ static void draw_local(void)
                                ? COLOR_YELLOW : COLOR_CYAN;
         }
     }
-
-    offset = (unsigned int)hero.y * SCR_W + hero.x;
-    SCREEN_RAM[offset] = hero.glyph;
-    COLOR_RAM[offset]  = hero.color;
 }
 
 static void draw_world(void)
@@ -135,19 +133,18 @@ static void draw_world(void)
             *col++ = tile_colors[code - TILE_BASE];
         }
     }
-
-    scr = SCREEN_RAM + (unsigned int)VIEW_CY * SCR_W + VIEW_CX;
-    col = COLOR_RAM  + (unsigned int)VIEW_CY * SCR_W + VIEW_CX;
-    *scr = hero.glyph;
-    *col = hero.color;
 }
 
+/* The hero is not in the map at all: the square they stand on is drawn like
+   any other, and the sprite goes over the top of it. */
 void view_draw(void)
 {
     if (scene == SCENE_WORLD) {
         draw_world();
+        sprite_show(VIEW_CX, VIEW_CY);
     } else {
         draw_local();
+        sprite_show(hero.x, hero.y);
     }
 }
 

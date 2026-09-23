@@ -22,6 +22,7 @@
 #include <q4k/probe.h>
 #include <q4k/savegame.h>
 #include <q4k/shop.h>
+#include <q4k/sprite.h>
 #include <q4k/tiles.h>
 #include <q4k/title.h>
 #include <q4k/view.h>
@@ -299,12 +300,15 @@ static void wander_check(void)
     }
 }
 
-static void try_move(signed char dx, signed char dy)
+static void try_move(signed char dx, signed char dy, unsigned char dir)
 {
     int nx = (int)hero.x + dx;
     int ny = (int)hero.y + dy;
     unsigned char code, flag;
     signed char ent;
+
+    /* Turn first: bumping into a wall or a person still faces them. */
+    sprite_face(dir);
 
     if (scene == SCENE_WORLD) {
         nx &= WORLD_MASK;
@@ -324,6 +328,7 @@ static void try_move(signed char dx, signed char dy)
 
     /* The keeper does not step aside. */
     if (code == T_MONSTER) {
+        sprite_walk(dir);
         hero.x = (unsigned char)nx;
         hero.y = (unsigned char)ny;
         if (battle_boss(place) == BATTLE_DEAD) {
@@ -347,6 +352,9 @@ static void try_move(signed char dx, signed char dy)
         return;
     }
 
+    /* The step is shown before anything it leads to -- a fight, a town,
+       the stairs -- takes the screen away. */
+    sprite_walk(dir);
     hero.x = (unsigned char)nx;
     hero.y = (unsigned char)ny;
     ++game_turn;
@@ -464,10 +472,10 @@ int main(void)
         }
 
         switch (key) {
-            case K_W: case K_CRSR_UP:    try_move( 0, -1); break;
-            case K_S: case K_CRSR_DOWN:  try_move( 0,  1); break;
-            case K_A: case K_CRSR_LEFT:  try_move(-1,  0); break;
-            case K_D: case K_CRSR_RIGHT: try_move( 1,  0); break;
+            case K_W: case K_CRSR_UP:    try_move( 0, -1, DIR_UP);    break;
+            case K_S: case K_CRSR_DOWN:  try_move( 0,  1, DIR_DOWN);  break;
+            case K_A: case K_CRSR_LEFT:  try_move(-1,  0, DIR_LEFT);  break;
+            case K_D: case K_CRSR_RIGHT: try_move( 1,  0, DIR_RIGHT); break;
 
             case K_T:
                 try_talk();
@@ -510,6 +518,7 @@ int main(void)
                 break;
 
             case K_Q:
+                sprite_hide();
                 VIC.addr = 0x15;    /* hand the ROM charset back to BASIC */
                 clrscr();
                 return 0;

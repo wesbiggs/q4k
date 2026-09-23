@@ -27,6 +27,9 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   that list when MAIN overflows. Changing the list needs the objects rebuilt,
   because a target-specific `CFLAGS` will not invalidate them on its own.
 - `$A000-$C4FF` **BSS**, then the RS-232 buffers, C stack and probe page.
+- `$0340-$03BF` **hero sprite** data (blocks 13 and 14, in the cassette
+  buffer). Sprites must sit in VIC bank 0 like the charset, and these are the
+  only free 64-byte blocks there. Nothing else may use the tape buffer.
 
 The PRG is one contiguous load, so MAIN and the charset gap are `fill = yes`.
 That is why the small tools use `cfg/c64-tool.cfg` instead: without it a
@@ -143,6 +146,12 @@ encounter rate of about 8 percent read as a flat zero across 127 rolls, and
 the bug was entirely in the measurement. `--peek enc_rolls --peek
 enc_fights` reads the counters directly and gets it right. Those two are
 deliberately non-static so they have labels.
+
+**The hero is a sprite, not a screen code**, so screen RAM holds the
+terrain under them. `screendump.py` puts `@` wherever an enabled sprite sits
+in its text dump, which is how the goldens still record where the hero is
+standing; `--raw` and `--hex` show plain screen RAM. `--shot` draws sprites
+too. Any screen that takes over from the map must call `sprite_hide()`.
 
 `--peek SYM[+OFF][:WIDTH]` prints any global after the run; `--poke
 SYM=VALUE` (and `SYM+OFFSET=VALUE`) writes one before it. Both use the label

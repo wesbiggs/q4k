@@ -5,6 +5,7 @@
 #include <q4k/dialog.h>
 #include <q4k/modem.h>
 #include <q4k/panel.h>
+#include <q4k/sprite.h>
 #include <q4k/text.h>
 #include <q4k/view.h>
 
@@ -37,6 +38,7 @@ static void frame(const char *place)
 {
     unsigned char x;
 
+    sprite_hide();
     clrscr();
     panel_begin(TR_Y, TR_H);
 

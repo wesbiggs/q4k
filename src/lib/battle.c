@@ -6,6 +6,7 @@
 #include <q4k/battle.h>
 #include <q4k/game.h>
 #include <q4k/panel.h>
+#include <q4k/sprite.h>
 #include <q4k/text.h>
 #include <q4k/tiles.h>
 #include <q4k/view.h>
@@ -187,6 +188,7 @@ static unsigned char fight(const Monster *m, unsigned char can_flee)
     unsigned char guard, hit, key;
     char *p;
 
+    sprite_hide();
     clrscr();
     panel_begin(LOG_Y, LOG_H);
 

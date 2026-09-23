@@ -47,7 +47,7 @@ PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 # set-piece screens), so putting them out of the way costs nothing. Both
 # flags are needed: --code-name alone leaves the string literals behind, and
 # screens like the help text are mostly string literals.
-HIMODS   := dialog battle shop dungeon panel title help savegame
+HIMODS   := dialog battle shop dungeon panel title help savegame sprite
 
 LIBSRC   := $(wildcard src/lib/*.c) $(wildcard src/lib/*.s)
 LIBOBJ   := $(patsubst src/lib/%.c,$(BUILD)/lib/%.o,$(wildcard src/lib/*.c)) \

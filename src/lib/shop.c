@@ -5,6 +5,7 @@
 #include <q4k/battle.h>
 #include <q4k/game.h>
 #include <q4k/shop.h>
+#include <q4k/sprite.h>
 #include <q4k/text.h>
 #include <q4k/view.h>
 
@@ -76,6 +77,7 @@ void shop_open(unsigned char kind)
     unsigned char key, pick, owned, top;
     unsigned int  cost;
 
+    sprite_hide();
     clrscr();
     textcolor(COLOR_YELLOW);
     cputsxy(0, TITLE_Y, kind == SHOP_WEAPON ? "The Forge"

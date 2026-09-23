@@ -3,6 +3,7 @@
 
 #include <q4k/game.h>
 #include <q4k/help.h>
+#include <q4k/sprite.h>
 #include <q4k/view.h>
 
 /* What to do next, by quest stage. Two lines each, because the useful
@@ -28,6 +29,7 @@ void help_screen(void)
         stage = 9;
     }
 
+    sprite_hide();
     clrscr();
 
     textcolor(COLOR_YELLOW);

@@ -340,7 +340,8 @@ PALETTE = [
 ]
 
 
-def render_png(path, screen, colors, charset, border, background, scale=2):
+def render_png(path, screen, colors, charset, border, background, scale=2,
+               sprites=None):
     """Draw the screen exactly as the VIC-II would, from emulated memory.
 
     VICE's -exitscreenshot only fires when the emulator quits, which is no use
@@ -367,9 +368,82 @@ def render_png(path, screen, colors, charset, border, background, scale=2):
                 for bit in range(8):
                     px[margin + cx * 8 + bit, y] = fg if bits & (0x80 >> bit) else bg
 
+    if sprites:
+        draw_sprites(px, img.size, margin, *sprites)
+
     if scale != 1:
         img = img.resize((img.width * scale, img.height * scale), Image.NEAREST)
     img.save(path)
+
+
+def draw_sprites(px, size, margin, vic, pointers, fetch):
+    """Overlay the enabled hardware sprites, the way the VIC would.
+
+    Hi-res and multicolour, expanded or not, highest number drawn first so
+    sprite 0 ends up on top. Sprite-behind-background priority is ignored:
+    q4k never sets it. `fetch(addr)` returns the sprite's 63 bytes; the VIC
+    bank is assumed to be 0, as it is for the charset.
+    """
+    enabled = vic[0x15]
+    for n in range(7, -1, -1):
+        if not enabled & (1 << n):
+            continue
+        x = vic[n * 2] | (0x100 if vic[0x10] & (1 << n) else 0)
+        y = vic[n * 2 + 1]
+        wide = 2 if vic[0x1D] & (1 << n) else 1
+        tall = 2 if vic[0x17] & (1 << n) else 1
+        multi = vic[0x1C] & (1 << n)
+        colours = (None, PALETTE[vic[0x25] & 0x0F],
+                   PALETTE[vic[0x27 + n] & 0x0F], PALETTE[vic[0x26] & 0x0F])
+        data = fetch(pointers[n] * 64)
+        # Screen column 0 is sprite X 24; row 0 is sprite Y 50.
+        left = margin + x - 24
+        top = margin + y - 50
+        for row in range(21):
+            bits = (data[row * 3] << 16) | (data[row * 3 + 1] << 8) | data[row * 3 + 2]
+            for col in range(24):
+                if multi:
+                    pair = (bits >> (22 - (col & ~1))) & 3
+                    colour = colours[pair]
+                else:
+                    colour = colours[2] if bits & (0x800000 >> col) else None
+                if colour is None:
+                    continue
+                for dy in range(tall):
+                    for dx in range(wide):
+                        sx, sy = left + col * wide + dx, top + row * tall + dy
+                        if 0 <= sx < size[0] and 0 <= sy < size[1]:
+                            px[sx, sy] = colour
+
+
+# What a sprite looks like in the text dump. Screen RAM does not hold the
+# hero any more -- the VIC draws it over the square -- so without this the
+# goldens would stop recording where the hero is standing.
+SPRITE_MARK = "@"
+SPRITE_CODE = 0x100
+
+
+def sprite_cells(vic, pointers, fetch):
+    """The screen cell under the middle of each enabled sprite's pixels."""
+    cells = set()
+    for n in range(8):
+        if not vic[0x15] & (1 << n):
+            continue
+        data = fetch(pointers[n] * 64)
+        lit = [(col, row) for row in range(21) for col in range(24)
+               if data[row * 3 + col // 8] & (0x80 >> (col % 8))]
+        if not lit:
+            continue
+        wide = 2 if vic[0x1D] & (1 << n) else 1
+        tall = 2 if vic[0x17] & (1 << n) else 1
+        mid_x = (min(c for c, _ in lit) + max(c for c, _ in lit)) * wide // 2
+        mid_y = (min(r for _, r in lit) + max(r for _, r in lit)) * tall // 2
+        x = vic[n * 2] | (0x100 if vic[0x10] & (1 << n) else 0)
+        cx = (x + mid_x - 24) // 8
+        cy = (vic[n * 2 + 1] + mid_y - 50) // 8
+        if 0 <= cx < SCR_W and 0 <= cy < SCR_H:
+            cells.add((cx, cy))
+    return cells
 
 
 def grid(rows, render, gutter=""):
@@ -445,6 +519,11 @@ def main():
         if args.peek:
             report_peeks(mon, load_symbols(args.prg), args.peek)
         scratch = mon.mem_get(PROBE, PROBE + 19)
+        vic = mon.mem_get(0xD000, 0xD02E)
+        pointers = mon.mem_get(SCREEN_RAM + 0x3F8, SCREEN_RAM + 0x3FF)
+        sprite_data = {p * 64: mon.mem_get(p * 64, p * 64 + 62)
+                       for n, p in enumerate(pointers)
+                       if vic[0x15] & (1 << n)}
         if args.shot:
             if charset_base in (0x1000, 0x1800):
                 print("screendump: charset is in ROM; --shot needs a RAM "
@@ -452,8 +531,8 @@ def main():
             else:
                 charset = mon.mem_get(charset_base, charset_base + 0x7FF)
                 render_png(args.shot, screen, colors, charset,
-                           mon.mem_get(0xD020, 0xD020)[0],
-                           mon.mem_get(0xD021, 0xD021)[0])
+                           vic[0x20], vic[0x21],
+                           sprites=(vic, pointers, sprite_data.__getitem__))
                 print("screendump: wrote %s" % args.shot, file=sys.stderr)
         mon.quit()
     finally:
@@ -474,7 +553,14 @@ def main():
     if args.hex:
         print(grid(rows, lambda c: "%02x" % c))
     else:
-        print(grid(rows, lambda c: to_text(c, lowercase, legend)))
+        # A sprite goes in as a code no byte can hold, so it cannot be
+        # mistaken for anything the charset draws.
+        if not args.raw:
+            rows = [list(row) for row in rows]
+            for cx, cy in sprite_cells(vic, pointers, sprite_data.__getitem__):
+                rows[cy][cx] = SPRITE_CODE
+        print(grid(rows, lambda c: SPRITE_MARK if c == SPRITE_CODE
+                   else to_text(c, lowercase, legend)))
 
     if args.color:
         crows = [colors[y * SCR_W : (y + 1) * SCR_W] for y in range(SCR_H)]
