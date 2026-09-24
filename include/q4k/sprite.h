@@ -5,13 +5,15 @@
  * code in it, so the square underneath shows through and a step can glide
  * the eight pixels between squares rather than jump them.
  *
- * Two sprites make one figure: sprite 0 is the hero in hero.color, and
- * sprite 1 is the same shape grown by a pixel all round in black, behind
- * it. The outline is what keeps a white figure readable on grass and snow.
+ * Three sprites make one figure, front to back: sprite 0 is the tunic, in
+ * a colour picked from the hero's name; sprite 1 is the hero in hero.color;
+ * sprite 2 is the same shape grown by a pixel in black. The outline is what
+ * keeps a white figure readable on grass and snow.
  *
- * Sprite data lives in the cassette buffer ($0340 and $0380, blocks 13 and
- * 14), the only free 64-byte blocks in VIC bank 0: the charset fills
- * $3800-$3FFF and the program everything below it.
+ * Sprite data lives in the cassette buffer ($0340, $0380 and $03C0, blocks
+ * 13 to 15), the only free 64-byte blocks in VIC bank 0: the charset fills
+ * $3800-$3FFF and the program everything below it. All three are taken, so
+ * another layer means finding room somewhere else first.
  */
 
 #ifndef Q4K_SPRITE_H

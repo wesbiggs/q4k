@@ -6,7 +6,22 @@
 
 #define SPR_FIGURE  ((unsigned char *)0x0340)   /* block 13 */
 #define SPR_EDGE    ((unsigned char *)0x0380)   /* block 14 */
+#define SPR_TUNIC   ((unsigned char *)0x03C0)   /* block 15 */
 #define SPR_PTRS    ((unsigned char *)0x07F8)   /* screen matrix + $3F8 */
+
+/* Lower-numbered sprites are drawn in front: the tunic over the figure,
+   the figure over its outline. */
+#define N_TUNIC     0
+#define N_FIGURE    1
+#define N_EDGE      2
+#define SPR_MASK    0x07
+
+/* Which of the figure's pixels are the tunic: the middle four columns of
+   the shoulder, waist and hip rows. Every frame's body sits there, and the
+   hands and a mid-stride arm fall outside it, so they stay bare. */
+#define TUNIC_TOP   3
+#define TUNIC_ROWS  3
+#define TUNIC_COLS  0x3C
 
 /* Screen cell (0,0) starts at sprite coordinate (24,50). The figure sits a
    pixel in from the sprite's corner, leaving room for the outline above and
@@ -70,6 +85,12 @@ static void build(void)
     unsigned int  w;
 
     memset(grown, 0, sizeof(grown));
+    for (r = 0; r < TUNIC_ROWS; ++r) {
+        w = (unsigned int)(f[TUNIC_TOP + r] & TUNIC_COLS) << 7;
+        SPR_TUNIC[(TUNIC_TOP + r + 1) * 3]     = (unsigned char)(w >> 8);
+        SPR_TUNIC[(TUNIC_TOP + r + 1) * 3 + 1] = (unsigned char)w;
+    }
+
     for (r = 0; r < 8; ++r) {
         w = (unsigned int)f[r] << 7;          /* one pixel in from the left */
         SPR_FIGURE[(r + 1) * 3]     = (unsigned char)(w >> 8);
@@ -92,20 +113,40 @@ static void place(void)
     VIC.spr0_y = spr_y;
     VIC.spr1_x = spr_x;
     VIC.spr1_y = spr_y;
+    VIC.spr2_x = spr_x;
+    VIC.spr2_y = spr_y;
+}
+
+/* The hero's colours, from their name: the same name always gets the same
+   tunic, and the fourteen colours that are neither black nor white are all
+   possible. Black would vanish into the outline and white into the figure.
+
+   Each character is folded in with a rotate, so the order of the letters
+   counts as well as which ones they are. */
+static unsigned char tunic_color(void)
+{
+    const unsigned char *c = (const unsigned char *)hero.name;
+    unsigned char h = 0;
+
+    while (*c) {
+        h = (unsigned char)((h << 1) | (h >> 7)) ^ *c++;
+    }
+    return (unsigned char)(2 + h % 14);
 }
 
 void sprite_init(void)
 {
     memset(SPR_FIGURE, 0, 64);
     memset(SPR_EDGE, 0, 64);
+    memset(SPR_TUNIC, 0, 64);
 
-    VIC.spr_ena     &= ~0x03;
-    VIC.spr_hi_x    &= ~0x03;   /* the map is cols 0-20: X never passes 255 */
-    VIC.spr_mcolor  &= ~0x03;
-    VIC.spr_exp_x   &= ~0x03;
-    VIC.spr_exp_y   &= ~0x03;
-    VIC.spr_bg_prio &= ~0x03;   /* in front of the text */
-    VIC.spr1_color   = COLOR_BLACK;
+    VIC.spr_ena     &= ~SPR_MASK;
+    VIC.spr_hi_x    &= ~SPR_MASK;   /* the map is cols 0-20: X never passes 255 */
+    VIC.spr_mcolor  &= ~SPR_MASK;
+    VIC.spr_exp_x   &= ~SPR_MASK;
+    VIC.spr_exp_y   &= ~SPR_MASK;
+    VIC.spr_bg_prio &= ~SPR_MASK;   /* in front of the text */
+    VIC.spr2_color   = COLOR_BLACK;
 
     facing = DIR_DOWN;
     stride = 0;
@@ -116,19 +157,22 @@ void sprite_show(unsigned char col, unsigned char row)
 {
     /* Sprite pointers sit just past the screen matrix, in bytes clrscr()
        leaves alone -- but set them every time rather than rely on that. */
-    SPR_PTRS[0] = (unsigned char)((unsigned int)SPR_FIGURE >> 6);
-    SPR_PTRS[1] = (unsigned char)((unsigned int)SPR_EDGE >> 6);
+    SPR_PTRS[N_TUNIC]  = (unsigned char)((unsigned int)SPR_TUNIC >> 6);
+    SPR_PTRS[N_FIGURE] = (unsigned char)((unsigned int)SPR_FIGURE >> 6);
+    SPR_PTRS[N_EDGE]   = (unsigned char)((unsigned int)SPR_EDGE >> 6);
 
     spr_x = ORIGIN_X + (col << 3);
     spr_y = ORIGIN_Y + (row << 3);
     place();
-    VIC.spr0_color = hero.color;
-    VIC.spr_ena   |= 0x03;
+    /* Worked out afresh each time: a restored game can change the name. */
+    VIC.spr0_color = tunic_color();
+    VIC.spr1_color = hero.color;
+    VIC.spr_ena   |= SPR_MASK;
 }
 
 void sprite_hide(void)
 {
-    VIC.spr_ena &= ~0x03;
+    VIC.spr_ena &= ~SPR_MASK;
 }
 
 void sprite_face(unsigned char dir)

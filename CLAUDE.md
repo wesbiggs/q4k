@@ -27,9 +27,10 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   that list when MAIN overflows. Changing the list needs the objects rebuilt,
   because a target-specific `CFLAGS` will not invalidate them on its own.
 - `$A000-$C4FF` **BSS**, then the RS-232 buffers, C stack and probe page.
-- `$0340-$03BF` **hero sprite** data (blocks 13 and 14, in the cassette
+- `$0340-$03FF` **hero sprite** data (blocks 13 to 15, in the cassette
   buffer). Sprites must sit in VIC bank 0 like the charset, and these are the
-  only free 64-byte blocks there. Nothing else may use the tape buffer.
+  only free 64-byte blocks there -- all three are in use. Nothing else may use
+  the tape buffer.
 
 The PRG is one contiguous load, so MAIN and the charset gap are `fill = yes`.
 That is why the small tools use `cfg/c64-tool.cfg` instead: without it a
@@ -152,6 +153,14 @@ terrain under them. `screendump.py` puts `@` wherever an enabled sprite sits
 in its text dump, which is how the goldens still record where the hero is
 standing; `--raw` and `--hex` show plain screen RAM. `--shot` draws sprites
 too. Any screen that takes over from the map must call `sprite_hide()`.
+
+**Open question: do three sprites upset disk access?** When the tunic went
+in as a third sprite, the save/load tests failed 7 runs in 20 against 20 in
+20 with two sprites -- but another session was editing and testing in the
+same checkout at the time, so the comparison is not trustworthy. Recheck
+with the machine otherwise idle, around 20 runs of each case. If three
+sprites really do fail, hide them during disk access in `savegame.c`: every
+enabled sprite takes CPU cycles from the KERNAL's serial-bus code.
 
 `--peek SYM[+OFF][:WIDTH]` prints any global after the run; `--poke
 SYM=VALUE` (and `SYM+OFFSET=VALUE`) writes one before it. Both use the label
