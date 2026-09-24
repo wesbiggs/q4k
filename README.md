@@ -198,10 +198,20 @@ Walk onto a town or the castle and press **T**.
 Protocol, CR-terminated ASCII both ways:
 
 ```
-->  HI <npc>              open a conversation
-->  SAY <npc> <text>      say something
-<-  OK <reply>   |   ERR <reason>
+->  HI <npc> <stage> <seed>           open a conversation
+->  SAY <npc> <stage> <seed> <text>   say something
+<-  OK <reply>   |   GIVE <g> <reply>   |   ERR <reason>
 ```
+
+`<stage>` is one digit of quest progress. `<seed>` is two hex digits rolled
+once per game and kept in the save: the host draws that run's secrets from
+[assets/secrets.json](assets/secrets.json) with it, so the word Old Brann
+gives you for the Stair's dry hour is different every game. `GIVE` is the
+host deciding a conversation has earned something -- Vane only hands over
+the Tidal Key when you say that word. The model never makes that call;
+the host matches the player's line itself, and the model is never even told
+the word it is waiting for. With no host on the line at all, nothing is
+gated, so the game stays winnable without the modem.
 
 ### Taming a small model
 

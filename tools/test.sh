@@ -48,6 +48,17 @@ else
     fail=1
 fi
 
+# The dialogue gates are decided host-side, and what matters about them --
+# that the giver never knows the word, that a guess does not pass -- never
+# shows on a screen.
+if python3 host/test_npcd.py >/dev/null 2>&1; then
+    echo "PASS  npcd"
+else
+    echo "FAIL  npcd"
+    python3 host/test_npcd.py || true
+    fail=1
+fi
+
 for golden in tests/golden/*.txt; do
     name=$(basename "$golden" .txt)
     if [ -f "tests/golden/$name.cmd" ]; then
@@ -94,6 +105,19 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
     compare dialog tests/golden-dialog.txt \
         tools/screendump.py dist/q4k.prg --rs232 25299 \
         --keys 'Alaric\rwwwwwwwwwwwwaaaawaaawhat of the blade\r' --settle 32
+    # Brann -> Vane: start beside Wardlow holding the Emberstone, with the
+    # run's secrets pinned (seed $5A makes the fishers' word "dead low").
+    # Asking for the key is refused; saying the word earns it. Stepping onto
+    # a town square never rolls for a monster, so this is not a walk in the
+    # open.
+    if [ -f tests/golden-tidal.txt ]; then
+        compare tidal tests/golden-tidal.txt \
+            tools/screendump.py dist/q4k.prg --rs232 25299 \
+            --poke scene=0 --poke party+0=28 --poke party+1=10 \
+            --poke quest_stage=3 --poke items=8 --poke lore_seed=0x5a \
+            --keys 'Alaric\rdwwwwwwwaaaawwwmay I have the key\rdead low\r\x03' \
+            --settle 32
+    fi
     kill "$daemon" 2>/dev/null || true
     wait "$daemon" 2>/dev/null || true   # reap quietly; no job-control noise
 fi

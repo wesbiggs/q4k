@@ -52,6 +52,10 @@ extern unsigned char potions;
 extern unsigned char weapon_lv;
 extern unsigned char armour_lv;
 extern unsigned char quest_stage;
+/* Rolled once per game (never 0, which means "not rolled yet") and saved;
+   the dialogue host draws this run's secrets from it. Non-static and
+   poke-able, so a test can pin the secrets with --poke lore_seed=N. */
+extern unsigned char lore_seed;
 extern unsigned char items;       /* IT_* bitmask */
 
 void          game_init(void);

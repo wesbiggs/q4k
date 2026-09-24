@@ -9,6 +9,7 @@
 
 #include <conio.h>
 #include <c64.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <q4k/actor.h>
@@ -125,8 +126,13 @@ static void keeper_beaten(void)
     }
 }
 
-/* Hand over quest items after the conversation has happened. */
-static void quest_after_talk(unsigned char npc)
+/* Nobody answered at all, so there was no host to gate anything. */
+#define GRANT_OPEN 0xFF
+
+/* Hand over quest items after the conversation has happened. `granted` is
+   what the host decided the conversation earned, or GRANT_OPEN when there
+   was no host to ask -- the game stays winnable without the modem. */
+static void quest_after_talk(unsigned char npc, unsigned char granted)
 {
     switch (npc) {
         case NPC_KING:
@@ -138,7 +144,8 @@ static void quest_after_talk(unsigned char npc)
             break;
 
         case NPC_VANE:
-            if (has(IT_EMBER) && !has(IT_TIDAL)) {
+            if (has(IT_EMBER) && !has(IT_TIDAL)
+                && (granted == GRANT_TIDAL || granted == GRANT_OPEN)) {
                 quest_stage = Q_TIDAL;
                 give(IT_TIDAL);
                 view_message("Vane gives you the Tidal Key.");
@@ -171,6 +178,7 @@ static void quest_after_talk(unsigned char npc)
 static void interact(unsigned char index)
 {
     const TownEnt *e = &town_ents[index];
+    unsigned char granted;
 
     if (e->kind == ENT_SHOP) {
         shop_open(e->param);
@@ -178,9 +186,14 @@ static void interact(unsigned char index)
         return;
     }
 
-    dialog_talk(npc_ids[e->param], npc_names[e->param], quest_stage);
+    if (dialog_talk(npc_ids[e->param], npc_names[e->param],
+                    quest_stage, lore_seed) == DIALOG_OK) {
+        granted = dialog_granted;
+    } else {
+        granted = GRANT_OPEN;       /* dead line or no daemon: ungated */
+    }
     back_to_map();
-    quest_after_talk(e->param);
+    quest_after_talk(e->param, granted);
     ++game_turn;
 }
 
@@ -466,6 +479,11 @@ int main(void)
                wandering-monster sequence from it. */
             reseed();
             seeded = 1;
+        }
+        if (!lore_seed) {
+            /* A new game's secrets, drawn after the player's own timing has
+               stirred the generator. A restored game brings its own. */
+            lore_seed = (unsigned char)(rand() % 255) + 1;
         }
         if (key >= 0xC1 && key <= 0xDA) {
             key -= 0x80;            /* fold SHIFTed letters onto unshifted */

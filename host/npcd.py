@@ -12,14 +12,24 @@ by that id, so the C64 never carries a byte of prompt.
 
 Protocol, CR-terminated ASCII in both directions:
 
-    ->  HI <npc> <stage>           open a conversation
-    ->  SAY <npc> <stage> <text>   say something
+    ->  HI <npc> <stage> <seed>          open a conversation
+    ->  SAY <npc> <stage> <seed> <text>  say something
     <-  OK <reply>
+    <-  GIVE <g> <reply>
     <-  ERR <reason>
 
 <stage> is how far the player has got in the quest. The C64 sends the number;
 the sentence describing what it means lives here, in STAGES, so the story can
 be reworded without touching a byte of 6502.
+
+<seed> is two hex digits, rolled once per game and kept in the save. The
+run's secrets -- the words that open gates -- are drawn from
+assets/secrets.json with it, so the host stays stateless: a restart, a
+reconnect or a restored game all come out the same.
+
+GIVE <g> is the host deciding that this conversation has earned grant <g>
+(one digit; see GRANT_* in include/q4k/dialog.h). The model never decides
+that. The C64 still checks its own conditions before handing anything over.
 
 Every response is preceded by a bare CR. That leading byte is deliberate: the
 first byte the C64's KERNAL RS-232 receiver sees after the line comes up is
@@ -34,8 +44,10 @@ a model -- deterministic, instant, and what the golden test uses.
 """
 
 import argparse
+import difflib
 import json
 import os
+import random
 import re
 import socket
 import sys
@@ -97,6 +109,7 @@ You are in {where}.
 Your manner: {voice}
 
 Something you know, and may share if it comes up: {knows}
+{extra}
 
 The ways out of here, which you have walked and know to be right:
 {directions}
@@ -180,10 +193,53 @@ def for_c64(text, limit=MAX_REPLY, speaker=None, max_sentences=None):
     return text
 
 
+_WORD = re.compile(r"[a-z]+")
+SECRET_MATCH = 0.85      # difflib ratio: forgives a typo, not a guess
+
+
+def words(text):
+    return _WORD.findall(text.lower())
+
+
+def hears(said, terms):
+    """True if the player's words contain any term, as whole words.
+
+    A term word matches any player word it begins, so "tide" hears "tides".
+    """
+    said = words(said)
+    for term in terms:
+        term = words(term)
+        n = len(term)
+        for i in range(len(said) - n + 1):
+            if all(said[i + k].startswith(term[k]) for k in range(n)):
+                return True
+    return False
+
+
+def says_secret(said, secret):
+    """True if the player's line contains the secret, allowing a typo."""
+    said, want = words(said), " ".join(words(secret))
+    n = len(want.split())
+    for i in range(len(said) - n + 1):
+        got = " ".join(said[i:i + n])
+        if difflib.SequenceMatcher(None, got, want).ratio() >= SECRET_MATCH:
+            return True
+    return False
+
+
+def in_stage(rule, stage):
+    return "stages" not in rule or stage in rule["stages"]
+
+
 class Npcs:
-    def __init__(self, canon_path, npcs_path, geo_path=None):
+    def __init__(self, canon_path, npcs_path, geo_path=None,
+                 secrets_path=None):
         self.canon = open(canon_path).read()
         self.npcs = json.load(open(npcs_path))
+        self.secrets = {}
+        if secrets_path and os.path.exists(secrets_path):
+            self.secrets = {k: v for k, v in json.load(open(secrets_path)).items()
+                            if not k.startswith("_")}
         # Measured from the actual map by tools/mkgeo.py. Without it a model
         # will cheerfully send the player north to somewhere that is south.
         self.geo = {}
@@ -197,12 +253,68 @@ class Npcs:
             return "You are not sure of the distances to anywhere else."
         return "\n".join("- " + line for line in lines)
 
-    def system_for(self, npc_id, stage=0):
+    def secret(self, name, seed):
+        """This run's value for one secret. Integer seeds give the same
+        choice on every Python 3, so a golden test can pin the seed."""
+        pool = self.secrets[name]["pool"]
+        rng = random.Random(seed * 131 + zlib.crc32(name.encode()))
+        return rng.choice(pool)
+
+    def fill(self, text, seed):
+        """Substitute {secret} placeholders with this run's values."""
+        for name in self.secrets:
+            key = "{" + name + "}"
+            if key in text:
+                text = text.replace(key, self.secret(name, seed))
+        return text
+
+    def gives(self, npc_id, stage):
+        """The NPC's grant rule, if it is live at this stage."""
+        rule = self.npcs[npc_id].get("gives")
+        return rule if rule and in_stage(rule, stage) else None
+
+    def topic(self, npc_id, stage, said):
+        """The first topic the player's line touches, if any."""
+        for t in self.npcs[npc_id].get("topics", []):
+            if in_stage(t, stage) and hears(said, t["hear"]):
+                return t
+        return None
+
+    def grant(self, npc_id, stage, seed, said):
+        """(grant, line) if this line earns the NPC's grant, else None.
+
+        Decided here and only here: the model is never asked, so no amount
+        of "the king told me to take the key" talks it out of anybody.
+        """
+        rule = self.gives(npc_id, stage)
+        if rule and says_secret(said, self.secret(rule["needs"], seed)):
+            return rule["grant"], self.fill(rule["given"], seed)
+        return None
+
+    def extra_for(self, npc_id, stage, seed, said):
+        """What this one line unlocks in the prompt.
+
+        A secret goes in only when the player has asked about its subject,
+        and only for the NPC who is meant to know it -- a small model will
+        otherwise say it to the first person who says hello. The NPC who
+        gives on hearing the secret is never told it at all.
+        """
+        extra = []
+        t = self.topic(npc_id, stage, said)
+        if t:
+            extra.append(self.fill(t["tell"], seed))
+        rule = self.gives(npc_id, stage)
+        if rule:
+            extra.append("What you will say if the traveller asks for it: "
+                         + rule["hint"])
+        return "\n".join(extra)
+
+    def system_for(self, npc_id, stage=0, extra=""):
         """The whole system prompt for one NPC, assembled host-side.
 
-        The client sends nothing but an id and a stage number; world canon,
-        voice, private knowledge and the state of the story are looked up and
-        stitched together here.
+        The client sends nothing but an id, a stage number and a seed; world
+        canon, voice, private knowledge and the state of the story are
+        looked up and stitched together here.
         """
         npc = self.npcs[npc_id]
         situation = STAGES[stage] if 0 <= stage < len(STAGES) else STAGES[0]
@@ -210,9 +322,15 @@ class Npcs:
                 + "\n" + self.canon + "\n"
                 + SYSTEM_RULES.format(limit=MAX_REPLY, situation=situation,
                                       directions=self.directions_for(npc_id),
-                                      **npc))
+                                      extra=extra, **npc))
 
-    def mock_reply(self, npc_id, text):
+    def mock_reply(self, npc_id, text, stage=0, seed=0):
+        t = self.topic(npc_id, stage, text)
+        if t and "mock" in t:
+            return self.fill(t["mock"], seed)
+        rule = self.gives(npc_id, stage)
+        if rule and hears(text, rule.get("hear", [])):
+            return rule["hint"]
         lines = self.npcs[npc_id]["mock"]
         # Deterministic across runs -- Python's hash() is salted per process,
         # and the golden tests need the same answer every time.
@@ -254,19 +372,32 @@ class Dialogue:
             payload = json.load(resp)
         return payload["choices"][0]["message"]["content"]
 
-    def reply(self, npc_id, text, stage=0):
+    def reply(self, npc_id, text, stage=0, seed=0):
+        """Returns (text, error, grant); grant is 0 unless one was earned."""
         if npc_id not in self.npcs.npcs:
-            return None, "no such person here"
+            return None, "no such person here", 0
+
+        turns = self.history.setdefault((npc_id, stage, seed), [])
+
+        # The payoff line is authored, not generated: it must name the right
+        # thing and hand it over every time, whatever the model is up to.
+        earned = self.npcs.grant(npc_id, stage, seed, text)
+        if earned:
+            grant, line = earned
+            turns.append({"role": "user", "content": text})
+            turns.append({"role": "assistant", "content": line})
+            return for_c64(line), None, grant
 
         if self.mock:
-            return for_c64(self.npcs.mock_reply(npc_id, text)), None
+            return (for_c64(self.npcs.mock_reply(npc_id, text, stage, seed)),
+                    None, 0)
 
         name = self.npcs.npcs[npc_id]["name"]
-        turns = self.history.setdefault((npc_id, stage), [])
         turns.append({"role": "user", "content": text})
 
+        extra = self.npcs.extra_for(npc_id, stage, seed, text)
         messages = [{"role": "system",
-                     "content": self.npcs.system_for(npc_id, stage)}]
+                     "content": self.npcs.system_for(npc_id, stage, extra)}]
         messages += turns[-HISTORY_TURNS:]
 
         try:
@@ -275,11 +406,11 @@ class Dialogue:
             turns.pop()
             reason = getattr(exc, "reason", exc)
             print("[npcd] model call failed: %s" % (reason,), flush=True)
-            return None, "the line is bad"
+            return None, "the line is bad", 0
         except (KeyError, ValueError, TimeoutError) as exc:
             turns.pop()
             print("[npcd] bad model response: %r" % (exc,), flush=True)
-            return None, "the line is bad"
+            return None, "the line is bad", 0
 
         cleaned = for_c64(said, speaker=name,
                           max_sentences=MAX_SENTENCES)
@@ -287,12 +418,40 @@ class Dialogue:
             # Small models sometimes return nothing at all, or nothing but
             # stage directions. An authored line keeps the scene intact.
             turns.pop()
-            return for_c64(self.npcs.npcs[npc_id]["mock"][0]), None
+            return for_c64(self.npcs.npcs[npc_id]["mock"][0]), None, 0
 
         # Remember what the model actually said, not the trimmed version, so
         # it stays coherent with its own previous turn.
         turns.append({"role": "assistant", "content": said.strip()})
-        return cleaned, None
+        return cleaned, None, 0
+
+
+_SEED = re.compile(r"^[0-9a-fA-F]{2}$")
+
+
+def parse_request(line):
+    """Split one request line into (verb, npc, stage, seed, said).
+
+    Tolerates a hand-typed request that omits the stage or the seed. A seed
+    is exactly two hex digits; the C64 always sends one, so a player line
+    that starts with a word like "be" is only misread without it.
+    """
+    verb, _, rest = line.partition(" ")
+    npc_id, _, rest = rest.partition(" ")
+    verb, npc_id = verb.upper(), npc_id.lower()
+
+    stage_tok, _, said = rest.partition(" ")
+    try:
+        stage = int(stage_tok)
+    except ValueError:
+        stage, said = 0, rest
+
+    seed_tok, _, after = said.partition(" ")
+    if _SEED.match(seed_tok):
+        seed, said = int(seed_tok, 16), after
+    else:
+        seed = 0
+    return verb, npc_id, stage, seed, said.strip()
 
 
 def handle(conn, addr, dialogue, verbose):
@@ -324,25 +483,19 @@ def handle(conn, addr, dialogue, verbose):
                 if verbose:
                     print("[npcd] rx %r" % line, flush=True)
 
-                verb, _, rest = line.partition(" ")
-                npc_id, _, rest = rest.partition(" ")
-                stage_tok, _, said = rest.partition(" ")
-                verb, npc_id = verb.upper(), npc_id.lower()
-
-                try:
-                    stage = int(stage_tok)
-                except ValueError:
-                    # Tolerate a client that omits the stage.
-                    stage, said = 0, (stage_tok + " " + said).strip()
-
-                if verb == "HI":
-                    said = said or "Hello."
-                elif verb != "SAY":
+                verb, npc_id, stage, seed, said = parse_request(line)
+                if verb not in ("HI", "SAY"):
                     send("ERR unknown request")
                     continue
 
-                text, err = dialogue.reply(npc_id, said or "Hello.", stage)
-                send("ERR " + err if err else "OK " + text)
+                text, err, grant = dialogue.reply(npc_id, said or "Hello.",
+                                                  stage, seed)
+                if err:
+                    send("ERR " + err)
+                elif grant:
+                    send("GIVE %d %s" % (grant, text))
+                else:
+                    send("OK " + text)
     except OSError as exc:
         print("[npcd] %s" % exc, flush=True)
     finally:
@@ -381,10 +534,11 @@ def main():
     ap.add_argument("--canon", default="assets/canon.md")
     ap.add_argument("--geography", default="assets/geography.json")
     ap.add_argument("--npcs", default="assets/npcs.json")
+    ap.add_argument("--secrets", default="assets/secrets.json")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
 
-    npcs = Npcs(args.canon, args.npcs, args.geography)
+    npcs = Npcs(args.canon, args.npcs, args.geography, args.secrets)
     dialogue = Dialogue(npcs, url=args.url, model=args.model,
                         temperature=args.temperature, mock=args.mock)
 

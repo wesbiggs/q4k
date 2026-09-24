@@ -13,9 +13,19 @@
 #define DIALOG_ENOLINE   1   /* the port would not open   */
 #define DIALOG_ESILENT   2   /* nobody answered in time   */
 
+/* What the host can decide a conversation has earned, sent as "GIVE <g>".
+   The host adjudicates; the model never does. */
+#define GRANT_NONE   0
+#define GRANT_TIDAL  1   /* Vane heard the fishers' word for the dry hour */
+
+/* Set by dialog_talk(): the last grant the host sent, or GRANT_NONE. It
+   sticks for the whole conversation, so talking on afterwards loses nothing. */
+extern unsigned char dialog_granted;
+
 /* `stage` is the quest stage; the daemon uses it to tell the NPC where the
-   story has got to. Stays a single digit -- see Q_* in game.h. */
+   story has got to. Stays a single digit -- see Q_* in game.h. `seed` is the
+   run's lore_seed, from which the host draws this game's secrets. */
 unsigned char dialog_talk(const char *npc_id, const char *place,
-                          unsigned char stage);
+                          unsigned char stage, unsigned char seed);
 
 #endif /* Q4K_DIALOG_H */

@@ -18,7 +18,7 @@
 #define SAVE_DEVICE 8
 #define SAVE_NAME   "Q4K.SAV"
 #define SCRATCH_CMD "S0:Q4K.SAV"
-#define MAGIC       "Q4K1"
+#define MAGIC       "Q4K2"
 
 typedef struct {
     char          magic[4];
@@ -33,6 +33,7 @@ typedef struct {
     unsigned char armour_lv;
     unsigned char quest_stage;
     unsigned char items;
+    unsigned char lore_seed;
     unsigned char scene;
     unsigned char place;
     unsigned char depth;
@@ -52,6 +53,7 @@ static void gather(void)
     blob.armour_lv   = armour_lv;
     blob.quest_stage = quest_stage;
     blob.items       = items;
+    blob.lore_seed   = lore_seed;
     blob.scene       = scene;
     blob.place       = place;
     blob.depth       = depth;
@@ -94,6 +96,7 @@ unsigned char load_game(void)
     armour_lv   = blob.armour_lv;
     quest_stage = blob.quest_stage;
     items       = blob.items;
+    lore_seed   = blob.lore_seed;
     scene       = blob.scene;
     place       = blob.place;
     depth       = blob.depth;

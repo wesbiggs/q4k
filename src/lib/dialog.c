@@ -18,7 +18,7 @@
 #define REPLY_MAX 180
 
 /* Replies can take a few seconds: the host is talking to a model, and the
-   line runs at 1200 baud. Wait 40 seconds of silence before giving up. */
+   line runs at 300 baud. Wait 40 seconds of silence before giving up. */
 #define REPLY_TICKS 2400
 
 #define KEY_RETURN 0x0D
@@ -33,6 +33,8 @@ static char reply[REPLY_MAX];
 static char seg[SCR_W + 1];
 
 static unsigned char line_open;
+
+unsigned char dialog_granted;
 
 static void frame(const char *place)
 {
@@ -94,9 +96,16 @@ static unsigned char read_input(void)
     }
 }
 
+/* One hex digit, in ASCII: '0'-'9' then 'a'-'f'. */
+static void put_nybble(unsigned char n)
+{
+    modem_put(n < 10 ? 0x30 + n : 0x57 + n);
+}
+
 /* Send one request and show the answer. */
 static unsigned char exchange(const char *verb, const char *npc_id,
-                              unsigned char stage, const char *said)
+                              unsigned char stage, unsigned char seed,
+                              const char *said)
 {
     unsigned char err, i;
     char *start;
@@ -105,6 +114,9 @@ static unsigned char exchange(const char *verb, const char *npc_id,
     modem_put_literal(npc_id);
     modem_put(0x20);
     modem_put(0x30 + stage);   /* Q_* never reaches ten, so one digit does */
+    modem_put(0x20);
+    put_nybble(seed >> 4);
+    put_nybble(seed & 0x0F);
     modem_put(0x20);
     if (said) {
         modem_puts(said);        /* already ASCII: the player typed it */
@@ -136,10 +148,14 @@ static unsigned char exchange(const char *verb, const char *npc_id,
         ++start;
     }
 
-    /* "OK <text>" / "ERR <text>". Numeric: start[] holds ASCII from the wire,
-       and cc65 would compile 'O' to PETSCII $CF. */
+    /* "OK <text>" / "GIVE <g> <text>" / "ERR <text>". Numeric: start[]
+       holds ASCII from the wire, and cc65 would compile 'O' to PETSCII $CF. */
     if (start[0] == 0x4F && start[1] == 0x4B && start[2] == 0x20) {
         panel_wrap(start + 3, COLOR_LIGHTGREEN);
+    } else if (start[0] == 0x47 && start[1] == 0x49 && start[4] == 0x20
+               && start[5] >= 0x31 && start[5] <= 0x39 && start[6] == 0x20) {
+        dialog_granted = start[5] - 0x30;
+        panel_wrap(start + 7, COLOR_YELLOW);
     } else if (start[0] == 0x45) {
         panel_wrap(start, COLOR_LIGHTRED);
     } else {
@@ -149,10 +165,11 @@ static unsigned char exchange(const char *verb, const char *npc_id,
 }
 
 unsigned char dialog_talk(const char *npc_id, const char *place,
-                          unsigned char stage)
+                          unsigned char stage, unsigned char seed)
 {
     unsigned char n;
 
+    dialog_granted = GRANT_NONE;
     frame(place);
 
     if (!line_open) {
@@ -166,7 +183,7 @@ unsigned char dialog_talk(const char *npc_id, const char *place,
         panel_undo();
     }
 
-    if (exchange("HI ", npc_id, stage, 0) != DIALOG_OK) {
+    if (exchange("HI ", npc_id, stage, seed, 0) != DIALOG_OK) {
         cgetc();
         return DIALOG_ESILENT;
     }
@@ -184,7 +201,7 @@ unsigned char dialog_talk(const char *npc_id, const char *place,
         str_asc(str_lit(seg, "> "), input);
         panel_wrap(seg, COLOR_WHITE);
 
-        exchange("SAY ", npc_id, stage, input);
+        exchange("SAY ", npc_id, stage, seed, input);
     }
 
     return DIALOG_OK;

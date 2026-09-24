@@ -17,6 +17,7 @@ unsigned char weapon_lv;
 unsigned char armour_lv;
 unsigned char quest_stage;
 unsigned char items;
+unsigned char lore_seed;
 
 /* The three deep places, in the order the quest opens them. */
 const unsigned char dungeon_wx[NUM_DUNGEONS]   = { 36, 22, 11 };
@@ -45,6 +46,7 @@ void game_init(void)
     armour_lv   = 0;
     quest_stage = Q_START;
     items       = 0;
+    lore_seed   = 0;
 
     memcpy(local, town_map[TOWN_MILLFORD], sizeof(local));
     hero.x = town_sx[TOWN_MILLFORD];
