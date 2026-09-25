@@ -35,7 +35,8 @@ typedef struct {
 #define NPC_ASH         7
 #define NPC_ALDA        8
 
-extern const unsigned char town_map[NUM_TOWNS][LOCAL_W * LOCAL_H];
+/* Run-length encoded: unpack with rle_unpack(). */
+extern const unsigned char *const town_map[NUM_TOWNS];
 extern const char *const   town_names[NUM_TOWNS];
 extern const unsigned char town_wx[NUM_TOWNS];
 extern const unsigned char town_wy[NUM_TOWNS];

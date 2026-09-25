@@ -331,3 +331,47 @@ tile drake d 0x87 actor red
 ..######
 ..#..#..
 .##..##.
+
+# Maldrath, two squares by two, drawn as four glyphs in reading order:
+# top-left, top-right, bottom-left, bottom-right. battle.c draws the
+# square at column c, row r of him as dragontl + r * 2 + c.
+
+tile dragontl Q 0x88 actor red
+..#.....
+..##....
+...##.##
+#...##..
+##..#.#.
+###.####
+####.#.#
+#####.##
+
+tile dragontr R 0x89 actor red
+.....#..
+....##..
+##.##...
+..##...#
+.#.#..##
+####.###
+#.#.####
+##.#####
+
+tile dragonbl S 0x8A actor red
+.#######
+..#.####
+.....###
+....####
+...###.#
+...##..#
+..###...
+.##.....
+
+tile dragonbr U 0x8B actor red
+#######.
+####.#..
+###.....
+####....
+#.###...
+#..##...
+...###..
+.....##.

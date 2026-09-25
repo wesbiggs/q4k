@@ -2,6 +2,7 @@
 
 #include <q4k/actor.h>
 #include <q4k/game.h>
+#include <q4k/rle.h>
 #include <q4k/tiles.h>
 #include <q4k/world.h>
 
@@ -48,7 +49,7 @@ void game_init(void)
     items       = 0;
     lore_seed   = 0;
 
-    memcpy(local, town_map[TOWN_MILLFORD], sizeof(local));
+    rle_unpack(local, town_map[TOWN_MILLFORD], sizeof(local));
     hero.x = town_sx[TOWN_MILLFORD];
     hero.y = town_sy[TOWN_MILLFORD];
 }
@@ -105,7 +106,7 @@ void enter_town(unsigned char index)
     scene = SCENE_TOWN;
     place = index;
     depth = 0;
-    memcpy(local, town_map[index], sizeof(local));
+    rle_unpack(local, town_map[index], sizeof(local));
     hero.x = town_sx[index];
     hero.y = town_sy[index];
 }

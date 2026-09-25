@@ -5,7 +5,7 @@
 /* Terrain properties are indexed by screen code - TILE_BASE. */
 #define TILE_BASE   0x60
 #define TILE_COUNT  19   /* terrain only, contiguous */
-#define TILE_TOTAL  31   /* terrain + actors          */
+#define TILE_TOTAL  35   /* terrain + actors          */
 
 #define TF_PASS     0  /* walk onto it freely        */
 #define TF_BLOCK    1  /* impassable                 */
@@ -43,6 +43,10 @@
 #define T_OGRE      0x85
 #define T_WRAITH    0x86
 #define T_DRAKE     0x87
+#define T_DRAGONTL  0x88
+#define T_DRAGONTR  0x89
+#define T_DRAGONBL  0x8A
+#define T_DRAGONBR  0x8B
 
 #define TC_GRASS    5
 #define TC_FOREST   13
@@ -75,6 +79,10 @@
 #define TC_OGRE     14
 #define TC_WRAITH   4
 #define TC_DRAKE    2
+#define TC_DRAGONTL 2
+#define TC_DRAGONTR 2
+#define TC_DRAGONBL 2
+#define TC_DRAGONBR 2
 
 extern const unsigned char tile_flags[TILE_COUNT];
 extern const unsigned char tile_colors[TILE_COUNT];

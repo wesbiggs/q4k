@@ -7,6 +7,7 @@
 #include <q4k/dungeon.h>
 #include <q4k/fov.h>
 #include <q4k/game.h>
+#include <q4k/rle.h>
 #include <q4k/savegame.h>
 
 /* Top of BASIC memory. The KERNAL treats anything above it as out of
@@ -104,7 +105,7 @@ unsigned char load_game(void)
     /* Rebuild the map rather than store it. items has to be restored first:
        whether the keeper is still down there depends on it. */
     if (scene == SCENE_TOWN) {
-        memcpy(local, town_map[place], sizeof(local));
+        rle_unpack(local, town_map[place], sizeof(local));
     } else if (scene == SCENE_DUNGEON) {
         dungeon_build(place, depth);
         reseed();

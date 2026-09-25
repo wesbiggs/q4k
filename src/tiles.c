@@ -82,10 +82,10 @@ int main(void)
                 case '%': code = T_SWAMP;    break;
                 default:  code = T_GRASS;    break;
             }
-            put_tile(22 + x, 17 + y, code, tile_colors[code - TILE_BASE]);
+            put_tile(22 + x, 19 + y, code, tile_colors[code - TILE_BASE]);
         }
     }
-    put_tile(26, 19, T_PLAYER, COLOR_WHITE);
+    put_tile(26, 21, T_PLAYER, COLOR_WHITE);
 
     probe_stage(1);
     cgetc();

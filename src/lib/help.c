@@ -57,7 +57,7 @@ void help_screen(void)
     cputsxy(1, 15, "In a fight");
     textcolor(COLOR_WHITE);
     cputsxy(3, 16, "Walk into it; SPACE guards; R runs");
-    cputsxy(3, 17, "Underground: A Attack  D Defend");
+    cputsxy(3, 17, "No running from keepers or Maldrath");
 
     textcolor(COLOR_GRAY1);
     chlinexy(0, 18, SCR_W);

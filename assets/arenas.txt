@@ -1,15 +1,17 @@
 # Quest for the King -- battle fields.
 #
-# When something comes out of the scenery on the overworld, the fight happens
-# on one of these, picked by the square the hero was standing on. Each is one
-# viewport, 21x19, like a town.
+# Every fight happens on one of these. On the overworld it is picked by the
+# square the hero was standing on; below ground it is the floor room; and
+# Maldrath has his lair. Each is one viewport, 21x19, like a town. A tile
+# with no field of its own gets the first one.
 #
-#   arena <tile-name>     the overworld tile this field is for
-#   map                   then 19 rows of 21 characters
+#   arena <tile-name> [size]   the tile this field is for; size 2 checks
+#                              the monster's start and path for a 2x2 body
+#   map                        then 19 rows of 21 characters
 #
 # Map characters are the tile glyphs from assets/tiles.txt, plus:
 #   @  where the hero starts (drawn as whatever is next to it)
-#   m  where the monster starts
+#   m  where the monster starts (its top-left square, if it is big)
 #
 # The monster walks round anything that blocks: trees, boulders, mountains
 # and water. tools/mkarenas.py refuses a field where it could not reach you.
@@ -101,3 +103,49 @@ t%%%~~%%%%%%%%%%%%%%t
 t%%~~~~%%%%%t%%%%%%tt
 tt%%~~%%%%%%%%%%%%ttt
 ttt%%tttttt%%tttttttt
+
+# Maldrath's lair, high in the Sundering. He is two squares by two.
+arena lair 2
+map
+^^^^^^^^^^^^^^^^^^^^^
+^^^^^_________^^^^^^^
+^^^_____________^^^^^
+^^___o_________o__^^^
+^^_______m________^^^
+^^________________o^^
+^_______________^^^^^
+^^__o_______________^
+^^________o_______^^^
+^___________________^
+^^_____o________o__^^
+^^^________________^^
+^^^_____________^^^^^
+^^^^___o________^^^^^
+^^^^_____@_______^^^^
+^^^^^___________^^^^^
+^^^^^^_________^^^^^^
+^^^^^^^^^___^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+
+# Underground: every fight in a deep place, keepers included, for now.
+arena floor
+map
+#####################
+#####___________#####
+###_______________###
+##____o______~~~___##
+##_______m____~~___##
+#___________________#
+#__~~_______o_______#
+#__~~~______________#
+#___________________#
+#_______o_______o___#
+#___________________#
+#____________~~~____#
+##___o_______~~_____#
+##__________________#
+###______@_______o_##
+###_______________###
+####_____________####
+######_________######
+#####################

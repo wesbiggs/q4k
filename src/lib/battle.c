@@ -7,27 +7,18 @@
 #include <q4k/arena_data.h>
 #include <q4k/battle.h>
 #include <q4k/game.h>
-#include <q4k/panel.h>
+#include <q4k/rle.h>
 #include <q4k/sprite.h>
-#include <q4k/text.h>
 #include <q4k/tiles.h>
 #include <q4k/view.h>
 
-#define LOG_Y      3
-#define LOG_H     13
-#define RULE_A     1
-#define RULE_B    17
-#define STAT_Y    18
-#define CMD_Y     20
-
-#define K_ATTACK  0x41
-#define K_DEFEND  0x44
-#define K_POTION  0x50
-#define K_RUN     0x52
-
-/* On a field the letters are for walking, as they are on the map. */
+/* The letters are for walking, as they are on the map. */
 #define K_W          0x57
+#define K_A          0x41
 #define K_S          0x53
+#define K_D          0x44
+#define K_POTION     0x50
+#define K_RUN        0x52
 #define K_SPACE      0x20
 #define K_CRSR_DOWN  0x11
 #define K_CRSR_RIGHT 0x1D
@@ -39,30 +30,33 @@ typedef struct {
     unsigned char hp, atk, def, xp;
     unsigned int  gold;
     unsigned char glyph, color;   /* how it looks on a field */
+    unsigned char speed;          /* moves a turn, in tenths: 15 = 1.5 */
+    unsigned char size;           /* squares a side; the glyphs run on
+                                     from `glyph` in reading order */
 } Monster;
 
 /* Wandering monsters, weakest first; which one shows up scales with level. */
 static const Monster wanderers[] = {
-    { "A rat",        4,  2, 0,  2,   2, T_RAT,      TC_RAT      },
-    { "A goblin",     7,  3, 1,  4,   6, T_GOBLIN,   TC_GOBLIN   },
-    { "A wolf",       9,  4, 1,  6,   5, T_WOLF,     TC_WOLF     },
-    { "A bandit",    12,  5, 2,  9,  15, T_BANDIT,   TC_BANDIT   },
-    { "A skeleton",  15,  6, 3, 12,  12, T_SKELETON, TC_SKELETON },
-    { "An ogre",     22,  8, 3, 18,  25, T_OGRE,     TC_OGRE     },
-    { "A wraith",    26, 10, 4, 25,  30, T_WRAITH,   TC_WRAITH   },
-    { "A drake",     32, 12, 5, 35,  45, T_DRAKE,    TC_DRAKE    },
+    { "A rat",        4,  2, 0,  2,   2, T_RAT,      TC_RAT,      13, 1 },
+    { "A goblin",     7,  3, 1,  4,   6, T_GOBLIN,   TC_GOBLIN,   10, 1 },
+    { "A wolf",       9,  4, 1,  6,   5, T_WOLF,     TC_WOLF,     15, 1 },
+    { "A bandit",    12,  5, 2,  9,  15, T_BANDIT,   TC_BANDIT,   10, 1 },
+    { "A skeleton",  15,  6, 3, 12,  12, T_SKELETON, TC_SKELETON,  8, 1 },
+    { "An ogre",     22,  8, 3, 18,  25, T_OGRE,     TC_OGRE,      7, 1 },
+    { "A wraith",    26, 10, 4, 25,  30, T_WRAITH,   TC_WRAITH,   12, 1 },
+    { "A drake",     32, 12, 5, 35,  45, T_DRAKE,    TC_DRAKE,    17, 1 },
 };
 #define NUM_WANDERERS (sizeof(wanderers) / sizeof(wanderers[0]))
 
 /* One keeper per deep place, in the order the quest opens them. */
 static const Monster keepers[NUM_DUNGEONS] = {
-    { "The Gaoler",       45, 12, 5,  60,  80, T_MONSTER, TC_MONSTER },
-    { "The Drowned King", 60, 15, 6,  90, 120, T_MONSTER, TC_MONSTER },
-    { "The Pit Warden",   80, 18, 8, 140, 180, T_MONSTER, TC_MONSTER },
+    { "The Gaoler",       45, 12, 5,  60,  80, T_MONSTER, TC_MONSTER, 10, 1 },
+    { "The Drowned King", 60, 15, 6,  90, 120, T_MONSTER, TC_MONSTER, 10, 1 },
+    { "The Pit Warden",   80, 18, 8, 140, 180, T_MONSTER, TC_MONSTER, 10, 1 },
 };
 
 static const Monster maldrath = {
-    "Maldrath", 120, 22, 10, 255, 0, T_DRAGON, TC_DRAGON
+    "Maldrath", 120, 22, 10, 255, 0, T_DRAGONTL, TC_DRAGONTL, 10, 2
 };
 
 const char *const weapon_names[NUM_WEAPONS] = {
@@ -83,21 +77,7 @@ static const unsigned int level_at[] = {
 };
 #define MAX_LEVEL (sizeof(level_at) / sizeof(level_at[0]))
 
-static char line[SCR_W + 1];   /* ASCII, for text_put */
-static char msg[SCR_W + 1];    /* PETSCII, for say()  */
-
-/* Where a fight's running commentary goes: the battle screen's own panel,
-   or the map's message log when the fight is out on a field. */
-static unsigned char on_field;
-
-static void say(const char *petscii, unsigned char color)
-{
-    if (on_field) {
-        view_message(petscii);
-    } else {
-        panel_lit(petscii, color);
-    }
-}
+static char msg[SCR_W + 1];    /* PETSCII, for the message log */
 
 static void cat_num(unsigned int value)
 {
@@ -172,23 +152,6 @@ unsigned char encounter_roll(unsigned char tile)
     return chance && (unsigned char)(rand() % 100) < chance;
 }
 
-static void status(const Monster *m, unsigned char m_hp)
-{
-    char *p;
-
-    p = str_lit(line, "You ");
-    p = str_num(p, hero.hp);
-    p = str_lit(p, "/");
-    p = str_num(p, hero.hp_max);
-    p = str_pad(p, 20, line);
-    p = str_lit(p, m->name);
-    p = str_lit(p, " ");
-    p = str_num(p, m_hp);
-
-    text_clear(0, STAT_Y, SCR_W);
-    text_put(0, STAT_Y, line, m_hp ? COLOR_WHITE : COLOR_GRAY2);
-}
-
 static void award(const Monster *m)
 {
     hero.xp += m->xp;
@@ -199,7 +162,7 @@ static void award(const Monster *m)
     strcat(msg, " experience and ");
     cat_num(m->gold);
     strcat(msg, " marks.");
-    say(msg, COLOR_YELLOW);
+    view_message(msg);
 
     while (hero.level < MAX_LEVEL && hero.xp >= level_at[hero.level]) {
         ++hero.level;
@@ -209,12 +172,11 @@ static void award(const Monster *m)
         strcpy(msg, "You reach level ");
         cat_num(hero.level);
         strcat(msg, ".");
-        say(msg, COLOR_LIGHTGREEN);
+        view_message(msg);
     }
 }
 
-/* The exchange of blows, shared by both kinds of fight so they cannot
-   drift apart. Each returns the damage done and says so. */
+/* The exchange of blows. Each returns the damage done and says so. */
 static unsigned char strike(const Monster *m, unsigned char m_hp)
 {
     unsigned char hit;
@@ -225,7 +187,7 @@ static unsigned char strike(const Monster *m, unsigned char m_hp)
     strcpy(msg, "You strike for ");
     cat_num(hit);
     strcat(msg, ".");
-    say(msg, COLOR_WHITE);
+    view_message(msg);
     return hit >= m_hp ? m_hp : hit;
 }
 
@@ -241,7 +203,7 @@ static unsigned char bitten(const Monster *m, unsigned char guard)
     strcpy(msg, "It hits you for ");
     cat_num(hit);
     strcat(msg, ".");
-    say(msg, COLOR_LIGHTRED);
+    view_message(msg);
 
     if (hit >= hero.hp) {
         hero.hp = 0;
@@ -257,134 +219,59 @@ static unsigned char quaff(void)
     unsigned char healed;
 
     if (!potions) {
-        say("You have no draughts.", COLOR_GRAY2);
+        view_message("You have no draughts.");
         return 0;
     }
     healed = drink_potion();
     if (!healed) {
-        say("You are unhurt.", COLOR_GRAY2);
+        view_message("You are unhurt.");
         return 0;
     }
     strcpy(msg, "You drink. ");
     cat_num(healed);
     strcat(msg, " restored.");
-    say(msg, COLOR_LIGHTGREEN);
+    view_message(msg);
     return 1;
 }
 
+/* The log carries on into the map afterwards, so a win needs no pause --
+   and a "Press a key." would stay in it. Dying moves you, so it does. */
 static unsigned char won(const Monster *m)
 {
-    say("It falls.", COLOR_LIGHTGREEN);
+    view_message("It falls.");
     award(m);
-    /* On a field the log carries on into the map, so there is nothing
-       to hold the screen for -- and a "Press a key." would stay in it. */
-    if (!on_field) {
-        say("Press a key.", COLOR_GRAY2);
-        cgetc();
-    }
     return BATTLE_WON;
 }
 
 static unsigned char lost(void)
 {
-    say("You fall.", COLOR_LIGHTRED);
-    say("Press a key.", COLOR_GRAY2);
+    view_message("You fall.");
+    view_message("Press a key.");
     cgetc();
     return BATTLE_DEAD;
 }
 
-/* Three in four: the same odds on a field as on the old screen. */
+/* Three in four, as it always was. */
 static unsigned char got_away(void)
 {
     if ((rand() % 4) != 0) {
-        say("You get away.", COLOR_GRAY1);
+        view_message("You get away.");
         return 1;
     }
-    say("It cuts you off.", COLOR_LIGHTRED);
+    view_message("It cuts you off.");
     return 0;
 }
 
-/* The keepers, Maldrath, and anything met underground: a screen of its
-   own with the blows written out. */
-static unsigned char fight(const Monster *m, unsigned char can_flee)
-{
-    unsigned char m_hp = m->hp;
-    unsigned char guard, key;
-
-    on_field = 0;
-    sprite_hide();
-    clrscr();
-    panel_begin(LOG_Y, LOG_H);
-
-    textcolor(COLOR_LIGHTRED);
-    cputsxy(0, 0, m->name);
-    textcolor(COLOR_GRAY1);
-    chlinexy(0, RULE_A, SCR_W);
-    chlinexy(0, RULE_B, SCR_W);
-
-    str_lit(line, can_flee ? "A)ttack  D)efend  P)otion  R)un"
-                           : "A)ttack  D)efend  P)otion");
-    text_put(0, CMD_Y, line, COLOR_GRAY2);
-
-    say("It comes at you.", COLOR_GRAY1);
-
-    for (;;) {
-        status(m, m_hp);
-        guard = 0;
-        key = cgetc();
-        if (key >= 0xC1 && key <= 0xDA) {
-            key -= 0x80;
-        }
-
-        switch (key) {
-            case K_ATTACK:
-                m_hp -= strike(m, m_hp);
-                break;
-
-            case K_DEFEND:
-                guard = 4;
-                say("You set yourself.", COLOR_GRAY1);
-                break;
-
-            case K_POTION:
-                if (!quaff()) {
-                    continue;
-                }
-                break;
-
-            case K_RUN:
-                if (!can_flee) {
-                    say("There is nowhere to run.", COLOR_LIGHTRED);
-                    continue;
-                }
-                if (got_away()) {
-                    return BATTLE_FLED;
-                }
-                break;
-
-            default:
-                continue;
-        }
-
-        if (m_hp == 0) {
-            status(m, 0);
-            return won(m);
-        }
-
-        /* Its turn. */
-        if (bitten(m, guard)) {
-            status(m, m_hp);
-            return lost();
-        }
-    }
-}
-
-/* --- fighting on a field ------------------------------------------------
+/* --- the field ----------------------------------------------------------
  *
- * Out on the overworld a fight happens on a map of the ground you were
- * crossing: you start near the bottom, it starts near the top, and each
- * turn you move and then it moves towards you. Walking into it is how you
- * hit it; it hits you by walking into you. */
+ * Every fight happens on a map: the ground you were crossing, a dungeon
+ * room, or Maldrath's lair. You start near the bottom, it starts near the
+ * top, and each turn you move and then it moves towards you. Walking into
+ * it is how you hit it; it hits you by walking into you.
+ *
+ * A monster can be bigger than one square -- Maldrath is two by two. Its
+ * position is its top-left square, and everything below asks "is this
+ * square part of it" rather than "is this the square it is on". */
 
 #define FIELD_SIZE (LOCAL_W * LOCAL_H)
 #define VAL_X      (PANEL_X + 9)
@@ -394,26 +281,52 @@ static unsigned char fight(const Monster *m, unsigned char can_flee)
 #define RIM_W      (LOCAL_W + 2)
 #define RIM_H      (LOCAL_H + 2)
 
+/* The hero's speed in tenths, before armour takes its share. */
+#define HERO_SPEED 10
+
 static unsigned char field[FIELD_SIZE];
 static unsigned char wall[RIM_W * RIM_H];    /* 1 where nothing can stand */
+static unsigned char roomy[RIM_W * RIM_H];   /* 0 where a 2x2 body fits,
+                                                by its top-left square */
 static unsigned char seen[RIM_W * RIM_H];
 static unsigned char *seen_row[RIM_H];
 static unsigned char queue_x[256], queue_y[256];
 static unsigned char hx, hy, mx, my;
+static unsigned char size;      /* the monster's, squares a side */
 static const Monster *foe;
 
-/* Draw the ground at (x,y), or the monster if it is standing there. */
+/* Is (x,y) part of the monster? Unsigned, so a square above or to the left
+   of it wraps round to a large number and fails the same test. */
+static unsigned char on_foe(unsigned char x, unsigned char y)
+{
+    return (unsigned char)(x - mx) < size && (unsigned char)(y - my) < size;
+}
+
+/* Draw the ground at (x,y), or the part of the monster standing there. */
 static void paint(unsigned char x, unsigned char y)
 {
     unsigned int  at = (unsigned int)y * SCR_W + x;
     unsigned char code = field[(unsigned int)y * LOCAL_W + x];
 
-    if (x == mx && y == my) {
-        SCREEN_RAM[at] = foe->glyph;
+    if (on_foe(x, y)) {
+        SCREEN_RAM[at] = foe->glyph + (unsigned char)((y - my) * size)
+                                    + (unsigned char)(x - mx);
         COLOR_RAM[at]  = foe->color;
     } else {
         SCREEN_RAM[at] = code;
         COLOR_RAM[at]  = tile_colors[code - TILE_BASE];
+    }
+}
+
+/* Redraw the squares a monster at (x,y) would cover, wherever it is now. */
+static void paint_body(unsigned char x, unsigned char y)
+{
+    unsigned char i, j;
+
+    for (j = 0; j < size; ++j) {
+        for (i = 0; i < size; ++i) {
+            paint(x + i, y + j);
+        }
     }
 }
 
@@ -444,10 +357,25 @@ static void show_foe(const Monster *m, unsigned char m_hp)
     cputsxy(VAL_X, 11, buf);
 }
 
+/* Is the hero beside the monster -- up, down, left or right of any part
+   of it? */
 static unsigned char next_to(void)
 {
-    return (hx == mx && (hy == my + 1 || my == hy + 1))
-        || (hy == my && (hx == mx + 1 || mx == hx + 1));
+    return on_foe(hx, hy - 1) || on_foe(hx, hy + 1)
+        || on_foe(hx - 1, hy) || on_foe(hx + 1, hy);
+}
+
+/* Start the flood from (x,y), in rim coordinates, if it is open there. */
+static unsigned char tail;
+
+static void seed(unsigned char x, unsigned char y)
+{
+    if (x < RIM_W && y < RIM_H && !seen_row[y][x]) {
+        seen_row[y][x] = 1;
+        queue_x[tail] = x;
+        queue_y[tail] = y;
+        ++tail;
+    }
 }
 
 /* Move the monster one square nearer, the shortest way round whatever is
@@ -456,6 +384,11 @@ static unsigned char next_to(void)
  * A breadth-first flood out from the hero: the square the flood reaches
  * the monster from is one step nearer than where it stands. If nothing
  * reaches it, it waits where it is.
+ *
+ * A two-by-two monster is flooded as its top-left square, over `roomy`
+ * (where its whole body fits) instead of `wall`. The flood starts from the
+ * eight places that would put it beside the hero, with the four that would
+ * put it on top of the hero ruled out first.
  *
  * This runs every turn, and written the obvious way -- 16-bit indices into
  * the field, a bounds test per neighbour -- a flood of the whole grass
@@ -475,15 +408,29 @@ static unsigned char next_to(void)
 static void foe_step(void)
 {
     register unsigned char *row;
-    unsigned char head = 0, tail = 1;
+    unsigned char head = 0;
     unsigned char x, y, tx, ty;
 
-    memcpy(seen, wall, sizeof(seen));
+    tail = 0;
     tx = mx + 1;
     ty = my + 1;
-    queue_x[0] = hx + 1;
-    queue_y[0] = hy + 1;
-    seen_row[hy + 1][hx + 1] = 1;
+    x = hx + 1;
+    y = hy + 1;
+    if (size == 1) {
+        memcpy(seen, wall, sizeof(seen));
+        seed(x, y);
+    } else {
+        memcpy(seen, roomy, sizeof(seen));
+        seen_row[y - 1][x - 1] = seen_row[y - 1][x] = 1;
+        seen_row[y][x - 1]     = seen_row[y][x]     = 1;
+        seed(x - 1, y + 1); seed(x, y + 1);
+        seed(x - 1, y - 2); seed(x, y - 2);
+        seed(x + 1, y - 1); seed(x + 1, y);
+        seed(x - 2, y - 1); seed(x - 2, y);
+    }
+    if (!tail) {
+        return;
+    }
 
     do {
         x = queue_x[head];
@@ -521,22 +468,24 @@ found:
     ty = my;
     mx = x - 1;
     my = y - 1;
-    paint(tx, ty);
-    paint(mx, my);
+    paint_body(tx, ty);
+    paint_body(mx, my);
 }
 
-static unsigned char field_fight(const Monster *m, unsigned char ground)
+static unsigned char field_fight(const Monster *m, unsigned char ground,
+                                 unsigned char can_flee)
 {
     unsigned char m_hp = m->hp;
     unsigned char a, key, guard, dir, nx, ny;
+    unsigned char rel, pace;
     unsigned char *edge;
     unsigned int  i;
 
     /* The field for this kind of ground, or the first one if there is
-       none -- a bridge, say. */
+       none. */
     for (a = NUM_ARENAS - 1; a && arena_tile[a] != ground; --a) {
     }
-    memcpy(field, arena_map[a], FIELD_SIZE);
+    rle_unpack(field, arena_map[a], FIELD_SIZE);
     memset(wall, 1, sizeof(wall));
     i = 0;
     for (ny = 0; ny < RIM_H; ++ny) {
@@ -549,13 +498,27 @@ static unsigned char field_fight(const Monster *m, unsigned char ground)
             edge[nx] = tile_flags[field[i] - TILE_BASE] != TF_PASS;
         }
     }
+    size = m->size;
+    if (size == 2) {
+        memset(roomy, 1, sizeof(roomy));
+        for (i = 0; i < sizeof(roomy) - RIM_W - 1; ++i) {
+            roomy[i] = wall[i] | wall[i + 1]
+                     | wall[i + RIM_W] | wall[i + RIM_W + 1];
+        }
+    }
     hx = arena_hx[a];
     hy = arena_hy[a];
     mx = arena_mx[a];
     my = arena_my[a];
     foe = m;
 
-    on_field = 1;
+    /* Speed is relative: armour slows you a tenth a grade, from 1.0 in
+       travel clothes to 0.6 in plate, and whatever you lose it gains.
+       Its moves are banked in tenths, so a relative 1.5 moves once, then
+       twice, then once. */
+    rel = m->speed + 10 - (HERO_SPEED - armour_lv);
+    pace = 0;
+
     view_restore();
     draw_field();
     sprite_face(DIR_UP);
@@ -563,8 +526,9 @@ static unsigned char field_fight(const Monster *m, unsigned char ground)
 
     strcpy(msg, m->name);
     strcat(msg, " comes at you!");
-    say(msg, 0);
-    say("Walk into it to strike. R runs.", 0);
+    view_message(msg);
+    view_message(can_flee ? "Walk into it to strike. R runs."
+                          : "Walk into it to strike.");
 
     for (;;) {
         view_draw_panel();
@@ -580,12 +544,12 @@ static unsigned char field_fight(const Monster *m, unsigned char ground)
         switch (key) {
             case K_W: case K_CRSR_UP:     dir = DIR_UP;    break;
             case K_S: case K_CRSR_DOWN:   dir = DIR_DOWN;  break;
-            case K_ATTACK: case K_CRSR_LEFT:  dir = DIR_LEFT;  break;
-            case K_DEFEND: case K_CRSR_RIGHT: dir = DIR_RIGHT; break;
+            case K_A: case K_CRSR_LEFT:   dir = DIR_LEFT;  break;
+            case K_D: case K_CRSR_RIGHT:  dir = DIR_RIGHT; break;
 
             case K_SPACE:
                 guard = 4;
-                say("You stand your ground.", 0);
+                view_message("You stand your ground.");
                 break;
 
             case K_POTION:
@@ -595,6 +559,10 @@ static unsigned char field_fight(const Monster *m, unsigned char ground)
                 break;
 
             case K_RUN:
+                if (!can_flee) {
+                    view_message("There is nowhere to run.");
+                    continue;
+                }
                 if (got_away()) {
                     return BATTLE_FLED;
                 }
@@ -615,11 +583,13 @@ static unsigned char field_fight(const Monster *m, unsigned char ground)
             }
             sprite_face(dir);
 
-            if (nx == mx && ny == my) {
+            if (on_foe(nx, ny)) {
                 m_hp -= strike(m, m_hp);
                 if (m_hp == 0) {
+                    nx = mx;
+                    ny = my;
                     mx = my = 0xFF;          /* off the field */
-                    paint(nx, ny);
+                    paint_body(nx, ny);
                     show_foe(m, 0);
                     return won(m);
                 }
@@ -635,14 +605,17 @@ static unsigned char field_fight(const Monster *m, unsigned char ground)
             }
         }
 
-        /* Its turn. */
-        if (next_to()) {
-            if (bitten(m, guard)) {
-                view_draw_panel();
-                return lost();
+        /* Its turn: as many moves as it has banked whole ones. */
+        pace += rel;
+        for (; pace >= 10; pace -= 10) {
+            if (next_to()) {
+                if (bitten(m, guard)) {
+                    view_draw_panel();
+                    return lost();
+                }
+            } else {
+                foe_step();
             }
-        } else {
-            foe_step();
         }
     }
 }
@@ -657,19 +630,19 @@ unsigned char battle_wander(void)
     }
     i = (unsigned char)(rand() % top);
 
-    /* Underground there is no field to fight on yet. */
-    if (scene == SCENE_WORLD) {
-        return field_fight(&wanderers[i], map_at(hero.x, hero.y));
-    }
-    return fight(&wanderers[i], 1);
+    /* Above ground, the ground you were on; below it, the one room. */
+    return field_fight(&wanderers[i],
+                       scene == SCENE_WORLD ? map_at(hero.x, hero.y)
+                                            : T_FLOOR,
+                       1);
 }
 
 unsigned char battle_boss(unsigned char dungeon)
 {
-    return fight(&keepers[dungeon], 0);
+    return field_fight(&keepers[dungeon], T_FLOOR, 0);
 }
 
 unsigned char battle_dragon(void)
 {
-    return fight(&maldrath, 0);
+    return field_fight(&maldrath, T_LAIR, 0);
 }

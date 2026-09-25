@@ -1,11 +1,10 @@
 /*
  * Quest for the King -- fighting.
  *
- * Something met on the overworld is fought on a field: a map of the kind of
- * ground you were crossing (assets/arenas.txt), where it walks at you and
- * you walk into it to strike. The keeper at the bottom of each deep place,
- * Maldrath himself, and anything met underground still get the old
- * turn-based screen. Either way the caller redraws the map afterwards.
+ * Every fight happens on a field: a map of the ground you were crossing
+ * (assets/arenas.txt), a dungeon room below ground, or Maldrath's lair. It
+ * walks at you and you walk into it to strike. The caller redraws the map
+ * afterwards.
  */
 
 #ifndef Q4K_BATTLE_H

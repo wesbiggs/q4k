@@ -4,11 +4,12 @@
 
 #include <q4k/town_data.h>   /* LOCAL_W, LOCAL_H */
 
-#define NUM_ARENAS  4
+#define NUM_ARENAS  6
 
 /* The overworld tile each field is for. */
 extern const unsigned char arena_tile[NUM_ARENAS];
-extern const unsigned char arena_map[NUM_ARENAS][LOCAL_W * LOCAL_H];
+/* Run-length encoded: unpack with rle_unpack(). */
+extern const unsigned char *const arena_map[NUM_ARENAS];
 extern const unsigned char arena_hx[NUM_ARENAS];
 extern const unsigned char arena_hy[NUM_ARENAS];
 extern const unsigned char arena_mx[NUM_ARENAS];

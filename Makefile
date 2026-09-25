@@ -97,11 +97,12 @@ $(GEN_TILES): assets/tiles.txt tools/mktiles.py
 $(GEN_MAP): assets/overworld.txt assets/tiles.txt tools/mkmap.py tools/mktiles.py
 	tools/mkmap.py
 
-$(GEN_TOWN): assets/towns.txt assets/tiles.txt assets/npcs.json tools/mktowns.py
+$(GEN_TOWN): assets/towns.txt assets/tiles.txt assets/npcs.json tools/mktowns.py \
+             tools/rle.py
 	tools/mktowns.py
 
 $(GEN_ARENA): assets/arenas.txt assets/tiles.txt tools/mkarenas.py \
-              tools/mktiles.py tools/checkmap.py
+              tools/mktiles.py tools/checkmap.py tools/rle.py
 	tools/mkarenas.py
 
 $(GEN_GEO): assets/overworld.txt assets/towns.txt assets/places.txt \
