@@ -163,7 +163,16 @@ Unless your change touches `savegame.c`, the disk, or what those two screens
 show, do not rerun the suite to chase it, and do not try to diagnose it
 mid-task. Sessions have lost a lot of time doing exactly that. Say in your
 report that it failed and move on. A diff that shows your own change (a
-moved wall, say) is not flakiness: re-bless that.
+moved wall, say) is not flakiness: re-bless that. But `make bless` can
+catch a flaky run too (it has, twice), so read `git diff tests/` after
+blessing; a save golden missing "Restored." should be hand-edited from
+the committed one instead.
+
+**The Makefile does not track headers.** Objects depend on their `.c`
+only, so after anything regenerates `include/q4k/*.h` (a new tile moves
+`TILE_COUNT`, say) run `rm -rf build/lib build/*.o` before building, or
+stale objects will quietly use the old values. New furniture drew in the
+keeper's red this way.
 
 **Open question: do three sprites upset disk access?** When the tunic went
 in as a third sprite, the save/load tests failed 7 runs in 20 against 20 in

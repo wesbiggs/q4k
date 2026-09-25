@@ -26,14 +26,12 @@ static void put_tile(unsigned char x, unsigned char y,
     COLOR_RAM[offset]  = color;
 }
 
-/* A scrap of landscape, to check the tiles read well side by side. */
-static const char patch[6][17] = {
-    "~~~,....FF..^^^^",
-    "~~,.....FFF.^^^^",
-    "~,..T...FF...^^^",
+/* A scrap of landscape, to check the tiles read well side by side. Three
+   rows, under the list: the list now runs to row 21. */
+static const char patch[3][17] = {
+    "~~,..T..FFF.^^^^",
     "~,......==...^^.",
     "~~,...%%..D..^..",
-    "~~~,..%%.....,..",
 };
 
 int main(void)
@@ -69,7 +67,7 @@ int main(void)
         }
     }
 
-    for (y = 0; y < 6; ++y) {
+    for (y = 0; y < 3; ++y) {
         for (x = 0; x < 16; ++x) {
             switch (patch[y][x]) {
                 case '~': code = T_WATER;    break;
@@ -82,10 +80,10 @@ int main(void)
                 case '%': code = T_SWAMP;    break;
                 default:  code = T_GRASS;    break;
             }
-            put_tile(22 + x, 19 + y, code, tile_colors[code - TILE_BASE]);
+            put_tile(22 + x, 22 + y, code, tile_colors[code - TILE_BASE]);
         }
     }
-    put_tile(26, 21, T_PLAYER, COLOR_WHITE);
+    put_tile(26, 23, T_PLAYER, COLOR_WHITE);
 
     probe_stage(1);
     cgetc();

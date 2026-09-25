@@ -4,8 +4,8 @@
 
 /* Terrain properties are indexed by screen code - TILE_BASE. */
 #define TILE_BASE   0x60
-#define TILE_COUNT  19   /* terrain only, contiguous */
-#define TILE_TOTAL  35   /* terrain + actors          */
+#define TILE_COUNT  25   /* terrain only, contiguous */
+#define TILE_TOTAL  41   /* terrain + actors          */
 
 #define TF_PASS     0  /* walk onto it freely        */
 #define TF_BLOCK    1  /* impassable                 */
@@ -31,7 +31,13 @@
 #define T_LAIR      0x70
 #define T_TREE      0x71
 #define T_BOULDER   0x72
-#define T_PLAYER    0x78
+#define T_POTION    0x73
+#define T_SWORD     0x74
+#define T_BED       0x75
+#define T_SHIELD    0x76
+#define T_SHELF     0x77
+#define T_BOW       0x78
+#define T_PLAYER    0x7C
 #define T_VILLAGER  0x79
 #define T_MONSTER   0x7A
 #define T_DRAGON    0x7B
@@ -67,6 +73,12 @@
 #define TC_LAIR     2
 #define TC_TREE     5
 #define TC_BOULDER  12
+#define TC_POTION   4
+#define TC_SWORD    1
+#define TC_BED      10
+#define TC_SHIELD   14
+#define TC_SHELF    9
+#define TC_BOW      8
 #define TC_PLAYER   1
 #define TC_VILLAGER 3
 #define TC_MONSTER  10

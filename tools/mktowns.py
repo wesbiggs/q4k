@@ -113,7 +113,9 @@ def neighbour_tile(grid, by_char, x, y, default):
         nx, ny = x + dx, y + dy
         if 0 <= nx < W and 0 <= ny < H:
             c = grid[ny][nx]
-            if isinstance(c, str) and c in by_char and c not in "#":
+            # Nobody stands on a wall, a counter of potions or a bed.
+            if (isinstance(c, str) and c in by_char
+                    and by_char[c].flag != "TF_BLOCK"):
                 return by_char[c].code
     return default
 

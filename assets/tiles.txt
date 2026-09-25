@@ -205,7 +205,73 @@ tile boulder o 0x72 block gray2
 ..####..
 ........
 
-tile player @ 0x78 actor white
+# Furniture: what a building is for, readable from outside it. Solid, so
+# place it where it does not stand between the door and whoever is inside;
+# tools/checkmap.py will say if it does.
+tile potion ! 0x73 block violet
+..####..
+...##...
+...##...
+..####..
+.##..##.
+.######.
+.######.
+..####..
+
+tile sword / 0x74 block white
+......##
+.....###
+....###.
+#..###..
+.####...
+..##....
+.####...
+##..#...
+
+tile bed B 0x75 block lightred
+........
+#.......
+#.##....
+#.######
+########
+#......#
+#......#
+........
+
+tile shield ) 0x76 block lightblue
+########
+#..##..#
+#..##..#
+########
+#..##..#
+.#.##.#.
+..####..
+...##...
+
+tile shelf H 0x77 block brown
+########
+#.#.##.#
+#.#.##.#
+########
+##.#.#.#
+##.#.#.#
+########
+#......#
+
+tile bow } 0x78 block orange
+....##..
+...#..#.
+..#...#.
+..#...#.
+..#...#.
+..#...#.
+...#..#.
+....##..
+
+# The hero is a sprite, but keeps a glyph for src/tiles.c. It moved up
+# from $78 when furniture took $73-$78.
+
+tile player @ 0x7C actor white
 ...##...
 ..####..
 ...##...
