@@ -504,6 +504,7 @@ int main(void)
                 break;
 
             case K_F1:
+                view_message("Saving...");
                 switch (save_game()) {
                     case SAVE_OK: view_message("Saved."); break;
                     default:      view_message("The drive would not."); break;
@@ -511,6 +512,7 @@ int main(void)
                 break;
 
             case K_F3:
+                view_message("Loading...");
                 switch (load_game()) {
                     case SAVE_OK:
                         back_to_map();
