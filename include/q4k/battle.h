@@ -21,6 +21,16 @@ extern const char *const   armour_names[NUM_ARMOUR];
 extern const unsigned char armour_def[NUM_ARMOUR];
 extern const unsigned int  armour_cost[NUM_ARMOUR];
 
+/* Bows are a second slot: you carry one as well as your weapon, and F in
+   a fight shoots it. Index 0 is having none. Range is in squares, and a
+   shot flies straight up, down, left or right. */
+#define NUM_BOWS 4
+
+extern const char *const   bow_names[NUM_BOWS];
+extern const unsigned char bow_atk[NUM_BOWS];
+extern const unsigned char bow_range[NUM_BOWS];
+extern const unsigned int  bow_cost[NUM_BOWS];
+
 #define BATTLE_WON   0
 #define BATTLE_FLED  1
 #define BATTLE_DEAD  2

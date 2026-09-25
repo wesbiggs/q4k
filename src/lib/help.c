@@ -54,9 +54,10 @@ void help_screen(void)
     cputsxy(3, 13, "Q      Quit");
 
     textcolor(COLOR_LIGHTBLUE);
-    cputsxy(1, 15, "In a fight");
+    cputsxy(1, 14, "In a fight");
     textcolor(COLOR_WHITE);
-    cputsxy(3, 16, "Walk into it; SPACE guards; R runs");
+    cputsxy(3, 15, "Walk into it; SPACE guards; R runs");
+    cputsxy(3, 16, "F then a direction shoots your bow");
     cputsxy(3, 17, "No running from keepers or Maldrath");
 
     textcolor(COLOR_GRAY1);

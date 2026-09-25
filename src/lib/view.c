@@ -238,6 +238,10 @@ void view_draw_panel(void)
     }
     cclearxy(PANEL_X, 8, PANEL_W);
     cputsxy(PANEL_X, 8, armour_names[armour_lv]);
+    cclearxy(PANEL_X, 9, PANEL_W);
+    if (bow_lv) {
+        cputsxy(PANEL_X, 9, bow_names[bow_lv]);
+    }
 
     /* Where you are: the land, a town by name, or how deep you have gone. */
     cclearxy(PANEL_X, 10, PANEL_W);

@@ -28,9 +28,13 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   because a target-specific `CFLAGS` will not invalidate them on its own.
 - `$A000-$C4FF` **BSS**, then the RS-232 buffers, C stack and probe page.
 - `$0340-$03FF` **hero sprite** data (blocks 13 to 15, in the cassette
-  buffer). Sprites must sit in VIC bank 0 like the charset, and these are the
-  only free 64-byte blocks there -- all three are in use. Nothing else may use
-  the tape buffer.
+  buffer). Sprites must sit in VIC bank 0 like the charset; all three are in
+  use. Nothing else may use the tape buffer.
+- More sprite blocks come out of the **charset's reverse half**, which the
+  game never draws except `$A0` (the input cursor). Glyphs `$C0-$C7` are
+  `$3E00-$3E3F`, the bow shot's block. Any 8 aligned glyphs from `$80-$FF`
+  (not `$A0-$A7`) make another, but check `assets/tiles.txt` first: monster
+  glyphs live at `$80-$8B`.
 
 The PRG is one contiguous load, so MAIN and the charset gap are `fill = yes`.
 That is why the small tools use `cfg/c64-tool.cfg` instead: without it a

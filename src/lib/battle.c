@@ -19,6 +19,7 @@
 #define K_D          0x44
 #define K_POTION     0x50
 #define K_RUN        0x52
+#define K_F          0x46
 #define K_SPACE      0x20
 #define K_CRSR_DOWN  0x11
 #define K_CRSR_RIGHT 0x1D
@@ -70,6 +71,15 @@ const char *const armour_names[NUM_ARMOUR] = {
 };
 const unsigned char armour_def[NUM_ARMOUR]  = { 0, 2, 4, 7, 10 };
 const unsigned int  armour_cost[NUM_ARMOUR] = { 0, 30, 110, 260, 500 };
+
+/* A bow hits a little softer than a blade of the same price: what you are
+   paying for is not having to be next to it. */
+const char *const bow_names[NUM_BOWS] = {
+    "No bow", "Short bow", "Longbow", "Crossbow",
+};
+const unsigned char bow_atk[NUM_BOWS]   = { 0, 3, 6, 10 };
+const unsigned char bow_range[NUM_BOWS] = { 0, 6, 10, 15 };
+const unsigned int  bow_cost[NUM_BOWS]  = { 0, 40, 150, 350 };
 
 /* Experience needed for each level, from level 1. */
 static const unsigned int level_at[] = {
@@ -176,15 +186,19 @@ static void award(const Monster *m)
     }
 }
 
-/* The exchange of blows. Each returns the damage done and says so. */
-static unsigned char strike(const Monster *m, unsigned char m_hp)
+/* The exchange of blows. Each returns the damage done and says so;
+   strike()'s line begins with `how`, "You strike for " or a shot's. */
+static unsigned char strike(const Monster *m, unsigned char m_hp,
+                            unsigned char atk, const char *how)
 {
     unsigned char hit;
 
-    hit = weapon_atk[weapon_lv] + hero.level + (unsigned char)(rand() % 3);
+    hit = atk + hero.level + (unsigned char)(rand() % 3);
     hit = (hit > m->def) ? hit - m->def : 1;
 
-    strcpy(msg, "You strike for ");
+    if (how != msg) {
+        strcpy(msg, how);            /* a shot builds its own in msg */
+    }
     cat_num(hit);
     strcat(msg, ".");
     view_message(msg);
@@ -472,6 +486,66 @@ found:
     paint_body(mx, my);
 }
 
+/* A movement key as a direction, or 0xFF. */
+static unsigned char key_dir(unsigned char key)
+{
+    switch (key) {
+        case K_W: case K_CRSR_UP:     return DIR_UP;
+        case K_S: case K_CRSR_DOWN:   return DIR_DOWN;
+        case K_A: case K_CRSR_LEFT:   return DIR_LEFT;
+        case K_D: case K_CRSR_RIGHT:  return DIR_RIGHT;
+    }
+    return 0xFF;
+}
+
+static unsigned char fold(unsigned char key)
+{
+    return (key >= 0xC1 && key <= 0xDA) ? key - 0x80 : key;
+}
+
+/* Shoot the bow `dir`. The shot flies straight until it meets the monster,
+   something solid, the edge of the field or the end of its range. Water
+   does not stop it; trees, boulders and walls do. Returns the damage. */
+static unsigned char loose(const Monster *m, unsigned char m_hp,
+                           unsigned char dir)
+{
+    unsigned char x = hx, y = hy, flew = 0, hit = 0;
+    const char *what = bow_lv == NUM_BOWS - 1 ? "Your bolt" : "Your arrow";
+
+    sprite_face(dir);
+    while (flew < bow_range[bow_lv]) {
+        switch (dir) {
+            case DIR_UP:   --y; break;
+            case DIR_DOWN: ++y; break;
+            case DIR_LEFT: --x; break;
+            default:       ++x; break;
+        }
+        if (x >= LOCAL_W || y >= LOCAL_H) {
+            break;                           /* off the field */
+        }
+        ++flew;
+        if (on_foe(x, y)) {
+            hit = 1;
+            break;
+        }
+        if (tile_flags[field[(unsigned int)y * LOCAL_W + x] - TILE_BASE]
+            == TF_BLOCK) {
+            break;
+        }
+    }
+
+    sprite_shot(hx, hy, dir, flew);
+    if (hit) {
+        strcpy(msg, what);
+        strcat(msg, " hits for ");
+        return strike(m, m_hp, bow_atk[bow_lv], msg);
+    }
+    strcpy(msg, what);
+    strcat(msg, " goes wide.");
+    view_message(msg);
+    return 0;
+}
+
 static unsigned char field_fight(const Monster *m, unsigned char ground,
                                  unsigned char can_flee)
 {
@@ -535,17 +609,24 @@ static unsigned char field_fight(const Monster *m, unsigned char ground,
         show_foe(m, m_hp);
 
         guard = 0;
-        dir = 0xFF;
-        key = cgetc();
-        if (key >= 0xC1 && key <= 0xDA) {
-            key -= 0x80;
-        }
+        key = fold(cgetc());
+        dir = key_dir(key);
 
         switch (key) {
-            case K_W: case K_CRSR_UP:     dir = DIR_UP;    break;
-            case K_S: case K_CRSR_DOWN:   dir = DIR_DOWN;  break;
-            case K_A: case K_CRSR_LEFT:   dir = DIR_LEFT;  break;
-            case K_D: case K_CRSR_RIGHT:  dir = DIR_RIGHT; break;
+            case K_F:
+                if (!bow_lv) {
+                    view_message("You have no bow.");
+                    continue;
+                }
+                view_message("Shoot which way?");
+                dir = key_dir(fold(cgetc()));
+                if (dir == 0xFF) {
+                    view_message("You lower the bow.");
+                    continue;                /* no turn spent */
+                }
+                m_hp -= loose(m, m_hp, dir);
+                dir = 0xFF;                  /* shooting is not walking */
+                break;
 
             case K_SPACE:
                 guard = 4;
@@ -569,7 +650,10 @@ static unsigned char field_fight(const Monster *m, unsigned char ground,
                 break;
 
             default:
-                continue;
+                if (dir == 0xFF) {
+                    continue;
+                }
+                break;
         }
 
         if (dir != 0xFF) {
@@ -584,15 +668,7 @@ static unsigned char field_fight(const Monster *m, unsigned char ground,
             sprite_face(dir);
 
             if (on_foe(nx, ny)) {
-                m_hp -= strike(m, m_hp);
-                if (m_hp == 0) {
-                    nx = mx;
-                    ny = my;
-                    mx = my = 0xFF;          /* off the field */
-                    paint_body(nx, ny);
-                    show_foe(m, 0);
-                    return won(m);
-                }
+                m_hp -= strike(m, m_hp, weapon_atk[weapon_lv], "You strike for ");
             } else if (nx >= LOCAL_W || ny >= LOCAL_H
                        || wall[(unsigned int)(ny + 1) * RIM_W + nx + 1]) {
                 /* Unsigned: stepping off the top or left wraps to 255. */
@@ -603,6 +679,15 @@ static unsigned char field_fight(const Monster *m, unsigned char ground,
                 hy = ny;
                 sprite_show(hx, hy);
             }
+        }
+
+        if (m_hp == 0) {
+            nx = mx;
+            ny = my;
+            mx = my = 0xFF;                  /* off the field */
+            paint_body(nx, ny);
+            show_foe(m, 0);
+            return won(m);
         }
 
         /* Its turn: as many moves as it has banked whole ones. */

@@ -5,7 +5,7 @@
 #define LOCAL_W     21
 #define LOCAL_H     19
 #define NUM_TOWNS   5
-#define NUM_TOWN_ENTS 12
+#define NUM_TOWN_ENTS 13
 
 #define ENT_NPC     0
 #define ENT_SHOP    1
@@ -13,6 +13,7 @@
 #define SHOP_WEAPON 0
 #define SHOP_ARMOUR 1
 #define SHOP_ITEM   2
+#define SHOP_BOW    3
 
 typedef struct {
     unsigned char x, y;

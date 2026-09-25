@@ -16,6 +16,7 @@ unsigned int  gold;
 unsigned char potions;
 unsigned char weapon_lv;
 unsigned char armour_lv;
+unsigned char bow_lv;
 unsigned char quest_stage;
 unsigned char items;
 unsigned char lore_seed;
@@ -45,6 +46,7 @@ void game_init(void)
     potions     = 1;
     weapon_lv   = 0;
     armour_lv   = 0;
+    bow_lv      = 0;
     quest_stage = Q_START;
     items       = 0;
     lore_seed   = 0;

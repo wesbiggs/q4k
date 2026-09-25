@@ -19,7 +19,7 @@
 #define SAVE_DEVICE 8
 #define SAVE_NAME   "Q4K.SAV"
 #define SCRATCH_CMD "S0:Q4K.SAV"
-#define MAGIC       "Q4K2"
+#define MAGIC       "Q4K3"   /* 3: the bow */
 
 typedef struct {
     char          magic[4];
@@ -32,6 +32,7 @@ typedef struct {
     unsigned char potions;
     unsigned char weapon_lv;
     unsigned char armour_lv;
+    unsigned char bow_lv;
     unsigned char quest_stage;
     unsigned char items;
     unsigned char lore_seed;
@@ -52,6 +53,7 @@ static void gather(void)
     blob.potions     = potions;
     blob.weapon_lv   = weapon_lv;
     blob.armour_lv   = armour_lv;
+    blob.bow_lv      = bow_lv;
     blob.quest_stage = quest_stage;
     blob.items       = items;
     blob.lore_seed   = lore_seed;
@@ -95,6 +97,7 @@ unsigned char load_game(void)
     potions     = blob.potions;
     weapon_lv   = blob.weapon_lv;
     armour_lv   = blob.armour_lv;
+    bow_lv      = blob.bow_lv;
     quest_stage = blob.quest_stage;
     items       = blob.items;
     lore_seed   = blob.lore_seed;

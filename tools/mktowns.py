@@ -15,7 +15,8 @@ import rle
 
 SRC = "assets/towns.txt"
 W, H = 21, 19
-SHOPS = {"weapon": "SHOP_WEAPON", "armour": "SHOP_ARMOUR", "item": "SHOP_ITEM"}
+SHOPS = {"weapon": "SHOP_WEAPON", "armour": "SHOP_ARMOUR", "item": "SHOP_ITEM",
+         "bow": "SHOP_BOW"}
 
 
 class Town:
@@ -142,7 +143,7 @@ def main():
                 "#define NUM_TOWNS   %d\n#define NUM_TOWN_ENTS %d\n\n"
                 "#define ENT_NPC     0\n#define ENT_SHOP    1\n\n"
                 "#define SHOP_WEAPON 0\n#define SHOP_ARMOUR 1\n"
-                "#define SHOP_ITEM   2\n\n"
+                "#define SHOP_ITEM   2\n#define SHOP_BOW    3\n\n"
                 "typedef struct {\n"
                 "    unsigned char x, y;\n"
                 "    unsigned char kind;   /* ENT_NPC | ENT_SHOP          */\n"

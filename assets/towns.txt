@@ -6,7 +6,7 @@
 #   town <id> <DISPLAY NAME>
 #   at <world-x> <world-y>        where it sits on the overworld
 #   ent <char> npc <npc-id>       talks, via the dialogue daemon
-#   ent <char> shop <weapon|armour|item>
+#   ent <char> shop <weapon|armour|item|bow>
 #   map                           then 19 rows of 21 characters
 #
 # Map characters are the tile glyphs from assets/tiles.txt, plus:
@@ -95,6 +95,7 @@ map
 town ashcombe Ashcombe
 at 16 23
 ent 1 npc ash
+ent 2 shop bow
 map
 #####################
 #FFFFFFFFFFFFFFFFFFF#
@@ -109,8 +110,8 @@ map
 #F___%%%_____%%%___F#
 #F_________________F#
 #F__###_______###__F#
-#F__#_#_______#_#__F#
-#F__###_______###__F#
+#F__#2#_______#_#__F#
+#F__#+#_______###__F#
 #F_________________F#
 #F________$________F#
 #F________x________F#

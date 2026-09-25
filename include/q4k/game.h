@@ -51,6 +51,7 @@ extern unsigned int  gold;
 extern unsigned char potions;
 extern unsigned char weapon_lv;
 extern unsigned char armour_lv;
+extern unsigned char bow_lv;      /* 0: none */
 extern unsigned char quest_stage;
 /* Rolled once per game (never 0, which means "not rolled yet") and saved;
    the dialogue host draws this run's secrets from it. Non-static and

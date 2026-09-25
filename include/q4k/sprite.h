@@ -12,8 +12,12 @@
  *
  * Sprite data lives in the cassette buffer ($0340, $0380 and $03C0, blocks
  * 13 to 15), the only free 64-byte blocks in VIC bank 0: the charset fills
- * $3800-$3FFF and the program everything below it. All three are taken, so
- * another layer means finding room somewhere else first.
+ * $3800-$3FFF and the program everything below it. All three are taken.
+ *
+ * Sprite 3 is a shot from a bow. Its data sits inside the charset, over
+ * reverse-video glyphs $C0-$C7 that the game never draws -- see sprite.c.
+ * The same trick has room for more: the reverse half is 128 glyphs, and
+ * only $A0 (the input cursor) is spoken for.
  */
 
 #ifndef Q4K_SPRITE_H
@@ -40,5 +44,10 @@ void sprite_face(unsigned char dir);
    frames over it. The map is not redrawn here -- view_draw() does that
    afterwards and puts the sprite where the hero now stands. */
 void sprite_walk(unsigned char dir);
+
+/* Fly a shot from screen cell (col,row) `squares` squares in `dir`, and
+   hide it again at the end. Takes two frames a square. */
+void sprite_shot(unsigned char col, unsigned char row,
+                 unsigned char dir, unsigned char squares);
 
 #endif /* Q4K_SPRITE_H */

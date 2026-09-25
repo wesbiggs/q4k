@@ -9,6 +9,16 @@
 #define SPR_TUNIC   ((unsigned char *)0x03C0)   /* block 15 */
 #define SPR_PTRS    ((unsigned char *)0x07F8)   /* screen matrix + $3F8 */
 
+/* The shot has no room in the cassette buffer, but the charset has room to
+   spare: $3E00-$3E3F is the glyphs for $C0-$C7, reverse-video characters
+   the game never puts on screen. It is in VIC bank 0 and 64-byte aligned,
+   so it serves as a sprite block. tiles_install() writes the font over it
+   at start-up, which is harmless: the shape is drawn fresh every shot. */
+#define SPR_SHOT    ((unsigned char *)0x3E00)
+#define N_SHOT      3
+#define SHOT_BIT    0x08
+#define SHOT_PX     4          /* two frames a square */
+
 /* Lower-numbered sprites are drawn in front: the tunic over the figure,
    the figure over its outline. */
 #define N_TUNIC     0
@@ -54,6 +64,15 @@ static const unsigned char frames[4][2][8] = {
         { 0x18, 0x1C, 0x18, 0x3C, 0x5A, 0x18, 0x24, 0x42 },
         { 0x18, 0x1C, 0x18, 0x38, 0x3C, 0x18, 0x14, 0x24 },
     },
+};
+
+/* The shot, pointing each way: down, up, left, right as DIR_* numbers
+   them. Fletching at the back, a head at the front. */
+static const unsigned char shot_shapes[4][8] = {
+    { 0x00, 0x14, 0x08, 0x08, 0x08, 0x08, 0x1C, 0x08 },   /* down  */
+    { 0x08, 0x1C, 0x08, 0x08, 0x08, 0x08, 0x14, 0x00 },   /* up    */
+    { 0x00, 0x00, 0x41, 0xFF, 0x41, 0x00, 0x00, 0x00 },   /* left  */
+    { 0x00, 0x00, 0x82, 0xFF, 0x82, 0x00, 0x00, 0x00 },   /* right */
 };
 
 static unsigned char facing, stride;
@@ -148,6 +167,14 @@ void sprite_init(void)
     VIC.spr_bg_prio &= ~SPR_MASK;   /* in front of the text */
     VIC.spr2_color   = COLOR_BLACK;
 
+    VIC.spr_ena     &= ~SHOT_BIT;
+    VIC.spr_hi_x    &= ~SHOT_BIT;
+    VIC.spr_mcolor  &= ~SHOT_BIT;
+    VIC.spr_exp_x   &= ~SHOT_BIT;
+    VIC.spr_exp_y   &= ~SHOT_BIT;
+    VIC.spr_bg_prio &= ~SHOT_BIT;
+    VIC.spr3_color   = COLOR_YELLOW;
+
     facing = DIR_DOWN;
     stride = 0;
     build();
@@ -208,4 +235,43 @@ void sprite_walk(unsigned char dir)
         }
         place();
     }
+}
+
+void sprite_shot(unsigned char col, unsigned char row,
+                 unsigned char dir, unsigned char squares)
+{
+    signed char dx = 0, dy = 0;
+    unsigned char r, x, y, frames;
+
+    memset(SPR_SHOT, 0, 64);
+    for (r = 0; r < 8; ++r) {
+        SPR_SHOT[r * 3] = shot_shapes[dir][r];
+    }
+    SPR_PTRS[N_SHOT] = (unsigned char)((unsigned int)SPR_SHOT >> 6);
+
+    switch (dir) {
+        case DIR_UP:    dy = -SHOT_PX; break;
+        case DIR_DOWN:  dy =  SHOT_PX; break;
+        case DIR_LEFT:  dx = -SHOT_PX; break;
+        default:        dx =  SHOT_PX; break;
+    }
+
+    /* It sets off from the hero's own square, behind the figure (sprite 3
+       is drawn under sprites 0-2), so it seems to leave the bow. */
+    x = ORIGIN_X + 1 + (col << 3);
+    y = ORIGIN_Y + 1 + (row << 3);
+    VIC.spr3_x = x;
+    VIC.spr3_y = y;
+    wait_frame();
+    VIC.spr_ena |= SHOT_BIT;
+
+    for (frames = squares * (8 / SHOT_PX); frames; --frames) {
+        x += dx;
+        y += dy;
+        wait_frame();
+        VIC.spr3_x = x;
+        VIC.spr3_y = y;
+    }
+    wait_frame();
+    VIC.spr_ena &= ~SHOT_BIT;
 }
