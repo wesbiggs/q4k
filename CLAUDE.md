@@ -21,12 +21,14 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   does not fit in it.
 - `$3800-$3FFF` **charset**, built at runtime. Must be in VIC bank 0 and not
   at `$1000`/`$1800`, where the VIC sees character ROM whatever RAM holds.
-- `$4000-$9FFF` **HIGH** — `HIDATA` for bulk tables (the overworld, the
+- `$4000-$AFFF` **HIGH** — `HIDATA` for bulk tables (the overworld, the
   towns) and `HICODE` for module code that will not fit below. Modules listed
   in the Makefile's `HIMODS` are compiled with `--code-name HICODE`; add to
   that list when MAIN overflows. Changing the list needs the objects rebuilt,
   because a target-specific `CFLAGS` will not invalidate them on its own.
-- `$A000-$C4FF` **BSS**, then the RS-232 buffers, C stack and probe page.
+- `$B000-$C4FF` **BSS**, then the RS-232 buffers, C stack and probe page.
+  HIGH's top 4K is RAM under BASIC ROM (banked out at startup), taken from
+  BSS; BSS has only a few hundred bytes of headroom left.
 - `$0340-$03FF` **hero sprite** data (blocks 13 to 15, in the cassette
   buffer). Sprites must sit in VIC bank 0 like the charset; all three are in
   use. Nothing else may use the tape buffer.

@@ -11,8 +11,8 @@
 #include <q4k/savegame.h>
 
 /* Top of BASIC memory. The KERNAL treats anything above it as out of
-   bounds, and our BSS -- where the save block lives -- starts at $A000,
-   which is exactly where MEMSIZ points on a stock machine. Without this,
+   bounds, and our BSS -- where the save block lives -- starts at $B000,
+   above where MEMSIZ points on a stock machine ($A000). Without this,
    LOAD walks into the weeds. modem.c raises it for the same reason. */
 #define MEMSIZ (*(unsigned int *)0x0283)
 
