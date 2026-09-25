@@ -185,12 +185,41 @@ def for_c64(text, limit=MAX_REPLY, speaker=None, max_sentences=None):
         if len(parts) > max_sentences:
             text = " ".join(parts[:max_sentences])
 
-    if len(text) > limit:
-        cut = text[:limit]
-        # Prefer to end on a word, and on a sentence if one is close enough.
-        stop = max(cut.rfind(". "), cut.rfind("! "), cut.rfind("? "))
-        text = cut[:stop + 1] if stop > limit * 0.6 else cut.rsplit(" ", 1)[0]
-    return text
+    return finish(text, limit)
+
+
+_END = re.compile(r"[.!?][\"']?(?=\s|$)")
+_CLAUSE = re.compile(r"[,;:]\s|\s-\s")
+
+
+def finish(text, limit):
+    """Fit text in limit characters, and never leave it hanging.
+
+    A reply that stops mid-clause -- "the dragon that has" -- reads as a
+    broken line, not a short one. So cut at the last whole sentence, or at
+    the last clause boundary with a full stop put on, whichever keeps more;
+    a bare word cut with an ellipsis is the last resort. The same applies
+    to a reply the model ran out of tokens on, which is short enough but
+    unfinished.
+    """
+    if not text or (len(text) <= limit and _END.search(text[-2:])):
+        return text
+
+    window = text[:limit]
+    sentence = 0
+    for m in _END.finditer(text):
+        if m.end() > limit:
+            break
+        sentence = m.end()
+    clause = 0
+    for m in _CLAUSE.finditer(window):
+        clause = m.start()
+    if clause > sentence and clause >= len(window) // 4:
+        return window[:clause].rstrip(" ,;:-") + "."
+    if sentence:
+        return text[:sentence]
+    cut = text[:limit - 3].rsplit(" ", 1)[0].rstrip(" ,;:-")
+    return cut + "..."
 
 
 _WORD = re.compile(r"[a-z]+")

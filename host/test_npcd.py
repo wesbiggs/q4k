@@ -124,5 +124,33 @@ class Protocol(unittest.TestCase):
                          ("SAY", "vane", 0, 0, "hello"))
 
 
+class Trim(unittest.TestCase):
+    LONG = ("The old books say it is a powerful stone, said to be able to "
+            "forge the Dragonbane, a blade capable of defeating Maldrath, "
+            "the dragon that has plagued Keldmarch for a hundred years.")
+
+    def test_long_sentence_ends_on_a_clause(self):
+        out = npcd.for_c64(self.LONG)
+        self.assertLessEqual(len(out), npcd.MAX_REPLY)
+        self.assertTrue(out.endswith("defeating Maldrath."), out)
+
+    def test_ran_out_of_tokens(self):
+        out = npcd.for_c64("It lies north. The road is long, and it")
+        self.assertEqual(out, "It lies north. The road is long.")
+
+    def test_whole_reply_untouched(self):
+        line = "It is north-east of here, about 14 leagues on foot."
+        self.assertEqual(npcd.for_c64(line), line)
+
+
+class Geography(unittest.TestCase):
+    def test_bearing_follows_the_road(self):
+        # Across the map's wrap Wardlow is south of the castle; on foot
+        # it is north, and north is what the steward must say.
+        lines = NPCS.geo["from"]["castle"]
+        wardlow = [l for l in lines if l.startswith("Wardlow")][0]
+        self.assertIn("lies north,", wardlow)
+
+
 if __name__ == "__main__":
     unittest.main()

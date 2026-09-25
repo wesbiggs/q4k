@@ -26,11 +26,6 @@ COMPASS = ["east", "north-east", "north", "north-west",
            "west", "south-west", "south", "south-east"]
 
 
-def wrapped(a, b, size):
-    d = (b - a) % size
-    return d - size if d > size // 2 else d
-
-
 def bearing(dx, dy):
     # Screen coordinates: y grows southward, so north is -dy.
     angle = math.degrees(math.atan2(-dy, dx))
@@ -38,16 +33,27 @@ def bearing(dx, dy):
 
 
 def walk_distances(rows, walkable, start, w, h):
+    """Steps to every reachable square, and the net (dx, dy) travelled to
+    get there along that shortest walk.
+
+    The map wraps, so the straight-line bearing can point across the edge
+    while the only road runs the other way: the castle and Wardlow are 23
+    squares apart southward over the wrap, 70 steps apart northward on
+    foot. The direction worth telling a traveller is the one they walk.
+    """
     dist = {start: 0}
+    offset = {start: (0, 0)}
     queue = deque([start])
     while queue:
         x, y = queue.popleft()
+        ox, oy = offset[(x, y)]
         for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
             n = ((x + dx) % w, (y + dy) % h)
             if n not in dist and rows[n[1]][n[0]] in walkable:
                 dist[n] = dist[(x, y)] + 1
+                offset[n] = (ox + dx, oy + dy)
                 queue.append(n)
-    return dist
+    return dist, offset
 
 
 def main():
@@ -88,20 +94,22 @@ def main():
 
     lines = {}
     for origin in places.values():
-        reach = walk_distances(rows, walkable, (origin["x"], origin["y"]), w, h)
+        reach, offset = walk_distances(rows, walkable,
+                                       (origin["x"], origin["y"]), w, h)
         here = []
         for other in places.values():
             if other["id"] == origin["id"]:
                 continue
-            dx = wrapped(origin["x"], other["x"], w)
-            dy = wrapped(origin["y"], other["y"], h)
-            crow = max(abs(dx), abs(dy))
             steps = reach.get((other["x"], other["y"]))
-
             if steps is None:
                 here.append("%s cannot be reached on foot from here."
                             % other["name"])
                 continue
+
+            # Bearing and straight line both follow the walk, so the two
+            # never disagree about which way round the world you are going.
+            dx, dy = offset[(other["x"], other["y"])]
+            crow = max(abs(dx), abs(dy))
 
             note = ""
             # A walk half again as long as the straight line means the

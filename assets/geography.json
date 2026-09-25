@@ -4,7 +4,7 @@
    "Millford lies east, about 38 leagues on foot.",
    "Castle Matheson lies south-east, about 44 leagues on foot.",
    "Wardlow lies north-east, about 26 leagues on foot, though the road bends a long way round.",
-   "Stonereach lies south-west, about 67 leagues on foot, though the road bends a long way round.",
+   "Stonereach lies south-east, about 67 leagues on foot, though the road bends a long way round.",
    "THE HOLLOW CROWN lies south-east, about 46 leagues on foot, though the road bends a long way round.",
    "THE DROWNED STAIR lies north-east, about 13 leagues on foot.",
    "BLACKPIT lies south-west, about 17 leagues on foot.",
@@ -15,24 +15,24 @@
    "Castle Matheson lies south-east, about 33 leagues on foot, though the road bends a long way round.",
    "Wardlow lies north-east, about 43 leagues on foot, though the road bends a long way round.",
    "Ashcombe lies north-east, about 17 leagues on foot.",
-   "Stonereach lies west, about 56 leagues on foot, though the road bends a long way round.",
+   "Stonereach lies east, about 56 leagues on foot.",
    "THE HOLLOW CROWN lies east, about 35 leagues on foot.",
    "THE DROWNED STAIR lies north-east, about 30 leagues on foot.",
    "MALDRATH'S LAIR lies east, about 15 leagues on foot."
   ],
   "castle": [
-   "Millford lies south, about 64 leagues on foot, though the road bends a long way round.",
-   "Wardlow lies south, about 70 leagues on foot, though the road bends a long way round.",
+   "Millford lies north, about 64 leagues on foot, though the road bends a long way round.",
+   "Wardlow lies north, about 70 leagues on foot, though the road bends a long way round.",
    "Ashcombe lies north-west, about 44 leagues on foot.",
    "Stonereach lies east, about 33 leagues on foot.",
    "THE HOLLOW CROWN lies north-east, about 14 leagues on foot.",
-   "THE DROWNED STAIR lies south, about 57 leagues on foot, though the road bends a long way round.",
+   "THE DROWNED STAIR lies north, about 57 leagues on foot, though the road bends a long way round.",
    "BLACKPIT lies north-west, about 33 leagues on foot, though the road bends a long way round.",
    "MALDRATH'S LAIR lies north-west, about 42 leagues on foot, though the road bends a long way round."
   ],
   "drownedstair": [
    "Millford lies east, about 25 leagues on foot.",
-   "Castle Matheson lies north, about 57 leagues on foot, though the road bends a long way round.",
+   "Castle Matheson lies south, about 57 leagues on foot, though the road bends a long way round.",
    "Wardlow lies north-east, about 13 leagues on foot.",
    "Ashcombe lies south-west, about 13 leagues on foot.",
    "Stonereach lies south-east, about 62 leagues on foot, though the road bends a long way round.",
@@ -43,7 +43,7 @@
   "hollowcrown": [
    "Millford lies north, about 50 leagues on foot, though the road bends a long way round.",
    "Castle Matheson lies south-west, about 14 leagues on foot.",
-   "Wardlow lies south, about 70 leagues on foot, though the road bends a long way round.",
+   "Wardlow lies north, about 70 leagues on foot, though the road bends a long way round.",
    "Ashcombe lies north-west, about 46 leagues on foot, though the road bends a long way round.",
    "Stonereach lies east, about 21 leagues on foot.",
    "THE DROWNED STAIR lies north-west, about 59 leagues on foot, though the road bends a long way round.",
@@ -55,7 +55,7 @@
    "Castle Matheson lies south-east, about 42 leagues on foot, though the road bends a long way round.",
    "Wardlow lies north, about 38 leagues on foot.",
    "Ashcombe lies north, about 18 leagues on foot.",
-   "Stonereach lies west, about 65 leagues on foot, though the road bends a long way round.",
+   "Stonereach lies east, about 65 leagues on foot, though the road bends a long way round.",
    "THE HOLLOW CROWN lies east, about 44 leagues on foot, though the road bends a long way round.",
    "THE DROWNED STAIR lies north, about 25 leagues on foot.",
    "BLACKPIT lies west, about 15 leagues on foot."
@@ -73,19 +73,19 @@
   "stonereach": [
    "Millford lies north-west, about 37 leagues on foot.",
    "Castle Matheson lies west, about 33 leagues on foot.",
-   "Wardlow lies south-west, about 57 leagues on foot, though the road bends a long way round.",
-   "Ashcombe lies north-east, about 67 leagues on foot, though the road bends a long way round.",
+   "Wardlow lies north-west, about 57 leagues on foot, though the road bends a long way round.",
+   "Ashcombe lies north-west, about 67 leagues on foot, though the road bends a long way round.",
    "THE HOLLOW CROWN lies west, about 21 leagues on foot.",
    "THE DROWNED STAIR lies north-west, about 62 leagues on foot, though the road bends a long way round.",
-   "BLACKPIT lies east, about 56 leagues on foot, though the road bends a long way round.",
-   "MALDRATH'S LAIR lies east, about 65 leagues on foot, though the road bends a long way round."
+   "BLACKPIT lies west, about 56 leagues on foot.",
+   "MALDRATH'S LAIR lies west, about 65 leagues on foot, though the road bends a long way round."
   ],
   "wardlow": [
    "Millford lies south-east, about 20 leagues on foot.",
-   "Castle Matheson lies north, about 70 leagues on foot, though the road bends a long way round.",
+   "Castle Matheson lies south, about 70 leagues on foot, though the road bends a long way round.",
    "Ashcombe lies south-west, about 26 leagues on foot, though the road bends a long way round.",
-   "Stonereach lies north-east, about 57 leagues on foot, though the road bends a long way round.",
-   "THE HOLLOW CROWN lies north, about 70 leagues on foot, though the road bends a long way round.",
+   "Stonereach lies south-east, about 57 leagues on foot, though the road bends a long way round.",
+   "THE HOLLOW CROWN lies south, about 70 leagues on foot, though the road bends a long way round.",
    "THE DROWNED STAIR lies south-west, about 13 leagues on foot.",
    "BLACKPIT lies south-west, about 43 leagues on foot, though the road bends a long way round.",
    "MALDRATH'S LAIR lies south, about 38 leagues on foot."

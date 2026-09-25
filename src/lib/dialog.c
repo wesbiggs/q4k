@@ -14,7 +14,9 @@
 #define IN_Y      21
 #define HINT_Y    23
 
-#define INPUT_MAX 56
+/* One screen row: "> ", the text, and the cursor after it. Anything longer
+   ran onto the hint line, where the cursor was never cleared again. */
+#define INPUT_MAX (SCR_W - 2)
 #define REPLY_MAX 180
 
 /* Replies can take a few seconds: the host is talking to a model, and the
