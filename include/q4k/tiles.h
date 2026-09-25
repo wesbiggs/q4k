@@ -4,8 +4,8 @@
 
 /* Terrain properties are indexed by screen code - TILE_BASE. */
 #define TILE_BASE   0x60
-#define TILE_COUNT  17   /* terrain only, contiguous */
-#define TILE_TOTAL  21   /* terrain + actors          */
+#define TILE_COUNT  19   /* terrain only, contiguous */
+#define TILE_TOTAL  31   /* terrain + actors          */
 
 #define TF_PASS     0  /* walk onto it freely        */
 #define TF_BLOCK    1  /* impassable                 */
@@ -29,10 +29,52 @@
 #define T_STAIRUP   0x6E
 #define T_CHEST     0x6F
 #define T_LAIR      0x70
+#define T_TREE      0x71
+#define T_BOULDER   0x72
 #define T_PLAYER    0x78
 #define T_VILLAGER  0x79
 #define T_MONSTER   0x7A
 #define T_DRAGON    0x7B
+#define T_RAT       0x80
+#define T_GOBLIN    0x81
+#define T_WOLF      0x82
+#define T_BANDIT    0x83
+#define T_SKELETON  0x84
+#define T_OGRE      0x85
+#define T_WRAITH    0x86
+#define T_DRAKE     0x87
+
+#define TC_GRASS    5
+#define TC_FOREST   13
+#define TC_MOUNTAIN 12
+#define TC_WATER    6
+#define TC_SHORE    7
+#define TC_SWAMP    9
+#define TC_TOWN     10
+#define TC_CASTLE   1
+#define TC_DUNGEON  11
+#define TC_BRIDGE   9
+#define TC_WALL     12
+#define TC_FLOOR    11
+#define TC_DOOR     9
+#define TC_STAIRDN  15
+#define TC_STAIRUP  15
+#define TC_CHEST    7
+#define TC_LAIR     2
+#define TC_TREE     5
+#define TC_BOULDER  12
+#define TC_PLAYER   1
+#define TC_VILLAGER 3
+#define TC_MONSTER  10
+#define TC_DRAGON   2
+#define TC_RAT      8
+#define TC_GOBLIN   3
+#define TC_WOLF     15
+#define TC_BANDIT   10
+#define TC_SKELETON 1
+#define TC_OGRE     14
+#define TC_WRAITH   4
+#define TC_DRAKE    2
 
 extern const unsigned char tile_flags[TILE_COUNT];
 extern const unsigned char tile_colors[TILE_COUNT];
@@ -41,6 +83,7 @@ extern const unsigned char tile_colors[TILE_COUNT];
    separate module so only tools that print them pay for it. */
 extern const char *const tile_names[TILE_TOTAL];
 extern const unsigned char tile_codes[TILE_TOTAL];
+extern const unsigned char tile_all_colors[TILE_TOTAL];
 
 /* Copy the ROM font to RAM and patch every tile glyph in. */
 void tiles_install(void);

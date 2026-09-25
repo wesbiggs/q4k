@@ -91,12 +91,18 @@ def main():
                 % (src, base, len(terrain), len(tiles)))
         for t in tiles:
             h.write("#define T_%-9s 0x%02X\n" % (t.name.upper(), t.code))
+        # Actors have no colour table -- they are not indexed by code -- so
+        # their colours come through as constants for whoever draws them.
+        h.write("\n")
+        for t in tiles:
+            h.write("#define TC_%-8s %d\n" % (t.name.upper(), t.color))
         h.write("\nextern const unsigned char tile_flags[TILE_COUNT];\n"
                 "extern const unsigned char tile_colors[TILE_COUNT];\n\n"
                 "/* Names, indexed as the tile list is declared. Kept in a\n"
                 "   separate module so only tools that print them pay for it. */\n"
                 "extern const char *const tile_names[TILE_TOTAL];\n"
-                "extern const unsigned char tile_codes[TILE_TOTAL];\n\n"
+                "extern const unsigned char tile_codes[TILE_TOTAL];\n"
+                "extern const unsigned char tile_all_colors[TILE_TOTAL];\n\n"
                 "/* Copy the ROM font to RAM and patch every tile glyph in. */\n"
                 "void tiles_install(void);\n\n#endif /* Q4K_TILES_H */\n")
 
@@ -134,6 +140,9 @@ def main():
         c.write("};\n\nconst unsigned char tile_codes[TILE_TOTAL] = {\n")
         for t in tiles:
             c.write("    0x%02X,\n" % t.code)
+        c.write("};\n\nconst unsigned char tile_all_colors[TILE_TOTAL] = {\n")
+        for t in tiles:
+            c.write("    %d,\n" % t.color)
         c.write("};\n")
 
     print("mktiles: %d tiles ($%02X-$%02X), %d terrain, %d actors"

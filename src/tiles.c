@@ -38,7 +38,7 @@ static const char patch[6][17] = {
 
 int main(void)
 {
-    unsigned char i, x, y, code;
+    unsigned char i, x, y, x0, code;
 
     tiles_install();
 
@@ -50,21 +50,22 @@ int main(void)
     textcolor(COLOR_LIGHTBLUE);
     cputsxy(0, 0, "TILE SET");
 
+    /* Two columns: there are more tiles than rows. */
     for (i = 0; i < TILE_TOTAL; ++i) {
-        y = 1 + i;
+        x0 = (i & 1) ? 20 : 0;
+        y = 1 + (i >> 1);
         code = tile_codes[i];
 
         textcolor(COLOR_GRAY1);
-        cputsxy(0, y, tile_names[i]);
+        cputsxy(x0, y, tile_names[i]);
 
         textcolor(COLOR_YELLOW);
-        cputcxy(11, y, '$');
-        cputcxy(12, y, hexdigit[code >> 4]);
-        cputcxy(13, y, hexdigit[code & 0x0F]);
+        cputcxy(x0 + 9, y, '$');
+        cputcxy(x0 + 10, y, hexdigit[code >> 4]);
+        cputcxy(x0 + 11, y, hexdigit[code & 0x0F]);
 
-        for (x = 0; x < 8; ++x) {
-            put_tile(16 + x, y, code,
-                     i < TILE_COUNT ? tile_colors[i] : COLOR_WHITE);
+        for (x = 0; x < 4; ++x) {
+            put_tile(x0 + 13 + x, y, code, tile_all_colors[i]);
         }
     }
 

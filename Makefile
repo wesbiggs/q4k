@@ -73,6 +73,7 @@ all: dirs assets $(PRGS)
 GEN_TILES := include/q4k/tiles.h src/lib/tiles_data.c src/lib/tiles_names.c
 GEN_MAP   := include/q4k/world_data.h src/lib/map_data.c
 GEN_TOWN  := include/q4k/town_data.h src/lib/town_data.c
+GEN_ARENA := include/q4k/arena_data.h src/lib/arena_data.c
 GEN_GEO   := assets/geography.json
 GEN_FONT  := src/lib/font_data.c
 
@@ -88,7 +89,7 @@ GEN_FONT  := src/lib/font_data.c
 FONT_SOURCE ?= rom
 FONT_STYLE  ?= bold
 
-assets: $(GEN_TILES) $(GEN_MAP) $(GEN_TOWN) $(GEN_GEO) $(GEN_FONT)
+assets: $(GEN_TILES) $(GEN_MAP) $(GEN_TOWN) $(GEN_ARENA) $(GEN_GEO) $(GEN_FONT)
 
 $(GEN_TILES): assets/tiles.txt tools/mktiles.py
 	tools/mktiles.py
@@ -98,6 +99,10 @@ $(GEN_MAP): assets/overworld.txt assets/tiles.txt tools/mkmap.py tools/mktiles.p
 
 $(GEN_TOWN): assets/towns.txt assets/tiles.txt assets/npcs.json tools/mktowns.py
 	tools/mktowns.py
+
+$(GEN_ARENA): assets/arenas.txt assets/tiles.txt tools/mkarenas.py \
+              tools/mktiles.py tools/checkmap.py
+	tools/mkarenas.py
 
 $(GEN_GEO): assets/overworld.txt assets/towns.txt assets/places.txt \
             assets/tiles.txt tools/mkgeo.py

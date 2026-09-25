@@ -1,9 +1,11 @@
 /*
  * Quest for the King -- fighting.
  *
- * One turn-based screen serves wandering monsters, the keeper at the bottom
- * of each deep place, and Maldrath himself. The caller redraws the map
- * afterwards.
+ * Something met on the overworld is fought on a field: a map of the kind of
+ * ground you were crossing (assets/arenas.txt), where it walks at you and
+ * you walk into it to strike. The keeper at the bottom of each deep place,
+ * Maldrath himself, and anything met underground still get the old
+ * turn-based screen. Either way the caller redraws the map afterwards.
  */
 
 #ifndef Q4K_BATTLE_H

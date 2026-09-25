@@ -183,6 +183,28 @@ tile lair L 0x70 enter red
 ..#..#..
 ........
 
+# Scenery for the battle fields: solid, unlike the overworld's forest square,
+# which stands for a whole wood you can walk into.
+tile tree t 0x71 block green
+...#....
+..###...
+..###...
+.#####..
+.#####..
+#######.
+...#....
+........
+
+tile boulder o 0x72 block gray2
+........
+..###...
+.#####..
+####.##.
+######.#
+.######.
+..####..
+........
+
 tile player @ 0x78 actor white
 ...##...
 ..####..
@@ -220,5 +242,92 @@ tile dragon Y 0x7B actor red
 .######.
 ##.##.##
 .######.
+..#..#..
+.##..##.
+
+# Wandering monsters, weakest first as in battle.c. They sit in the reverse
+# half of the charset, which the game otherwise never draws from (only $A0,
+# the input cursor, is spoken for). The colour is the one the monster is
+# drawn in on a field; tools/mktiles.py passes it through as TC_<NAME>.
+# Terrain colours are avoided so nothing vanishes into the ground it
+# stands on.
+
+tile rat r 0x80 actor orange
+........
+........
+.##.....
+#####...
+.######.
+..#####.
+..#..#.#
+.......#
+
+tile goblin g 0x81 actor cyan
+.#....#.
+.######.
+.#.##.#.
+..####..
+.#.##.#.
+...##...
+..#..#..
+.##..##.
+
+tile wolf w 0x82 actor gray3
+........
+.#......
+##.....#
+####..#.
+.######.
+..#####.
+..#...#.
+.##..##.
+
+tile bandit b 0x83 actor lightred
+..####..
+.######.
+.#.##.#.
+..####.#
+.#####.#
+#.####..
+..#..#..
+.##..##.
+
+tile skeleton s 0x84 actor white
+..####..
+.#.##.#.
+..####..
+#..##..#
+.######.
+...##...
+..#..#..
+.#....#.
+
+tile ogre O 0x85 actor lightblue
+.######.
+.#.##.#.
+.######.
+########
+#.####.#
+#.####.#
+..#..#..
+.##..##.
+
+tile wraith W 0x86 actor violet
+...##...
+..####..
+.#.##.#.
+.######.
+########
+.######.
+.######.
+#.#.#.#.
+
+tile drake d 0x87 actor red
+........
+.#....#.
+##...###
+####.##.
+.######.
+..######
 ..#..#..
 .##..##.

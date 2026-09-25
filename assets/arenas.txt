@@ -1,0 +1,103 @@
+# Quest for the King -- battle fields.
+#
+# When something comes out of the scenery on the overworld, the fight happens
+# on one of these, picked by the square the hero was standing on. Each is one
+# viewport, 21x19, like a town.
+#
+#   arena <tile-name>     the overworld tile this field is for
+#   map                   then 19 rows of 21 characters
+#
+# Map characters are the tile glyphs from assets/tiles.txt, plus:
+#   @  where the hero starts (drawn as whatever is next to it)
+#   m  where the monster starts
+#
+# The monster walks round anything that blocks: trees, boulders, mountains
+# and water. tools/mkarenas.py refuses a field where it could not reach you.
+
+arena grass
+map
+ttt.tt.tttttt.tt.tttt
+t.......t.....t....tt
+t...................t
+.....o..............t
+t.........m.........t
+t...............o...t
+tt..................t
+t.....t.............t
+t.....tt.......t.....
+t...................t
+.........o..........t
+t...................t
+t...t...........tt..t
+t...................t
+t.........@.........t
+t....o..............t
+tt..................t
+t.......tt......o...t
+tttt.tttttt.ttttt.ttt
+
+arena forest
+map
+ttttttttttttttttttttt
+tt.tt.ttt.tttt.tt.ttt
+t...t....F.....t...tt
+t.F....t...m.....F..t
+tt...t.....F..t.....t
+t......tt........t..t
+t.t.F........t......t
+t.....t..F.t.....F.tt
+tt..t..........t....t
+t.......t.F.t.......t
+t.F.t.........t..F..t
+t.......tt.F.....t..t
+tt..t.......t.......t
+t.....F.........t.F.t
+t..t......@....t....t
+t.F....t......F.....t
+tt...t....t.....t..tt
+ttt.ttt.tttt.ttt.tttt
+ttttttttttttttttttttt
+
+arena shore
+map
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~,,,~~~~~~~~~,,,~~~
+~,,,,,,,~~~~~,,,,,,,~
+~,,o,,,,,,,,,,,,,,,,~
+,,,,,,,,,,m,,,,,,o,,,
+,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,o,,,,,,,,,,,,
+,,,~~,,,,,,,,,,,,,,,,
+,,~~~,,,,,,,,,,,o,,,,
+,,,~,,,,,,,,,,,,,,,,.
+,,,,,,,,,,,,,,,,,,,..
+.,,,,,o,,,,,,,,,,,...
+..,,,,,,,,,,,,,,.....
+...,,,,,,,@,,,,....t.
+....,,,,,,,,,,......t
+.o....,,,,,,.....o..t
+t.......t.........ttt
+ttt..tttttt...ttttttt
+
+arena swamp
+map
+ttt%tttt%%tttt%ttt%tt
+t%%%%~~%%%%%%%t%%%%%t
+t%%~~~~%%%%%%%%%%~~%t
+%%%%~~%%%%m%%%%%~~~%t
+t%%%%%%%%%%%%%t%%~%%t
+t%%t%%%%~~%%%%%%%%%%%
+t%%%%%%~~~~%%%%%%%%%t
+%%%%%%%%~~%%%%%t%%%%t
+t%~~%%%%%%%%%%%%%%%%t
+t~~~%%%%%%t%%%%%~~%%t
+t%~%%%%%%%%%%%%~~~~%%
+%%%%%t%%%%%%%%%%~~%%t
+t%%%%%%%%%%~~%%%%%%%t
+t%%%%%%%%%~~~%%%%t%%t
+tt%%%%%%%%@%%%%%%%%%t
+t%%%~~%%%%%%%%%%%%%%t
+t%%~~~~%%%%%t%%%%%%tt
+tt%%~~%%%%%%%%%%%%ttt
+ttt%%tttttt%%tttttttt

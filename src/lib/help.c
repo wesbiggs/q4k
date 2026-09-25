@@ -56,7 +56,8 @@ void help_screen(void)
     textcolor(COLOR_LIGHTBLUE);
     cputsxy(1, 15, "In a fight");
     textcolor(COLOR_WHITE);
-    cputsxy(3, 16, "A Attack  D Defend  P Potion  R Run");
+    cputsxy(3, 16, "Walk into it; SPACE guards; R runs");
+    cputsxy(3, 17, "Underground: A Attack  D Defend");
 
     textcolor(COLOR_GRAY1);
     chlinexy(0, 18, SCR_W);
