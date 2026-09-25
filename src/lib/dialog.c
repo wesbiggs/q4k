@@ -23,6 +23,11 @@
    line runs at 300 baud. Wait 40 seconds of silence before giving up. */
 #define REPLY_TICKS 2400
 
+/* A hint is a table lookup on the host, so it answers at once or not at
+   all. Five seconds of silence is plenty, and nobody should stand at the
+   bar for forty when no daemon is attached. */
+#define HINT_TICKS  300
+
 #define KEY_RETURN 0x0D
 #define KEY_DEL    0x14
 #define KEY_STOP   0x03   /* RUN/STOP */
@@ -35,6 +40,15 @@ static char reply[REPLY_MAX];
 static char seg[SCR_W + 1];
 
 static unsigned char line_open;
+
+/* Who is being asked, where the story stands, and how long to wait for
+   silence to end, in jiffies. Statics rather than exchange()'s parameters:
+   they hold for a whole conversation, and with cc65 every argument costs
+   code at every call. */
+static const char   *who;
+static unsigned char at_stage;
+static unsigned char lore;
+static unsigned int  patience;
 
 unsigned char dialog_granted;
 
@@ -105,20 +119,18 @@ static void put_nybble(unsigned char n)
 }
 
 /* Send one request and show the answer. */
-static unsigned char exchange(const char *verb, const char *npc_id,
-                              unsigned char stage, unsigned char seed,
-                              const char *said)
+static unsigned char exchange(const char *verb, const char *said)
 {
     unsigned char err, i;
     char *start;
 
     modem_put_literal(verb);
-    modem_put_literal(npc_id);
+    modem_put_literal(who);
     modem_put(0x20);
-    modem_put(0x30 + stage);   /* Q_* never reaches ten, so one digit does */
+    modem_put(0x30 + at_stage);   /* Q_* never reaches ten, so one digit does */
     modem_put(0x20);
-    put_nybble(seed >> 4);
-    put_nybble(seed & 0x0F);
+    put_nybble(lore >> 4);
+    put_nybble(lore & 0x0F);
     modem_put(0x20);
     if (said) {
         modem_puts(said);        /* already ASCII: the player typed it */
@@ -126,18 +138,17 @@ static unsigned char exchange(const char *verb, const char *npc_id,
     modem_put_cr();
 
     panel_lit("...", COLOR_GRAY2);
-    err = modem_getline(reply, REPLY_MAX, REPLY_TICKS);
+    err = modem_getline(reply, REPLY_MAX, patience);
 
     /* The host prefixes every answer with a bare CR to absorb the first-byte
        sync slip on the line, so an empty read here just means "keep going". */
     while (err == MODEM_OK && reply[0] == '\0') {
-        err = modem_getline(reply, REPLY_MAX, REPLY_TICKS);
+        err = modem_getline(reply, REPLY_MAX, patience);
     }
 
     panel_undo();                /* drop the "..." placeholder */
 
     if (err != MODEM_OK) {
-        panel_lit("(no answer)", COLOR_LIGHTRED);
         return DIALOG_ESILENT;
     }
 
@@ -166,26 +177,42 @@ static unsigned char exchange(const char *verb, const char *npc_id,
     return DIALOG_OK;
 }
 
+/* Open the port the first time anyone needs it; it stays open after. */
+static unsigned char line_up(void)
+{
+    if (!line_open) {
+        if (modem_open(MODEM_300) != MODEM_OK) {
+            return 0;
+        }
+        line_open = 1;
+    }
+    return 1;
+}
+
 unsigned char dialog_talk(const char *npc_id, const char *place,
                           unsigned char stage, unsigned char seed)
 {
     unsigned char n;
 
     dialog_granted = GRANT_NONE;
+    who = npc_id;
+    at_stage = stage;
+    lore = seed;
+    patience = REPLY_TICKS;
     frame(place);
 
     if (!line_open) {
         panel_lit("Dialling...", COLOR_GRAY1);
-        if (modem_open(MODEM_300) != MODEM_OK) {
+        if (!line_up()) {
             panel_lit("The line is dead.", COLOR_LIGHTRED);
             cgetc();
             return DIALOG_ENOLINE;
         }
-        line_open = 1;
         panel_undo();
     }
 
-    if (exchange("HI ", npc_id, stage, seed, 0) != DIALOG_OK) {
+    if (exchange("HI ", 0) != DIALOG_OK) {
+        panel_lit("(no answer)", COLOR_LIGHTRED);
         cgetc();
         return DIALOG_ESILENT;
     }
@@ -203,8 +230,23 @@ unsigned char dialog_talk(const char *npc_id, const char *place,
         str_asc(str_lit(seg, "> "), input);
         panel_wrap(seg, COLOR_WHITE);
 
-        exchange("SAY ", npc_id, stage, seed, input);
+        if (exchange("SAY ", input) != DIALOG_OK) {
+            panel_lit("(no answer)", COLOR_LIGHTRED);
+        }
     }
 
     return DIALOG_OK;
+}
+
+unsigned char dialog_hint(const char *inn_id, unsigned char stage,
+                          unsigned char seed)
+{
+    if (!line_up()) {
+        return DIALOG_ENOLINE;
+    }
+    who = inn_id;
+    at_stage = stage;
+    lore = seed;
+    patience = HINT_TICKS;
+    return exchange("ALE ", 0);
 }

@@ -158,6 +158,13 @@ in its text dump, which is how the goldens still record where the hero is
 standing; `--raw` and `--hex` show plain screen RAM. `--shot` draws sprites
 too. Any screen that takes over from the map must call `sprite_hide()`.
 
+**A `save` or `load` failure in `make test` is known flakiness: ignore it.**
+Unless your change touches `savegame.c`, the disk, or what those two screens
+show, do not rerun the suite to chase it, and do not try to diagnose it
+mid-task. Sessions have lost a lot of time doing exactly that. Say in your
+report that it failed and move on. A diff that shows your own change (a
+moved wall, say) is not flakiness: re-bless that.
+
 **Open question: do three sprites upset disk access?** When the tunic went
 in as a third sprite, the save/load tests failed 7 runs in 20 against 20 in
 20 with two sprites -- but another session was editing and testing in the

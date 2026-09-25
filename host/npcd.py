@@ -14,6 +14,7 @@ Protocol, CR-terminated ASCII in both directions:
 
     ->  HI <npc> <stage> <seed>          open a conversation
     ->  SAY <npc> <stage> <seed> <text>  say something
+    ->  ALE <inn> <stage> <seed>         buy the innkeeper a drink's worth
     <-  OK <reply>
     <-  GIVE <g> <reply>
     <-  ERR <reason>
@@ -30,6 +31,10 @@ reconnect or a restored game all come out the same.
 GIVE <g> is the host deciding that this conversation has earned grant <g>
 (one digit; see GRANT_* in include/q4k/dialog.h). The model never decides
 that. The C64 still checks its own conditions before handing anything over.
+
+ALE answers with one of the authored hints in assets/hints.json, drawn at
+random from those that fit the inn and the stage. No model is involved; it
+lives here rather than on the C64 only because it is not worth the memory.
 
 Every response is preceded by a bare CR. That leading byte is deliberate: the
 first byte the C64's KERNAL RS-232 receiver sees after the line comes up is
@@ -366,12 +371,44 @@ class Npcs:
         return lines[zlib.crc32(text.strip().lower().encode()) % len(lines)]
 
 
+class Hints:
+    """What an innkeeper lets slip over an ale. Authored lines, no model.
+
+    Each inn and stage gets its own shuffled deck, so a player buying round
+    after round hears everything that applies before anything twice.
+    """
+
+    def __init__(self, path=None, rng=None):
+        self.hints = []
+        if path and os.path.exists(path):
+            self.hints = json.load(open(path))["hints"]
+        self.rng = rng or random.Random()
+        self.decks = {}
+        self.lock = threading.Lock()
+
+    def eligible(self, inn, stage):
+        return [h["text"] for h in self.hints
+                if in_stage(h, stage) and inn in h.get("inns", [inn])]
+
+    def draw(self, inn, stage):
+        with self.lock:
+            deck = self.decks.get((inn, stage))
+            if not deck:
+                deck = self.eligible(inn, stage)
+                self.rng.shuffle(deck)
+                self.decks[(inn, stage)] = deck
+            return deck.pop() if deck else None
+
+
 class Dialogue:
     """One conversation per NPC, with a little memory."""
 
     def __init__(self, npcs, url=DEFAULT_URL, model=DEFAULT_MODEL,
-                 temperature=0.7, timeout=60.0, mock=False):
+                 temperature=0.7, timeout=60.0, mock=False, hints=None):
         self.npcs = npcs
+        # Mock mode draws the same hints in the same order every run, which
+        # is what a golden test needs.
+        self.hints = hints or Hints(rng=random.Random(0) if mock else None)
         self.url = url.rstrip("/") + "/chat/completions"
         self.model = model
         self.temperature = temperature
@@ -400,6 +437,13 @@ class Dialogue:
         with urllib.request.urlopen(request, timeout=self.timeout) as resp:
             payload = json.load(resp)
         return payload["choices"][0]["message"]["content"]
+
+    def hint(self, inn_id, stage=0):
+        """Returns (text, error), like reply() without the grant."""
+        text = self.hints.draw(inn_id, stage)
+        if not text:
+            return None, "the keeper has nothing to say"
+        return for_c64(text), None
 
     def reply(self, npc_id, text, stage=0, seed=0):
         """Returns (text, error, grant); grant is 0 unless one was earned."""
@@ -513,6 +557,10 @@ def handle(conn, addr, dialogue, verbose):
                     print("[npcd] rx %r" % line, flush=True)
 
                 verb, npc_id, stage, seed, said = parse_request(line)
+                if verb == "ALE":
+                    text, err = dialogue.hint(npc_id, stage)
+                    send("ERR " + err if err else "OK " + text)
+                    continue
                 if verb not in ("HI", "SAY"):
                     send("ERR unknown request")
                     continue
@@ -564,12 +612,15 @@ def main():
     ap.add_argument("--geography", default="assets/geography.json")
     ap.add_argument("--npcs", default="assets/npcs.json")
     ap.add_argument("--secrets", default="assets/secrets.json")
+    ap.add_argument("--hints", default="assets/hints.json")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
 
     npcs = Npcs(args.canon, args.npcs, args.geography, args.secrets)
+    hints = Hints(args.hints, random.Random(0) if args.mock else None)
     dialogue = Dialogue(npcs, url=args.url, model=args.model,
-                        temperature=args.temperature, mock=args.mock)
+                        temperature=args.temperature, mock=args.mock,
+                        hints=hints)
 
     if not args.mock:
         problem = check_model(args.url, args.model)

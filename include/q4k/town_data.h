@@ -5,10 +5,12 @@
 #define LOCAL_W     21
 #define LOCAL_H     19
 #define NUM_TOWNS   5
-#define NUM_TOWN_ENTS 13
+#define NUM_TOWN_ENTS 15
+#define NUM_INNS    2
 
 #define ENT_NPC     0
 #define ENT_SHOP    1
+#define ENT_INN     2
 
 #define SHOP_WEAPON 0
 #define SHOP_ARMOUR 1
@@ -17,8 +19,8 @@
 
 typedef struct {
     unsigned char x, y;
-    unsigned char kind;   /* ENT_NPC | ENT_SHOP          */
-    unsigned char param;  /* npc index, or shop kind     */
+    unsigned char kind;   /* ENT_NPC | ENT_SHOP | ENT_INN */
+    unsigned char param;  /* npc, shop kind or inn index */
 } TownEnt;
 
 #define TOWN_MILLFORD    0
@@ -49,5 +51,8 @@ extern const TownEnt       town_ents[NUM_TOWN_ENTS];
 extern const unsigned char town_ent_first[NUM_TOWNS + 1];
 extern const char *const   npc_ids[9];
 extern const char *const   npc_names[9];
+/* The id is what the dialogue daemon knows the inn by. */
+extern const char *const   inn_ids[NUM_INNS];
+extern const char *const   inn_names[NUM_INNS];
 
 #endif /* Q4K_TOWN_DATA_H */

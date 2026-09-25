@@ -28,4 +28,10 @@ extern unsigned char dialog_granted;
 unsigned char dialog_talk(const char *npc_id, const char *place,
                           unsigned char stage, unsigned char seed);
 
+/* What the keeper of inn `inn_id` lets slip over an ale: one authored hint,
+   drawn host-side from assets/hints.json, appended to whatever panel the
+   caller has set up. No model is involved. DIALOG_OK if one arrived. */
+unsigned char dialog_hint(const char *inn_id, unsigned char stage,
+                          unsigned char seed);
+
 #endif /* Q4K_DIALOG_H */

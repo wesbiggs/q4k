@@ -1,0 +1,27 @@
+    +----------------------------------------+
+  0 |The Plough and Harrow                   |
+  1 |········································|
+  2 |                                        |
+  3 |  1  A mug of ale         5 marks       |
+  4 |  2  A bed for the night 20 marks       |
+  5 |                                        |
+  6 |You have 35 marks. Health 20 of 20.     |
+  7 |                                        |
+  8 |You drink.                              |
+  9 |Whoever falls out there gets carried    |
+ 10 |home to Millford, and wakes with half   |
+ 11 |their purse gone.                       |
+ 12 |You sleep, and wake mended.             |
+ 13 |                                        |
+ 14 |                                        |
+ 15 |                                        |
+ 16 |                                        |
+ 17 |                                        |
+ 18 |                                        |
+ 19 |········································|
+ 20 |Number to buy, SPACE to leave           |
+ 21 |                                        |
+ 22 |                                        |
+ 23 |                                        |
+ 24 |                                        |
+    +----------------------------------------+

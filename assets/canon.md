@@ -39,10 +39,10 @@ western face. Everyone knows roughly where. Nobody goes.
 ## Places
 
 - **Millford** (40, 19) — eastern plains, a farming village. Home. Garrett's
-  forge and Mistress Coyle's shop are here.
+  forge, Mistress Coyle's shop and an inn, the Plough and Harrow, are here.
 - **Castle Matheson** (28, 51) — in the south, where the land narrows.
-- **Wardlow** (29, 10) — northern shore town. Fishers, salt, and the last
-  library in Keldmarch.
+- **Wardlow** (29, 10) — northern shore town. Fishers, salt, the last
+  library in Keldmarch, and an inn, the Salt Lantern.
 - **Ashcombe** (16, 23) — western, hemmed in by forest. Timber and charcoal.
 - **Stonereach** (53, 43) — southeast, masons and the king's armoury.
 

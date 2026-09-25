@@ -20,6 +20,7 @@
 #include <q4k/fov.h>
 #include <q4k/game.h>
 #include <q4k/help.h>
+#include <q4k/inn.h>
 #include <q4k/probe.h>
 #include <q4k/savegame.h>
 #include <q4k/shop.h>
@@ -182,6 +183,11 @@ static void interact(unsigned char index)
 
     if (e->kind == ENT_SHOP) {
         shop_open(e->param);
+        back_to_map();
+        return;
+    }
+    if (e->kind == ENT_INN) {
+        inn_open(e->param);
         back_to_map();
         return;
     }

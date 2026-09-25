@@ -13,6 +13,8 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "..", "tools"))
 import npcd  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
@@ -141,6 +143,63 @@ class Trim(unittest.TestCase):
     def test_whole_reply_untouched(self):
         line = "It is north-east of here, about 14 leagues on foot."
         self.assertEqual(npcd.for_c64(line), line)
+
+
+class Inn(unittest.TestCase):
+    HINTS = npcd.Hints(asset("hints.json"))
+
+    def inns(self):
+        import mktowns
+        import mktiles
+        tiles = {t.mapchar: t for t in mktiles.parse(asset("tiles.txt"))}
+        cwd = os.getcwd()
+        os.chdir(ROOT)
+        try:
+            towns = mktowns.parse(tiles)
+        finally:
+            os.chdir(cwd)
+        return {i for t in towns for i in t.inns}
+
+    def test_every_hint_fits_as_written(self):
+        # Authored lines go out through for_c64 too; none may need trimming.
+        for h in self.HINTS.hints:
+            self.assertEqual(npcd.for_c64(h["text"]), h["text"])
+            self.assertLessEqual(len(h["text"]), npcd.MAX_REPLY, h["text"])
+
+    def test_filters_name_real_inns_and_stages(self):
+        inns = self.inns()
+        self.assertTrue(inns)
+        for h in self.HINTS.hints:
+            self.assertLessEqual(set(h.get("inns", [])), inns, h["text"])
+            self.assertLessEqual(set(h.get("stages", [])),
+                                 set(range(len(npcd.STAGES))), h["text"])
+
+    def test_every_inn_has_something_at_every_stage(self):
+        for inn in self.inns():
+            for stage in range(len(npcd.STAGES)):
+                self.assertTrue(self.HINTS.eligible(inn, stage), (inn, stage))
+
+    def test_a_deck_goes_round_before_repeating(self):
+        hints = npcd.Hints(asset("hints.json"), npcd.random.Random(1))
+        pool = hints.eligible("lantern", 3)
+        drawn = [hints.draw("lantern", 3) for _ in pool]
+        self.assertEqual(sorted(drawn), sorted(pool))
+        self.assertIn(hints.draw("lantern", 3), pool)
+
+    def test_other_inns_hints_stay_there(self):
+        for text in self.HINTS.eligible("plough", 3):
+            self.assertNotIn("Brann", text)
+
+    def test_ale_needs_no_model(self):
+        live = npcd.Dialogue(NPCS, url="http://127.0.0.1:9", timeout=0.5,
+                             hints=self.HINTS)
+        text, err = live.hint("plough", 0)
+        self.assertIsNone(err)
+        self.assertTrue(text)
+
+    def test_ale_request(self):
+        self.assertEqual(npcd.parse_request("ALE plough 3 5a "),
+                         ("ALE", "plough", 3, 0x5A, ""))
 
 
 class Geography(unittest.TestCase):

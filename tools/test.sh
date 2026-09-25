@@ -118,6 +118,14 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
             --keys 'Alaric\rdwwwwwwwaaaawwwmay I have the key\rdead low\r\x03' \
             --settle 32
     fi
+    # The inn in Millford, wounded: an ale brings a hint from the daemon's
+    # deck (mock mode shuffles it the same way every run), and a bed puts
+    # the hero back to full health for 20 marks.
+    if [ -f tests/golden-inn.txt ]; then
+        compare inn tests/golden-inn.txt \
+            tools/screendump.py dist/q4k.prg --rs232 25299 \
+            --poke party+4=5 --keys 'Alaric\rwwddddd12' --settle 24
+    fi
     kill "$daemon" 2>/dev/null || true
     wait "$daemon" 2>/dev/null || true   # reap quietly; no job-control noise
 fi

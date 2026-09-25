@@ -105,8 +105,8 @@ static void draw_local(void)
         for (i = town_ent_first[place]; i < town_ent_first[place + 1]; ++i) {
             offset = (unsigned int)town_ents[i].y * SCR_W + town_ents[i].x;
             SCREEN_RAM[offset] = T_VILLAGER;
-            COLOR_RAM[offset]  = (town_ents[i].kind == ENT_SHOP)
-                               ? COLOR_YELLOW : COLOR_CYAN;
+            COLOR_RAM[offset]  = (town_ents[i].kind == ENT_NPC)
+                               ? COLOR_CYAN : COLOR_YELLOW;   /* trade */
         }
     }
 }
