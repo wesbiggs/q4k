@@ -59,6 +59,18 @@
       "Two armies, and now one of you. I did not choose the plan."
     ]
   },
+  "princess": {
+    "name": "Princess Eulewyn",
+    "where": "Castle Matheson (28, 51)",
+    "role": "Princess of the realm. Daughter of the king, gentle soul.",
+    "voice": "Wondrous, excited, optimistic. Loves chivalry and tales of knights.",
+    "knows": "She believes that true heroes must earn respect through bravery.",
+    "mock": [
+      "The kingdom is a beautiful place, yes, with many wonders to be seen.",
+      "You may be a simple villager, but fate has given you this calling.",
+      "I fear the presence of Maldrath has silenced birdsong in Keldmarch's forests."
+    ]
+  },
   "vane": {
     "name": "Loremaster Vane",
     "where": "Wardlow (29, 10)",

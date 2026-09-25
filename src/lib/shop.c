@@ -19,7 +19,7 @@ static char line[SCR_W + 1];
 
 unsigned int potion_price(void)
 {
-    return 10u * hero.level;
+    return 5u + 5u * hero.level;
 }
 
 static void note(const char *literal, unsigned char color)

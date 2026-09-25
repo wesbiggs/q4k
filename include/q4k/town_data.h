@@ -5,7 +5,7 @@
 #define LOCAL_W     21
 #define LOCAL_H     19
 #define NUM_TOWNS   5
-#define NUM_TOWN_ENTS 15
+#define NUM_TOWN_ENTS 16
 #define NUM_INNS    2
 
 #define ENT_NPC     0
@@ -31,12 +31,13 @@ typedef struct {
 #define NPC_SMITH       0
 #define NPC_COYLE       1
 #define NPC_TAM         2
-#define NPC_KING        3
-#define NPC_STEWARD     4
-#define NPC_BRANN       5
-#define NPC_VANE        6
-#define NPC_ASH         7
-#define NPC_ALDA        8
+#define NPC_PRINCESS    3
+#define NPC_KING        4
+#define NPC_STEWARD     5
+#define NPC_BRANN       6
+#define NPC_VANE        7
+#define NPC_ASH         8
+#define NPC_ALDA        9
 
 /* Run-length encoded: unpack with rle_unpack(). */
 extern const unsigned char *const town_map[NUM_TOWNS];
@@ -49,8 +50,8 @@ extern const unsigned char town_ex[NUM_TOWNS];
 extern const unsigned char town_ey[NUM_TOWNS];
 extern const TownEnt       town_ents[NUM_TOWN_ENTS];
 extern const unsigned char town_ent_first[NUM_TOWNS + 1];
-extern const char *const   npc_ids[9];
-extern const char *const   npc_names[9];
+extern const char *const   npc_ids[10];
+extern const char *const   npc_names[10];
 /* The id is what the dialogue daemon knows the inn by. */
 extern const char *const   inn_ids[NUM_INNS];
 extern const char *const   inn_names[NUM_INNS];
