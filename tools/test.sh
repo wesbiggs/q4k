@@ -80,8 +80,9 @@ done
 # player's own timing the roll differs every run -- any test that walks in
 # the open is flaky by construction. Towns never roll.
 if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ]; then
-    saves=$(mktemp -t q4ksave).d64
-    rm -f "$saves"
+    # A full template: BSD mktemp takes -t <prefix>, GNU rejects it.
+    base=$(mktemp "${TMPDIR:-/tmp}/q4ksave.XXXXXX")
+    saves=$base.d64
     c1541 -format "test,01" d64 "$saves" >/dev/null 2>&1
     compare save tests/golden-save.txt \
         tools/screendump.py dist/q4k.prg --disk "$saves" \
@@ -93,7 +94,7 @@ if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ]; then
             tools/screendump.py dist/q4k.prg --disk "$saves" \
             --keys '\x86' --settle 8
     fi
-    rm -f "$saves"
+    rm -f "$saves" "$base"
 fi
 
 # The dialogue case needs a daemon on the other end of the modem line, in

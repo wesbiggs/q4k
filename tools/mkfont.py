@@ -21,9 +21,10 @@ cases, which is what the interface needs.
 
 import argparse
 import os
+import shutil
 import sys
 
-ROM = "/opt/homebrew/Cellar/vice/3.10/share/vice/C64/chargen-901225-01.bin"
+CHARGEN = "chargen-901225-01.bin"
 SET_BYTES = 2048              # 256 glyphs of eight rows
 MIXED_CASE = 2048             # offset of the mixed-case half in a 4K file
 
@@ -111,6 +112,26 @@ def load(path):
              % (path, len(data)))
 
 
+def find_rom():
+    """The character ROM VICE ships, wherever this machine keeps it.
+
+    $Q4K_CHARGEN wins; then the data directory beside whichever x64sc is on
+    the PATH (a Homebrew install, or a VICE built from source in CI); then
+    the usual system locations.
+    """
+    candidates = [os.environ.get("Q4K_CHARGEN", "")]
+    x64sc = shutil.which("x64sc")
+    if x64sc:
+        prefix = os.path.dirname(os.path.dirname(os.path.realpath(x64sc)))
+        candidates.append(os.path.join(prefix, "share/vice/C64", CHARGEN))
+    for share in ("/opt/homebrew/share", "/usr/local/share", "/usr/share"):
+        candidates.append(os.path.join(share, "vice/C64", CHARGEN))
+    for path in candidates:
+        if path and os.path.exists(path):
+            return path
+    sys.exit("mkfont: no character ROM (%s) found; set Q4K_CHARGEN" % CHARGEN)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--source", default="rom",
@@ -122,9 +143,7 @@ def main():
     args = ap.parse_args()
 
     if args.source == "rom":
-        if not os.path.exists(ROM):
-            sys.exit("mkfont: no character ROM at %s" % ROM)
-        image = load(ROM)
+        image = load(find_rom())
         origin = "the character ROM, style=%s" % args.style
         if args.style != "none":
             for first, last in STYLED:
