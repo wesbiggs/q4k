@@ -27,9 +27,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache toolchain
+      # Restore and save are separate steps: actions/cache on its own only
+      # saves after a green run, and one flaky test would then rebuild VICE
+      # on every push until something passed.
+      - name: Restore toolchain
         id: cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/vice
@@ -63,6 +66,15 @@ jobs:
               --without-png --without-libcurl
           make -j"$(nproc)"
           make install
+
+      - name: Save toolchain
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/vice
+            ~/cc65
+          key: ${{ steps.cache.outputs.cache-primary-key }}
 
       - name: Put the toolchain on the PATH
         run: |
