@@ -9,6 +9,7 @@
 #ifndef Q4K_GAME_H
 #define Q4K_GAME_H
 
+#include <q4k/loot_data.h>
 #include <q4k/town_data.h>
 
 #define SCENE_WORLD    0
@@ -38,6 +39,17 @@
 #define IT_BLADE   0x40
 
 #define NUM_DUNGEONS 3
+/* No dungeon is deeper than this: dungeon_deep[] must stay within it, since
+   the looted bits below give every dungeon this many levels. */
+#define MAX_DEEP     4
+/* dungeon_build() hides up to this many chests on a level. */
+#define DUN_CHESTS   2
+
+/* One bit per treasure, set once it has been taken. Dungeon chests come
+   first, DUN_CHESTS bits per level, so that a new line in assets/loot.txt
+   moves nothing that is already saved; loot_table[i] is bit DUN_LOOT + i. */
+#define DUN_LOOT      (NUM_DUNGEONS * MAX_DEEP * DUN_CHESTS)
+#define LOOTED_BYTES  ((DUN_LOOT + NUM_LOOT + 7) / 8)
 
 extern unsigned char scene;
 extern unsigned char place;    /* town index, or dungeon index      */
@@ -58,6 +70,7 @@ extern unsigned char quest_stage;
    poke-able, so a test can pin the secrets with --poke lore_seed=N. */
 extern unsigned char lore_seed;
 extern unsigned char items;       /* IT_* bitmask */
+extern unsigned char looted[LOOTED_BYTES];
 
 void          game_init(void);
 

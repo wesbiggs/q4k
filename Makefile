@@ -54,7 +54,8 @@ PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 # set-piece screens), so putting them out of the way costs nothing. Both
 # flags are needed: --code-name alone leaves the string literals behind, and
 # screens like the help text are mostly string literals.
-HIMODS   := dialog battle shop inn dungeon panel title help savegame sprite
+HIMODS   := dialog battle shop inn dungeon panel title help savegame sprite \
+            loot
 
 LIBSRC   := $(wildcard src/lib/*.c) $(wildcard src/lib/*.s)
 LIBOBJ   := $(patsubst src/lib/%.c,$(BUILD)/lib/%.o,$(wildcard src/lib/*.c)) \
@@ -83,6 +84,7 @@ GEN_TOWN  := include/q4k/town_data.h src/lib/town_data.c
 GEN_ARENA := include/q4k/arena_data.h src/lib/arena_data.c
 GEN_GEO   := assets/geography.json
 GEN_FONT  := src/lib/font_data.c
+GEN_LOOT  := include/q4k/loot_data.h src/lib/loot_data.c
 
 # Where the letters come from. FONT_SOURCE is "rom" for the machine's own
 # character set, or a path to a C64 charset binary. FONT_STYLE only applies
@@ -96,7 +98,8 @@ GEN_FONT  := src/lib/font_data.c
 FONT_SOURCE ?= rom
 FONT_STYLE  ?= bold
 
-assets: $(GEN_TILES) $(GEN_MAP) $(GEN_TOWN) $(GEN_ARENA) $(GEN_GEO) $(GEN_FONT)
+assets: $(GEN_TILES) $(GEN_MAP) $(GEN_TOWN) $(GEN_ARENA) $(GEN_GEO) $(GEN_FONT) \
+        $(GEN_LOOT)
 
 $(GEN_TILES): assets/tiles.txt tools/mktiles.py
 	tools/mktiles.py
@@ -111,6 +114,11 @@ $(GEN_TOWN): assets/towns.txt assets/tiles.txt assets/npcs.json tools/mktowns.py
 $(GEN_ARENA): assets/arenas.txt assets/tiles.txt tools/mkarenas.py \
               tools/mktiles.py tools/checkmap.py tools/rle.py
 	tools/mkarenas.py
+
+$(GEN_LOOT): assets/loot.txt assets/towns.txt assets/overworld.txt \
+             assets/tiles.txt assets/npcs.json tools/mkloot.py tools/mktowns.py \
+             tools/mktiles.py
+	tools/mkloot.py
 
 $(GEN_GEO): assets/overworld.txt assets/towns.txt assets/places.txt \
             assets/tiles.txt tools/mkgeo.py

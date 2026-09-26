@@ -50,26 +50,27 @@ void help_screen(void)
     cputsxy(3,  9, "P      Drink a healing draught");
     cputsxy(3, 10, "F1     Save       F3  Restore");
     cputsxy(3, 11, "SPACE  Wait a turn");
-    cputsxy(3, 12, "?      This screen");
-    cputsxy(3, 13, "Q      Quit");
+    cputsxy(3, 12, "L      Look where you stand");
+    cputsxy(3, 13, "?      This screen");
+    cputsxy(3, 14, "Q      Quit");
 
     textcolor(COLOR_LIGHTBLUE);
-    cputsxy(1, 14, "In a fight");
+    cputsxy(1, 15, "In a fight");
     textcolor(COLOR_WHITE);
-    cputsxy(3, 15, "Walk into it; SPACE guards; R runs");
-    cputsxy(3, 16, "F then a direction shoots your bow");
-    cputsxy(3, 17, "No running from keepers or Maldrath");
+    cputsxy(3, 16, "Walk into it; SPACE guards; R runs");
+    cputsxy(3, 17, "F then a direction shoots your bow");
+    cputsxy(3, 18, "No running from keepers or Maldrath");
 
     textcolor(COLOR_GRAY1);
-    chlinexy(0, 18, SCR_W);
+    chlinexy(0, 19, SCR_W);
     textcolor(COLOR_LIGHTBLUE);
-    cputsxy(1, 19, "Your task");
+    cputsxy(1, 20, "Your task");
     textcolor(COLOR_LIGHTGREEN);
-    cputsxy(3, 20, task[stage][0]);
-    cputsxy(3, 21, task[stage][1]);
+    cputsxy(3, 21, task[stage][0]);
+    cputsxy(3, 22, task[stage][1]);
 
     textcolor(COLOR_GRAY2);
-    cputsxy(1, 23, "Any key to return");
+    cputsxy(1, 24, "Any key to return");
 
     cgetc();
 }

@@ -1,0 +1,17 @@
+# Quest for the King -- treasure hidden in towns and on the overworld.
+#
+#   loot <where> <x> <y> gold <amount>
+#
+# <where> is a town id from assets/towns.txt, or "world" for the overworld;
+# x and y are in that map's own squares. Stand there and press L to take it.
+# A square need not look like anything: a chest is only one kind of hiding
+# place, and a spot an innkeeper hints at can be plain grass.
+#
+# Each entry is one bit of the saved game, in the order written here, so add
+# new ones at the end -- inserting one in the middle hands every entry after
+# it the looted-or-not state of its neighbour in an existing save.
+#
+# Dungeon chests are not listed: dungeon_build() places those itself.
+
+loot castle 19 11 gold 14
+loot castle 18 13 gold 19

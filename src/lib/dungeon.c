@@ -11,6 +11,9 @@
 unsigned char dun_up_x, dun_up_y;
 unsigned char dun_dn_x, dun_dn_y;
 
+unsigned char dun_chests;
+unsigned char dun_cx[DUN_CHESTS], dun_cy[DUN_CHESTS];
+
 unsigned char dun_rooms;
 unsigned char dun_rx[MAX_ROOMS], dun_ry[MAX_ROOMS];
 unsigned char dun_rw[MAX_ROOMS], dun_rh[MAX_ROOMS];
@@ -71,7 +74,7 @@ static unsigned char overlaps(unsigned char n, unsigned char x, unsigned char y,
 void dungeon_build(unsigned char index, unsigned char level)
 {
     unsigned char rooms = 0;
-    unsigned char tries, x, y, w, h, i;
+    unsigned char tries, x, y, w, h, i, n;
 
     /* Seeded from where you are and which game this is, not from the
        clock: leave a level and come back and it is the same level, and a
@@ -123,5 +126,27 @@ void dungeon_build(unsigned char index, unsigned char level)
             has(dungeon_prize[index]) ? T_FLOOR : T_MONSTER;
     } else {
         local[(unsigned int)dun_dn_y * LOCAL_W + dun_dn_x] = T_STAIRDN;
+    }
+
+    /* A chest or two, so a level is worth exploring past its stairs. Each
+       one is looted by index, so the draws must not depend on anything that
+       changes between visits: the squares to avoid are tested by position,
+       not tile, because the keeper's square turns to floor once it is dead
+       and a chest could otherwise land there on the next visit only. */
+    dun_chests = 0;
+    n = (unsigned char)(rand() % (DUN_CHESTS + 1));
+    for (tries = 0; tries < 16 && dun_chests < n; ++tries) {
+        i = (unsigned char)(rand() % rooms);
+        x = rx[i] + (unsigned char)(rand() % rw[i]);
+        y = ry[i] + (unsigned char)(rand() % rh[i]);
+        if ((x == dun_up_x && y == dun_up_y)
+            || (x == dun_dn_x && y == dun_dn_y)
+            || (dun_chests && x == dun_cx[0] && y == dun_cy[0])) {
+            continue;
+        }
+        dun_cx[dun_chests] = x;
+        dun_cy[dun_chests] = y;
+        local[(unsigned int)y * LOCAL_W + x] = T_CHEST;
+        ++dun_chests;
     }
 }

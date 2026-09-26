@@ -21,6 +21,7 @@
 #include <q4k/game.h>
 #include <q4k/help.h>
 #include <q4k/inn.h>
+#include <q4k/loot.h>
 #include <q4k/probe.h>
 #include <q4k/savegame.h>
 #include <q4k/shop.h>
@@ -44,6 +45,7 @@
 #define K_D           0x44
 #define K_Q           0x51
 #define K_T           0x54
+#define K_L           0x4C
 #define K_P           0x50
 #define K_HELP        0x3F
 #define K_F1          0x85   /* save -- S is already "walk south" */
@@ -518,6 +520,10 @@ int main(void)
 
             case K_P:
                 quaff();
+                break;
+
+            case K_L:
+                look();
                 break;
 
             case K_F1:

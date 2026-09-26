@@ -20,12 +20,14 @@ unsigned char bow_lv;
 unsigned char quest_stage;
 unsigned char items;
 unsigned char lore_seed;
+unsigned char looted[LOOTED_BYTES];
 
 /* The three deep places, in the order the quest opens them. */
 const unsigned char dungeon_wx[NUM_DUNGEONS]   = { 36, 22, 11 };
 const unsigned char dungeon_wy[NUM_DUNGEONS]   = { 45, 16, 35 };
 const unsigned char dungeon_key[NUM_DUNGEONS]  = { IT_SIGIL, IT_TIDAL, IT_ASHEN };
 const unsigned char dungeon_prize[NUM_DUNGEONS] = { IT_EMBER, IT_TEAR, IT_HEART };
+/* None deeper than MAX_DEEP (game.h): that is all the looted bits allow. */
 const unsigned char dungeon_deep[NUM_DUNGEONS] = { 3, 3, 4 };
 
 const char *const dungeon_names[NUM_DUNGEONS] = {
@@ -50,6 +52,7 @@ void game_init(void)
     quest_stage = Q_START;
     items       = 0;
     lore_seed   = 0;
+    memset(looted, 0, sizeof(looted));
 
     rle_unpack(local, town_map[TOWN_MILLFORD], sizeof(local));
     hero.x = town_sx[TOWN_MILLFORD];

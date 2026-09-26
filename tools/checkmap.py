@@ -7,7 +7,8 @@ people block movement, a shopkeeper standing in a doorway can wall off the
 NPC behind them -- which is exactly how the smith became unreachable.
 
 This floods the overworld from the start position, and each town from its
-arrival square, and fails if anything the quest needs cannot be walked to.
+arrival square, and fails if anything the quest needs -- or any treasure in
+assets/loot.txt -- cannot be walked to.
 """
 
 import os
@@ -15,6 +16,7 @@ import sys
 from collections import deque
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import mkloot
 import mktiles
 
 SRC = "assets/overworld.txt"
@@ -38,8 +40,9 @@ def flood(passable, start, w, h, wrap):
     return seen
 
 
-def check_towns(by_char, walkable):
-    """Every entity must be reachable, and entities block the way."""
+def check_towns(by_char, walkable, loot):
+    """Every entity must be reachable, and entities block the way. So must
+    every treasure, which you have to stand on rather than beside."""
     import mktowns
 
     towns = mktowns.parse(by_char)
@@ -68,6 +71,14 @@ def check_towns(by_char, walkable):
                      for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)))
             print("  %-11s %-6s %-8s %2d,%-2d  %s"
                   % (t.id, kind, param, x, y,
+                     "reachable" if ok else "UNREACHABLE"))
+            bad += not ok
+        for where, x, y, kind, amount, _ in loot:
+            if where != t.id:
+                continue
+            ok = (x, y) in seen
+            print("  %-11s %-6s %-8s %2d,%-2d  %s"
+                  % (t.id, "loot", "%d %s" % (amount, kind), x, y,
                      "reachable" if ok else "UNREACHABLE"))
             bad += not ok
     return bad
@@ -107,7 +118,16 @@ def main():
                                        "reachable" if ok else "UNREACHABLE"))
         bad += not ok
 
-    bad += check_towns(by_char, walkable)
+    loot = mkloot.parse()
+    for where, x, y, kind, amount, _ in loot:
+        if where != mkloot.WORLD:
+            continue
+        ok = (x, y) in seen
+        print("  %-8s %2d,%-2d  %s" % ("loot", x, y,
+                                       "reachable" if ok else "UNREACHABLE"))
+        bad += not ok
+
+    bad += check_towns(by_char, walkable, loot)
 
     print("checkmap: %d overworld targets, %d walkable squares, %d problems"
           % (len(targets), len(seen), bad))

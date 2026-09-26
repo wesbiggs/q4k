@@ -19,7 +19,7 @@
 #define SAVE_DEVICE 8
 #define SAVE_NAME   "Q4K.SAV"
 #define SCRATCH_CMD "S0:Q4K.SAV"
-#define MAGIC       "Q4K3"   /* 3: the bow */
+#define MAGIC       "Q4K4"   /* 4: treasure taken */
 
 typedef struct {
     char          magic[4];
@@ -39,6 +39,7 @@ typedef struct {
     unsigned char scene;
     unsigned char place;
     unsigned char depth;
+    unsigned char looted[LOOTED_BYTES];
     unsigned char lit[LOCAL_W * LOCAL_H];
 } SaveGame;
 
@@ -60,6 +61,7 @@ static void gather(void)
     blob.scene       = scene;
     blob.place       = place;
     blob.depth       = depth;
+    memcpy(blob.looted, looted, sizeof(blob.looted));
     memcpy(blob.lit, lit, sizeof(blob.lit));
 }
 
@@ -104,6 +106,7 @@ unsigned char load_game(void)
     scene       = blob.scene;
     place       = blob.place;
     depth       = blob.depth;
+    memcpy(looted, blob.looted, sizeof(looted));
 
     /* Rebuild the map rather than store it. items has to be restored first:
        whether the keeper is still down there depends on it. */

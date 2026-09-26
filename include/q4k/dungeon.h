@@ -11,6 +11,8 @@
 #ifndef Q4K_DUNGEON_H
 #define Q4K_DUNGEON_H
 
+#include <q4k/game.h>
+
 #define MAX_ROOMS 6
 
 /* The rooms this level ended up with. Line of sight needs them: a room you
@@ -23,6 +25,12 @@ extern unsigned char dun_rw[MAX_ROOMS], dun_rh[MAX_ROOMS];
 /* Where this level's stairs ended up, for placing the player. */
 extern unsigned char dun_up_x, dun_up_y;
 extern unsigned char dun_dn_x, dun_dn_y;
+
+/* The chests this level ended up with, 0 to DUN_CHESTS of them. The index
+   is which looted bit each one owns, so it must come out the same on every
+   visit to the level. */
+extern unsigned char dun_chests;
+extern unsigned char dun_cx[DUN_CHESTS], dun_cy[DUN_CHESTS];
 
 /* Build level `level` (1 at the mouth) of dungeon `index` into the shared
    local map. The deepest level has the keeper instead of a way down. */
