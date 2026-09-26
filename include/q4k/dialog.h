@@ -18,6 +18,22 @@
 #define GRANT_NONE   0
 #define GRANT_TIDAL  1   /* Vane heard the fishers' word for the dry hour */
 #define GRANT_SIGIL  2   /* the king handed over the Sigil, past hello    */
+/* Nobody to ask, so nothing is gated: the game stays winnable without the
+   modem. Passed to dialog_talk()'s `given` when the line is not up. */
+#define GRANT_OPEN   0xFF
+
+/* What dialog_probe() found on the line when the game started. */
+#define LINE_UP       0   /* a host answered, and can talk               */
+#define LINE_SILENT   1   /* nobody answered: no modem, or no host on it */
+#define LINE_NOMODEL  2   /* a host answered, but has no model to talk   */
+
+extern unsigned char dialog_line;
+
+/* Open the modem port and ask whoever is there whether they can talk, for
+   the title screen to report. Sets dialog_line and returns it; a few
+   seconds when nobody answers. Anything but LINE_UP and the game plays
+   without conversations -- see dialog_talk(). */
+unsigned char dialog_probe(void);
 
 /* Set by dialog_talk(): the last grant the host sent, or GRANT_NONE. It
    sticks for the whole conversation, so talking on afterwards loses nothing. */
@@ -32,7 +48,13 @@ extern unsigned char dialog_granted;
    it (a C literal), or 0; the line goes into the transcript, not the map.
 
    The NPC may end the conversation (the host answers BYE): their last words
-   stay up until a key is pressed, and dialog_talk returns DIALOG_OK. */
+   stay up until a key is pressed, and dialog_talk returns DIALOG_OK.
+
+   If the line is not up there is no conversation and no screen of its own:
+   `given` is asked with GRANT_OPEN, and what it hands over -- or that the
+   NPC has nothing for you -- goes in the map's log. That returns DIALOG_OK
+   too. A host that stops answering mid-game returns DIALOG_ESILENT, and
+   takes the line down for the rest of the game. */
 unsigned char dialog_talk(const char *npc_id, const char *place,
                           unsigned char stage, unsigned char seed,
                           const char *(*given)(unsigned char granted));

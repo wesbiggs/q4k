@@ -129,9 +129,6 @@ static void keeper_beaten(void)
     }
 }
 
-/* Nobody answered at all, so there was no host to gate anything. */
-#define GRANT_OPEN 0xFF
-
 /* Who the player is talking to, for quest_after_talk. */
 static unsigned char talking_to;
 

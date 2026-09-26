@@ -6,10 +6,12 @@
 
 #include <q4k/battle.h>
 #include <q4k/charset.h>
+#include <q4k/dialog.h>
 #include <q4k/probe.h>
 #include <q4k/savegame.h>
 #include <q4k/tiles.h>
 #include <q4k/title.h>
+#include <q4k/version.h>
 #include <q4k/view.h>
 
 #define STORY_Y   5
@@ -17,6 +19,8 @@
 #define ENTRY_Y  18
 #define HINT_Y   21
 #define LOAD_Y   22
+#define LINE_Y   24   /* what the modem check found, left of the version */
+#define LINE_W   30
 #define ERROR_Y  24
 
 #define KEY_RETURN 0x0D
@@ -94,6 +98,30 @@ unsigned char title_screen(char *name, unsigned char max)
     textcolor(COLOR_GRAY2);
     cputsxy(1, HINT_Y, "RETURN alone for a random name");
     cputsxy(1, LOAD_Y, "F3 to load a saved game");
+    textcolor(COLOR_GRAY1);
+    /* Right-aligned, a column in from the edge: sizeof counts the NUL. */
+    cputsxy(SCR_W - sizeof("v" Q4K_VERSION), SCR_H - 1, "v" Q4K_VERSION);
+
+    /* Whether anyone will talk, asked once for the whole game. Anything
+       short of a host with a model and the game plays without
+       conversations, so say which it is here rather than at every door.
+       Kept short of the version in the other corner. */
+    cputsxy(1, LINE_Y, "Calling the host...");
+    switch (dialog_probe()) {
+        case LINE_UP:
+            cclearxy(1, LINE_Y, LINE_W);
+            break;
+        case LINE_NOMODEL:
+            cclearxy(1, LINE_Y, LINE_W);
+            textcolor(COLOR_LIGHTRED);
+            cputsxy(1, LINE_Y, "The host has no model.");
+            break;
+        default:
+            cclearxy(1, LINE_Y, LINE_W);
+            textcolor(COLOR_LIGHTRED);
+            cputsxy(1, LINE_Y, "No host on the modem.");
+            break;
+    }
 
     /* The launcher is still typing RUN when we get here. */
     while (kbhit()) {

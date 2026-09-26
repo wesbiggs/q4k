@@ -23,6 +23,10 @@
    line runs at 300 baud. Wait 40 seconds of silence before giving up. */
 #define REPLY_TICKS 2400
 
+/* The check at startup. A host answers PING at once, so three seconds of
+   silence means nobody is there. */
+#define PROBE_TICKS 180
+
 /* A hint is a table lookup on the host, so it answers at once or not at
    all. Five seconds of silence is plenty, and nobody should stand at the
    bar for forty when no daemon is attached. */
@@ -49,6 +53,8 @@ static char reply[REPLY_MAX];
 static char seg[SCR_W + 1];
 
 static unsigned char line_open;
+
+unsigned char dialog_line = LINE_SILENT;
 
 /* Who is being asked, where the story stands, and how long to wait for
    silence to end, in jiffies. Statics rather than exchange()'s parameters:
@@ -165,11 +171,35 @@ static void put_nybble(unsigned char n)
     modem_put(n < 10 ? 0x30 + n : 0x57 + n);
 }
 
+/* The host's next line, from its verb on; 0 if `ticks` jiffies pass in
+   silence.
+ *
+ * The host prefixes every answer with a bare CR to absorb the first-byte
+ * sync slip on the line, so an empty read just means "keep going". But the
+ * slip lands on that CR itself, so step over any leading non-letters too. */
+static char *answer(unsigned int ticks)
+{
+    unsigned char err, i;
+    char *start;
+
+    err = modem_getline(reply, REPLY_MAX, ticks);
+    while (err == MODEM_OK && reply[0] == '\0') {
+        err = modem_getline(reply, REPLY_MAX, ticks);
+    }
+    if (err != MODEM_OK) {
+        return 0;
+    }
+    start = reply;
+    for (i = 0; i < 4 && *start && (*start < 0x41 || *start > 0x5A); ++i) {
+        ++start;
+    }
+    return start;
+}
+
 /* Send one request and show the answer. DIALOG_OK, DIALOG_ESILENT, or
    ENDED if the NPC has closed the conversation. */
 static unsigned char exchange(const char *verb, const char *said)
 {
-    unsigned char err, i;
     char *start;
 
     modem_put_literal(verb);
@@ -190,28 +220,12 @@ static unsigned char exchange(const char *verb, const char *said)
     pulse_wait = 0;
     pulse_step = 0;
     modem_idle = pulse_dots;
-    err = modem_getline(reply, REPLY_MAX, patience);
-
-    /* The host prefixes every answer with a bare CR to absorb the first-byte
-       sync slip on the line, so an empty read here just means "keep going". */
-    while (err == MODEM_OK && reply[0] == '\0') {
-        err = modem_getline(reply, REPLY_MAX, patience);
-    }
-
+    start = answer(patience);
     modem_idle = 0;
     panel_undo();                /* drop the "..." placeholder */
 
-    if (err != MODEM_OK) {
+    if (!start) {
         return DIALOG_ESILENT;
-    }
-
-    /* The first byte the KERNAL's receiver sees after the line comes up is
-       reliably corrupted by clock slip -- that is what the host's leading CR
-       is for, but the slip lands on the CR itself. Step over any leading
-       non-letters before parsing the verb. */
-    start = reply;
-    for (i = 0; i < 4 && *start && (*start < 0x41 || *start > 0x5A); ++i) {
-        ++start;
     }
 
     /* "OK <text>" / "GIVE <g> <text>" / "BYE <text>" / "ERR <text>".
@@ -264,11 +278,45 @@ static unsigned char line_up(void)
     return 1;
 }
 
+unsigned char dialog_probe(void)
+{
+    char *start;
+
+    dialog_line = LINE_SILENT;
+    if (line_up()) {
+        /* A spare CR first: whatever the line does to the first byte out
+           lands on an empty line, which the host skips. */
+        modem_put_cr();
+        modem_put_literal("PING");
+        modem_put_cr();
+        start = answer(PROBE_TICKS);
+        if (start) {
+            /* "OK <model>" or "ERR no model". Numeric: ASCII off the wire. */
+            dialog_line = start[0] == 0x45 ? LINE_NOMODEL : LINE_UP;
+        }
+    }
+    return dialog_line;
+}
+
 unsigned char dialog_talk(const char *npc_id, const char *place,
                           unsigned char stage, unsigned char seed,
                           const char *(*given)(unsigned char granted))
 {
     unsigned char n, r;
+    const char *note;
+
+    /* Nobody to talk through -- the title screen said so -- so only what
+       the quest needs changes hands, and it is told on the map. */
+    if (dialog_line != LINE_UP) {
+        note = given(GRANT_OPEN);
+        if (!note) {
+            strcpy(seg, place);
+            strcat(seg, " has nothing for you.");
+            note = seg;
+        }
+        view_message(note);
+        return DIALOG_OK;
+    }
 
     dialog_granted = GRANT_NONE;
     who = npc_id;
@@ -278,18 +326,11 @@ unsigned char dialog_talk(const char *npc_id, const char *place,
     gift = given;
     frame(place);
 
-    if (!line_open) {
-        panel_lit("Dialling...", COLOR_GRAY1);
-        if (!line_up()) {
-            panel_lit("The line is dead.", COLOR_LIGHTRED);
-            farewell();
-            return DIALOG_ENOLINE;
-        }
-        panel_undo();
-    }
-
     r = turn("HI ", 0);
     if (r == DIALOG_ESILENT) {
+        /* The host was there at startup and has gone. Say so this once;
+           from here on the game plays without conversations. */
+        dialog_line = LINE_SILENT;
         panel_lit("(no answer)", COLOR_LIGHTRED);
         farewell();
         return DIALOG_ESILENT;
@@ -321,7 +362,7 @@ unsigned char dialog_talk(const char *npc_id, const char *place,
 unsigned char dialog_hint(const char *inn_id, unsigned char stage,
                           unsigned char seed)
 {
-    if (!line_up()) {
+    if (dialog_line != LINE_UP) {
         return DIALOG_ENOLINE;
     }
     who = inn_id;

@@ -15,6 +15,7 @@
 #   make assets     regenerate the C and JSON built from assets/
 #   make shot       headless run, save a PNG screenshot
 #   make d64        build a bootable disk image
+#   make release    the files a release publishes, in dist/release/
 #   make clean
 
 TARGET   := c64
@@ -68,7 +69,7 @@ ifneq ($(strip $(LIBOBJ)),)
 LIB      := $(BUILD)/q4k.lib
 endif
 
-.PHONY: all run play check shot test bless d64 clean dirs assets
+.PHONY: all run play check shot test bless d64 release clean dirs assets
 .SECONDARY: $(BUILD)/$(PROG).o
 
 all: dirs assets $(PRGS)
@@ -86,6 +87,7 @@ GEN_ARENA := include/q4k/arena_data.h src/lib/arena_data.c
 GEN_GEO   := assets/geography.json
 GEN_FONT  := src/lib/font_data.c
 GEN_LOOT  := include/q4k/loot_data.h src/lib/loot_data.c
+GEN_VER   := include/q4k/version.h
 
 # Where the letters come from. FONT_SOURCE is "rom" for the machine's own
 # character set, or a path to a C64 charset binary. FONT_STYLE only applies
@@ -100,7 +102,16 @@ FONT_SOURCE ?= rom
 FONT_STYLE  ?= bold
 
 assets: $(GEN_TILES) $(GEN_MAP) $(GEN_TOWN) $(GEN_ARENA) $(GEN_GEO) $(GEN_FONT) \
-        $(GEN_LOOT)
+        $(GEN_LOOT) $(GEN_VER)
+
+# The version lives in VERSION alone; the release workflow checks the tag
+# against it. No Python needed, so this one is plain shell.
+$(GEN_VER): VERSION
+	@printf '%s\n' '/* GENERATED from VERSION by the Makefile -- do not edit. */' \
+	    '#ifndef Q4K_VERSION_H' '#define Q4K_VERSION_H' '' \
+	    "#define Q4K_VERSION \"$$(tr -d ' \n' < VERSION)\"" '' \
+	    '#endif' > $@
+	@echo "version: $$(cat VERSION)"
 
 $(GEN_TILES): assets/tiles.txt tools/mktiles.py
 	tools/mktiles.py
@@ -199,6 +210,35 @@ test: all
 # Accept the current output as correct. Review the diff before doing this.
 bless: all
 	@tools/test.sh --bless
+
+# --- release ----------------------------------------------------------------
+#
+# What .github/workflows/release.yml publishes for a v* tag, and what a
+# player downloads instead of building:
+#
+#   q4k-<version>.prg   the game, for VICE or any loader
+#   q4k-<version>.d64   the same on a disk: LOAD"Q4K",8,1 then RUN
+#   q4k-<version>.zip   the game plus the dialogue host and what it reads,
+#                       laid out as in the repo, so tools/play.sh runs as is
+
+VERSION_NUM := $(shell tr -d ' \n' < VERSION)
+REL_NAME    := q4k-$(VERSION_NUM)
+REL_DIR     := $(DIST)/release
+REL_STAGE   := $(BUILD)/release/$(REL_NAME)
+REL_FILES   := README.md host/npcd.py tools/play.sh tools/run.sh \
+               assets/canon.md assets/npcs.json assets/secrets.json \
+               assets/hints.json assets/geography.json
+
+release: dirs $(DIST)/q4k.prg
+	@rm -rf $(BUILD)/release $(REL_DIR)
+	@mkdir -p $(REL_DIR) $(REL_STAGE)/dist
+	cp $(DIST)/q4k.prg $(REL_DIR)/$(REL_NAME).prg
+	$(C1541) -format "q4k $(VERSION_NUM),01" d64 $(REL_DIR)/$(REL_NAME).d64 >/dev/null
+	$(C1541) -attach $(REL_DIR)/$(REL_NAME).d64 -write $(DIST)/q4k.prg q4k >/dev/null
+	tar -cf - $(REL_FILES) | tar -xf - -C $(REL_STAGE)
+	cp $(DIST)/q4k.prg $(REL_STAGE)/dist/q4k.prg
+	cd $(BUILD)/release && python3 -m zipfile -c $(CURDIR)/$(REL_DIR)/$(REL_NAME).zip $(REL_NAME)
+	@ls -l $(REL_DIR)
 
 # --- disk image -------------------------------------------------------------
 

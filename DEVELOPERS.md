@@ -31,10 +31,15 @@ make test             every screen test against its golden, plus checkmap
 make bless            accept current output as the new goldens
 make assets           regenerate the C and JSON built from assets/
 make d64 PROG=name    a bootable disk image
+make release          the release's .prg, .d64 and zip, in dist/release/
 make clean
 ```
 
 `make bless` is for after you have read the diff, never instead of it.
+
+Players get the game from a release and never need any of this; to play
+from a checkout instead, `make play` is the same thing as the release zip's
+`tools/play.sh`, with the game built from the tree.
 
 ## Testing
 
@@ -54,6 +59,40 @@ one screen while working.
 CLAUDE.md covers what the harness can do (`--keys`, `--poke`, `--peek`,
 `--shot`, the modem) and the ways a screen test goes flaky.
 
+## Releases
+
+The version lives in `VERSION` and nowhere else: `make` generates
+`include/q4k/version.h` from it, and the title screen shows it in the corner.
+Releases are tagged `v<version>`, and a tag push runs
+`.github/workflows/release.yml`, which publishes:
+
+- `q4k-<version>.prg`, the game;
+- `q4k-<version>.d64`, the game on a disk;
+- `q4k-<version>.zip`, the game plus the dialogue host and the assets it
+  reads, laid out as in the repo so `tools/play.sh` runs from inside it.
+
+`make release` builds the same three into `dist/release/`, which is the way
+to look at them before tagging.
+
+To cut one:
+
+1. Set the new version in `VERSION` and run `make`.
+2. Re-bless the title screen, whose golden shows the version -- read the
+   diff, which should be that one line.
+3. Add a `## <version>` section to `CHANGELOG.md`. It becomes the release's
+   notes, and the workflow refuses to publish without one.
+4. Merge to `main`, then tag it and push the tag:
+   `git tag v0.9.0 && git push origin v0.9.0`.
+
+The workflow refuses a tag that does not match `VERSION`, and checks the
+built title screen against its golden before publishing. The test workflow
+runs on the same tag push. A release already drafted by hand for the tag
+keeps its text and just gets the files.
+
+The `toolchain-vice3.10` release holds the headless VICE for
+`tools/cloud-setup.sh`. It is marked a pre-release so that it is never the
+one GitHub calls "Latest", which is the link the README gives players.
+
 ## Layout
 
 ```
@@ -65,6 +104,8 @@ assets/             tiles, overworld, towns, world canon, NPC roster
 host/               daemons that answer the C64's modem
 tools/              build, run, screenshot, screen dump, tests
 tests/              expected screen output
+VERSION             the version, and the only place it is written
+CHANGELOG.md        what each release changed; its notes on GitHub
 ```
 
 Besides the game, `make` builds five dev tools: `tiles` (the whole tile set),
@@ -73,7 +114,7 @@ levels), `arena` (fight any monster on any ground, at any level and in any
 kit) and `serialtest` (a modem loopback).
 
 Generated files (`src/lib/*_data.c`, `include/q4k/tiles.h`, `world_data.h`,
-`town_data.h`, `assets/geography.json`) are checked in so the build needs no
+`town_data.h`, `version.h`, `assets/geography.json`) are checked in so the build needs no
 Python, and `make` regenerates any whose assets have changed.
 `tools/genworld.py` drafted the overworld once and is not part of the build.
 
@@ -263,7 +304,11 @@ speaks the OpenAI chat shape works — another Ollama host, llama.cpp's server,
 a compatible proxy.
 
 If Ollama is unreachable or the model is not pulled, the daemon says so and
-serves canned lines rather than failing.
+serves canned lines rather than failing -- but it also answers the C64's
+startup `PING` with `ERR no model`, and the C64 then plays without
+conversations, as it does when nothing answers at all. `--mock` on purpose
+answers `OK mock`, and the C64 talks through it; that is what the tests
+and `Q4K_MOCK=1` use.
 
 ### Directions they can be trusted on
 
@@ -293,6 +338,7 @@ Protocol, CR-terminated ASCII both ways:
 ->  HI <npc> <stage> <seed>           open a conversation
 ->  SAY <npc> <stage> <seed> <text>   say something
 ->  ALE <inn> <stage> <seed>          buy the innkeeper a drink's worth
+->  PING                              at startup: is anyone there to talk?
 <-  OK <reply>   |   GIVE <g> <reply>   |   BYE <reply>   |   ERR <reason>
 ```
 
