@@ -14,7 +14,7 @@
  * 13 to 15), the only free 64-byte blocks in VIC bank 0: the charset fills
  * $3800-$3FFF and the program everything below it. All three are taken.
  *
- * Sprite 3 is a shot from a bow. Its data sits inside the charset, over
+ * Sprite 3 is a shot: an arrow, a breath of fire or of water. Its data sits inside the charset, over
  * reverse-video glyphs $C0-$C7 that the game never draws -- see sprite.c.
  * The same trick has room for more: the reverse half is 128 glyphs, and
  * only $A0 (the input cursor) is spoken for.
@@ -45,9 +45,15 @@ void sprite_face(unsigned char dir);
    afterwards and puts the sprite where the hero now stands. */
 void sprite_walk(unsigned char dir);
 
-/* Fly a shot from screen cell (col,row) `squares` squares in `dir`, and
-   hide it again at the end. Takes two frames a square. */
+/* What flies: each has its own shape and colour. */
+#define SHOT_ARROW 0   /* yellow; the hero's bow and the monsters' */
+#define SHOT_FIRE  1   /* orange; Maldrath's breath */
+#define SHOT_WATER 2   /* light blue; the Drowned King's */
+
+/* Fly a shot of `kind` from screen cell (col,row) `squares` squares in
+   `dir`, and hide it again at the end. Takes two frames a square. */
 void sprite_shot(unsigned char col, unsigned char row,
-                 unsigned char dir, unsigned char squares);
+                 unsigned char dir, unsigned char squares,
+                 unsigned char kind);
 
 #endif /* Q4K_SPRITE_H */

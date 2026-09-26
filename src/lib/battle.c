@@ -34,10 +34,19 @@ typedef struct {
     unsigned char speed;          /* moves a turn, in tenths: 15 = 1.5 */
     unsigned char size;           /* squares a side; the glyphs run on
                                      from `glyph` in reading order */
-    unsigned char shot, reach;    /* its bow's attack, and range in squares;
-                                     left out, and so 0, for the many things
-                                     that only close in */
+    unsigned char shot, reach;    /* its ranged attack, and range in
+                                     squares; left out, and so 0, for the
+                                     many things that only close in */
+    unsigned char kind;           /* what it shoots, SHOT_*: left out, an
+                                     arrow */
 } Monster;
+
+/* How each SHOT_* kind lands, by the same index. */
+static const char *const shot_hits[] = {
+    "An arrow hits you for ",
+    "Flame sears you for ",
+    "A wave hits you for ",
+};
 
 /* Wandering monsters, weakest first; which one shows up scales with level. */
 static const Monster wanderers[] = {
@@ -45,7 +54,10 @@ static const Monster wanderers[] = {
     { "A goblin",     7,  3, 1,  4,   6, T_GOBLIN,   TC_GOBLIN,   10, 1 },
     { "A wolf",       9,  4, 1,  6,   5, T_WOLF,     TC_WOLF,     15, 1 },
     { "A bandit",    12,  5, 2,  9,  15, T_BANDIT,   TC_BANDIT,   10, 1, 3,  6 },
+    { "A cutthroat", 12,  5, 2,  9,  15, T_BANDIT,   COLOR_RED,   10, 1 },
     { "A skeleton",  15,  6, 3, 12,  12, T_SKELETON, TC_SKELETON,  8, 1 },
+    { "A skeleton archer",
+                     13,  4, 2, 14,  14, T_SKELETON, COLOR_GRAY3,  8, 1, 5,  8 },
     { "An ogre",     22,  8, 3, 18,  25, T_OGRE,     TC_OGRE,      7, 1 },
     { "A wraith",    26, 10, 4, 25,  30, T_WRAITH,   TC_WRAITH,   12, 1 },
     { "A drake",     32, 12, 5, 35,  45, T_DRAKE,    TC_DRAKE,    17, 1 },
@@ -55,12 +67,14 @@ static const Monster wanderers[] = {
 /* One keeper per deep place, in the order the quest opens them. */
 static const Monster keepers[NUM_DUNGEONS] = {
     { "The Gaoler",       45, 12, 5,  60,  80, T_MONSTER, TC_MONSTER, 10, 1 },
-    { "The Drowned King", 60, 15, 6,  90, 120, T_MONSTER, TC_MONSTER, 10, 1 },
+    { "The Drowned King", 60, 15, 6,  90, 120, T_MONSTER, TC_MONSTER, 10, 1,
+      12, 4, SHOT_WATER },
     { "The Pit Warden",   80, 18, 8, 140, 180, T_MONSTER, TC_MONSTER, 10, 1 },
 };
 
 static const Monster maldrath = {
-    "Maldrath", 120, 22, 10, 255, 0, T_DRAGONTL, TC_DRAGONTL, 10, 2
+    "Maldrath", 120, 22, 10, 255, 0, T_DRAGONTL, TC_DRAGONTL, 10, 2,
+    18, 4, SHOT_FIRE
 };
 
 const char *const weapon_names[NUM_WEAPONS] = {
@@ -539,7 +553,7 @@ static unsigned char loose(const Monster *m, unsigned char m_hp,
         }
     }
 
-    sprite_shot(hx, hy, dir, flew);
+    sprite_shot(hx, hy, dir, flew, SHOT_ARROW);
     if (hit) {
         strcpy(msg, what);
         strcat(msg, " hits for ");
@@ -753,8 +767,9 @@ static unsigned char field_fight(const Monster *m, unsigned char ground,
         }
 
         /* Its turn: as many moves as it has banked whole ones. Beside
-           you it strikes; in line and in reach it shoots, and that is the
-           rest of its turn -- a fast archer nocks one arrow at a time. */
+           you it strikes; in line and in reach it shoots (or breathes),
+           and that is the rest of its turn -- a fast archer nocks one
+           arrow at a time. */
         pace += rel;
         for (; pace >= 10; pace -= 10) {
             if (next_to()) {
@@ -763,8 +778,8 @@ static unsigned char field_fight(const Monster *m, unsigned char ground,
                     return lost();
                 }
             } else if ((dir = aim()) != 0xFF) {
-                sprite_shot(sx, sy, dir, flew);
-                if (bitten(m->shot, guard, "An arrow hits you for ")) {
+                sprite_shot(sx, sy, dir, flew, m->kind);
+                if (bitten(m->shot, guard, shot_hits[m->kind])) {
                     view_draw_panel();
                     return lost();
                 }
