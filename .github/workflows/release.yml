@@ -1,0 +1,83 @@
+# Publish a release of the game for a version tag.
+#
+#   1. Set the new version in VERSION, `make`, re-bless the title screen
+#      (it shows the version), and add a section for it to CHANGELOG.md.
+#   2. Merge that to main, then tag it:  git tag v0.9.0 && git push origin v0.9.0
+#
+# The tag must match VERSION, or nothing is published. The release gets the
+# files `make release` builds -- the .prg, a .d64 and the zip with the
+# dialogue host -- and CHANGELOG.md's section for that version as its notes.
+# A release already drafted by hand for the tag (from GitHub's own "Draft a
+# new release" page, say) keeps its text and gets the files added to it.
+#
+# The test workflow runs on the same tag push; this one only checks that the
+# title screen shows the version, so that is the run to watch for the rest.
+
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag matches VERSION
+        run: |
+          version=$(tr -d ' \n' < VERSION)
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match VERSION ($version)"
+            exit 1
+          fi
+          echo "VERSION_NUM=$version" >> "$GITHUB_ENV"
+
+      # The build needs cc65, and VICE for the character ROM the font is
+      # built from and for the screen check. The setup script downloads the
+      # prebuilt VICE from the toolchain release with this token.
+      - name: Set up the toolchain
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: tools/cloud-setup.sh
+
+      - name: Build
+        run: make && make release
+
+      - name: Check the title screen shows the version
+        run: tools/screendump.py dist/q4k.prg | diff -u tests/golden/title.txt -
+
+      - name: Release notes from CHANGELOG.md
+        run: |
+          # Everything under "## <version>" up to the next "## ".
+          awk -v v="$VERSION_NUM" '
+            /^## / { on = ($2 == v); next }
+            on
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::CHANGELOG.md has no section for $VERSION_NUM"
+            exit 1
+          fi
+          cat notes.md
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          files="dist/release/q4k-$VERSION_NUM.prg dist/release/q4k-$VERSION_NUM.d64 dist/release/q4k-$VERSION_NUM.zip"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            # shellcheck disable=SC2086
+            gh release upload "$GITHUB_REF_NAME" $files --clobber
+          else
+            # shellcheck disable=SC2086
+            gh release create "$GITHUB_REF_NAME" $files \
+              --title "Quest for the King $VERSION_NUM" \
+              --notes-file notes.md --latest
+          fi

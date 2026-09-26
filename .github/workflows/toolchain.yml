@@ -50,8 +50,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="toolchain-vice$VICE_VERSION"
+          # A pre-release, so it is never the one GitHub calls "Latest":
+          # that link is for players, and points at the game.
           gh release view "$tag" >/dev/null 2>&1 \
-            || gh release create "$tag" --target "$GITHUB_SHA" \
+            || gh release create "$tag" --target "$GITHUB_SHA" --prerelease \
                  --title "Toolchain: VICE $VICE_VERSION (headless)" \
                  --notes "Headless VICE for tools/cloud-setup.sh, built on ubuntu-24.04 into /opt/vice. Not a game release."
+          gh release edit "$tag" --prerelease
           gh release upload "$tag" "vice-$VICE_VERSION-headless.tgz" --clobber

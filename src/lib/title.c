@@ -10,6 +10,7 @@
 #include <q4k/savegame.h>
 #include <q4k/tiles.h>
 #include <q4k/title.h>
+#include <q4k/version.h>
 #include <q4k/view.h>
 
 #define STORY_Y   5
@@ -94,6 +95,9 @@ unsigned char title_screen(char *name, unsigned char max)
     textcolor(COLOR_GRAY2);
     cputsxy(1, HINT_Y, "RETURN alone for a random name");
     cputsxy(1, LOAD_Y, "F3 to load a saved game");
+    textcolor(COLOR_GRAY1);
+    /* Right-aligned, a column in from the edge: sizeof counts the NUL. */
+    cputsxy(SCR_W - sizeof("v" Q4K_VERSION), SCR_H - 1, "v" Q4K_VERSION);
 
     /* The launcher is still typing RUN when we get here. */
     while (kbhit()) {

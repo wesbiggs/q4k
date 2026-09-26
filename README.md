@@ -13,18 +13,40 @@ talk to: every NPC answers in their own voice, from the world's canon and
 from how far you have got, through a model running on the host at the other
 end of the C64's modem port.
 
-## Running it
+## Getting it
 
-The game is built from source and run in the VICE emulator; the toolchain,
-and everything else about working on the game, is in
-[DEVELOPERS.md](DEVELOPERS.md). Once that is installed:
+Download the files from the
+[latest release](https://github.com/wesbiggs/q4k/releases/latest). There are
+three, and you only need one:
+
+| file | |
+|---|---|
+| `q4k-<version>.zip` | the game and everything people need to talk -- start here |
+| `q4k-<version>.prg` | the game alone |
+| `q4k-<version>.d64` | the game on a disk image, for a real C64 or any emulator |
+
+All of them run in [VICE](https://vice-emu.sourceforge.io), the Commodore
+emulator (`brew install vice` on a Mac).
+
+**The zip** (macOS or Linux, with Python 3). Unzip it and start the game
+from inside the folder; this brings up the program that lets people talk,
+connects the emulator's modem port to it, and gives you a disk to save on:
 
 ```bash
-make                  # build
-make play             # play, with NPC dialogue if a model is running
-Q4K_MOCK=1 make play  # play with canned NPC replies, no model needed
-make d64 PROG=q4k     # or build a disk image to load anywhere
+cd q4k-0.9.0
+tools/play.sh
 ```
+
+**The .prg** runs on its own: open it in VICE, or drop it on the window.
+With nothing on the other end of the modem, people cannot talk -- the line
+is dead -- but they still hand over what the quest needs, so the game can be
+finished. To save you need a disk in drive 8: attach any blank `.d64` from
+VICE's File menu.
+
+**The .d64** is the same game on a disk. In VICE, or on a real machine with
+an SD card drive: `LOAD"Q4K",8` and `RUN`.
+
+To build it yourself instead, see [DEVELOPERS.md](DEVELOPERS.md).
 
 ## Playing
 
@@ -54,8 +76,8 @@ A healing draught restores a share of your full health, so it is worth a
 turn late in the game as well as early, and its price climbs to match: five
 marks, plus five for each level you have.
 
-Saved games go to a disk in unit 8; `make play` creates `dist/saves.d64` the
-first time and attaches it.
+Saved games go to a disk in drive 8. `tools/play.sh` makes one,
+`dist/saves.d64`, the first time and attaches it every time after.
 
 ### Fighting
 
@@ -105,9 +127,9 @@ The model is whatever [Ollama](https://ollama.com) is serving, by default
 ollama serve &                 # if it is not already running
 ollama pull llama3.2:3b
 
-make play                      # live dialogue
-Q4K_MOCK=1 make play           # canned replies, no model needed
-Q4K_MODEL=llama3.2:1b make play
+tools/play.sh                  # from inside the unzipped folder
+Q4K_MOCK=1 tools/play.sh       # canned replies, no model needed
+Q4K_MODEL=llama3.2:1b tools/play.sh
 ```
 
 If Ollama is unreachable or the model is not pulled, people answer with
