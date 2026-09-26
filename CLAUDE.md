@@ -1,7 +1,8 @@
 # Quest for the King — working notes
 
 Grid-based RPG roguelike for the Commodore 64 (Ultima III lineage).
-cc65 + VICE on macOS. See README.md for the workflow and the story.
+cc65 + VICE on macOS. See DEVELOPERS.md for the workflow and README.md for
+the story and how to play.
 
 ## Conventions
 
