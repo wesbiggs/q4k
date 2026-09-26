@@ -7,64 +7,73 @@ const unsigned char tile_flags[TILE_COUNT] = {
     TF_PASS, /* $60 grass */
     TF_PASS, /* $61 forest */
     TF_BLOCK, /* $62 mountain */
-    TF_WATER, /* $63 water */
-    TF_PASS, /* $64 shore */
-    TF_PASS, /* $65 swamp */
-    TF_ENTER, /* $66 town */
-    TF_ENTER, /* $67 castle */
-    TF_ENTER, /* $68 dungeon */
-    TF_PASS, /* $69 bridge */
-    TF_BLOCK, /* $6A wall */
-    TF_PASS, /* $6B floor */
-    TF_PASS, /* $6C door */
-    TF_PASS, /* $6D stairdn */
-    TF_PASS, /* $6E stairup */
-    TF_PASS, /* $6F chest */
-    TF_ENTER, /* $70 lair */
-    TF_BLOCK, /* $71 tree */
-    TF_BLOCK, /* $72 boulder */
-    TF_BLOCK, /* $73 potion */
-    TF_BLOCK, /* $74 sword */
-    TF_BLOCK, /* $75 bed */
-    TF_BLOCK, /* $76 shield */
-    TF_BLOCK, /* $77 shelf */
-    TF_BLOCK, /* $78 bow */
-    TF_PASS, /* $79 drawbridge */
+    TF_PASS, /* $63 pass */
+    TF_WATER, /* $64 water */
+    TF_PASS, /* $65 shore */
+    TF_PASS, /* $66 swamp */
+    TF_ENTER, /* $67 town */
+    TF_ENTER, /* $68 castle */
+    TF_ENTER, /* $69 dungeon */
+    TF_PASS, /* $6A bridge */
+    TF_BLOCK, /* $6B wall */
+    TF_PASS, /* $6C floor */
+    TF_PASS, /* $6D door */
+    TF_PASS, /* $6E stairdn */
+    TF_PASS, /* $6F stairup */
+    TF_PASS, /* $70 chest */
+    TF_ENTER, /* $71 lair */
+    TF_BLOCK, /* $72 tree */
+    TF_BLOCK, /* $73 boulder */
+    TF_BLOCK, /* $74 potion */
+    TF_BLOCK, /* $75 sword */
+    TF_BLOCK, /* $76 bed */
+    TF_BLOCK, /* $77 shield */
+    TF_BLOCK, /* $78 shelf */
+    TF_BLOCK, /* $79 bow */
+    TF_PASS, /* $7A drawbridge */
+    TF_BLOCK, /* $7B lockeddoor */
+    TF_PASS, /* $7C secretdoor */
+    TF_BLOCK, /* $7D crown */
 };
 
 const unsigned char tile_colors[TILE_COUNT] = {
      5,      /* $60 grass */
     13,      /* $61 forest */
     12,      /* $62 mountain */
-     6,      /* $63 water */
-     7,      /* $64 shore */
-     9,      /* $65 swamp */
-    10,      /* $66 town */
-     1,      /* $67 castle */
-    11,      /* $68 dungeon */
-     9,      /* $69 bridge */
-    12,      /* $6A wall */
-    11,      /* $6B floor */
-     9,      /* $6C door */
-    15,      /* $6D stairdn */
-    15,      /* $6E stairup */
-     7,      /* $6F chest */
-     2,      /* $70 lair */
-     5,      /* $71 tree */
-    12,      /* $72 boulder */
-     4,      /* $73 potion */
-     1,      /* $74 sword */
-    10,      /* $75 bed */
-    14,      /* $76 shield */
-     9,      /* $77 shelf */
-     8,      /* $78 bow */
-     9,      /* $79 drawbridge */
+    12,      /* $63 pass */
+     6,      /* $64 water */
+     7,      /* $65 shore */
+     9,      /* $66 swamp */
+    10,      /* $67 town */
+     1,      /* $68 castle */
+    11,      /* $69 dungeon */
+     9,      /* $6A bridge */
+    12,      /* $6B wall */
+    11,      /* $6C floor */
+     9,      /* $6D door */
+    15,      /* $6E stairdn */
+    15,      /* $6F stairup */
+     7,      /* $70 chest */
+     2,      /* $71 lair */
+     5,      /* $72 tree */
+    12,      /* $73 boulder */
+     4,      /* $74 potion */
+     1,      /* $75 sword */
+    10,      /* $76 bed */
+    14,      /* $77 shield */
+     9,      /* $78 shelf */
+     8,      /* $79 bow */
+     9,      /* $7A drawbridge */
+     9,      /* $7B lockeddoor */
+    12,      /* $7C secretdoor */
+     7,      /* $7D crown */
 };
 
-static const unsigned char glyphs[42][8] = {
+static const unsigned char glyphs[46][8] = {
     { 0x00, 0x10, 0x38, 0x00, 0x00, 0x01, 0x07, 0x00 },  /* grass */
     { 0x18, 0x3C, 0x7E, 0xFF, 0x7E, 0x18, 0x18, 0x00 },  /* forest */
     { 0x00, 0x18, 0x18, 0x3C, 0x3C, 0x7E, 0xFF, 0x00 },  /* mountain */
+    { 0x00, 0x18, 0x18, 0x3C, 0x3E, 0x7E, 0xFF, 0x00 },  /* pass */
     { 0x00, 0x66, 0x99, 0x00, 0x00, 0x33, 0x4C, 0x00 },  /* water */
     { 0x00, 0x22, 0x00, 0x88, 0x00, 0x22, 0x00, 0x88 },  /* shore */
     { 0x00, 0x4A, 0x30, 0x89, 0x00, 0x58, 0x85, 0x00 },  /* swamp */
@@ -88,6 +97,9 @@ static const unsigned char glyphs[42][8] = {
     { 0xFF, 0xAD, 0xAD, 0xFF, 0xD5, 0xD5, 0xFF, 0x81 },  /* shelf */
     { 0x0C, 0x16, 0x26, 0x26, 0x26, 0x26, 0x16, 0x0C },  /* bow */
     { 0xAA, 0xAA, 0xBA, 0xAA, 0xEA, 0xAA, 0xAE, 0xAA },  /* drawbridge */
+    { 0x00, 0x7E, 0x7E, 0x7E, 0x7E, 0x7E, 0x7E, 0x00 },  /* lockeddoor */
+    { 0xFF, 0x22, 0xFF, 0x88, 0xFF, 0x22, 0xFF, 0x88 },  /* secretdoor */
+    { 0x00, 0x00, 0x00, 0x5A, 0x5A, 0x7E, 0x7E, 0x00 },  /* crown */
     { 0x18, 0x3C, 0x18, 0x7E, 0x18, 0x18, 0x24, 0x66 },  /* player */
     { 0x18, 0x3C, 0x18, 0x3C, 0x5A, 0x18, 0x24, 0x66 },  /* villager */
     { 0x00, 0x42, 0x24, 0x7E, 0x5A, 0x7E, 0x5A, 0x42 },  /* monster */
@@ -106,8 +118,8 @@ static const unsigned char glyphs[42][8] = {
     { 0xFE, 0xF4, 0xE0, 0xF0, 0xB8, 0x98, 0x1C, 0x06 },  /* dragonbr */
 };
 
-static const unsigned char codes[42] = {
-    0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7D, 0x7A, 0x7B, 0x7C, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B
+static const unsigned char codes[46] = {
+    0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x8C, 0x8D, 0x8E, 0x8F, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B
 };
 
 void tiles_install(void)
@@ -115,7 +127,7 @@ void tiles_install(void)
     unsigned char i;
 
     charset_install();
-    for (i = 0; i < 42; ++i) {
+    for (i = 0; i < 46; ++i) {
         charset_define(codes[i], glyphs[i]);
     }
 }

@@ -4,8 +4,8 @@
 
 /* Terrain properties are indexed by screen code - TILE_BASE. */
 #define TILE_BASE   0x60
-#define TILE_COUNT  26   /* terrain only, contiguous */
-#define TILE_TOTAL  42   /* terrain + actors          */
+#define TILE_COUNT  30   /* terrain only, contiguous */
+#define TILE_TOTAL  46   /* terrain + actors          */
 
 #define TF_PASS     0  /* walk onto it freely        */
 #define TF_BLOCK    1  /* impassable                 */
@@ -15,33 +15,37 @@
 #define T_GRASS     0x60
 #define T_FOREST    0x61
 #define T_MOUNTAIN  0x62
-#define T_WATER     0x63
-#define T_SHORE     0x64
-#define T_SWAMP     0x65
-#define T_TOWN      0x66
-#define T_CASTLE    0x67
-#define T_DUNGEON   0x68
-#define T_BRIDGE    0x69
-#define T_WALL      0x6A
-#define T_FLOOR     0x6B
-#define T_DOOR      0x6C
-#define T_STAIRDN   0x6D
-#define T_STAIRUP   0x6E
-#define T_CHEST     0x6F
-#define T_LAIR      0x70
-#define T_TREE      0x71
-#define T_BOULDER   0x72
-#define T_POTION    0x73
-#define T_SWORD     0x74
-#define T_BED       0x75
-#define T_SHIELD    0x76
-#define T_SHELF     0x77
-#define T_BOW       0x78
-#define T_DRAWBRIDGE 0x79
-#define T_PLAYER    0x7D
-#define T_VILLAGER  0x7A
-#define T_MONSTER   0x7B
-#define T_DRAGON    0x7C
+#define T_PASS      0x63
+#define T_WATER     0x64
+#define T_SHORE     0x65
+#define T_SWAMP     0x66
+#define T_TOWN      0x67
+#define T_CASTLE    0x68
+#define T_DUNGEON   0x69
+#define T_BRIDGE    0x6A
+#define T_WALL      0x6B
+#define T_FLOOR     0x6C
+#define T_DOOR      0x6D
+#define T_STAIRDN   0x6E
+#define T_STAIRUP   0x6F
+#define T_CHEST     0x70
+#define T_LAIR      0x71
+#define T_TREE      0x72
+#define T_BOULDER   0x73
+#define T_POTION    0x74
+#define T_SWORD     0x75
+#define T_BED       0x76
+#define T_SHIELD    0x77
+#define T_SHELF     0x78
+#define T_BOW       0x79
+#define T_DRAWBRIDGE 0x7A
+#define T_LOCKEDDOOR 0x7B
+#define T_SECRETDOOR 0x7C
+#define T_CROWN     0x7D
+#define T_PLAYER    0x8C
+#define T_VILLAGER  0x8D
+#define T_MONSTER   0x8E
+#define T_DRAGON    0x8F
 #define T_RAT       0x80
 #define T_GOBLIN    0x81
 #define T_WOLF      0x82
@@ -58,6 +62,7 @@
 #define TC_GRASS    5
 #define TC_FOREST   13
 #define TC_MOUNTAIN 12
+#define TC_PASS     12
 #define TC_WATER    6
 #define TC_SHORE    7
 #define TC_SWAMP    9
@@ -81,6 +86,9 @@
 #define TC_SHELF    9
 #define TC_BOW      8
 #define TC_DRAWBRIDGE 9
+#define TC_LOCKEDDOOR 9
+#define TC_SECRETDOOR 12
+#define TC_CROWN    7
 #define TC_PLAYER   1
 #define TC_VILLAGER 3
 #define TC_MONSTER  10

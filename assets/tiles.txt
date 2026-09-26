@@ -43,7 +43,17 @@ tile mountain ^ 0x62 block gray2
 ########
 ........
 
-tile water ~ 0x63 water blue
+tile pass & 0x63 pass gray2
+........
+...##...
+...##...
+..####..
+..#####.
+.######.
+########
+........
+
+tile water ~ 0x64 water blue
 ........
 .##..##.
 #..##..#
@@ -53,7 +63,7 @@ tile water ~ 0x63 water blue
 .#..##..
 ........
 
-tile shore , 0x64 pass yellow
+tile shore , 0x65 pass yellow
 ........
 ..#...#.
 ........
@@ -63,7 +73,7 @@ tile shore , 0x64 pass yellow
 ........
 #...#...
 
-tile swamp % 0x65 pass brown
+tile swamp % 0x66 pass brown
 ........
 .#..#.#.
 ..##....
@@ -73,7 +83,7 @@ tile swamp % 0x65 pass brown
 #....#.#
 ........
 
-tile town T 0x66 enter lightred
+tile town T 0x67 enter lightred
 ........
 ...##...
 ..####..
@@ -83,7 +93,7 @@ tile town T 0x66 enter lightred
 .#.##.#.
 ........
 
-tile castle C 0x67 enter white
+tile castle C 0x68 enter white
 ........
 #.#.#.##
 ########
@@ -93,7 +103,7 @@ tile castle C 0x67 enter white
 #..##..#
 ........
 
-tile dungeon D 0x68 enter gray1
+tile dungeon D 0x69 enter gray1
 ........
 ..####..
 .######.
@@ -103,7 +113,7 @@ tile dungeon D 0x68 enter gray1
 .#....#.
 ........
 
-tile bridge = 0x69 pass brown
+tile bridge = 0x6A pass brown
 ........
 ########
 #......#
@@ -113,7 +123,7 @@ tile bridge = 0x69 pass brown
 ########
 ........
 
-tile wall # 0x6A block gray2
+tile wall # 0x6B block gray2
 ########
 ..#...#.
 ########
@@ -123,7 +133,7 @@ tile wall # 0x6A block gray2
 ########
 #...#...
 
-tile floor _ 0x6B pass gray1
+tile floor _ 0x6C pass gray1
 ........
 ........
 ...#....
@@ -133,7 +143,7 @@ tile floor _ 0x6B pass gray1
 ........
 ....#...
 
-tile door + 0x6C pass brown
+tile door + 0x6D pass brown
 ........
 .######.
 .#....#.
@@ -143,7 +153,7 @@ tile door + 0x6C pass brown
 .######.
 ........
 
-tile stairdn > 0x6D pass gray3
+tile stairdn > 0x6E pass gray3
 ........
 ##......
 ##......
@@ -153,7 +163,7 @@ tile stairdn > 0x6D pass gray3
 ######..
 ########
 
-tile stairup < 0x6E pass gray3
+tile stairup < 0x6F pass gray3
 ........
 ......##
 ......##
@@ -163,7 +173,7 @@ tile stairup < 0x6E pass gray3
 ..######
 ########
 
-tile chest * 0x6F pass yellow
+tile chest * 0x70 pass yellow
 ........
 ..####..
 .######.
@@ -173,7 +183,7 @@ tile chest * 0x6F pass yellow
 .######.
 ........
 
-tile lair L 0x70 enter red
+tile lair L 0x71 enter red
 ........
 ..#..#..
 .##..##.
@@ -185,7 +195,7 @@ tile lair L 0x70 enter red
 
 # Scenery for the battle fields: solid, unlike the overworld's forest square,
 # which stands for a whole wood you can walk into.
-tile tree t 0x71 block green
+tile tree t 0x72 block green
 ...#....
 ..###...
 ..###...
@@ -195,7 +205,7 @@ tile tree t 0x71 block green
 ...#....
 ........
 
-tile boulder o 0x72 block gray2
+tile boulder o 0x73 block gray2
 ........
 ..###...
 .#####..
@@ -208,7 +218,7 @@ tile boulder o 0x72 block gray2
 # Furniture: what a building is for, readable from outside it. Solid, so
 # place it where it does not stand between the door and whoever is inside;
 # tools/checkmap.py will say if it does.
-tile potion ! 0x73 block violet
+tile potion ! 0x74 block violet
 ..####..
 ...##...
 ..####..
@@ -218,7 +228,7 @@ tile potion ! 0x73 block violet
 ..####..
 ........
 
-tile sword / 0x74 block white
+tile sword / 0x75 block white
 ......##
 .....###
 ....###.
@@ -228,7 +238,7 @@ tile sword / 0x74 block white
 .####...
 ##..#...
 
-tile bed B 0x75 block lightred
+tile bed B 0x76 block lightred
 ........
 #.......
 #.##....
@@ -238,7 +248,7 @@ tile bed B 0x75 block lightred
 #......#
 ........
 
-tile shield ) 0x76 block lightblue
+tile shield ) 0x77 block lightblue
 ########
 #..##..#
 #..##..#
@@ -248,7 +258,7 @@ tile shield ) 0x76 block lightblue
 ..####..
 ...##...
 
-tile shelf H 0x77 block brown
+tile shelf H 0x78 block brown
 ########
 #.#.##.#
 #.#.##.#
@@ -258,7 +268,7 @@ tile shelf H 0x77 block brown
 ########
 #......#
 
-tile bow } 0x78 block orange
+tile bow } 0x79 block orange
 ....##..
 ...#.##.
 ..#..##.
@@ -268,7 +278,7 @@ tile bow } 0x78 block orange
 ...#.##.
 ....##..
 
-tile drawbridge | 0x79 pass brown
+tile drawbridge | 0x7A pass brown
 #.#.#.#.
 #.#.#.#.
 #.###.#.
@@ -278,11 +288,46 @@ tile drawbridge | 0x79 pass brown
 #.#.###.
 #.#.#.#.
 
-# The hero is a sprite, but keeps a glyph for src/tiles.c. It moved up
-# from $78 when furniture took $73-$78, and to $7D when the drawbridge
-# took $79 (terrain must stay contiguous; actors make way).
+tile lockeddoor k 0x7B block brown
+........
+.######.
+.######.
+.######.
+.######.
+.######.
+.######.
+........
 
-tile player @ 0x7D actor white
+# Walks like floor, looks exactly like wall: keep the glyph in step with it.
+tile secretdoor ? 0x7C pass gray2
+########
+..#...#.
+########
+#...#...
+########
+..#...#.
+########
+#...#...
+
+# Sits on the square above the king, so it hugs the bottom of the cell and
+# rests on his head.
+tile crown c 0x7D block yellow
+........
+........
+........
+.#.##.#.
+.#.##.#.
+.######.
+.######.
+........
+
+# $7E-$7F are free for more terrain. Terrain must stay contiguous from $60,
+# so the actors below sit clear of it, after the monsters in the reverse
+# half; nothing stores them in an RLE map, which could not hold them.
+#
+# The hero is a sprite, but keeps a glyph for src/tiles.c.
+
+tile player @ 0x8C actor white
 ...##...
 ..####..
 ...##...
@@ -292,7 +337,7 @@ tile player @ 0x7D actor white
 ..#..#..
 .##..##.
 
-tile villager v 0x7A actor cyan
+tile villager v 0x8D actor cyan
 ...##...
 ..####..
 ...##...
@@ -302,7 +347,7 @@ tile villager v 0x7A actor cyan
 ..#..#..
 .##..##.
 
-tile monster m 0x7B actor lightred
+tile monster m 0x8E actor lightred
 ........
 .#....#.
 ..#..#..
@@ -312,7 +357,7 @@ tile monster m 0x7B actor lightred
 .#.##.#.
 .#....#.
 
-tile dragon Y 0x7C actor red
+tile dragon Y 0x8F actor red
 ##....##
 .##..##.
 ..####..
