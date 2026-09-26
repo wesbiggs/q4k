@@ -34,6 +34,9 @@ typedef struct {
     unsigned char speed;          /* moves a turn, in tenths: 15 = 1.5 */
     unsigned char size;           /* squares a side; the glyphs run on
                                      from `glyph` in reading order */
+    unsigned char shot, reach;    /* its bow's attack, and range in squares;
+                                     left out, and so 0, for the many things
+                                     that only close in */
 } Monster;
 
 /* Wandering monsters, weakest first; which one shows up scales with level. */
@@ -41,7 +44,7 @@ static const Monster wanderers[] = {
     { "A rat",        4,  2, 0,  2,   2, T_RAT,      TC_RAT,      13, 1 },
     { "A goblin",     7,  3, 1,  4,   6, T_GOBLIN,   TC_GOBLIN,   10, 1 },
     { "A wolf",       9,  4, 1,  6,   5, T_WOLF,     TC_WOLF,     15, 1 },
-    { "A bandit",    12,  5, 2,  9,  15, T_BANDIT,   TC_BANDIT,   10, 1 },
+    { "A bandit",    12,  5, 2,  9,  15, T_BANDIT,   TC_BANDIT,   10, 1, 3,  6 },
     { "A skeleton",  15,  6, 3, 12,  12, T_SKELETON, TC_SKELETON,  8, 1 },
     { "An ogre",     22,  8, 3, 18,  25, T_OGRE,     TC_OGRE,      7, 1 },
     { "A wraith",    26, 10, 4, 25,  30, T_WRAITH,   TC_WRAITH,   12, 1 },
@@ -205,16 +208,18 @@ static unsigned char strike(const Monster *m, unsigned char m_hp,
     return hit >= m_hp ? m_hp : hit;
 }
 
-/* Returns 1 if that was the end of you. */
-static unsigned char bitten(const Monster *m, unsigned char guard)
+/* Returns 1 if that was the end of you. `how` begins the line, as it does
+   for strike(): "It hits you for " or a shot's. */
+static unsigned char bitten(unsigned char atk, unsigned char guard,
+                            const char *how)
 {
     unsigned char hit;
 
-    hit = m->atk + (unsigned char)(rand() % 3);
+    hit = atk + (unsigned char)(rand() % 3);
     hit = hit > (armour_def[armour_lv] + guard)
           ? hit - armour_def[armour_lv] - guard : 1;
 
-    strcpy(msg, "It hits you for ");
+    strcpy(msg, how);
     cat_num(hit);
     strcat(msg, ".");
     view_message(msg);
@@ -546,6 +551,63 @@ static unsigned char loose(const Monster *m, unsigned char m_hp,
     return 0;
 }
 
+/* Can the monster shoot the hero from where it stands? The same rules as
+   the hero's bow, turned round: straight up, down, left or right, within
+   its reach, and nothing solid in between. Returns the direction, or 0xFF,
+   and leaves where the shot sets off from in (sx,sy) and how far it flies
+   in `flew`. A body bigger than a square shoots from whichever part of it
+   lines up. */
+static unsigned char sx, sy, flew;
+
+static unsigned char aim(void)
+{
+    unsigned char dir, x, y;
+
+    if (!foe->reach) {
+        return 0xFF;
+    }
+    if ((unsigned char)(hx - mx) < size) {
+        sx = hx;
+        if (hy < my) {
+            sy = my;
+            dir = DIR_UP;
+        } else {
+            sy = my + size - 1;
+            dir = DIR_DOWN;
+        }
+    } else if ((unsigned char)(hy - my) < size) {
+        sy = hy;
+        if (hx < mx) {
+            sx = mx;
+            dir = DIR_LEFT;
+        } else {
+            sx = mx + size - 1;
+            dir = DIR_RIGHT;
+        }
+    } else {
+        return 0xFF;                         /* not in line */
+    }
+
+    x = sx;
+    y = sy;
+    for (flew = 1; flew <= foe->reach; ++flew) {
+        switch (dir) {
+            case DIR_UP:   --y; break;
+            case DIR_DOWN: ++y; break;
+            case DIR_LEFT: --x; break;
+            default:       ++x; break;
+        }
+        if (x == hx && y == hy) {
+            return dir;
+        }
+        if (tile_flags[field[(unsigned int)y * LOCAL_W + x] - TILE_BASE]
+            == TF_BLOCK) {
+            break;
+        }
+    }
+    return 0xFF;                             /* out of reach, or blocked */
+}
+
 static unsigned char field_fight(const Monster *m, unsigned char ground,
                                  unsigned char can_flee)
 {
@@ -690,14 +752,24 @@ static unsigned char field_fight(const Monster *m, unsigned char ground,
             return won(m);
         }
 
-        /* Its turn: as many moves as it has banked whole ones. */
+        /* Its turn: as many moves as it has banked whole ones. Beside
+           you it strikes; in line and in reach it shoots, and that is the
+           rest of its turn -- a fast archer nocks one arrow at a time. */
         pace += rel;
         for (; pace >= 10; pace -= 10) {
             if (next_to()) {
-                if (bitten(m, guard)) {
+                if (bitten(m->atk, guard, "It hits you for ")) {
                     view_draw_panel();
                     return lost();
                 }
+            } else if ((dir = aim()) != 0xFF) {
+                sprite_shot(sx, sy, dir, flew);
+                if (bitten(m->shot, guard, "An arrow hits you for ")) {
+                    view_draw_panel();
+                    return lost();
+                }
+                pace %= 10;
+                break;
             } else {
                 foe_step();
             }
