@@ -66,13 +66,32 @@ static const unsigned char frames[4][2][8] = {
     },
 };
 
-/* The shot, pointing each way: down, up, left, right as DIR_* numbers
-   them. Fletching at the back, a head at the front. */
-static const unsigned char shot_shapes[4][8] = {
-    { 0x00, 0x14, 0x08, 0x08, 0x08, 0x08, 0x1C, 0x08 },   /* down  */
-    { 0x08, 0x1C, 0x08, 0x08, 0x08, 0x08, 0x14, 0x00 },   /* up    */
-    { 0x00, 0x00, 0x41, 0xFF, 0x41, 0x00, 0x00, 0x00 },   /* left  */
-    { 0x00, 0x00, 0x82, 0xFF, 0x82, 0x00, 0x00, 0x00 },   /* right */
+/* The shots, by SHOT_* kind, pointing each way: down, up, left, right as
+   DIR_* numbers them. The front is always the heavy end: an arrow's head
+   with its fletching behind, a flame's body with sparks behind, a gout of
+   water with its spray behind. */
+static const unsigned char shot_shapes[3][4][8] = {
+    {   /* arrow */
+        { 0x00, 0x14, 0x08, 0x08, 0x08, 0x08, 0x1C, 0x08 },
+        { 0x08, 0x1C, 0x08, 0x08, 0x08, 0x08, 0x14, 0x00 },
+        { 0x00, 0x00, 0x41, 0xFF, 0x41, 0x00, 0x00, 0x00 },
+        { 0x00, 0x00, 0x82, 0xFF, 0x82, 0x00, 0x00, 0x00 },
+    },
+    {   /* fire */
+        { 0x08, 0x14, 0x2A, 0x1C, 0x7F, 0x3E, 0x1C, 0x08 },
+        { 0x08, 0x1C, 0x3E, 0x7F, 0x1C, 0x2A, 0x14, 0x08 },
+        { 0x00, 0x10, 0x34, 0x7A, 0xFD, 0x7A, 0x34, 0x10 },
+        { 0x00, 0x08, 0x2C, 0x5E, 0xBF, 0x5E, 0x2C, 0x08 },
+    },
+    {   /* water */
+        { 0x10, 0x28, 0x10, 0x00, 0x10, 0x38, 0x7C, 0x38 },
+        { 0x38, 0x7C, 0x38, 0x10, 0x00, 0x10, 0x28, 0x10 },
+        { 0x00, 0x40, 0xE2, 0xF5, 0xE2, 0x40, 0x00, 0x00 },
+        { 0x00, 0x02, 0x47, 0xAF, 0x47, 0x02, 0x00, 0x00 },
+    },
+};
+static const unsigned char shot_colors[3] = {
+    COLOR_YELLOW, COLOR_ORANGE, COLOR_LIGHTBLUE,
 };
 
 static unsigned char facing, stride;
@@ -173,7 +192,6 @@ void sprite_init(void)
     VIC.spr_exp_x   &= ~SHOT_BIT;
     VIC.spr_exp_y   &= ~SHOT_BIT;
     VIC.spr_bg_prio &= ~SHOT_BIT;
-    VIC.spr3_color   = COLOR_YELLOW;
 
     facing = DIR_DOWN;
     stride = 0;
@@ -238,16 +256,18 @@ void sprite_walk(unsigned char dir)
 }
 
 void sprite_shot(unsigned char col, unsigned char row,
-                 unsigned char dir, unsigned char squares)
+                 unsigned char dir, unsigned char squares,
+                 unsigned char kind)
 {
     signed char dx = 0, dy = 0;
     unsigned char r, x, y, frames;
 
     memset(SPR_SHOT, 0, 64);
     for (r = 0; r < 8; ++r) {
-        SPR_SHOT[r * 3] = shot_shapes[dir][r];
+        SPR_SHOT[r * 3] = shot_shapes[kind][dir][r];
     }
     SPR_PTRS[N_SHOT] = (unsigned char)((unsigned int)SPR_SHOT >> 6);
+    VIC.spr3_color   = shot_colors[kind];
 
     switch (dir) {
         case DIR_UP:    dy = -SHOT_PX; break;
@@ -256,8 +276,9 @@ void sprite_shot(unsigned char col, unsigned char row,
         default:        dx =  SHOT_PX; break;
     }
 
-    /* It sets off from the hero's own square, behind the figure (sprite 3
-       is drawn under sprites 0-2), so it seems to leave the bow. */
+    /* It sets off from the shooter's own square. From the hero's that is
+       behind the figure (sprite 3 is drawn under sprites 0-2), so it seems
+       to leave the bow. */
     x = ORIGIN_X + 1 + (col << 3);
     y = ORIGIN_Y + 1 + (row << 3);
     VIC.spr3_x = x;

@@ -497,3 +497,16 @@ tile dragonbr U 0x8B actor red
 #..##...
 ...###..
 .....##.
+
+# Wandering monsters added since take the next glyphs free after
+# Maldrath's, so from here on they are not in battle.c's order.
+
+tile wasp z 0x90 actor yellow
+##....##
+.##..##.
+..####..
+...##...
+..####..
+..#..#..
+..####..
+...##...

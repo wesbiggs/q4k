@@ -13,146 +13,93 @@ talk to: every NPC answers in their own voice, from the world's canon and
 from how far you have got, through a model running on the host at the other
 end of the C64's modem port.
 
-## Setup
+## Running it
 
+The game is built from source and run in the VICE emulator; the toolchain,
+and everything else about working on the game, is in
+[DEVELOPERS.md](DEVELOPERS.md). Once that is installed:
+
+```bash
+make                  # build
+make play             # play, with NPC dialogue if a model is running
+Q4K_MOCK=1 make play  # play with canned NPC replies, no model needed
+make d64 PROG=q4k     # or build a disk image to load anywhere
 ```
-brew install cc65 vice
-```
-
-That is the whole toolchain: `cc65`/`ca65`/`ld65`/`ar65` build, `x64sc` runs,
-`c1541` and `petcat` handle disk images.
-
-## Layout
-
-```
-src/<name>.c        a program with main() -> dist/<name>.prg
-src/lib/            shared modules, archived into build/q4k.lib
-include/q4k/        public headers
-cfg/c64-q4k.cfg     the game's memory map; c64-tool.cfg for the small tools
-assets/             tiles, overworld, towns, world canon, NPC roster
-host/               daemons that answer the C64's modem
-tools/              build, run, screenshot, screen dump, tests
-tests/              expected screen output
-```
-
-Besides the game, `make` builds four dev tools: `tiles` (the whole tile set),
-`charset` (all 256 screen codes), `dungeontest` (preview generated dungeon
-levels) and `serialtest` (a modem loopback).
-
-Generated files (`src/lib/*_data.c`, `include/q4k/tiles.h`, `world_data.h`,
-`town_data.h`, `assets/geography.json`) are checked in so the build needs no
-Python, and `make` regenerates any whose assets have changed.
-`tools/genworld.py` drafted the overworld once and is not part of the build.
 
 ## Playing
 
-The title screen sets the scene and asks your name; RETURN takes the default.
-Then `WASD` or the cursor keys move. The panel shows what you are carrying
-and wearing, alongside your stats and any quest items. Walk into someone to
-talk to them or open their shop.
+The title screen sets the scene and asks your name; RETURN alone picks a
+random one, and `F3` loads a saved game instead. Then `WASD` or the cursor
+keys move. The panel shows what you are carrying and wearing, alongside your
+stats and any quest items. Walk into someone to talk to them, open their
+shop, or take a seat at their inn.
 
 | key | |
 |---|---|
 | `T` | talk to whoever is beside you |
+| `L` | look where you stand, and take anything hidden there |
 | `P` | drink a healing draught |
 | `F1` / `F3` | save / restore |
 | `SPACE` | wait a turn |
 | `?` | keys, and what you are supposed to be doing next |
 | `Q` | quit |
 
-In a fight: `A`ttack, `D`efend, `P`otion, `R`un.
+Treasure is hidden in towns, out on the overworld and in dungeon chests, and
+a square need not look like anything: stand on it and press `L`. Innkeepers
+sell a mug of ale for five marks, and with it -- when the dialogue host is
+on the line -- a hint at where to look or what to do next; a bed for twenty
+puts you back to full health.
 
-A healing draught restores a share of your full health rather than a fixed
-number, so it is worth a turn late on as well as early. A flat amount was
-most of a health bar at level one and less than one of Maldrath's blows at
-level ten, which made drinking during the fight that needs it a way to
-stand still. It costs ten marks a level to match: the dozen or so you need
-for the dragon come to about what the best armour costs, so the last
-shopping trip is a decision rather than small change.
+A healing draught restores a share of your full health, so it is worth a
+turn late in the game as well as early, and its price climbs to match: five
+marks, plus five for each level you have.
 
 Saved games go to a disk in unit 8; `make play` creates `dist/saves.d64` the
-first time and attaches it. Only your character, your progress and which
-squares you have explored are written — towns are fixed and dungeon levels
-regenerate exactly from their seed, so the map is rebuilt rather than stored.
+first time and attaches it.
 
+### Fighting
 
-## The map
+A fight happens on a field of the ground you were crossing, a dungeon room,
+or Maldrath's lair. The monster starts somewhere in the top third of it and
+comes for you; you walk into it to strike.
+
+| key | |
+|---|---|
+| move | step, or strike if it is in the way |
+| `F` then a direction | shoot your bow, if you have one |
+| `SPACE` | stand your ground: take less from the next blow |
+| `P` | drink a healing draught |
+| `R` | run -- three times in four, and never from a keeper or Maldrath |
+
+Some things shoot back. Bandits and skeleton archers carry bows, the
+Drowned King throws water and Maldrath breathes fire, each whenever you are
+in a straight line and within reach with nothing solid between. Beside you,
+they strike like everything else. Tougher things turn up as you rise in
+level: rats and goblins from the start, drakes from level seven.
+
+## The world
 
 The overworld is a wrapping 64x64 grid; towns and dungeon levels are exactly
-one 21x19 viewport, so they never scroll. Towns are authored in
-[assets/towns.txt](assets/towns.txt); dungeon levels are generated, seeded
-from the dungeon and depth so a level you walk back into is the level you
-left.
+one 21x19 screen, so they never scroll: walk in and the whole place is in
+front of you. A dungeon level you walk back into is the level you left.
 
 Dungeons are dark. A room lights up whole when you stand in it, you can see
 straight along a corridor until something stops the eye, and squares you
-have already seen stay on the map drawn dim. That is Rogue's model rather
-than a full symmetric shadowcast, and it is the right one here: the
-generator only cuts corridors along the axes, so four rays capture exactly
-what a corridor shows, for a fraction of the cost of casting at every wall.
-Measured on the emulated machine it costs 4.4ms a turn against a 34ms
-redraw.
-
-`tools/checkmap.py` (run by `make test`) floods the overworld from the start
-square and each town from its arrival square, and fails if any town, dungeon,
-lair or shopkeeper cannot be walked to. It has already caught two bugs a
-screen test never would: the dragon's lair walled inside the mountains, and a
-shopkeeper standing in a doorway blocking the smith behind him.
-
-## The letters
-
-The game draws from its own copy of the character set in RAM -- the same copy
-the tiles are patched into -- so the font is ours to choose.
-[tools/mkfont.py](tools/mkfont.py) builds that 2K image from either source:
-
-```bash
-make assets                                   # the default: ROM, thickened
-make assets FONT_STYLE=serif                  # feet on the stems only
-make assets FONT_STYLE=none                   # the ROM as Commodore drew it
-make assets FONT_SOURCE=assets/fonts/x.bin    # any C64 charset binary
-```
-
-No font binary is checked in. `assets/fonts/*.bin` is ignored, because a
-character set is somebody's typeface and most of the good ones are not ours
-to redistribute — [assets/fonts/NOTICE.md](assets/fonts/NOTICE.md) has the
-detail, and how to drop one in locally.
-
-The `rom` styles exist because eight by eight is too small for blackletter
-produced by transformation: the strokes collide and it stops being readable.
-Weight and a foot on the stems is about the limit of what that approach
-buys. A face actually drawn at this size does far better, which is the whole
-argument for taking a `.bin`.
-
-`KEEP_AS_IS` in [tools/mkfont.py](tools/mkfont.py) lists glyphs the
-transforms spoil, taken from the ROM unchanged: `M N W` and their lower
-cases. All three are defined by narrow gaps between diagonals, and
-thickening a stroke rightwards closes them — `W` becomes a solid band, `M`'s
-inner V fills until three rows are identical bars. They come out a shade
-lighter than their neighbours, which is a better trade than illegible.
-
-Mixed case needs no special handling. cc65 encodes an upper-case letter in a
-string literal as shifted PETSCII, which draws as a capital, and a lower-case
-one as unshifted, which draws in lower case — the charset holds both, and
-every slot the tiles use is up in the graphics range at `$60-$7B`.
-
-## Picking tile glyphs
-
-`make shot PROG=charset` renders all 256 screen codes so you can choose by eye.
-Screen codes are neither ASCII nor PETSCII — they index the active character
-set, and q4k selects the lowercase/mixed set (`$D018 = $17`), where `$41-$5A`
-are `A-Z` and `$01-$1A` are `a-z`.
+have already seen stay on the map drawn dim.
 
 ## Talking to people
 
-The game dials out over the C64's **user port** — the modem port — at 300
-baud. VICE bridges that to a TCP socket on this machine, where
-[host/npcd.py](host/npcd.py) answers: it takes the line the player typed, asks
-a local model to answer as the NPC, and sends one line back.
+Every person you meet answers in their own voice, from the world's canon and
+from how far you have got. The answers come from a language model running on
+the machine the emulator is on, reached over the C64's modem port at 300
+baud, so a reply arrives at reading pace -- which is what a 1983 modem did
+anyway.
 
-The model is whatever [Ollama](https://ollama.com) is serving on its
-OpenAI-compatible endpoint, default `llama3.2:3b`. The daemon uses nothing but
-the Python standard library — no packages to install, no API key, no network
-egress.
+Stand beside someone in a town or the castle and press **T**, or walk into
+them, then type what you want to say.
+
+The model is whatever [Ollama](https://ollama.com) is serving, by default
+`llama3.2:3b`. No account, no API key and nothing leaves your machine:
 
 ```bash
 ollama serve &                 # if it is not already running
@@ -163,83 +110,12 @@ Q4K_MOCK=1 make play           # canned replies, no model needed
 Q4K_MODEL=llama3.2:1b make play
 ```
 
-Model and endpoint are configurable three ways, in increasing precedence: the
-constants at the top of [host/npcd.py](host/npcd.py), the `Q4K_MODEL` and
-`Q4K_OLLAMA_URL` environment variables, and `--model` / `--url`. Anything that
-speaks the OpenAI chat shape works — another Ollama host, llama.cpp's server,
-a compatible proxy.
+If Ollama is unreachable or the model is not pulled, people answer with
+canned lines rather than not at all -- and nothing in the quest depends on
+the modem, so the game can be finished without it. With it, some things
+have to be earned: listen for the words people tell you, because sometimes
+the right word is what opens a door.
 
-If Ollama is unreachable or the model is not pulled, the daemon says so and
-serves canned lines rather than failing.
-
-### Directions they can be trusted on
-
-Left to itself a model invents geography — it will send you north to a town
-that is south, over a mountain range that is not there.
-[tools/mkgeo.py](tools/mkgeo.py) measures the real map instead: compass
-bearing on the wrapping grid, and walking distance by flood fill over
-passable ground, which is what actually matters when the Sundering runs down
-the middle of the continent. The result goes to `assets/geography.json`, and
-the daemon puts the lines for wherever the speaker is standing in front of
-them, with an instruction not to guess at anything else.
-
-    from Millford: CASTLE MATHESON lies south, about 64 leagues on foot,
-                   though the road bends a long way round.
-
-**The C64 sends only an NPC id.** Every system prompt lives host-side and is
-looked up by that id: [assets/canon.md](assets/canon.md) is the world bible
-shared by all of them, and each character's voice and private knowledge come
-from [assets/npcs.json](assets/npcs.json). Adding a character is a JSON entry
-plus a coordinate in the `places` table in [src/q4k.c](src/q4k.c) — no change
-to the protocol, and nothing new on the C64.
-
-Walk onto a town or the castle and press **T**.
-
-Protocol, CR-terminated ASCII both ways:
-
-```
-->  HI <npc> <stage> <seed>           open a conversation
-->  SAY <npc> <stage> <seed> <text>   say something
-<-  OK <reply>   |   GIVE <g> <reply>   |   ERR <reason>
-```
-
-`<stage>` is one digit of quest progress. `<seed>` is two hex digits rolled
-once per game and kept in the save: the host draws that run's secrets from
-[assets/secrets.json](assets/secrets.json) with it, so the word Old Brann
-gives you for the Stair's dry hour is different every game. `GIVE` is the
-host deciding a conversation has earned something -- Vane only hands over
-the Tidal Key when you say that word. The model never makes that call;
-the host matches the player's line itself, and the model is never even told
-the word it is waiting for. With no host on the line at all, nothing is
-gated, so the game stays winnable without the modem.
-
-### Taming a small model
-
-Small local models follow instructions loosely, so the daemon does not trust
-the prompt to do the work:
-
-- The prompt puts the binding constraints last, phrased as what to do, and
-  insists on first person — without that the fisher talks about Old Brann in
-  the third person.
-- Replies are cut to two sentences, stripped of stage directions, speaker
-  labels and wrapping quotes, forced to printable ASCII, and trimmed to 150
-  characters at a sentence boundary.
-- An empty reply falls back to an authored line from the NPC file.
-
-What no amount of post-processing fixes is invention. `llama3.2:1b` will
-assert things the canon does not say — it put the Greenhollow grain factor,
-who sells to the castle, buying grain from a fishing town. `llama3.2:3b` gets
-that right and quotes the reeve's four unanswered letters back accurately,
-for about 1.3s a reply instead of 0.25s. Since an answer then takes several
-seconds to crawl down the line, 3B is the better trade and the default.
-
-### Why 300 baud
-
-The KERNAL's RS-232 is NMI-driven bit-banging, and its receiver drops bytes on
-sustained back-to-back traffic well before its nominal top speed. 300 baud is
-what it handles reliably — and it is what a 1983 modem ran at anyway, so an
-NPC's answer arrives at reading pace.
-
-The test harness drops VICE's warp mode whenever the modem is wired up:
-warp decouples emulated time from wall-clock time, and the C64's timeouts
-would expire in a fraction of a real second, long before any host could reply.
+People know the real lay of the land. Ask the way and they give the true
+bearing and distance on foot, and tell you when the road bends a long way
+round.

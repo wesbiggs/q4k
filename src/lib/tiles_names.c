@@ -49,6 +49,7 @@ const char *const tile_names[TILE_TOTAL] = {
     "DRAGONTR",
     "DRAGONBL",
     "DRAGONBR",
+    "WASP",
 };
 
 const unsigned char tile_codes[TILE_TOTAL] = {
@@ -98,6 +99,7 @@ const unsigned char tile_codes[TILE_TOTAL] = {
     0x89,
     0x8A,
     0x8B,
+    0x90,
 };
 
 const unsigned char tile_all_colors[TILE_TOTAL] = {
@@ -147,4 +149,5 @@ const unsigned char tile_all_colors[TILE_TOTAL] = {
     2,
     2,
     2,
+    7,
 };

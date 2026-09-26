@@ -1,0 +1,57 @@
+# Build the headless VICE that tools/cloud-setup.sh installs, and publish it
+# as a release asset so a cloud session can download it in seconds instead
+# of building it for minutes.
+#
+# It runs cloud-setup.sh itself with the build forced, so what is published
+# is exactly what the script would have built, and then builds q4k and
+# checks one screen with it before uploading anything. Runs by hand, and
+# whenever the script or this file changes.
+
+name: toolchain
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - tools/cloud-setup.sh
+      - .github/workflows/toolchain.yml
+
+concurrency:
+  group: toolchain
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  VICE_VERSION: "3.10"
+
+jobs:
+  vice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up the toolchain from source
+        run: sudo Q4K_FROM_SOURCE=1 tools/cloud-setup.sh
+
+      - name: Check it builds and runs q4k
+        run: |
+          make
+          tools/screendump.py dist/hello.prg | diff -u tests/golden/hello.txt -
+
+      - name: Pack
+        run: tar -czf "vice-$VICE_VERSION-headless.tgz" -C / opt/vice
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="toolchain-vice$VICE_VERSION"
+          gh release view "$tag" >/dev/null 2>&1 \
+            || gh release create "$tag" --target "$GITHUB_SHA" \
+                 --title "Toolchain: VICE $VICE_VERSION (headless)" \
+                 --notes "Headless VICE for tools/cloud-setup.sh, built on ubuntu-24.04 into /opt/vice. Not a game release."
+          gh release upload "$tag" "vice-$VICE_VERSION-headless.tgz" --clobber

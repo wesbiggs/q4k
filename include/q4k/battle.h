@@ -10,6 +10,8 @@
 #ifndef Q4K_BATTLE_H
 #define Q4K_BATTLE_H
 
+#include <q4k/game.h>   /* NUM_DUNGEONS */
+
 #define NUM_WEAPONS 5
 #define NUM_ARMOUR  5
 
@@ -34,6 +36,41 @@ extern const unsigned int  bow_cost[NUM_BOWS];
 #define BATTLE_WON   0
 #define BATTLE_FLED  1
 #define BATTLE_DEAD  2
+
+/* The bestiary. Out here rather than private to battle.c so that
+   src/arena.c can put any of it on any field; nothing in the game itself
+   reaches in. */
+typedef struct {
+    const char   *name;
+    unsigned char hp, atk, def, xp;
+    unsigned int  gold;
+    unsigned char glyph, color;   /* how it looks on a field */
+    unsigned char speed;          /* moves a turn, in tenths: 15 = 1.5 */
+    unsigned char size;           /* squares a side; the glyphs run on
+                                     from `glyph` in reading order */
+    unsigned char shot, reach;    /* its ranged attack, and range in
+                                     squares; left out, and so 0, for the
+                                     many things that only close in */
+    unsigned char kind;           /* what it shoots, SHOT_*: left out, an
+                                     arrow */
+} Monster;
+
+/* Wandering monsters, and the level each starts turning up at. */
+typedef struct {
+    unsigned char from;
+    Monster       m;
+} Wanderer;
+
+extern const Wanderer      wanderers[];
+extern const unsigned char num_wanderers;
+extern const Monster       keepers[NUM_DUNGEONS];
+extern const Monster       maldrath;
+
+/* Fight `m` on the field for `ground` (an overworld tile; T_FLOOR is a
+   dungeon room, T_LAIR Maldrath's), with R to run if `can_flee`. Returns
+   BATTLE_*. The caller redraws whatever it had on screen. */
+unsigned char battle_fight(const Monster *m, unsigned char ground,
+                           unsigned char can_flee);
 
 /* True if crossing `tile` should bring something out of the scenery. */
 unsigned char encounter_roll(unsigned char tile);
