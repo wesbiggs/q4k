@@ -38,8 +38,8 @@ tools/play.sh
 ```
 
 **The .prg** runs on its own: open it in VICE, or drop it on the window.
-With nothing on the other end of the modem, people cannot talk -- the line
-is dead -- but they still hand over what the quest needs, so the game can be
+With nothing on the other end of the modem there are no conversations (see
+[Talking to people](#talking-to-people)), but the game can still be
 finished. To save you need a disk in drive 8: attach any blank `.d64` from
 VICE's File menu.
 
@@ -132,11 +132,15 @@ Q4K_MOCK=1 tools/play.sh       # canned replies, no model needed
 Q4K_MODEL=llama3.2:1b tools/play.sh
 ```
 
-If Ollama is unreachable or the model is not pulled, people answer with
-canned lines rather than not at all -- and nothing in the quest depends on
-the modem, so the game can be finished without it. With it, some things
-have to be earned: listen for the words people tell you, because sometimes
-the right word is what opens a door.
+The game calls the host when it starts, and the title screen says if it
+could not talk: **No host on the modem** when nothing answered, or **The
+host has no model** when the host answered but Ollama is not running or the
+model is not pulled. Either way the game plays on without conversations:
+walking into someone hands over whatever the quest needs from them, and
+otherwise they have nothing for you, told in a line on the map. Nothing in
+the quest depends on the modem, so the game can be finished without it.
+With it, some things have to be earned: listen for the words people tell
+you, because sometimes the right word is what opens a door.
 
 People know the real lay of the land. Ask the way and they give the true
 bearing and distance on foot, and tell you when the road bends a long way

@@ -15,6 +15,7 @@ Protocol, CR-terminated ASCII in both directions:
     ->  HI <npc> <stage> <seed>          open a conversation
     ->  SAY <npc> <stage> <seed> <text>  say something
     ->  ALE <inn> <stage> <seed>         buy the innkeeper a drink's worth
+    ->  PING                             is anyone there, and can they talk?
     <-  OK <reply>
     <-  GIVE <g> <reply>
     <-  BYE <reply>
@@ -40,6 +41,12 @@ BYE is the NPC closing the conversation after this reply: they said
 goodbye, took offence, had work to get back to. The model decides that, by
 ending its reply with [END]; the marker is stripped before anything is sent.
 In --mock mode a player's farewell gets the NPC's "bye" line and a BYE.
+
+PING is the C64 checking the line at startup. OK <model> is a model ready
+to talk; OK mock is canned lines on purpose (--mock, which is what the
+tests use). ERR no model is canned lines because the model could not be
+reached, and the C64 treats that like no host at all: people hand over what
+the quest needs without a conversation.
 
 ALE answers with one of the authored hints in assets/hints.json, drawn at
 random from those that fit the inn and the stage. No model is involved; it
@@ -461,7 +468,16 @@ class Dialogue:
         self.temperature = temperature
         self.timeout = timeout
         self.mock = mock
+        # Mock because the model could not be reached, rather than because
+        # canned lines were asked for: what PING reports as "no model".
+        self.fallback = False
         self.history = {}
+
+    def status(self):
+        """What PING answers: (ok, text)."""
+        if self.fallback:
+            return False, "no model"
+        return True, "mock" if self.mock else self.model
 
     def _chat(self, messages):
         """POST to the OpenAI-compatible endpoint and return the reply text."""
@@ -618,6 +634,10 @@ def handle(conn, addr, dialogue, verbose):
                     print("[npcd] rx %r" % line, flush=True)
 
                 verb, npc_id, stage, seed, said = parse_request(line)
+                if verb == "PING":
+                    ok, text = dialogue.status()
+                    send(("OK " if ok else "ERR ") + text)
+                    continue
                 if verb == "ALE":
                     text, err = dialogue.hint(npc_id, stage)
                     send("ERR " + err if err else "OK " + text)
@@ -691,6 +711,7 @@ def main():
             print("[npcd] %s\n[npcd] serving canned lines instead (--mock)"
                   % problem, file=sys.stderr)
             dialogue.mock = True
+            dialogue.fallback = True
 
     srv = socket.socket()
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

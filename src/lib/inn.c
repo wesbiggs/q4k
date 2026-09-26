@@ -52,14 +52,16 @@ static unsigned char pay(unsigned char price)
 }
 
 /* The hint comes from the dialogue daemon. Without one you still get the
-   ale -- it is only the talk that needs the line. */
+   ale -- it is only the talk that needs the line -- and the title screen
+   has already said there is nobody to talk to. */
 static void ale(unsigned char inn)
 {
     if (!pay(ALE_PRICE)) {
         return;
     }
     panel_lit("You drink.", COLOR_GRAY2);
-    if (dialog_hint(inn_ids[inn], quest_stage, lore_seed) != DIALOG_OK) {
+    if (dialog_line == LINE_UP
+        && dialog_hint(inn_ids[inn], quest_stage, lore_seed) != DIALOG_OK) {
         panel_lit("The keeper is busy.", COLOR_GRAY2);
     }
 }

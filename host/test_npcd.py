@@ -292,6 +292,25 @@ class Inn(unittest.TestCase):
                          ("ALE", "plough", 3, 0x5A, ""))
 
 
+class Ping(unittest.TestCase):
+    """What the C64 hears when it checks the line at startup."""
+
+    def test_a_model_answers_with_its_name(self):
+        live = npcd.Dialogue(NPCS, model="llama3.2:3b")
+        self.assertEqual(live.status(), (True, "llama3.2:3b"))
+
+    def test_mock_on_purpose_is_fine(self):
+        self.assertEqual(mock().status(), (True, "mock"))
+
+    def test_mock_for_want_of_a_model_is_not(self):
+        fell_back = mock()
+        fell_back.fallback = True
+        self.assertEqual(fell_back.status(), (False, "no model"))
+
+    def test_ping_request(self):
+        self.assertEqual(npcd.parse_request("PING")[0], "PING")
+
+
 class Geography(unittest.TestCase):
     def test_bearing_follows_the_road(self):
         # Across the map's wrap Wardlow is south of the castle; on foot

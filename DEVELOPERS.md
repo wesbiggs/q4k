@@ -304,7 +304,11 @@ speaks the OpenAI chat shape works — another Ollama host, llama.cpp's server,
 a compatible proxy.
 
 If Ollama is unreachable or the model is not pulled, the daemon says so and
-serves canned lines rather than failing.
+serves canned lines rather than failing -- but it also answers the C64's
+startup `PING` with `ERR no model`, and the C64 then plays without
+conversations, as it does when nothing answers at all. `--mock` on purpose
+answers `OK mock`, and the C64 talks through it; that is what the tests
+and `Q4K_MOCK=1` use.
 
 ### Directions they can be trusted on
 
@@ -334,6 +338,7 @@ Protocol, CR-terminated ASCII both ways:
 ->  HI <npc> <stage> <seed>           open a conversation
 ->  SAY <npc> <stage> <seed> <text>   say something
 ->  ALE <inn> <stage> <seed>          buy the innkeeper a drink's worth
+->  PING                              at startup: is anyone there to talk?
 <-  OK <reply>   |   GIVE <g> <reply>   |   BYE <reply>   |   ERR <reason>
 ```
 
