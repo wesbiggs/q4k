@@ -26,20 +26,6 @@
 #define K_CRSR_UP    0x91
 #define K_CRSR_LEFT  0x9D
 
-typedef struct {
-    const char   *name;
-    unsigned char hp, atk, def, xp;
-    unsigned int  gold;
-    unsigned char glyph, color;   /* how it looks on a field */
-    unsigned char speed;          /* moves a turn, in tenths: 15 = 1.5 */
-    unsigned char size;           /* squares a side; the glyphs run on
-                                     from `glyph` in reading order */
-    unsigned char shot, reach;    /* its ranged attack, and range in
-                                     squares; left out, and so 0, for the
-                                     many things that only close in */
-    unsigned char kind;           /* what it shoots, SHOT_*: left out, an
-                                     arrow */
-} Monster;
 
 /* How each SHOT_* kind lands, by the same index. */
 static const char *const shot_hits[] = {
@@ -48,21 +34,16 @@ static const char *const shot_hits[] = {
     "A wave hits you for ",
 };
 
-/* Wandering monsters, and the level each starts turning up at. Kept in
-   that order: a fight picks evenly from the ones you have reached, and
-   battle_wander() stops at the first you have not. */
-typedef struct {
-    unsigned char from;
-    Monster       m;
-} Wanderer;
-
-static const Wanderer wanderers[] = {
+/* Kept in order of `from`: a fight picks evenly from the ones you have
+   reached, and battle_wander() stops at the first you have not. */
+const Wanderer wanderers[] = {
     { 1, { "A rat",        4,  2, 0,  2,  2, T_RAT,      TC_RAT,      13, 1 } },
     { 1, { "A goblin",     7,  3, 1,  4,  6, T_GOBLIN,   TC_GOBLIN,   10, 1 } },
     { 2, { "A wolf",       9,  4, 1,  6,  5, T_WOLF,     TC_WOLF,     15, 1 } },
-    { 3, { "A bandit",    12,  5, 2,  9, 15, T_BANDIT,   TC_BANDIT,   10, 1,
-           3, 6 } },
+    { 2, { "A giant wasp", 5,  2, 0,  4,  0, T_WASP,     TC_WASP,     22, 1 } },
     { 3, { "A cutthroat", 12,  5, 2,  9, 15, T_BANDIT,   COLOR_RED,   10, 1 } },
+    { 4, { "A bandit",    12,  5, 2,  9, 15, T_BANDIT,   TC_BANDIT,   10, 1,
+           3, 6 } },
     { 4, { "A skeleton",  15,  6, 3, 12, 12, T_SKELETON, TC_SKELETON,  8, 1 } },
     { 5, { "A skeleton archer",
                           13,  4, 2, 14, 14, T_SKELETON, COLOR_GRAY3,  8, 1,
@@ -72,16 +53,17 @@ static const Wanderer wanderers[] = {
     { 7, { "A drake",     32, 12, 5, 35, 45, T_DRAKE,    TC_DRAKE,    17, 1 } },
 };
 #define NUM_WANDERERS (sizeof(wanderers) / sizeof(wanderers[0]))
+const unsigned char num_wanderers = NUM_WANDERERS;
 
 /* One keeper per deep place, in the order the quest opens them. */
-static const Monster keepers[NUM_DUNGEONS] = {
+const Monster keepers[NUM_DUNGEONS] = {
     { "The Gaoler",       45, 12, 5,  60,  80, T_MONSTER, TC_MONSTER, 10, 1 },
     { "The Drowned King", 60, 15, 6,  90, 120, T_MONSTER, TC_MONSTER, 10, 1,
       12, 4, SHOT_WATER },
     { "The Pit Warden",   80, 18, 8, 140, 180, T_MONSTER, TC_MONSTER, 10, 1 },
 };
 
-static const Monster maldrath = {
+const Monster maldrath = {
     "Maldrath", 120, 22, 10, 255, 0, T_DRAGONTL, TC_DRAGONTL, 10, 2,
     18, 4, SHOT_FIRE
 };
@@ -420,12 +402,13 @@ static void seed(unsigned char x, unsigned char y)
     }
 }
 
-/* Move the monster one square nearer, the shortest way round whatever is
-   in the way.
+/* Find the monster's way to the hero, the shortest way round whatever is
+   in the way. Returns 1 if there is one, and leaves the first step of it
+   in (step_x, step_y), in rim coordinates; 0 if the hero cannot be reached
+   from where it stands.
  *
  * A breadth-first flood out from the hero: the square the flood reaches
- * the monster from is one step nearer than where it stands. If nothing
- * reaches it, it waits where it is.
+ * the monster from is one step nearer than where it stands.
  *
  * A two-by-two monster is flooded as its top-left square, over `roomy`
  * (where its whole body fits) instead of `wall`. The flood starts from the
@@ -447,7 +430,9 @@ static void seed(unsigned char x, unsigned char y)
  *
  * `seen` starts as a copy of the walls, which marks them visited before
  * the flood begins. */
-static void foe_step(void)
+static unsigned char step_x, step_y;
+
+static unsigned char flood(void)
 {
     register unsigned char *row;
     unsigned char head = 0;
@@ -471,7 +456,7 @@ static void foe_step(void)
         seed(x - 2, y - 1); seed(x - 2, y);
     }
     if (!tail) {
-        return;
+        return 0;
     }
 
     do {
@@ -503,15 +488,49 @@ static void foe_step(void)
             queue_x[tail] = x + 1; queue_y[tail] = y; ++tail;
         }
     } while (head != tail);
-    return;
+    return 0;
 
 found:
-    tx = mx;
-    ty = my;
-    mx = x - 1;
-    my = y - 1;
-    paint_body(tx, ty);
-    paint_body(mx, my);
+    step_x = x;
+    step_y = y;
+    return 1;
+}
+
+/* Move the monster one square nearer. If there is no way through, it
+   waits where it is. */
+static void foe_step(void)
+{
+    unsigned char ox = mx, oy = my;
+
+    if (flood()) {
+        mx = step_x - 1;
+        my = step_y - 1;
+        paint_body(ox, oy);
+        paint_body(mx, my);
+    }
+}
+
+/* Where the monster starts: anywhere in the top third of the field that
+   its whole body can stand on and that has a way through to the hero, so
+   no fight begins with it shut in a pocket of trees. The field's own spot
+   from assets/arenas.txt is kept for when a few tries find nowhere. */
+#define START_ROWS  (LOCAL_H / 3)
+#define START_TRIES 16
+
+static void foe_start(unsigned char a)
+{
+    unsigned char tries;
+    const unsigned char *stand = size == 1 ? wall : roomy;
+
+    for (tries = 0; tries < START_TRIES; ++tries) {
+        mx = (unsigned char)(rand() % (LOCAL_W - size + 1));
+        my = (unsigned char)(rand() % (START_ROWS - size + 1));
+        if (!stand[(unsigned int)(my + 1) * RIM_W + mx + 1] && flood()) {
+            return;
+        }
+    }
+    mx = arena_mx[a];
+    my = arena_my[a];
 }
 
 /* A movement key as a direction, or 0xFF. */
@@ -631,8 +650,8 @@ static unsigned char aim(void)
     return 0xFF;                             /* out of reach, or blocked */
 }
 
-static unsigned char field_fight(const Monster *m, unsigned char ground,
-                                 unsigned char can_flee)
+unsigned char battle_fight(const Monster *m, unsigned char ground,
+                           unsigned char can_flee)
 {
     unsigned char m_hp = m->hp;
     unsigned char a, key, guard, dir, nx, ny;
@@ -667,8 +686,7 @@ static unsigned char field_fight(const Monster *m, unsigned char ground,
     }
     hx = arena_hx[a];
     hy = arena_hy[a];
-    mx = arena_mx[a];
-    my = arena_my[a];
+    foe_start(a);
     foe = m;
 
     /* Speed is relative: armour slows you a tenth a grade, from 1.0 in
@@ -812,7 +830,7 @@ unsigned char battle_wander(void)
     i = (unsigned char)(rand() % top);
 
     /* Above ground, the ground you were on; below it, the one room. */
-    return field_fight(&wanderers[i].m,
+    return battle_fight(&wanderers[i].m,
                        scene == SCENE_WORLD ? map_at(hero.x, hero.y)
                                             : T_FLOOR,
                        1);
@@ -820,10 +838,10 @@ unsigned char battle_wander(void)
 
 unsigned char battle_boss(unsigned char dungeon)
 {
-    return field_fight(&keepers[dungeon], T_FLOOR, 0);
+    return battle_fight(&keepers[dungeon], T_FLOOR, 0);
 }
 
 unsigned char battle_dragon(void)
 {
-    return field_fight(&maldrath, T_LAIR, 0);
+    return battle_fight(&maldrath, T_LAIR, 0);
 }

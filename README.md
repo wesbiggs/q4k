@@ -35,9 +35,10 @@ tools/              build, run, screenshot, screen dump, tests
 tests/              expected screen output
 ```
 
-Besides the game, `make` builds four dev tools: `tiles` (the whole tile set),
+Besides the game, `make` builds five dev tools: `tiles` (the whole tile set),
 `charset` (all 256 screen codes), `dungeontest` (preview generated dungeon
-levels) and `serialtest` (a modem loopback).
+levels), `arena` (fight any monster on any ground, at any level and in any
+kit) and `serialtest` (a modem loopback).
 
 Generated files (`src/lib/*_data.c`, `include/q4k/tiles.h`, `world_data.h`,
 `town_data.h`, `assets/geography.json`) are checked in so the build needs no

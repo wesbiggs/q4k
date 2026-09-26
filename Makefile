@@ -42,8 +42,9 @@ LDFLAGS  := -t $(TARGET)
 # system headers. Each header also gets an empty rule, so deleting one does
 # not break the build.
 DEPFLAGS  = -Wc --create-full-dep,$(@:.o=.d) -Wc --dep-target,$@
-# dungeontest links the maps and the font, so it needs the game's map too.
-LDCFG     = cfg/c64-$(if $(filter q4k dungeontest,$*),q4k,tool).cfg
+# dungeontest links the maps and the font, and arena the fights, so both need
+# the game's map too.
+LDCFG     = cfg/c64-$(if $(filter q4k dungeontest arena,$*),q4k,tool).cfg
 
 MAINS    := $(wildcard src/*.c)
 PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))

@@ -35,8 +35,8 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
 - More sprite blocks come out of the **charset's reverse half**, which the
   game never draws except `$A0` (the input cursor). Glyphs `$C0-$C7` are
   `$3E00-$3E3F`, the bow shot's block. Any 8 aligned glyphs from `$80-$FF`
-  (not `$A0-$A7`) make another, but check `assets/tiles.txt` first: monster
-  glyphs live at `$80-$8B`.
+  (not `$A0-$A7`) make another, but check `assets/tiles.txt` first: actor
+  glyphs live at `$80-$90`.
 
 The PRG is one contiguous load, so MAIN and the charset gap are `fill = yes`.
 That is why the small tools use `cfg/c64-tool.cfg` instead: without it a
