@@ -101,6 +101,29 @@ if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ]; then
             --keys '\x86' --settle 8
     fi
     rm -f "$saves" "$base"
+
+    # Saving twice must replace the first save. Scratching the old file used
+    # to fail silently, so the second save said "Saved." and wrote nothing,
+    # and a restore came back at the first. No screen shows the difference,
+    # so compare the turn counter instead: two saves, two squares apart,
+    # then restore on a fresh machine and expect the later turn.
+    base=$(mktemp "${TMPDIR:-/tmp}/q4ksave.XXXXXX")
+    saves=$base.d64
+    c1541 -format "test,01" d64 "$saves" >/dev/null 2>&1
+    turn() { sed -n 's/.*game_turn+0 @ .* = \([0-9]*\) .*/\1/p'; }
+    saved=$(tools/screendump.py dist/q4k.prg --disk "$saves" \
+        --keys 'Alaric\rww\x85ww\x85' --settle 12 --peek game_turn:2 \
+        2>&1 >/dev/null | turn) || true
+    restored=$(tools/screendump.py dist/q4k.prg --disk "$saves" \
+        --keys '\x86' --settle 8 --peek game_turn:2 \
+        2>&1 >/dev/null | turn) || true
+    if [ -n "$saved" ] && [ "$saved" = "$restored" ]; then
+        echo "PASS  resave"
+    else
+        echo "FAIL  resave (saved at turn ${saved:-?}, restored turn ${restored:-?})"
+        fail=1
+    fi
+    rm -f "$saves" "$base"
 fi
 
 # The dialogue case needs a daemon on the other end of the modem line, in
