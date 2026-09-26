@@ -91,8 +91,11 @@ two runs in four when measured: the machine is doing the same thing at the
 same cycle on every boot. What is genuinely unrepeatable is how long the
 player takes to press a key, so `wait_key()` counts the wait and
 `rng_stir()` folds that plus the CIA timer into an accumulator that
-`reseed()` draws from. `dungeon_build()` seeds deliberately, for repeatable
-levels, so anything that calls it reseeds afterwards.
+`reseed()` draws from. `dungeon_build()` seeds deliberately, from the
+dungeon, the level and the game's `lore_seed` -- the same level on every
+visit, different dungeons in the next game -- so anything that calls it
+reseeds afterwards, and a screen test that enters a dungeon must pin
+`--poke lore_seed=N` or it meets a new layout every run.
 
 `src/rngtest.c` measures `rand()`'s distribution after `srand()`; it is what
 ruled the generator out when the encounter rate looked wrong.

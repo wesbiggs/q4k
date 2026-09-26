@@ -3,8 +3,9 @@
  *
  * Levels are generated rather than authored, which costs no ROM and means
  * the three dungeons can be as deep as they like. Generation is seeded from
- * the dungeon and the level number, so a level looks the same every time you
- * walk back into it -- procedural, but not forgetful.
+ * the dungeon, the level number and the game's lore_seed, so a level looks
+ * the same every time you walk back into it -- procedural, but not
+ * forgetful -- and different in the next game.
  */
 
 #ifndef Q4K_DUNGEON_H

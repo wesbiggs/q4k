@@ -73,9 +73,12 @@ void dungeon_build(unsigned char index, unsigned char level)
     unsigned char rooms = 0;
     unsigned char tries, x, y, w, h, i;
 
-    /* Seeded from where you are, not from the clock: leave a level and come
-       back and it is the same level. */
-    srand((unsigned int)index * 977 + (unsigned int)level * 131 + 17);
+    /* Seeded from where you are and which game this is, not from the
+       clock: leave a level and come back and it is the same level, and a
+       restored game brings its lore_seed back with it -- but a new game
+       gets new dungeons. */
+    srand((unsigned int)index * 977 + (unsigned int)level * 131 + 17
+          + (unsigned int)lore_seed * 7919);
 
     memset(local, T_WALL, sizeof(local));
 
