@@ -22,6 +22,15 @@ brew install cc65 vice
 That is the whole toolchain: `cc65`/`ca65`/`ld65`/`ar65` build, `x64sc` runs,
 `c1541` and `petcat` handle disk images.
 
+On Linux -- a Claude Code cloud session, or anything else on Ubuntu 24.04 --
+[tools/cloud-setup.sh](tools/cloud-setup.sh) installs the same: cc65 from
+the distribution, and a headless VICE 3.10 either downloaded from the
+`toolchain-vice3.10` release (given a token that can read this repo) or built
+from source. The `toolchain` workflow builds and publishes that release.
+
+`make test` runs every screen test against its golden in `tests/`; the
+`test` workflow runs it on every push.
+
 ## Layout
 
 ```
@@ -47,29 +56,60 @@ Python, and `make` regenerates any whose assets have changed.
 
 ## Playing
 
-The title screen sets the scene and asks your name; RETURN takes the default.
-Then `WASD` or the cursor keys move. The panel shows what you are carrying
-and wearing, alongside your stats and any quest items. Walk into someone to
-talk to them or open their shop.
+The title screen sets the scene and asks your name; RETURN alone picks a
+random one, and `F3` loads a saved game instead. Then `WASD` or the cursor
+keys move. The panel shows what you are carrying and wearing, alongside your
+stats and any quest items. Walk into someone to talk to them, open their
+shop, or take a seat at their inn.
 
 | key | |
 |---|---|
 | `T` | talk to whoever is beside you |
+| `L` | look where you stand, and take anything hidden there |
 | `P` | drink a healing draught |
 | `F1` / `F3` | save / restore |
 | `SPACE` | wait a turn |
 | `?` | keys, and what you are supposed to be doing next |
 | `Q` | quit |
 
-In a fight: `A`ttack, `D`efend, `P`otion, `R`un.
+Treasure is hidden in towns, out on the overworld and in dungeon chests, and
+a square need not look like anything: stand on it and press `L`. Innkeepers
+sell a mug of ale for five marks, and with it -- when the dialogue host is
+on the line -- a hint at where to look or what to do next; a bed for twenty
+puts you back to full health.
+
+### Fighting
+
+A fight happens on a field of the ground you were crossing, a dungeon room,
+or Maldrath's lair. The monster starts somewhere in the top third of it and
+comes for you; you walk into it to strike.
+
+| key | |
+|---|---|
+| move | step, or strike if it is in the way |
+| `F` then a direction | shoot your bow, if you have one |
+| `SPACE` | stand your ground: take less from the next blow |
+| `P` | drink a healing draught |
+| `R` | run -- three times in four, and never from a keeper or Maldrath |
+
+Some things shoot back. Bandits and skeleton archers carry bows, the
+Drowned King throws water and Maldrath breathes fire, each whenever you are
+in a straight line and within reach with nothing solid between. Beside you,
+they strike like everything else. Which wandering monsters you can meet
+depends on your level, each from its own: rats and goblins from the start,
+drakes from level seven.
+
+`dist/arena.prg` puts any of them on any field, with the hero at any level
+and in any kit, for trying a change to a monster without walking the map to
+find one.
 
 A healing draught restores a share of your full health rather than a fixed
 number, so it is worth a turn late on as well as early. A flat amount was
 most of a health bar at level one and less than one of Maldrath's blows at
 level ten, which made drinking during the fight that needs it a way to
-stand still. It costs ten marks a level to match: the dozen or so you need
-for the dragon come to about what the best armour costs, so the last
-shopping trip is a decision rather than small change.
+stand still. The price climbs to match, five marks plus five a level: the
+dozen or so you need for the dragon come to about what the best armour
+costs, so the last shopping trip is a decision rather than small change.
 
 Saved games go to a disk in unit 8; `make play` creates `dist/saves.d64` the
 first time and attaches it. Only your character, your progress and which
@@ -134,7 +174,9 @@ lighter than their neighbours, which is a better trade than illegible.
 Mixed case needs no special handling. cc65 encodes an upper-case letter in a
 string literal as shifted PETSCII, which draws as a capital, and a lower-case
 one as unshifted, which draws in lower case — the charset holds both, and
-every slot the tiles use is up in the graphics range at `$60-$7B`.
+no tile takes a letter's slot: terrain is in the graphics range at
+`$60-$7D`, and the people and monsters are in the reverse-video half at
+`$80-$90`, which the game never draws text from.
 
 ## Picking tile glyphs
 
@@ -184,24 +226,27 @@ the middle of the continent. The result goes to `assets/geography.json`, and
 the daemon puts the lines for wherever the speaker is standing in front of
 them, with an instruction not to guess at anything else.
 
-    from Millford: CASTLE MATHESON lies south, about 64 leagues on foot,
+    from Millford: THE HOLLOW CROWN lies south, about 46 leagues on foot,
                    though the road bends a long way round.
 
 **The C64 sends only an NPC id.** Every system prompt lives host-side and is
 looked up by that id: [assets/canon.md](assets/canon.md) is the world bible
 shared by all of them, and each character's voice and private knowledge come
 from [assets/npcs.json](assets/npcs.json). Adding a character is a JSON entry
-plus a coordinate in the `places` table in [src/q4k.c](src/q4k.c) — no change
-to the protocol, and nothing new on the C64.
+plus an `ent` line and a digit on the map in
+[assets/towns.txt](assets/towns.txt) — no change to the protocol, and
+nothing new on the C64.
 
-Walk onto a town or the castle and press **T**.
+Stand beside someone in a town or the castle and press **T**, or walk into
+them.
 
 Protocol, CR-terminated ASCII both ways:
 
 ```
 ->  HI <npc> <stage> <seed>           open a conversation
 ->  SAY <npc> <stage> <seed> <text>   say something
-<-  OK <reply>   |   GIVE <g> <reply>   |   ERR <reason>
+->  ALE <inn> <stage> <seed>          buy the innkeeper a drink's worth
+<-  OK <reply>   |   GIVE <g> <reply>   |   BYE <reply>   |   ERR <reason>
 ```
 
 `<stage>` is one digit of quest progress. `<seed>` is two hex digits rolled
@@ -211,8 +256,11 @@ gives you for the Stair's dry hour is different every game. `GIVE` is the
 host deciding a conversation has earned something -- Vane only hands over
 the Tidal Key when you say that word. The model never makes that call;
 the host matches the player's line itself, and the model is never even told
-the word it is waiting for. With no host on the line at all, nothing is
-gated, so the game stays winnable without the modem.
+the word it is waiting for. `BYE` is the NPC ending the conversation after
+that reply -- a goodbye, offence taken, work to get back to. `ALE` is
+answered with an authored hint from [assets/hints.json](assets/hints.json)
+that fits the inn and the stage; no model is involved. With no host on the
+line at all, nothing is gated, so the game stays winnable without the modem.
 
 ### Taming a small model
 
