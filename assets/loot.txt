@@ -1,6 +1,7 @@
 # Quest for the King -- treasure hidden in towns and on the overworld.
 #
 #   loot <where> <x> <y> gold <amount>
+#   loot <where> <x> <y> draught <count>     (1 to 9)
 #
 # <where> is a town id from assets/towns.txt, or "world" for the overworld;
 # x and y are in that map's own squares. Stand there and press L to take it.

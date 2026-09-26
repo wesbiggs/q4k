@@ -18,7 +18,9 @@ import mktowns
 
 SRC = "assets/loot.txt"
 WORLD = "world"
-KINDS = {"gold": "LOOT_GOLD"}
+KINDS = {"gold": "LOOT_GOLD", "draught": "LOOT_DRAUGHT"}
+# The most of each one square may hold. Draughts are counted in a byte.
+MOST = {"gold": 65535, "draught": 9}
 
 
 def parse():
@@ -30,13 +32,13 @@ def parse():
             continue
         parts = line.split()
         if parts[0] != "loot" or len(parts) != 6:
-            sys.exit("%s:%d: expected 'loot <where> <x> <y> gold <amount>'"
+            sys.exit("%s:%d: expected 'loot <where> <x> <y> <gold|draught> <amount>'"
                      % (SRC, lineno))
         _, where, x, y, kind, amount = parts
         if kind not in KINDS:
             sys.exit("%s:%d: unknown treasure %r" % (SRC, lineno, kind))
         amount = int(amount)
-        if not 0 < amount < 65536:
+        if not 0 < amount <= MOST[kind]:
             sys.exit("%s:%d: amount %d out of range" % (SRC, lineno, amount))
         entries.append((where, int(x), int(y), kind, amount, lineno))
     return entries
@@ -104,7 +106,7 @@ def main():
                 "#define NUM_LOOT    %d\n\n"
                 "/* Where a treasure is: a town index, or the overworld. */\n"
                 "#define LOOT_WORLD  0xFF\n\n"
-                "#define LOOT_GOLD   0\n\n"
+                "#define LOOT_GOLD     0\n#define LOOT_DRAUGHT  1\n\n"
                 "typedef struct {\n"
                 "    unsigned char map;     /* TOWN_* or LOOT_WORLD */\n"
                 "    unsigned char x, y;\n"

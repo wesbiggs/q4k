@@ -45,7 +45,7 @@ static unsigned char loot_bit(void)
 
 void look(void)
 {
-    unsigned char bit, mask;
+    unsigned char bit, mask, kind;
     unsigned int amount;
 
     bit = loot_bit();
@@ -62,21 +62,36 @@ void look(void)
     }
     looted[bit] |= mask;
 
-    /* Gold is the only treasure there is, until there is an inventory to
-       put anything else in. A dungeon chest is worth 10 per quest stage
-       plus a d20, rolled now rather than when the level is built, which
-       would spend the level's own seeded draws. */
+    /* A dungeon chest is even odds a draught or gold, the gold worth 10 per
+       quest stage plus a d20. Rolled now rather than when the level is
+       built, which would spend the level's own seeded draws. */
     if (scene == SCENE_DUNGEON) {
-        amount = ((unsigned int)quest_stage << 3) + (quest_stage << 1)
-               + 1 + (unsigned char)(rand() % 20);
+        if (rand() & 1) {
+            kind   = LOOT_DRAUGHT;
+            amount = 1;
+        } else {
+            kind   = LOOT_GOLD;
+            amount = ((unsigned int)quest_stage << 3) + (quest_stage << 1)
+                   + 1 + (unsigned char)(rand() % 20);
+        }
     } else {
+        kind   = found->kind;
         amount = found->amount;
     }
-    gold += amount;
+    ++game_turn;
+
+    if (kind == LOOT_DRAUGHT) {
+        potions += (unsigned char)amount;
+        if (amount == 1) {
+            view_message("You find a draught.");
+            return;
+        }
+    } else {
+        gold += amount;
+    }
 
     strcpy(msg, "You find ");
     utoa(amount, msg + strlen(msg), 10);
-    strcat(msg, " gold.");
+    strcat(msg, kind == LOOT_DRAUGHT ? " draughts." : " gold.");
     view_message(msg);
-    ++game_turn;
 }

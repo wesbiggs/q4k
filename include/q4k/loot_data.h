@@ -7,7 +7,8 @@
 /* Where a treasure is: a town index, or the overworld. */
 #define LOOT_WORLD  0xFF
 
-#define LOOT_GOLD   0
+#define LOOT_GOLD     0
+#define LOOT_DRAUGHT  1
 
 typedef struct {
     unsigned char map;     /* TOWN_* or LOOT_WORLD */
