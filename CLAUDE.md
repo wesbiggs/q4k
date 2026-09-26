@@ -170,11 +170,13 @@ catch a flaky run too (it has, twice), so read `git diff tests/` after
 blessing; a save golden missing "Restored." should be hand-edited from
 the committed one instead.
 
-**The Makefile does not track headers.** Objects depend on their `.c`
-only, so after anything regenerates `include/q4k/*.h` (a new tile moves
-`TILE_COUNT`, say) run `rm -rf build/lib build/*.o` before building, or
-stale objects will quietly use the old values. New furniture drew in the
-keeper's red this way.
+**Header dependencies are tracked** through cc65's `--create-full-dep`
+(`build/**/*.d`), so regenerating `include/q4k/*.h` -- a new tile moving
+every actor's code, say -- rebuilds whatever includes it. Before this,
+stale objects quietly used the old values: new furniture drew in the
+keeper's red, and villagers once drew as drawbridges. A build dir from
+before the change has no `.d` files, so clean it once. The `HIMODS` caveat
+under Memory still stands: flags are not dependencies.
 
 **Open question: do three sprites upset disk access?** When the tunic went
 in as a third sprite, the save/load tests failed 7 runs in 20 against 20 in

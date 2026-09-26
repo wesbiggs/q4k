@@ -35,6 +35,13 @@ ASFLAGS  := -t $(TARGET) -I include
 # The game gets the full memory map; the demos and tools get a lean one that
 # skips the HIGH region and its contiguity padding.
 LDFLAGS  := -t $(TARGET)
+# Have the compiler write each object's header dependencies next to it, so
+# that editing a header -- or regenerating one from assets/, like tiles.h --
+# rebuilds every object that includes it. "Full" because the project's own
+# headers are included as <q4k/...>, which plain --create-dep skips as
+# system headers. Each header also gets an empty rule, so deleting one does
+# not break the build.
+DEPFLAGS  = -Wc --create-full-dep,$(@:.o=.d) -Wc --dep-target,$@
 # dungeontest links the maps and the font, so it needs the game's map too.
 LDCFG     = cfg/c64-$(if $(filter q4k dungeontest,$*),q4k,tool).cfg
 
@@ -132,7 +139,7 @@ dirs:
 
 $(BUILD)/lib/%.o: src/lib/%.c
 	@mkdir -p $(dir $@)
-	$(CL65) $(CFLAGS) -c -o $@ $<
+	$(CL65) $(CFLAGS) $(DEPFLAGS) -c -o $@ $<
 
 $(BUILD)/lib/%.o: src/lib/%.s
 	@mkdir -p $(dir $@)
@@ -148,7 +155,10 @@ endif
 
 $(BUILD)/%.o: src/%.c
 	@mkdir -p $(dir $@)
-	$(CL65) $(CFLAGS) -c -o $@ $<
+	$(CL65) $(CFLAGS) $(DEPFLAGS) -c -o $@ $<
+
+-include $(patsubst src/%.c,$(BUILD)/%.d,$(MAINS)) \
+         $(patsubst src/lib/%.c,$(BUILD)/lib/%.d,$(wildcard src/lib/*.c))
 
 $(DIST)/%.prg: $(BUILD)/%.o $(LIB)
 	@mkdir -p $(DIST)
