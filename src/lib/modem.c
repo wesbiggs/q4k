@@ -18,6 +18,8 @@
 
 static char params[2];
 
+void (*modem_idle)(void);
+
 unsigned char modem_open(unsigned char baud_code)
 {
     MEMSIZ = 0xC700;
@@ -108,6 +110,9 @@ unsigned char modem_getline(char *buf, unsigned char max,
                timeout means the same thing however fast the host is. */
             if (JIFFY_LO != last) {
                 last = JIFFY_LO;
+                if (modem_idle) {
+                    modem_idle();
+                }
                 if (++idle >= timeout_ticks) {
                     buf[n] = '\0';
                     return MODEM_ETIMEOUT;

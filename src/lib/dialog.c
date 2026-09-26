@@ -35,6 +35,15 @@
 
 #define LEFT_INPUT 0xFF   /* read_input's "the player walked away" */
 
+/* exchange()'s "the NPC has said their last": the host answered BYE. */
+#define ENDED      3
+
+/* The "..." placeholder pulses through the greys while a reply is on its
+   way, one step every PULSE_JIFFIES, each dot a step behind the one before,
+   so a highlight runs along them. A static "..." looked like a hang. */
+#define PULSE_JIFFIES 5
+#define PULSE_STEPS   6
+
 static char input[INPUT_MAX];
 static char reply[REPLY_MAX];
 static char seg[SCR_W + 1];
@@ -49,6 +58,14 @@ static const char   *who;
 static unsigned char at_stage;
 static unsigned char lore;
 static unsigned int  patience;
+static const char *(*gift)(unsigned char granted);
+
+static const unsigned char pulse_ramp[PULSE_STEPS] = {
+    COLOR_GRAY1, COLOR_GRAY2, COLOR_GRAY3, COLOR_WHITE, COLOR_GRAY3, COLOR_GRAY2
+};
+static unsigned int  dots;        /* where the "..." sits in screen RAM */
+static unsigned char pulse_wait;
+static unsigned char pulse_step;
 
 unsigned char dialog_granted;
 
@@ -112,13 +129,44 @@ static unsigned char read_input(void)
     }
 }
 
+/* modem_idle while a reply is awaited: move the highlight one step on. */
+static void pulse_dots(void)
+{
+    unsigned char i, k;
+
+    if (++pulse_wait < PULSE_JIFFIES) {
+        return;
+    }
+    pulse_wait = 0;
+    if (++pulse_step == PULSE_STEPS) {
+        pulse_step = 0;
+    }
+    k = pulse_step;
+    for (i = 0; i < 3; ++i) {
+        COLOR_RAM[dots + i] = pulse_ramp[k];
+        k = k ? k - 1 : PULSE_STEPS - 1;
+    }
+}
+
+/* The conversation is over, by the NPC's choice or the line's: hold the
+   last words on screen until the player has read them. */
+static void farewell(void)
+{
+    text_clear(0, IN_Y, SCR_W);
+    text_clear(0, HINT_Y, SCR_W);
+    textcolor(COLOR_GRAY2);
+    cputsxy(0, HINT_Y, "Press any key to continue");
+    cgetc();
+}
+
 /* One hex digit, in ASCII: '0'-'9' then 'a'-'f'. */
 static void put_nybble(unsigned char n)
 {
     modem_put(n < 10 ? 0x30 + n : 0x57 + n);
 }
 
-/* Send one request and show the answer. */
+/* Send one request and show the answer. DIALOG_OK, DIALOG_ESILENT, or
+   ENDED if the NPC has closed the conversation. */
 static unsigned char exchange(const char *verb, const char *said)
 {
     unsigned char err, i;
@@ -137,7 +185,11 @@ static unsigned char exchange(const char *verb, const char *said)
     }
     modem_put_cr();
 
-    panel_lit("...", COLOR_GRAY2);
+    panel_lit("...", COLOR_GRAY1);
+    dots = (unsigned int)panel_row() * SCR_W;
+    pulse_wait = 0;
+    pulse_step = 0;
+    modem_idle = pulse_dots;
     err = modem_getline(reply, REPLY_MAX, patience);
 
     /* The host prefixes every answer with a bare CR to absorb the first-byte
@@ -146,6 +198,7 @@ static unsigned char exchange(const char *verb, const char *said)
         err = modem_getline(reply, REPLY_MAX, patience);
     }
 
+    modem_idle = 0;
     panel_undo();                /* drop the "..." placeholder */
 
     if (err != MODEM_OK) {
@@ -161,20 +214,42 @@ static unsigned char exchange(const char *verb, const char *said)
         ++start;
     }
 
-    /* "OK <text>" / "GIVE <g> <text>" / "ERR <text>". Numeric: start[]
-       holds ASCII from the wire, and cc65 would compile 'O' to PETSCII $CF. */
+    /* "OK <text>" / "GIVE <g> <text>" / "BYE <text>" / "ERR <text>".
+       Numeric: start[] holds ASCII from the wire, and cc65 would compile
+       'O' to PETSCII $CF. */
     if (start[0] == 0x4F && start[1] == 0x4B && start[2] == 0x20) {
         panel_wrap(start + 3, COLOR_LIGHTGREEN);
     } else if (start[0] == 0x47 && start[1] == 0x49 && start[4] == 0x20
                && start[5] >= 0x31 && start[5] <= 0x39 && start[6] == 0x20) {
         dialog_granted = start[5] - 0x30;
-        panel_wrap(start + 7, COLOR_YELLOW);
+        panel_wrap(start + 7, COLOR_LIGHTGREEN);
+    } else if (start[0] == 0x42 && start[1] == 0x59 && start[2] == 0x45
+               && start[3] == 0x20) {
+        panel_wrap(start + 4, COLOR_LIGHTGREEN);
+        return ENDED;
     } else if (start[0] == 0x45) {
         panel_wrap(start, COLOR_LIGHTRED);
     } else {
         panel_wrap(start, COLOR_GRAY1);
     }
     return DIALOG_OK;
+}
+
+/* One turn of a conversation: the NPC's answer, then anything it has earned
+   the player, announced in the transcript while the player is still there. */
+static unsigned char turn(const char *verb, const char *said)
+{
+    unsigned char r;
+    const char *note;
+
+    r = exchange(verb, said);
+    if (r != DIALOG_ESILENT) {
+        note = gift(dialog_granted);
+        if (note) {
+            panel_lit(note, COLOR_YELLOW);
+        }
+    }
+    return r;
 }
 
 /* Open the port the first time anyone needs it; it stays open after. */
@@ -190,37 +265,40 @@ static unsigned char line_up(void)
 }
 
 unsigned char dialog_talk(const char *npc_id, const char *place,
-                          unsigned char stage, unsigned char seed)
+                          unsigned char stage, unsigned char seed,
+                          const char *(*given)(unsigned char granted))
 {
-    unsigned char n;
+    unsigned char n, r;
 
     dialog_granted = GRANT_NONE;
     who = npc_id;
     at_stage = stage;
     lore = seed;
     patience = REPLY_TICKS;
+    gift = given;
     frame(place);
 
     if (!line_open) {
         panel_lit("Dialling...", COLOR_GRAY1);
         if (!line_up()) {
             panel_lit("The line is dead.", COLOR_LIGHTRED);
-            cgetc();
+            farewell();
             return DIALOG_ENOLINE;
         }
         panel_undo();
     }
 
-    if (exchange("HI ", 0) != DIALOG_OK) {
+    r = turn("HI ", 0);
+    if (r == DIALOG_ESILENT) {
         panel_lit("(no answer)", COLOR_LIGHTRED);
-        cgetc();
+        farewell();
         return DIALOG_ESILENT;
     }
 
-    for (;;) {
+    while (r != ENDED) {
         n = read_input();
         if (n == LEFT_INPUT) {
-            break;
+            return DIALOG_OK;
         }
         if (n == 0) {
             continue;
@@ -230,11 +308,13 @@ unsigned char dialog_talk(const char *npc_id, const char *place,
         str_asc(str_lit(seg, "> "), input);
         panel_wrap(seg, COLOR_WHITE);
 
-        if (exchange("SAY ", input) != DIALOG_OK) {
+        r = turn("SAY ", input);
+        if (r == DIALOG_ESILENT) {
             panel_lit("(no answer)", COLOR_LIGHTRED);
         }
     }
 
+    farewell();
     return DIALOG_OK;
 }
 

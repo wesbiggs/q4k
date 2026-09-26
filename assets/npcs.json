@@ -43,9 +43,18 @@
     "knows": "He holds the Iron Sigil that opens the Hollow Crown, and he will give it to anyone willing to go. He has sent two armies and will not send a third.",
     "mock": [
       "I sent two armies. I will not send a third. So I am sending you.",
-      "Take the Iron Sigil. It opens the Hollow Crown, and nothing else does.",
+      "The Hollow Crown lies south of here. What keeps it now is called the Gaoler.",
       "Three stones, then Garrett's anvil, then the blade. That is the whole of it."
-    ]
+    ],
+    "gives": {
+      "grant": 2,
+      "stages": [0, 1],
+      "mentions": ["sigil"],
+      "hear": ["quest", "help", "sigil", "crown", "task", "dragon", "maldrath",
+               "ready", "will", "summon", "why", "letter"],
+      "hint": "Take the Iron Sigil. It opens the Hollow Crown, and nothing else does.",
+      "wait": "Do not give or offer the Iron Sigil in your greeting. Hear the traveller out first."
+    }
   },
   "steward": {
     "name": "Steward Merrit",

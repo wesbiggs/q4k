@@ -52,6 +52,11 @@ void panel_lit(const char *literal, unsigned char color)
     panel_line(seg, color);
 }
 
+unsigned char panel_row(void)
+{
+    return top + next - 1;
+}
+
 void panel_undo(void)
 {
     if (next) {

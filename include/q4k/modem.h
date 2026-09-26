@@ -52,4 +52,8 @@ int modem_get(void);
 unsigned char modem_getline(char *buf, unsigned char max,
                             unsigned int timeout_ticks);
 
+/* If set, called once a jiffy while modem_getline() waits on silence, so
+   the screen can show that something is still coming. */
+extern void (*modem_idle)(void);
+
 #endif /* Q4K_MODEM_H */

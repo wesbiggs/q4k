@@ -18,6 +18,9 @@ void panel_line(const char *ascii, unsigned char color);
 void panel_wrap(const char *ascii, unsigned char color);
 void panel_lit(const char *literal, unsigned char color);
 
+/* The screen row the last line went to. */
+unsigned char panel_row(void);
+
 /* Forget the last line, so a placeholder can be replaced by the real thing. */
 void panel_undo(void);
 

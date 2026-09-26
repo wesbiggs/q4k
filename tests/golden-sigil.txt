@@ -1,0 +1,27 @@
+    +----------------------------------------+
+  0 |King Matheson                           |
+  1 |········································|
+  2 |                                        |
+  3 |The Hollow Crown lies south of here.    |
+  4 |What keeps it now is called the Gaoler. |
+  5 |> hello                                 |
+  6 |The Hollow Crown lies south of here.    |
+  7 |What keeps it now is called the Gaoler. |
+  8 |> what is my quest                      |
+  9 |Take the Iron Sigil. It opens the       |
+ 10 |Hollow Crown, and nothing else does.    |
+ 11 |The king gives you the Iron Sigil.      |
+ 12 |                                        |
+ 13 |                                        |
+ 14 |                                        |
+ 15 |                                        |
+ 16 |                                        |
+ 17 |                                        |
+ 18 |                                        |
+ 19 |                                        |
+ 20 |········································|
+ 21 |> █                                     |
+ 22 |                                        |
+ 23 |RETURN sends   RUN/STOP leaves          |
+ 24 |                                        |
+    +----------------------------------------+

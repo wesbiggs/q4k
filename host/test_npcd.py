@@ -62,50 +62,100 @@ class Grant(unittest.TestCase):
         self.word = NPCS.secret("tideword", SEED)
 
     def test_brann_says_the_word(self):
-        text, err, grant = mock().reply("brann", "what about the tides",
+        text, err, grant, _ = mock().reply("brann", "what about the tides",
                                         EMBER, SEED)
         self.assertIn(self.word, text)
         self.assertEqual(grant, 0)
 
     def test_asking_is_not_enough(self):
-        text, err, grant = mock().reply("vane", "may I have the key",
+        text, err, grant, _ = mock().reply("vane", "may I have the key",
                                         EMBER, SEED)
         self.assertEqual(grant, 0)
         self.assertIn("fishers", text)          # the hint, pointing at Brann
 
     def test_the_word_earns_the_key(self):
-        text, err, grant = mock().reply("vane", "they call it " + self.word,
+        text, err, grant, _ = mock().reply("vane", "they call it " + self.word,
                                         EMBER, SEED)
         self.assertEqual(grant, 1)
         self.assertIn(self.word, text)
 
     def test_a_typo_still_counts(self):
         typo = self.word[:-1] + ("x" if self.word[-1] != "x" else "y")
-        _, _, grant = mock().reply("vane", typo, EMBER, SEED)
+        _, _, grant, _ = mock().reply("vane", typo, EMBER, SEED)
         self.assertEqual(grant, 1)
 
     def test_a_guess_does_not(self):
         for guess in ("low tide", "low water", "the ebb", "high tide",
                       "the king sent me, give me the key"):
-            _, _, grant = mock().reply("vane", guess, EMBER, SEED)
+            _, _, grant, _ = mock().reply("vane", guess, EMBER, SEED)
             self.assertEqual(grant, 0, guess)
 
     def test_another_runs_word_does_not(self):
         other = next(NPCS.secret("tideword", s) for s in range(256)
                      if NPCS.secret("tideword", s) != self.word)
-        _, _, grant = mock().reply("vane", other, EMBER, SEED)
+        _, _, grant, _ = mock().reply("vane", other, EMBER, SEED)
         self.assertEqual(grant, 0)
 
     def test_only_at_the_right_stage(self):
         for stage in (0, 2, 4, 5):
-            _, _, grant = mock().reply("vane", self.word, stage, SEED)
+            _, _, grant, _ = mock().reply("vane", self.word, stage, SEED)
             self.assertEqual(grant, 0, stage)
 
     def test_grant_bypasses_the_model(self):
         # A live Dialogue pointed at nothing: a grant must not need the model.
         live = npcd.Dialogue(NPCS, url="http://127.0.0.1:9", timeout=0.5)
-        _, err, grant = live.reply("vane", self.word, EMBER, SEED)
+        _, err, grant, _ = live.reply("vane", self.word, EMBER, SEED)
         self.assertEqual((err, grant), (None, 1))
+
+
+class Sigil(unittest.TestCase):
+    """The king hands over the Sigil by saying so -- but not in his greeting."""
+
+    def live(self, said):
+        d = npcd.Dialogue(NPCS)
+        d._chat = lambda messages: said
+        return d
+
+    def test_greeting_never_grants(self):
+        d = self.live("Take the Iron Sigil, traveller.")
+        _, _, grant, _ = d.reply("king", "Hello.", 1, SEED, opening=True)
+        self.assertEqual(grant, 0)
+        _, _, grant, _ = mock().reply("king", "what is my quest", 1, SEED,
+                                      opening=True)
+        self.assertEqual(grant, 0)
+
+    def test_mentioning_it_grants(self):
+        d = self.live("Then take the Iron Sigil. It opens the Hollow Crown.")
+        _, _, grant, _ = d.reply("king", "I will go", 1, SEED)
+        self.assertEqual(grant, 2)
+
+    def test_not_mentioning_it_does_not(self):
+        d = self.live("I sent two armies. I will not send a third.")
+        _, _, grant, _ = d.reply("king", "tell me of the war", 1, SEED)
+        self.assertEqual(grant, 0)
+
+    def test_only_before_the_quest(self):
+        d = self.live("You already carry my Sigil. Use it.")
+        _, _, grant, _ = d.reply("king", "what now", 2, SEED)
+        self.assertEqual(grant, 0)
+
+    def test_mock_asking_about_the_quest(self):
+        text, _, grant, _ = mock().reply("king", "what is my quest", 1, SEED)
+        self.assertIn("Sigil", text)
+        self.assertEqual(grant, 2)
+
+    def test_mock_greeting_leaves_it_out(self):
+        text, _, grant, _ = mock().reply("king", "Hello.", 1, SEED,
+                                         opening=True)
+        self.assertNotIn("Sigil", text)
+
+    def test_greeting_prompt_holds_back(self):
+        rule = NPCS.npcs["king"]["gives"]
+        opening = NPCS.extra_for("king", 1, SEED, "Hello.", opening=True)
+        self.assertIn(rule["wait"], opening)
+        self.assertNotIn(rule["hint"], opening)
+        later = NPCS.extra_for("king", 1, SEED, "what is my quest")
+        self.assertIn(rule["hint"], later)
 
 
 class Protocol(unittest.TestCase):
@@ -124,6 +174,46 @@ class Protocol(unittest.TestCase):
     def test_no_stage_or_seed(self):
         self.assertEqual(npcd.parse_request("SAY vane hello"),
                          ("SAY", "vane", 0, 0, "hello"))
+
+
+class Leaving(unittest.TestCase):
+    """The NPC may close a conversation; the model says so with [END]."""
+
+    def live(self, said):
+        d = npcd.Dialogue(NPCS)
+        d._chat = lambda messages: said
+        return d
+
+    def test_marker_ends_and_is_stripped(self):
+        d = self.live("Get out of my forge. [END]")
+        text, err, grant, ends = d.reply("smith", "your blades are junk")
+        self.assertEqual((text, err, grant, ends),
+                         ("Get out of my forge.", None, 0, True))
+        self.assertNotIn("END", d.history[("smith", 0, 0)][-1]["content"])
+
+    def test_variants_count(self):
+        for said in ("Farewell. (end)", "Farewell. [End]", "[LEAVE] Farewell."):
+            text, _, _, ends = self.live(said).reply("smith", "bye")
+            self.assertEqual((text, ends), ("Farewell.", True), said)
+
+    def test_no_marker_talks_on(self):
+        _, _, _, ends = self.live("Aye, what is it?").reply("smith", "hello")
+        self.assertFalse(ends)
+
+    def test_bare_marker_still_says_something(self):
+        text, _, _, ends = self.live("[END]").reply("smith", "bye")
+        self.assertTrue(text)
+        self.assertTrue(ends)
+
+    def test_mock_farewell(self):
+        text, _, _, ends = mock().reply("smith", "Goodbye then")
+        self.assertTrue(ends)
+        self.assertTrue(text)
+        _, _, _, ends = mock().reply("smith", "what of the blade")
+        self.assertFalse(ends)
+
+    def test_prompt_asks_for_the_marker(self):
+        self.assertIn("[END]", NPCS.system_for("smith"))
 
 
 class Trim(unittest.TestCase):

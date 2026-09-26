@@ -107,15 +107,26 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
         --keys 'Alaric\rwwwwwwwwwwwwaaaawaaawhat of the blade\r' --settle 32
     # Brann -> Vane: start beside Wardlow holding the Emberstone, with the
     # run's secrets pinned (seed $5A makes the fishers' word "dead low").
-    # Asking for the key is refused; saying the word earns it. Stepping onto
-    # a town square never rolls for a monster, so this is not a walk in the
-    # open.
+    # Asking for the key is refused; saying the word earns it, announced in
+    # the transcript. Saying goodbye then has Vane end the conversation
+    # (mock mode's BYE), which waits for a key. Stepping onto a town square
+    # never rolls for a monster, so this is not a walk in the open.
     if [ -f tests/golden-tidal.txt ]; then
         compare tidal tests/golden-tidal.txt \
             tools/screendump.py dist/q4k.prg --rs232 25299 \
             --poke scene=0 --poke party+0=28 --poke party+1=10 \
             --poke quest_stage=3 --poke items=8 --poke lore_seed=0x5a \
-            --keys 'Alaric\rdwwwwwwwaaaawwwmay I have the key\rdead low\r\x03' \
+            --keys 'Alaric\rdwwwwwwwaaaawwwmay I have the key\rdead low\rgoodbye\r' \
+            --settle 32
+    fi
+    # The king, from a new game started outside the castle gate: neither his
+    # greeting nor a "hello" hands over the Sigil; asking about the quest
+    # has him say so, and it arrives in the transcript.
+    if [ -f tests/golden-sigil.txt ]; then
+        compare sigil tests/golden-sigil.txt \
+            tools/screendump.py dist/q4k.prg --rs232 25299 \
+            --poke scene=0 --poke party+0=28 --poke party+1=52 \
+            --keys 'Alaric\rwwwwwwwwwwwwhello\rwhat is my quest\r' \
             --settle 32
     fi
     # The inn in Millford, wounded: an ale brings a hint from the daemon's

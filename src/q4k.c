@@ -130,17 +130,23 @@ static void keeper_beaten(void)
 /* Nobody answered at all, so there was no host to gate anything. */
 #define GRANT_OPEN 0xFF
 
-/* Hand over quest items after the conversation has happened. `granted` is
-   what the host decided the conversation earned, or GRANT_OPEN when there
-   was no host to ask -- the game stays winnable without the modem. */
-static void quest_after_talk(unsigned char npc, unsigned char granted)
+/* Who the player is talking to, for quest_after_talk. */
+static unsigned char talking_to;
+
+/* Hand over quest items the conversation has earned. `granted` is what the
+   host has decided so far, or GRANT_OPEN when there was no host to ask --
+   the game stays winnable without the modem. Called after every answer, so
+   each case must hand its item over once only. Returns the line announcing
+   the gift, or 0. */
+static const char *quest_after_talk(unsigned char granted)
 {
-    switch (npc) {
+    switch (talking_to) {
         case NPC_KING:
-            if (quest_stage < Q_QUESTED) {
+            if (quest_stage < Q_QUESTED
+                && (granted == GRANT_SIGIL || granted == GRANT_OPEN)) {
                 quest_stage = Q_QUESTED;
                 give(IT_SIGIL);
-                view_message("The king gives you the Iron Sigil.");
+                return "The king gives you the Iron Sigil.";
             }
             break;
 
@@ -149,7 +155,7 @@ static void quest_after_talk(unsigned char npc, unsigned char granted)
                 && (granted == GRANT_TIDAL || granted == GRANT_OPEN)) {
                 quest_stage = Q_TIDAL;
                 give(IT_TIDAL);
-                view_message("Vane gives you the Tidal Key.");
+                return "Vane gives you the Tidal Key.";
             }
             break;
 
@@ -157,7 +163,7 @@ static void quest_after_talk(unsigned char npc, unsigned char granted)
             if (has(IT_TEAR) && !has(IT_ASHEN)) {
                 quest_stage = Q_ASHEN;
                 give(IT_ASHEN);
-                view_message("Mother Ash gives you the Ashen Key.");
+                return "Mother Ash gives you the Ashen Key.";
             }
             break;
 
@@ -167,19 +173,20 @@ static void quest_after_talk(unsigned char npc, unsigned char granted)
                 quest_stage = Q_FORGED;
                 give(IT_BLADE);
                 weapon_lv = NUM_WEAPONS - 1;
-                view_message("Garrett reforges Dragonbane.");
+                return "Garrett reforges Dragonbane.";
             }
             break;
 
         default:
             break;
     }
+    return 0;
 }
 
 static void interact(unsigned char index)
 {
     const TownEnt *e = &town_ents[index];
-    unsigned char granted;
+    const char *note;
 
     if (e->kind == ENT_SHOP) {
         shop_open(e->param);
@@ -192,14 +199,18 @@ static void interact(unsigned char index)
         return;
     }
 
+    /* Gifts are announced in the conversation. With a dead line or no
+       daemon there was none, so the gift is ungated and told on the map. */
+    talking_to = e->param;
+    note = 0;
     if (dialog_talk(npc_ids[e->param], npc_names[e->param],
-                    quest_stage, lore_seed) == DIALOG_OK) {
-        granted = dialog_granted;
-    } else {
-        granted = GRANT_OPEN;       /* dead line or no daemon: ungated */
+                    quest_stage, lore_seed, quest_after_talk) != DIALOG_OK) {
+        note = quest_after_talk(GRANT_OPEN);
     }
     back_to_map();
-    quest_after_talk(e->param, granted);
+    if (note) {
+        view_message(note);
+    }
     ++game_turn;
 }
 

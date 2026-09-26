@@ -17,6 +17,7 @@ Protocol, CR-terminated ASCII in both directions:
     ->  ALE <inn> <stage> <seed>         buy the innkeeper a drink's worth
     <-  OK <reply>
     <-  GIVE <g> <reply>
+    <-  BYE <reply>
     <-  ERR <reason>
 
 <stage> is how far the player has got in the quest. The C64 sends the number;
@@ -29,8 +30,16 @@ assets/secrets.json with it, so the host stays stateless: a restart, a
 reconnect or a restored game all come out the same.
 
 GIVE <g> is the host deciding that this conversation has earned grant <g>
-(one digit; see GRANT_* in include/q4k/dialog.h). The model never decides
-that. The C64 still checks its own conditions before handing anything over.
+(one digit; see GRANT_* in include/q4k/dialog.h). A "gives" rule in
+assets/npcs.json is either "needs", a secret the player must say, or
+"mentions", words the NPC's own reply must contain -- the king hands over
+the Sigil when he says he does, but never in his greeting. The model never
+decides a "needs" grant. The C64 still checks its own conditions before handing anything over.
+
+BYE is the NPC closing the conversation after this reply: they said
+goodbye, took offence, had work to get back to. The model decides that, by
+ending its reply with [END]; the marker is stripped before anything is sent.
+In --mock mode a player's farewell gets the NPC's "bye" line and a BYE.
 
 ALE answers with one of the authored hints in assets/hints.json, drawn at
 random from those that fit the inn and the stage. No model is involved; it
@@ -143,6 +152,9 @@ How to answer, every single time:
 - Do not invent landmarks. No oak trees, inns, bridges, rivers or waymarks
   unless the world above names them. Give the direction and leave it there.
 - You are a person in this world, not an assistant. Never say otherwise.
+- You may end the conversation when {name} would: you have said goodbye,
+  you have been insulted, or you have better things to do. To end it,
+  write [END] after your last sentence. Otherwise never write [END].
 """
 
 # The C64 can render the printable ASCII range and nothing else.
@@ -157,6 +169,20 @@ _STAGE = re.compile(r"\*[^*]*\*")
 _ASSISTANT = re.compile(r"^\s*(?:assistant|ai|system)\s*:\s*", re.I)
 _SENTENCE = re.compile(r"(?<=[.!?])\s+")
 MAX_SENTENCES = 2
+
+# The model's way of ending a conversation. Asked for as [END]; a small
+# model will also produce (END), [End], [LEAVE] and the like, so any of
+# those count, wherever in the reply they land.
+_LEAVE = re.compile(r"[\[(<{]\s*(?:end|leave|leaves|exit|goodbye)\s*[\])>}]",
+                    re.I)
+FAREWELL = "Farewell, traveller."
+PARTING = ["bye", "goodbye", "farewell"]
+
+
+def leaves(text):
+    """(text without the end marker, True if the model ended the talk)."""
+    stripped = _LEAVE.sub(" ", text)
+    return stripped, stripped != text
 
 
 def for_c64(text, limit=MAX_REPLY, speaker=None, max_sentences=None):
@@ -321,24 +347,39 @@ class Npcs:
         of "the king told me to take the key" talks it out of anybody.
         """
         rule = self.gives(npc_id, stage)
-        if rule and says_secret(said, self.secret(rule["needs"], seed)):
+        if (rule and "needs" in rule
+                and says_secret(said, self.secret(rule["needs"], seed))):
             return rule["grant"], self.fill(rule["given"], seed)
         return None
 
-    def extra_for(self, npc_id, stage, seed, said):
+    def granted_by(self, npc_id, stage, reply):
+        """The grant the NPC's own reply hands over, or 0.
+
+        For a "mentions" rule: the NPC gives the thing by saying so. The
+        caller skips the greeting, so it is never given unasked.
+        """
+        rule = self.gives(npc_id, stage)
+        if rule and hears(reply, rule.get("mentions", [])):
+            return rule["grant"]
+        return 0
+
+    def extra_for(self, npc_id, stage, seed, said, opening=False):
         """What this one line unlocks in the prompt.
 
         A secret goes in only when the player has asked about its subject,
         and only for the NPC who is meant to know it -- a small model will
         otherwise say it to the first person who says hello. The NPC who
-        gives on hearing the secret is never told it at all.
+        gives on hearing the secret is never told it at all. A rule with a
+        "wait" holds the NPC back in the greeting.
         """
         extra = []
         t = self.topic(npc_id, stage, said)
         if t:
             extra.append(self.fill(t["tell"], seed))
         rule = self.gives(npc_id, stage)
-        if rule:
+        if rule and opening and "wait" in rule:
+            extra.append(rule["wait"])
+        elif rule:
             extra.append("What you will say if the traveller asks for it: "
                          + rule["hint"])
         return "\n".join(extra)
@@ -359,6 +400,12 @@ class Npcs:
                                       extra=extra, **npc))
 
     def mock_reply(self, npc_id, text, stage=0, seed=0):
+        """(line, True if the NPC ends the conversation)."""
+        if hears(text, PARTING):
+            return self.npcs[npc_id].get("bye", FAREWELL), True
+        return self._mock_line(npc_id, text, stage, seed), False
+
+    def _mock_line(self, npc_id, text, stage, seed):
         t = self.topic(npc_id, stage, text)
         if t and "mock" in t:
             return self.fill(t["mock"], seed)
@@ -445,10 +492,12 @@ class Dialogue:
             return None, "the keeper has nothing to say"
         return for_c64(text), None
 
-    def reply(self, npc_id, text, stage=0, seed=0):
-        """Returns (text, error, grant); grant is 0 unless one was earned."""
+    def reply(self, npc_id, text, stage=0, seed=0, opening=False):
+        """Returns (text, error, grant, ends). grant is 0 unless one was
+        earned; ends is True if the NPC has closed the conversation.
+        opening is True for the greeting, which never grants."""
         if npc_id not in self.npcs.npcs:
-            return None, "no such person here", 0
+            return None, "no such person here", 0, False
 
         turns = self.history.setdefault((npc_id, stage, seed), [])
 
@@ -459,16 +508,16 @@ class Dialogue:
             grant, line = earned
             turns.append({"role": "user", "content": text})
             turns.append({"role": "assistant", "content": line})
-            return for_c64(line), None, grant
+            return for_c64(line), None, grant, False
 
         if self.mock:
-            return (for_c64(self.npcs.mock_reply(npc_id, text, stage, seed)),
-                    None, 0)
+            line, ends = self.npcs.mock_reply(npc_id, text, stage, seed)
+            return self._handed(npc_id, stage, for_c64(line), ends, opening)
 
         name = self.npcs.npcs[npc_id]["name"]
         turns.append({"role": "user", "content": text})
 
-        extra = self.npcs.extra_for(npc_id, stage, seed, text)
+        extra = self.npcs.extra_for(npc_id, stage, seed, text, opening)
         messages = [{"role": "system",
                      "content": self.npcs.system_for(npc_id, stage, extra)}]
         messages += turns[-HISTORY_TURNS:]
@@ -479,24 +528,36 @@ class Dialogue:
             turns.pop()
             reason = getattr(exc, "reason", exc)
             print("[npcd] model call failed: %s" % (reason,), flush=True)
-            return None, "the line is bad", 0
+            return None, "the line is bad", 0, False
         except (KeyError, ValueError, TimeoutError) as exc:
             turns.pop()
             print("[npcd] bad model response: %r" % (exc,), flush=True)
-            return None, "the line is bad", 0
+            return None, "the line is bad", 0, False
 
+        said, ends = leaves(said)
         cleaned = for_c64(said, speaker=name,
                           max_sentences=MAX_SENTENCES)
         if not cleaned:
             # Small models sometimes return nothing at all, or nothing but
             # stage directions. An authored line keeps the scene intact.
             turns.pop()
-            return for_c64(self.npcs.npcs[npc_id]["mock"][0]), None, 0
+            npc = self.npcs.npcs[npc_id]
+            line = npc.get("bye", FAREWELL) if ends else npc["mock"][0]
+            return self._handed(npc_id, stage, for_c64(line), ends, opening)
 
         # Remember what the model actually said, not the trimmed version, so
-        # it stays coherent with its own previous turn.
+        # it stays coherent with its own previous turn. The end marker stays
+        # off: seeing it in its history, a small model starts ending every
+        # conversation it has with this traveller.
         turns.append({"role": "assistant", "content": said.strip()})
-        return cleaned, None, 0
+        return self._handed(npc_id, stage, cleaned, ends, opening)
+
+    def _handed(self, npc_id, stage, line, ends, opening):
+        """reply()'s result for a line the NPC has said, with whatever the
+        line itself hands over. Checked on the trimmed line: only what the
+        player actually reads counts."""
+        grant = 0 if opening else self.npcs.granted_by(npc_id, stage, line)
+        return line, None, grant, ends
 
 
 _SEED = re.compile(r"^[0-9a-fA-F]{2}$")
@@ -565,12 +626,14 @@ def handle(conn, addr, dialogue, verbose):
                     send("ERR unknown request")
                     continue
 
-                text, err, grant = dialogue.reply(npc_id, said or "Hello.",
-                                                  stage, seed)
+                text, err, grant, ends = dialogue.reply(
+                    npc_id, said or "Hello.", stage, seed, verb == "HI")
                 if err:
                     send("ERR " + err)
                 elif grant:
                     send("GIVE %d %s" % (grant, text))
+                elif ends:
+                    send("BYE " + text)
                 else:
                     send("OK " + text)
     except OSError as exc:
