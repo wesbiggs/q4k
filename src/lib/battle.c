@@ -48,19 +48,28 @@ static const char *const shot_hits[] = {
     "A wave hits you for ",
 };
 
-/* Wandering monsters, weakest first; which one shows up scales with level. */
-static const Monster wanderers[] = {
-    { "A rat",        4,  2, 0,  2,   2, T_RAT,      TC_RAT,      13, 1 },
-    { "A goblin",     7,  3, 1,  4,   6, T_GOBLIN,   TC_GOBLIN,   10, 1 },
-    { "A wolf",       9,  4, 1,  6,   5, T_WOLF,     TC_WOLF,     15, 1 },
-    { "A bandit",    12,  5, 2,  9,  15, T_BANDIT,   TC_BANDIT,   10, 1, 3,  6 },
-    { "A cutthroat", 12,  5, 2,  9,  15, T_BANDIT,   COLOR_RED,   10, 1 },
-    { "A skeleton",  15,  6, 3, 12,  12, T_SKELETON, TC_SKELETON,  8, 1 },
-    { "A skeleton archer",
-                     13,  4, 2, 14,  14, T_SKELETON, COLOR_GRAY3,  8, 1, 5,  8 },
-    { "An ogre",     22,  8, 3, 18,  25, T_OGRE,     TC_OGRE,      7, 1 },
-    { "A wraith",    26, 10, 4, 25,  30, T_WRAITH,   TC_WRAITH,   12, 1 },
-    { "A drake",     32, 12, 5, 35,  45, T_DRAKE,    TC_DRAKE,    17, 1 },
+/* Wandering monsters, and the level each starts turning up at. Kept in
+   that order: a fight picks evenly from the ones you have reached, and
+   battle_wander() stops at the first you have not. */
+typedef struct {
+    unsigned char from;
+    Monster       m;
+} Wanderer;
+
+static const Wanderer wanderers[] = {
+    { 1, { "A rat",        4,  2, 0,  2,  2, T_RAT,      TC_RAT,      13, 1 } },
+    { 1, { "A goblin",     7,  3, 1,  4,  6, T_GOBLIN,   TC_GOBLIN,   10, 1 } },
+    { 2, { "A wolf",       9,  4, 1,  6,  5, T_WOLF,     TC_WOLF,     15, 1 } },
+    { 3, { "A bandit",    12,  5, 2,  9, 15, T_BANDIT,   TC_BANDIT,   10, 1,
+           3, 6 } },
+    { 3, { "A cutthroat", 12,  5, 2,  9, 15, T_BANDIT,   COLOR_RED,   10, 1 } },
+    { 4, { "A skeleton",  15,  6, 3, 12, 12, T_SKELETON, TC_SKELETON,  8, 1 } },
+    { 5, { "A skeleton archer",
+                          13,  4, 2, 14, 14, T_SKELETON, COLOR_GRAY3,  8, 1,
+           5, 8 } },
+    { 5, { "An ogre",     22,  8, 3, 18, 25, T_OGRE,     TC_OGRE,      7, 1 } },
+    { 6, { "A wraith",    26, 10, 4, 25, 30, T_WRAITH,   TC_WRAITH,   12, 1 } },
+    { 7, { "A drake",     32, 12, 5, 35, 45, T_DRAKE,    TC_DRAKE,    17, 1 } },
 };
 #define NUM_WANDERERS (sizeof(wanderers) / sizeof(wanderers[0]))
 
@@ -794,16 +803,16 @@ static unsigned char field_fight(const Monster *m, unsigned char ground,
 
 unsigned char battle_wander(void)
 {
-    unsigned char top = hero.level + 1;
-    unsigned char i;
+    unsigned char top, i;
 
-    if (top > NUM_WANDERERS) {
-        top = NUM_WANDERERS;
+    /* The rat and the goblin are there from level 1, so `top` is never 0. */
+    for (top = 0; top < NUM_WANDERERS && wanderers[top].from <= hero.level;
+         ++top) {
     }
     i = (unsigned char)(rand() % top);
 
     /* Above ground, the ground you were on; below it, the one room. */
-    return field_fight(&wanderers[i],
+    return field_fight(&wanderers[i].m,
                        scene == SCENE_WORLD ? map_at(hero.x, hero.y)
                                             : T_FLOOR,
                        1);
