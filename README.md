@@ -86,7 +86,10 @@ reach an edge. A dungeon level you walk back into is the level you left.
 
 Dungeons are dark. A room lights up whole when you stand in it, you can see
 straight along a corridor until something stops the eye, and squares you
-have already seen stay on the map drawn dim.
+have already seen stay on the map drawn dim. The map of every level stays
+with you until you go into a different dungeon, so going back in -- by the
+stairs, or from Millford after dying down there -- is not starting over.
+Every level has at least one chest, and some have three.
 
 ## Talking to people
 

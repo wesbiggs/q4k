@@ -242,7 +242,7 @@ static void enter_dungeon(unsigned char index)
     place = index;
     depth = 1;
     dungeon_build(index, depth);
-    fov_reset();
+    fov_enter(index, depth);
     reseed();            /* dungeon_build seeds for repeatable levels */
     hero.x = dun_up_x;
     hero.y = dun_up_y;
@@ -253,7 +253,7 @@ static void descend(void)
 {
     ++depth;
     dungeon_build(place, depth);
-    fov_reset();
+    fov_enter(place, depth);
     reseed();
     hero.x = dun_up_x;
     hero.y = dun_up_y;
@@ -269,7 +269,7 @@ static void ascend(void)
     }
     --depth;
     dungeon_build(place, depth);
-    fov_reset();
+    fov_enter(place, depth);
     reseed();
     hero.x = dun_dn_x;
     hero.y = dun_dn_y;

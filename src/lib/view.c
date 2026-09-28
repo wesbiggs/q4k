@@ -84,7 +84,7 @@ static unsigned char camera(unsigned char at, unsigned char centre,
 
 static void draw_local(void)
 {
-    unsigned char vx, vy, x, y, i, code, b, m;
+    unsigned char vx, vy, x, y, i, code, row, b, m;
     unsigned char *scr, *col;
 
     cam_x = camera(hero.x, VIEW_CX, local_w, VIEW_W);
@@ -92,6 +92,7 @@ static void draw_local(void)
 
     for (vy = 0; vy < VIEW_H; ++vy) {
         y   = cam_y + vy;
+        row = fov_row[y];
         scr = SCREEN_RAM + (unsigned int)vy * SCR_W;
         col = COLOR_RAM  + (unsigned int)vy * SCR_W;
 
@@ -102,7 +103,7 @@ static void draw_local(void)
                seeing, and nothing else. Above ground the whole place is in
                front of you. */
             if (scene == SCENE_DUNGEON) {
-                b = FOV_BYTE(x, y);
+                b = row + (x >> 3);
                 m = fov_bit[x & 7];
                 if (!(fov_seen[b] & m)) {
                     *scr = 0x20;

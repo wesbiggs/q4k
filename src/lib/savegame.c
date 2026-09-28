@@ -18,7 +18,7 @@
 
 #define SAVE_DEVICE 8
 #define CMD_CHANNEL 15
-#define MAGIC       "Q4K5"   /* 5: bigger dungeons, seen as bits */
+#define MAGIC       "Q4K5"   /* 5: bigger dungeons, seen as bits, 3 chests */
 
 /* Everything the drive reads is spelled in numeric bytes: cc65 would
    re-encode a string literal, and "S0:..." came out with a shifted $D3 for
@@ -144,13 +144,17 @@ unsigned char load_game(void)
        whether the keeper is still down there depends on it. */
     if (scene == SCENE_TOWN) {
         town_unpack(place);
-    } else if (scene == SCENE_DUNGEON) {
+    }
+    /* Only the level you saved on comes back with its map; the rest of
+       that dungeon starts unexplored again. What you can see now is worked
+       out afresh before the next draw. */
+    fov_forget();
+    if (scene == SCENE_DUNGEON) {
         dungeon_build(place, depth);
         reseed();
+        fov_enter(place, depth);
+        memcpy(fov_seen, blob.seen, sizeof(fov_seen));
     }
-    /* What you can see now is worked out afresh before the next draw. */
-    memcpy(fov_seen, blob.seen, sizeof(fov_seen));
-    memset(fov_lit, 0, sizeof(fov_lit));
 
     return SAVE_OK;
 }

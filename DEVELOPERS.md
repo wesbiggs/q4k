@@ -194,6 +194,14 @@ what a corridor shows, for a fraction of the cost of casting at every wall.
 Measured on the emulated machine it costs 4.4ms a turn against a 34ms
 redraw.
 
+What you have seen is kept for every level of the last dungeon you were
+in, a bit per square. `fov_enter()` in `src/lib/fov.c` files the level you
+left away when you arrive on the next one, not when you leave, so dying
+down there needs no code of its own: nothing touches the map between the
+fight and walking back in. A saved game keeps only the level it was saved
+on; the other levels would cost the save blob 576 bytes of BSS it does not
+have.
+
 `tools/checkmap.py` (run by `make test`) floods the overworld from the start
 square and each town from its arrival square, and fails if any town, dungeon,
 lair or shopkeeper cannot be walked to. It has already caught two bugs a

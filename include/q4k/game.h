@@ -43,8 +43,8 @@
 /* No dungeon is deeper than this: dungeon_deep[] must stay within it, since
    the looted bits below give every dungeon this many levels. */
 #define MAX_DEEP     4
-/* dungeon_build() hides up to this many chests on a level. */
-#define DUN_CHESTS   2
+/* dungeon_build() hides at least one chest on a level, and up to this many. */
+#define DUN_CHESTS   3
 
 /* One bit per treasure, set once it has been taken. Dungeon chests come
    first, DUN_CHESTS bits per level, so that a new line in assets/loot.txt

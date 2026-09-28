@@ -158,20 +158,22 @@ void dungeon_build(unsigned char index, unsigned char level)
         local[LOCAL_AT(dun_dn_x, dun_dn_y)] = T_STAIRDN;
     }
 
-    /* A chest or two, so a level is worth exploring past its stairs. Each
-       one is looted by index, so the draws must not depend on anything that
-       changes between visits: the squares to avoid are tested by position,
-       not tile, because the keeper's square turns to floor once it is dead
-       and a chest could otherwise land there on the next visit only. */
+    /* One to three chests, so a level is always worth exploring past its
+       stairs. Each one is looted by index, so the draws must not depend on
+       anything that changes between visits: the stairs are tested by
+       position, not tile, because the keeper's square turns to floor once
+       it is dead and a chest could otherwise land there on the next visit
+       only. A chest placed earlier this build is the same on every visit,
+       so testing for its tile is safe. */
     dun_chests = 0;
-    n = (unsigned char)(rand() % (DUN_CHESTS + 1));
-    for (tries = 0; tries < 16 && dun_chests < n; ++tries) {
+    n = 1 + (unsigned char)(rand() % DUN_CHESTS);
+    for (tries = 0; tries < 24 && dun_chests < n; ++tries) {
         i = (unsigned char)(rand() % rooms);
         x = rx[i] + (unsigned char)(rand() % rw[i]);
         y = ry[i] + (unsigned char)(rand() % rh[i]);
         if ((x == dun_up_x && y == dun_up_y)
             || (x == dun_dn_x && y == dun_dn_y)
-            || (dun_chests && x == dun_cx[0] && y == dun_cy[0])) {
+            || local[LOCAL_AT(x, y)] == T_CHEST) {
             continue;
         }
         dun_cx[dun_chests] = x;
