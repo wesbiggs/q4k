@@ -56,7 +56,7 @@ PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 # flags are needed: --code-name alone leaves the string literals behind, and
 # screens like the help text are mostly string literals.
 HIMODS   := dialog battle shop inn dungeon panel title help savegame sprite \
-            loot
+            loot fov
 
 LIBSRC   := $(wildcard src/lib/*.c) $(wildcard src/lib/*.s)
 LIBOBJ   := $(patsubst src/lib/%.c,$(BUILD)/lib/%.o,$(wildcard src/lib/*.c)) \

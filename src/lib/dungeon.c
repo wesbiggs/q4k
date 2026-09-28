@@ -25,8 +25,8 @@ unsigned char dun_rw[MAX_ROOMS], dun_rh[MAX_ROOMS];
 
 static void carve(unsigned char x, unsigned char y)
 {
-    if (x < LOCAL_W && y < LOCAL_H) {
-        local[(unsigned int)y * LOCAL_W + x] = T_FLOOR;
+    if (x < DUN_W && y < DUN_H) {
+        local[LOCAL_AT(x, y)] = T_FLOOR;
     }
 }
 
@@ -71,10 +71,19 @@ static unsigned char overlaps(unsigned char n, unsigned char x, unsigned char y,
     return 0;
 }
 
+/* How far apart two rooms' middles are, walking the corridors' way. */
+static unsigned char apart(unsigned char i, unsigned char j)
+{
+    unsigned char ax = rx[i] + rw[i] / 2, bx = rx[j] + rw[j] / 2;
+    unsigned char ay = ry[i] + rh[i] / 2, by = ry[j] + rh[j] / 2;
+
+    return (ax > bx ? ax - bx : bx - ax) + (ay > by ? ay - by : by - ay);
+}
+
 void dungeon_build(unsigned char index, unsigned char level)
 {
     unsigned char rooms = 0;
-    unsigned char tries, x, y, w, h, i, n;
+    unsigned char tries, x, y, w, h, i, j, n, best, d;
 
     /* Seeded from where you are and which game this is, not from the
        clock: leave a level and come back and it is the same level, and a
@@ -84,12 +93,14 @@ void dungeon_build(unsigned char index, unsigned char level)
           + (unsigned int)lore_seed * 7919);
 
     memset(local, T_WALL, sizeof(local));
+    local_w = DUN_W;
+    local_h = DUN_H;
 
-    for (tries = 0; tries < 60 && rooms < MAX_ROOMS; ++tries) {
-        w = MIN_W + (unsigned char)(rand() % 4);
-        h = MIN_H + (unsigned char)(rand() % 3);
-        x = 1 + (unsigned char)(rand() % (LOCAL_W - w - 2));
-        y = 1 + (unsigned char)(rand() % (LOCAL_H - h - 2));
+    for (tries = 0; tries < 150 && rooms < MAX_ROOMS; ++tries) {
+        w = MIN_W + (unsigned char)(rand() % 6);
+        h = MIN_H + (unsigned char)(rand() % 4);
+        x = 1 + (unsigned char)(rand() % (DUN_W - w - 2));
+        y = 1 + (unsigned char)(rand() % (DUN_H - h - 2));
 
         if (overlaps(rooms, x, y, w, h)) {
             continue;
@@ -104,16 +115,35 @@ void dungeon_build(unsigned char index, unsigned char level)
 
     dun_rooms = rooms;
 
+    /* Each room joins the nearest one placed before it. Chaining them in
+       the order they were placed was fine on a single screen, but on a level
+       this size it runs corridors back and forth across the whole map. */
     for (i = 1; i < rooms; ++i) {
-        corridor(rx[i - 1] + rw[i - 1] / 2, ry[i - 1] + rh[i - 1] / 2,
+        best = 0;
+        for (j = 1; j < i; ++j) {
+            if (apart(i, j) < apart(i, best)) {
+                best = j;
+            }
+        }
+        corridor(rx[best] + rw[best] / 2, ry[best] + rh[best] / 2,
                  rx[i] + rw[i] / 2, ry[i] + rh[i] / 2);
     }
 
     dun_up_x = rx[0] + rw[0] / 2;
     dun_up_y = ry[0] + rh[0] / 2;
-    local[(unsigned int)dun_up_y * LOCAL_W + dun_up_x] = T_STAIRUP;
+    local[LOCAL_AT(dun_up_x, dun_up_y)] = T_STAIRUP;
 
+    /* The way down is in the room furthest from the way up, so a level is
+       crossed rather than stepped through. */
     i = rooms - 1;
+    best = 0;
+    for (j = 1; j < rooms; ++j) {
+        d = apart(0, j);
+        if (d > best) {
+            best = d;
+            i = j;
+        }
+    }
     dun_dn_x = rx[i] + rw[i] / 2;
     dun_dn_y = ry[i] + rh[i] / 2;
 
@@ -122,10 +152,10 @@ void dungeon_build(unsigned char index, unsigned char level)
            unless it has already been killed, which is what holding its stone
            means. Levels are rebuilt from scratch every visit, so without this
            the keeper comes back. */
-        local[(unsigned int)dun_dn_y * LOCAL_W + dun_dn_x] =
+        local[LOCAL_AT(dun_dn_x, dun_dn_y)] =
             has(dungeon_prize[index]) ? T_FLOOR : T_MONSTER;
     } else {
-        local[(unsigned int)dun_dn_y * LOCAL_W + dun_dn_x] = T_STAIRDN;
+        local[LOCAL_AT(dun_dn_x, dun_dn_y)] = T_STAIRDN;
     }
 
     /* A chest or two, so a level is worth exploring past its stairs. Each
@@ -146,7 +176,7 @@ void dungeon_build(unsigned char index, unsigned char level)
         }
         dun_cx[dun_chests] = x;
         dun_cy[dun_chests] = y;
-        local[(unsigned int)y * LOCAL_W + x] = T_CHEST;
+        local[LOCAL_AT(x, y)] = T_CHEST;
         ++dun_chests;
     }
 }

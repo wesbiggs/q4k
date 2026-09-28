@@ -9,7 +9,7 @@
 unsigned char scene;
 unsigned char place;
 unsigned char depth;
-unsigned char local[LOCAL_W * LOCAL_H];
+unsigned char local_w, local_h;     /* local[] itself is in local.s */
 
 unsigned int  game_turn;
 unsigned int  gold;
@@ -54,7 +54,7 @@ void game_init(void)
     lore_seed   = 0;
     memset(looted, 0, sizeof(looted));
 
-    rle_unpack(local, town_map[TOWN_MILLFORD], sizeof(local));
+    town_unpack(TOWN_MILLFORD);
     hero.x = town_sx[TOWN_MILLFORD];
     hero.y = town_sy[TOWN_MILLFORD];
 }
@@ -64,16 +64,16 @@ unsigned char map_at(unsigned char x, unsigned char y)
     if (scene == SCENE_WORLD) {
         return world_tile(x, y);
     }
-    if (x >= LOCAL_W || y >= LOCAL_H) {
+    if (x >= local_w || y >= local_h) {
         return T_WALL;
     }
-    return local[(unsigned int)y * LOCAL_W + x];
+    return local[LOCAL_AT(x, y)];
 }
 
 void map_set(unsigned char x, unsigned char y, unsigned char code)
 {
-    if (scene != SCENE_WORLD && x < LOCAL_W && y < LOCAL_H) {
-        local[(unsigned int)y * LOCAL_W + x] = code;
+    if (scene != SCENE_WORLD && x < local_w && y < local_h) {
+        local[LOCAL_AT(x, y)] = code;
     }
 }
 
@@ -106,12 +106,28 @@ signed char dungeon_at(unsigned char x, unsigned char y)
     return -1;
 }
 
+/* The packed towns are LOCAL_W to a row. Unpack into the tail of the buffer
+   and spread the rows out to LOCAL_STRIDE: every row moves down in memory,
+   and never past a row still waiting to be moved. */
+void town_unpack(unsigned char index)
+{
+    unsigned char *src = local + sizeof(local) - LOCAL_W * LOCAL_H;
+    unsigned char y;
+
+    rle_unpack(src, town_map[index], LOCAL_W * LOCAL_H);
+    for (y = 0; y < LOCAL_H; ++y, src += LOCAL_W) {
+        memmove(local + LOCAL_AT(0, y), src, LOCAL_W);
+    }
+    local_w = LOCAL_W;
+    local_h = LOCAL_H;
+}
+
 void enter_town(unsigned char index)
 {
     scene = SCENE_TOWN;
     place = index;
     depth = 0;
-    rle_unpack(local, town_map[index], sizeof(local));
+    town_unpack(index);
     hero.x = town_sx[index];
     hero.y = town_sy[index];
 }

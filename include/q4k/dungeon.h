@@ -13,7 +13,7 @@
 
 #include <q4k/game.h>
 
-#define MAX_ROOMS 6
+#define MAX_ROOMS 14
 
 /* The rooms this level ended up with. Line of sight needs them: a room you
    are standing in lights up whole, which is cheaper and truer to the genre

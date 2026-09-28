@@ -5,6 +5,10 @@
  * walking halfway across Keldmarch to reach one. Any key steps to the next
  * level, wrapping through all three dungeons.
  *
+ * A level is bigger than the screen, so it is drawn at half scale: each
+ * character is a 2x2 block of squares, floor if any of them is, and the
+ * stairs, a chest or the keeper if one of those is in it.
+ *
  *   make shot PROG=dungeontest
  */
 
@@ -21,64 +25,74 @@
 
 static char line[SCR_W + 1];
 
+#define PANEL  (DUN_W / 2 + 1)
+
 static void draw(unsigned char which, unsigned char level)
 {
-    unsigned char x, y, code, floors = 0;
-    unsigned int  offset;
+    unsigned char x, y, i, code, block;
+    unsigned int  offset, floors = 0;
     char *p;
 
     dungeon_build(which, level);
 
-    for (y = 0; y < LOCAL_H; ++y) {
-        for (x = 0; x < LOCAL_W; ++x) {
-            code = local[(unsigned int)y * LOCAL_W + x];
-            offset = (unsigned int)y * SCR_W + x;
-            SCREEN_RAM[offset] = code;
-            COLOR_RAM[offset]  = (code >= TILE_BASE + TILE_COUNT)
-                               ? COLOR_LIGHTRED
-                               : tile_colors[code - TILE_BASE];
-            if (code == T_FLOOR) {
-                ++floors;
+    for (y = 0; y < DUN_H; y += 2) {
+        for (x = 0; x < DUN_W; x += 2) {
+            block = T_WALL;
+            for (i = 0; i < 4; ++i) {
+                code = local[LOCAL_AT(x + (i & 1), y + (i >> 1))];
+                if (code == T_FLOOR) {
+                    ++floors;
+                    if (block == T_WALL) {
+                        block = T_FLOOR;
+                    }
+                } else if (code != T_WALL) {
+                    block = code;
+                }
             }
+            offset = (unsigned int)(y / 2) * SCR_W + x / 2;
+            SCREEN_RAM[offset] = block;
+            COLOR_RAM[offset]  = (block >= TILE_BASE + TILE_COUNT)
+                               ? COLOR_LIGHTRED
+                               : tile_colors[block - TILE_BASE];
         }
     }
 
     p = str_lit(line, dungeon_names[which]);
-    text_clear(22, 1, 18);
-    text_put(22, 1, line, COLOR_YELLOW);
+    text_clear(0, DUN_H / 2 + 1, SCR_W);   /* too long for the panel */
+    text_put(0, DUN_H / 2 + 1, line, COLOR_YELLOW);
 
     p = str_lit(line, "LEVEL ");
     p = str_num(p, level);
     p = str_lit(p, " OF ");
     p = str_num(p, dungeon_deep[which]);
-    text_clear(22, 3, 18);
-    text_put(22, 3, line, COLOR_WHITE);
+    text_clear(PANEL, 3, SCR_W - PANEL);
+    text_put(PANEL, 3, line, COLOR_WHITE);
 
     p = str_lit(line, "FLOOR ");
     p = str_num(p, floors);
-    text_clear(22, 5, 18);
-    text_put(22, 5, line, COLOR_GRAY1);
+    text_clear(PANEL, 5, SCR_W - PANEL);
+    text_put(PANEL, 5, line, COLOR_GRAY1);
 
     p = str_lit(line, "UP   ");
     p = str_num(p, dun_up_x);
     p = str_lit(p, ",");
     p = str_num(p, dun_up_y);
-    text_clear(22, 7, 18);
-    text_put(22, 7, line, COLOR_GRAY1);
+    text_clear(PANEL, 7, SCR_W - PANEL);
+    text_put(PANEL, 7, line, COLOR_GRAY1);
 
     p = str_lit(line, "DOWN ");
     p = str_num(p, dun_dn_x);
     p = str_lit(p, ",");
     p = str_num(p, dun_dn_y);
-    text_clear(22, 8, 18);
-    text_put(22, 8, line, COLOR_GRAY1);
+    text_clear(PANEL, 8, SCR_W - PANEL);
+    text_put(PANEL, 8, line, COLOR_GRAY1);
 
-    PROBE_SCRATCH[0] = floors;
+    PROBE_SCRATCH[0] = (unsigned char)floors;
     PROBE_SCRATCH[1] = dun_up_x;
     PROBE_SCRATCH[2] = dun_up_y;
     PROBE_SCRATCH[3] = dun_dn_y;
-    PROBE_SCRATCH[4] = local[(unsigned int)dun_up_y * LOCAL_W + dun_up_x];
-    PROBE_SCRATCH[5] = local[(unsigned int)dun_dn_y * LOCAL_W + dun_dn_x];
+    PROBE_SCRATCH[4] = local[LOCAL_AT(dun_up_x, dun_up_y)];
+    PROBE_SCRATCH[5] = local[LOCAL_AT(dun_dn_x, dun_dn_y)];
 }
 
 int main(void)

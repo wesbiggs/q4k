@@ -5,48 +5,29 @@
 #include <q4k/game.h>
 #include <q4k/tiles.h>
 
-unsigned char lit[LOCAL_W * LOCAL_H];
-
-/* The squares lit last turn, so clearing them costs a walk over what was
- * actually visible -- eighty-odd cells -- instead of over the whole level.
- * A full sweep is the obvious way to write it and measurably the wrong one.
- *
- * Sized for the worst case: the largest room with its walls, the nine
- * squares around you, and four rays the length of the map. If it ever did
- * overflow, `flooded` falls back to the sweep rather than leaving squares
- * lit forever. */
-#define MAX_LIT 200
-static unsigned int  litlist[MAX_LIT];
-static unsigned char litcount;
-static unsigned char flooded;
+unsigned char       fov_seen[FOV_BYTES];
+unsigned char       fov_lit[FOV_BYTES];
+const unsigned char fov_bit[8] = { 1, 2, 4, 8, 16, 32, 64, 128 };
 
 void fov_reset(void)
 {
-    memset(lit, LIT_UNSEEN, sizeof(lit));
-    litcount = 0;
-    flooded = 0;
+    memset(fov_seen, 0, FOV_BYTES);
+    memset(fov_lit, 0, FOV_BYTES);
 }
 
 /* Coordinates arrive as unsigned, so a step off the left or top wraps to a
    large number and fails the same bounds test as a step off the right. */
 static void show(unsigned char x, unsigned char y)
 {
-    unsigned int i;
+    unsigned char b, m;
 
-    if (x >= LOCAL_W || y >= LOCAL_H) {
+    if (x >= DUN_W || y >= DUN_H) {
         return;
     }
-    i = (unsigned int)y * LOCAL_W + x;
-    if (lit[i] == LIT_VISIBLE) {
-        return;                     /* already lit this turn */
-    }
-    lit[i] = LIT_VISIBLE;
-
-    if (litcount < MAX_LIT) {
-        litlist[litcount++] = i;
-    } else {
-        flooded = 1;
-    }
+    b = FOV_BYTE(x, y);
+    m = fov_bit[x & 7];
+    fov_lit[b]  |= m;
+    fov_seen[b] |= m;
 }
 
 /* Straight down a corridor until something stops the eye. The blocking
@@ -57,11 +38,11 @@ static void ray(unsigned char x, unsigned char y,
     for (;;) {
         x += dx;
         y += dy;
-        if (x >= LOCAL_W || y >= LOCAL_H) {
+        if (x >= DUN_W || y >= DUN_H) {
             return;
         }
         show(x, y);
-        if (local[(unsigned int)y * LOCAL_W + x] == T_WALL) {
+        if (local[LOCAL_AT(x, y)] == T_WALL) {
             return;
         }
     }
@@ -84,23 +65,13 @@ static void light_room(unsigned char i)
 
 void fov_update(unsigned char x, unsigned char y)
 {
-    unsigned int   i;
-    unsigned char  r;
+    unsigned char r;
 
-    /* What was lit last turn becomes memory. */
-    if (flooded) {
-        for (i = 0; i < LOCAL_W * LOCAL_H; ++i) {
-            if (lit[i] == LIT_VISIBLE) {
-                lit[i] = LIT_REMEMBERED;
-            }
-        }
-        flooded = 0;
-    } else {
-        for (r = 0; r < litcount; ++r) {
-            lit[litlist[r]] = LIT_REMEMBERED;
-        }
-    }
-    litcount = 0;
+    /* What was lit last turn becomes memory: it is already in fov_seen.
+       With a bit per square the whole level is 256 bytes, so wiping it is
+       cheaper than the list of lit squares that used to be kept, and has
+       no worst case to overflow. */
+    memset(fov_lit, 0, FOV_BYTES);
 
     /* Always your own square and everything touching it. */
     for (r = 0; r < 9; ++r) {

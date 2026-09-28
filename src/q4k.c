@@ -345,7 +345,7 @@ static void try_move(signed char dx, signed char dy, unsigned char dir)
     if (scene == SCENE_WORLD) {
         nx &= WORLD_MASK;
         ny &= WORLD_MASK;
-    } else if (nx < 0 || ny < 0 || nx >= LOCAL_W || ny >= LOCAL_H) {
+    } else if (nx < 0 || ny < 0 || nx >= local_w || ny >= local_h) {
         view_message("Blocked.");
         return;
     }
@@ -461,6 +461,9 @@ int main(void)
        expects, so they concatenate straight together. */
     static char greeting[SCR_W + 1];
 
+    /* First of all: game_init() unpacks Millford into local[], which is the
+       font image until the charset has been copied out of it. */
+    tiles_install();
     game_init();                       /* seeds hero.name with the default */
     /* No keyboard drain here: the title screen already discarded the
        launcher's RUN before it accepted a name, and draining again would

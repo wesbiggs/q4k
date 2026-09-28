@@ -29,7 +29,11 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   because a target-specific `CFLAGS` will not invalidate them on its own.
 - `$B000-$C4FF` **BSS**, then the RS-232 buffers, C stack and probe page.
   HIGH's top 4K is RAM under BASIC ROM (banked out at startup), taken from
-  BSS; BSS has only a few hundred bytes of headroom left.
+  BSS; BSS has about 950 bytes of headroom left.
+- `local[]`, the town or dungeon map, **is the font image** (2K of HIDATA),
+  reused once `charset_install()` has copied it to `$3800`. Install the
+  charset before anything writes a map; `charset_install()` refuses a
+  second copy, since by then it would copy the map.
 - `$0340-$03FF` **hero sprite** data (blocks 13 to 15, in the cassette
   buffer). Sprites must sit in VIC bank 0 like the charset; all three are in
   use. Nothing else may use the tape buffer.

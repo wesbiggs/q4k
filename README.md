@@ -79,9 +79,10 @@ level: rats and goblins from the start, drakes from level seven.
 
 ## The world
 
-The overworld is a wrapping 64x64 grid; towns and dungeon levels are exactly
-one 21x19 screen, so they never scroll: walk in and the whole place is in
-front of you. A dungeon level you walk back into is the level you left.
+The overworld is a wrapping 64x64 grid. Towns are exactly one 21x19 screen,
+so they never scroll: walk in and the whole place is in front of you.
+Dungeon levels are 48x32 and scroll with you, like the overworld, until you
+reach an edge. A dungeon level you walk back into is the level you left.
 
 Dungeons are dark. A room lights up whole when you stand in it, you can see
 straight along a corridor until something stops the eye, and squares you

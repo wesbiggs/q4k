@@ -169,11 +169,21 @@ access sets on this machine.
 
 ## The map
 
-The overworld is a wrapping 64x64 grid; towns and dungeon levels are exactly
-one 21x19 viewport, so they never scroll. Towns are authored in
-[assets/towns.txt](assets/towns.txt); dungeon levels are generated, seeded
-from the dungeon and depth so a level you walk back into is the level you
-left.
+The overworld is a wrapping 64x64 grid; towns are exactly one 21x19
+viewport, so they never scroll. Dungeon levels are `DUN_W` x `DUN_H` (48x32,
+in `include/q4k/game.h`) and the view follows the hero, clamped at the
+edges. Towns are authored in [assets/towns.txt](assets/towns.txt); dungeon
+levels are generated, seeded from the dungeon and depth so a level you walk
+back into is the level you left.
+
+Both share `local[]`, whose rows are `LOCAL_STRIDE` (64) apart whatever the
+place's width, so a square is `LOCAL_AT(x, y)`: a shift, not a multiply.
+It has no storage of its own -- it is the 2K font image, which is dead once
+`charset_install()` has copied it to `$3800` (see `src/lib/local.s`). So the
+charset must be installed before anything writes a map, which is why
+`main()` calls `tiles_install()` before `game_init()`.
+`make shot PROG=dungeontest` draws a level at half scale, a character to
+every 2x2 block of squares, since a whole one no longer fits on screen.
 
 Dungeons are dark. A room lights up whole when you stand in it, you can see
 straight along a corridor until something stops the eye, and squares you

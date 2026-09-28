@@ -18,7 +18,7 @@
 
 #define SAVE_DEVICE 8
 #define CMD_CHANNEL 15
-#define MAGIC       "Q4K4"   /* 4: treasure taken */
+#define MAGIC       "Q4K5"   /* 5: bigger dungeons, seen as bits */
 
 /* Everything the drive reads is spelled in numeric bytes: cc65 would
    re-encode a string literal, and "S0:..." came out with a shifted $D3 for
@@ -53,7 +53,7 @@ typedef struct {
     unsigned char place;
     unsigned char depth;
     unsigned char looted[LOOTED_BYTES];
-    unsigned char lit[LOCAL_W * LOCAL_H];
+    unsigned char seen[FOV_BYTES];
 } SaveGame;
 
 static SaveGame blob;
@@ -86,7 +86,7 @@ static void gather(void)
     blob.place       = place;
     blob.depth       = depth;
     memcpy(blob.looted, looted, sizeof(blob.looted));
-    memcpy(blob.lit, lit, sizeof(blob.lit));
+    memcpy(blob.seen, fov_seen, sizeof(blob.seen));
 }
 
 unsigned char save_game(void)
@@ -143,12 +143,14 @@ unsigned char load_game(void)
     /* Rebuild the map rather than store it. items has to be restored first:
        whether the keeper is still down there depends on it. */
     if (scene == SCENE_TOWN) {
-        rle_unpack(local, town_map[place], sizeof(local));
+        town_unpack(place);
     } else if (scene == SCENE_DUNGEON) {
         dungeon_build(place, depth);
         reseed();
     }
-    memcpy(lit, blob.lit, sizeof(lit));
+    /* What you can see now is worked out afresh before the next draw. */
+    memcpy(fov_seen, blob.seen, sizeof(fov_seen));
+    memset(fov_lit, 0, sizeof(fov_lit));
 
     return SAVE_OK;
 }
