@@ -9,8 +9,9 @@
 #ifndef Q4K_RLE_H
 #define Q4K_RLE_H
 
-/* Unpack `size` bytes into `dst`. A byte below $80 is itself; $80 or more
-   is a run of (byte & $7F) copies of the byte after it. */
+/* Unpack `size` bytes into `dst`. A map opens with a count and that many
+   screen codes, its palette; each byte after that is a run, the high nybble
+   its length less one and the low nybble which palette entry. */
 void rle_unpack(unsigned char *dst, const unsigned char *src,
                 unsigned int size);
 
