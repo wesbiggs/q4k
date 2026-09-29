@@ -125,6 +125,7 @@ int main(void)
 {
     unsigned char k;
 
+    tiles_install();    /* before game_init() writes over the font */
     game_init();
     view_init();
     count = num_wanderers + NUM_DUNGEONS + 1;

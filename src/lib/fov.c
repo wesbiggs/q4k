@@ -5,48 +5,65 @@
 #include <q4k/game.h>
 #include <q4k/tiles.h>
 
-unsigned char lit[LOCAL_W * LOCAL_H];
+/* The tables below are written out for these sizes. */
+#if DUN_W % 8 != 0 || DUN_H != 32 || DUN_W / 8 * DUN_H > 256 || MAX_DEEP != 4
+#error "fov_row and fov_level are written out for a 32-row level, 4 deep"
+#endif
 
-/* The squares lit last turn, so clearing them costs a walk over what was
- * actually visible -- eighty-odd cells -- instead of over the whole level.
- * A full sweep is the obvious way to write it and measurably the wrong one.
- *
- * Sized for the worst case: the largest room with its walls, the nine
- * squares around you, and four rays the length of the map. If it ever did
- * overflow, `flooded` falls back to the sweep rather than leaving squares
- * lit forever. */
-#define MAX_LIT 200
-static unsigned int  litlist[MAX_LIT];
-static unsigned char litcount;
-static unsigned char flooded;
+unsigned char       fov_seen[FOV_BYTES];
+unsigned char       fov_lit[FOV_BYTES];
+const unsigned char fov_bit[8] = { 1, 2, 4, 8, 16, 32, 64, 128 };
 
-void fov_reset(void)
+#define R(y) ((y) * FOV_ROW)
+const unsigned char fov_row[DUN_H] = {
+    R(0), R(1), R(2), R(3), R(4), R(5), R(6), R(7), R(8), R(9), R(10),
+    R(11), R(12), R(13), R(14), R(15), R(16), R(17), R(18), R(19), R(20),
+    R(21), R(22), R(23), R(24), R(25), R(26), R(27), R(28), R(29), R(30),
+    R(31)
+};
+
+/* Every level of the last dungeon you were in. `mem_of` is that dungeon
+   plus one, so the zero BSS starts with means nothing is remembered, and
+   `mem_at` is the level fov_seen belongs to, less one. A table of where
+   each level starts, rather than an index, keeps a multiply -- and the
+   runtime helper it would drag into MAIN -- out of it. */
+static unsigned char fov_mem[MAX_DEEP][FOV_BYTES];
+static unsigned char *const fov_level[MAX_DEEP] = {
+    fov_mem[0], fov_mem[1], fov_mem[2], fov_mem[3],
+};
+static unsigned char mem_of, mem_at;
+
+void fov_enter(unsigned char dungeon, unsigned char level)
 {
-    memset(lit, LIT_UNSEEN, sizeof(lit));
-    litcount = 0;
-    flooded = 0;
+    if (mem_of == dungeon + 1) {
+        memcpy(fov_level[mem_at], fov_seen, FOV_BYTES);
+    } else {
+        memset(fov_mem, 0, sizeof(fov_mem));
+        mem_of = dungeon + 1;
+    }
+    mem_at = level - 1;
+    memcpy(fov_seen, fov_level[mem_at], FOV_BYTES);
+    memset(fov_lit, 0, FOV_BYTES);
+}
+
+void fov_forget(void)
+{
+    mem_of = 0;
 }
 
 /* Coordinates arrive as unsigned, so a step off the left or top wraps to a
    large number and fails the same bounds test as a step off the right. */
 static void show(unsigned char x, unsigned char y)
 {
-    unsigned int i;
+    unsigned char b, m;
 
-    if (x >= LOCAL_W || y >= LOCAL_H) {
+    if (x >= DUN_W || y >= DUN_H) {
         return;
     }
-    i = (unsigned int)y * LOCAL_W + x;
-    if (lit[i] == LIT_VISIBLE) {
-        return;                     /* already lit this turn */
-    }
-    lit[i] = LIT_VISIBLE;
-
-    if (litcount < MAX_LIT) {
-        litlist[litcount++] = i;
-    } else {
-        flooded = 1;
-    }
+    b = FOV_BYTE(x, y);
+    m = fov_bit[x & 7];
+    fov_lit[b]  |= m;
+    fov_seen[b] |= m;
 }
 
 /* Straight down a corridor until something stops the eye. The blocking
@@ -57,11 +74,11 @@ static void ray(unsigned char x, unsigned char y,
     for (;;) {
         x += dx;
         y += dy;
-        if (x >= LOCAL_W || y >= LOCAL_H) {
+        if (x >= DUN_W || y >= DUN_H) {
             return;
         }
         show(x, y);
-        if (local[(unsigned int)y * LOCAL_W + x] == T_WALL) {
+        if (local[LOCAL_AT(x, y)] == T_WALL) {
             return;
         }
     }
@@ -84,23 +101,13 @@ static void light_room(unsigned char i)
 
 void fov_update(unsigned char x, unsigned char y)
 {
-    unsigned int   i;
-    unsigned char  r;
+    unsigned char r;
 
-    /* What was lit last turn becomes memory. */
-    if (flooded) {
-        for (i = 0; i < LOCAL_W * LOCAL_H; ++i) {
-            if (lit[i] == LIT_VISIBLE) {
-                lit[i] = LIT_REMEMBERED;
-            }
-        }
-        flooded = 0;
-    } else {
-        for (r = 0; r < litcount; ++r) {
-            lit[litlist[r]] = LIT_REMEMBERED;
-        }
-    }
-    litcount = 0;
+    /* What was lit last turn becomes memory: it is already in fov_seen.
+       With a bit per square the whole level is 192 bytes, so wiping it is
+       cheaper than the list of lit squares that used to be kept, and has
+       no worst case to overflow. */
+    memset(fov_lit, 0, FOV_BYTES);
 
     /* Always your own square and everything touching it. */
     for (r = 0; r < 9; ++r) {

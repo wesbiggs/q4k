@@ -13,7 +13,7 @@
 
 #include <q4k/game.h>
 
-#define MAX_ROOMS 6
+#define MAX_ROOMS 14
 
 /* The rooms this level ended up with. Line of sight needs them: a room you
    are standing in lights up whole, which is cheaper and truer to the genre
@@ -26,7 +26,7 @@ extern unsigned char dun_rw[MAX_ROOMS], dun_rh[MAX_ROOMS];
 extern unsigned char dun_up_x, dun_up_y;
 extern unsigned char dun_dn_x, dun_dn_y;
 
-/* The chests this level ended up with, 0 to DUN_CHESTS of them. The index
+/* The chests this level ended up with, 1 to DUN_CHESTS of them. The index
    is which looted bit each one owns, so it must come out the same on every
    visit to the level. */
 extern unsigned char dun_chests;

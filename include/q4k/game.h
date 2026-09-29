@@ -2,8 +2,9 @@
  * Quest for the King -- game state and the scene the player is standing in.
  *
  * Three scenes share one set of movement and drawing code. The overworld is
- * a wrapping 64x64 map in ROM; towns and dungeon levels are 21x19 and live in
- * one RAM buffer, rebuilt whenever the player goes somewhere.
+ * a wrapping 64x64 map in ROM; towns (21x19) and dungeon levels (DUN_W x
+ * DUN_H, bigger than the screen) live in one RAM buffer, rebuilt whenever
+ * the player goes somewhere.
  */
 
 #ifndef Q4K_GAME_H
@@ -42,8 +43,8 @@
 /* No dungeon is deeper than this: dungeon_deep[] must stay within it, since
    the looted bits below give every dungeon this many levels. */
 #define MAX_DEEP     4
-/* dungeon_build() hides up to this many chests on a level. */
-#define DUN_CHESTS   2
+/* dungeon_build() hides at least one chest on a level, and up to this many. */
+#define DUN_CHESTS   3
 
 /* One bit per treasure, set once it has been taken. Dungeon chests come
    first, DUN_CHESTS bits per level, so that a new line in assets/loot.txt
@@ -55,8 +56,25 @@ extern unsigned char scene;
 extern unsigned char place;    /* town index, or dungeon index      */
 extern unsigned char depth;    /* dungeon level, 1 at the entrance  */
 
-/* The current town or dungeon level. The overworld is read from ROM. */
-extern unsigned char local[LOCAL_W * LOCAL_H];
+/* The current town or dungeon level. The overworld is read from ROM.
+ *
+ * Rows are LOCAL_STRIDE apart whatever the place's width, so finding a
+ * square is a shift rather than a multiply. A town fills the top-left
+ * LOCAL_W x LOCAL_H of it; a dungeon level is DUN_W x DUN_H and scrolls.
+ *
+ * There is no storage of its own: local[] is the font image, which is dead
+ * once charset_install() has copied it to $3800 (see src/lib/local.s). So
+ * the charset must go in before anything here is written, and only once. */
+#define LOCAL_SHIFT   6
+#define LOCAL_STRIDE  (1 << LOCAL_SHIFT)
+#define LOCAL_ROWS    32
+#define LOCAL_AT(x, y) (((unsigned int)(y) << LOCAL_SHIFT) + (x))
+
+#define DUN_W  48
+#define DUN_H  32
+
+extern unsigned char local[LOCAL_STRIDE * LOCAL_ROWS];
+extern unsigned char local_w, local_h;   /* the current place's size */
 
 extern unsigned int  game_turn;
 extern unsigned int  gold;
@@ -91,6 +109,8 @@ extern const unsigned char dungeon_deep[NUM_DUNGEONS];  /* levels       */
 signed char   dungeon_at(unsigned char x, unsigned char y);
 signed char   town_at(unsigned char x, unsigned char y);
 
+/* Unpack town `index` into local[] without moving anyone. */
+void          town_unpack(unsigned char index);
 void          enter_town(unsigned char index);
 void          leave_local(void);
 

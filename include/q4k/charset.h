@@ -23,8 +23,9 @@ extern const unsigned char font_image[CHARSET_BYTES];
           character data at $3800 (bits 3-1 = %111). */
 #define CHARSET_D018  0x1E
 
-/* Put the font in RAM, where glyphs can be overwritten. Call once, before
-   touching VIC.addr. */
+/* Put the font in RAM, where glyphs can be overwritten. Call before
+   touching VIC.addr, and before anything writes local[]: the font image is
+   reused as the map once it has been copied, so later calls do nothing. */
 void charset_install(void);
 
 /* Replace one glyph. `bitmap` is 8 bytes, top row first, MSB leftmost. */

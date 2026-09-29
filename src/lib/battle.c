@@ -87,7 +87,7 @@ const char *const bow_names[NUM_BOWS] = {
 };
 const unsigned char bow_atk[NUM_BOWS]   = { 0, 3, 6, 10 };
 const unsigned char bow_range[NUM_BOWS] = { 0, 6, 10, 15 };
-const unsigned int  bow_cost[NUM_BOWS]  = { 0, 40, 150, 350 };
+const unsigned int  bow_cost[NUM_BOWS]  = { 0, 80, 150, 350 };
 
 /* Experience needed for each level, from level 1. */
 static const unsigned int level_at[] = {

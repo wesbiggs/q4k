@@ -65,48 +65,73 @@ void view_init(void)
     sprite_init();
 }
 
-/* Towns and dungeon levels are exactly one viewport, so they never scroll:
-   walk in and the whole place is in front of you. */
+/* Where the viewport's top-left corner is in local[]. A dungeon level is
+   bigger than the screen, so the view follows you like the overworld's,
+   but stops at the edges instead of wrapping: it keeps you centred until
+   there is no more map that way, and then you walk off the centre. A town
+   is exactly one viewport, so both come out 0 and it never moves. */
+static unsigned char cam_x, cam_y;
+
+static unsigned char camera(unsigned char at, unsigned char centre,
+                            unsigned char size, unsigned char view)
+{
+    if (at <= centre) {
+        return 0;
+    }
+    at -= centre;
+    return (at + view > size) ? size - view : at;
+}
+
 static void draw_local(void)
 {
-    unsigned char x, y, i, code, state;
-    unsigned int  offset;
+    unsigned char vx, vy, x, y, i, code, row, b, m;
+    unsigned char *scr, *col;
 
-    for (y = 0; y < LOCAL_H; ++y) {
-        for (x = 0; x < LOCAL_W; ++x) {
-            offset = (unsigned int)y * SCR_W + x;
-            code = local[(unsigned int)y * LOCAL_W + x];
+    cam_x = camera(hero.x, VIEW_CX, local_w, VIEW_W);
+    cam_y = camera(hero.y, VIEW_CY, local_h, VIEW_H);
+
+    for (vy = 0; vy < VIEW_H; ++vy) {
+        y   = cam_y + vy;
+        row = fov_row[y];
+        scr = SCREEN_RAM + (unsigned int)vy * SCR_W;
+        col = COLOR_RAM  + (unsigned int)vy * SCR_W;
+
+        for (vx = 0, x = cam_x; vx < VIEW_W; ++vx, ++x, ++scr, ++col) {
+            code = local[LOCAL_AT(x, y)];
 
             /* Underground you draw what you can see and what you remember
                seeing, and nothing else. Above ground the whole place is in
                front of you. */
             if (scene == SCENE_DUNGEON) {
-                state = lit[(unsigned int)y * LOCAL_W + x];
-                if (state == LIT_UNSEEN) {
-                    SCREEN_RAM[offset] = 0x20;
-                    COLOR_RAM[offset]  = COLOR_BLACK;
+                b = row + (x >> 3);
+                m = fov_bit[x & 7];
+                if (!(fov_seen[b] & m)) {
+                    *scr = 0x20;
+                    *col = COLOR_BLACK;
                     continue;
                 }
-                if (state == LIT_REMEMBERED) {
-                    SCREEN_RAM[offset] = code;
-                    COLOR_RAM[offset]  = COLOR_GRAY1;
+                if (!(fov_lit[b] & m)) {
+                    *scr = code;
+                    *col = COLOR_GRAY1;
                     continue;
                 }
             }
 
-            SCREEN_RAM[offset] = code;
-            COLOR_RAM[offset]  = (code >= TILE_BASE + TILE_COUNT)
-                               ? COLOR_LIGHTRED       /* the keeper */
-                               : tile_colors[code - TILE_BASE];
+            *scr = code;
+            *col = (code >= TILE_BASE + TILE_COUNT)
+                 ? COLOR_LIGHTRED       /* the keeper */
+                 : tile_colors[code - TILE_BASE];
         }
     }
 
+    /* Only towns have people in them, and towns never scroll. */
     if (scene == SCENE_TOWN) {
         for (i = town_ent_first[place]; i < town_ent_first[place + 1]; ++i) {
-            offset = (unsigned int)town_ents[i].y * SCR_W + town_ents[i].x;
-            SCREEN_RAM[offset] = T_VILLAGER;
-            COLOR_RAM[offset]  = (town_ents[i].kind == ENT_NPC)
-                               ? COLOR_CYAN : COLOR_YELLOW;   /* trade */
+            x = town_ents[i].x;
+            y = town_ents[i].y;
+            SCREEN_RAM[(unsigned int)y * SCR_W + x] = T_VILLAGER;
+            COLOR_RAM[(unsigned int)y * SCR_W + x]  =
+                (town_ents[i].kind == ENT_NPC) ? COLOR_CYAN : COLOR_YELLOW;
         }
     }
 }
@@ -144,7 +169,7 @@ void view_draw(void)
         sprite_show(VIEW_CX, VIEW_CY);
     } else {
         draw_local();
-        sprite_show(hero.x, hero.y);
+        sprite_show(hero.x - cam_x, hero.y - cam_y);
     }
 }
 
