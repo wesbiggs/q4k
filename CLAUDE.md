@@ -25,11 +25,15 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
 - `$4000-$AFFF` **HIGH** — `HIDATA` for bulk tables (the overworld, the
   towns) and `HICODE` for module code that will not fit below. Modules listed
   in the Makefile's `HIMODS` are compiled with `--code-name HICODE`; add to
-  that list when MAIN overflows. Changing the list needs the objects rebuilt,
-  because a target-specific `CFLAGS` will not invalidate them on its own.
+  that list when MAIN overflows. When HIGH is the one that overflows and MAIN
+  has room, add the module to `HICODEMODS` as well: its code stays in HIGH
+  but its rodata goes back to MAIN (the shop is there already). Changing
+  either list needs the objects rebuilt, because a target-specific `CFLAGS`
+  will not invalidate them on its own. All three regions are tight: about
+  180 bytes free in HIGH, 320 in MAIN and 380 in BSS.
 - `$B000-$C4FF` **BSS**, then the RS-232 buffers, C stack and probe page.
   HIGH's top 4K is RAM under BASIC ROM (banked out at startup), taken from
-  BSS; BSS has about 390 bytes of headroom left.
+  BSS.
 - `local[]`, the town or dungeon map, **is the font image** (2K of HIDATA),
   reused once `charset_install()` has copied it to `$3800`. Install the
   charset before anything writes a map; `charset_install()` refuses a
