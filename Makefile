@@ -59,11 +59,18 @@ PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 HIMODS   := dialog battle shop inn dungeon panel title help savegame sprite \
             loot fov
 
+# Code above the charset, constants below: for when HIGH is the one that is
+# full and MAIN still has room. The shop's names and prices went back down
+# when the dungeon work and the version check together overflowed HIGH by
+# 88 bytes.
+HICODEMODS := shop
+
 LIBSRC   := $(wildcard src/lib/*.c) $(wildcard src/lib/*.s)
 LIBOBJ   := $(patsubst src/lib/%.c,$(BUILD)/lib/%.o,$(wildcard src/lib/*.c)) \
             $(patsubst src/lib/%.s,$(BUILD)/lib/%.o,$(wildcard src/lib/*.s))
 
-$(foreach m,$(HIMODS),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE --rodata-name HIDATA))
+$(foreach m,$(filter-out $(HICODEMODS),$(HIMODS)),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE --rodata-name HIDATA))
+$(foreach m,$(HICODEMODS),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE))
 
 ifneq ($(strip $(LIBOBJ)),)
 LIB      := $(BUILD)/q4k.lib
