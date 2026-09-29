@@ -7,7 +7,13 @@
 #define WORLD_MASK   0x3F  /* dimensions are powers of two, so wrapping is a mask */
 #define WORLD_SHIFT  6
 
-extern const unsigned char world_map[WORLD_W * WORLD_H];
+#define WORLD_TILES  11
+
+/* Two squares a byte, even column in the low nybble; each an index
+   into world_tiles. Use world_tile() rather than reading it. */
+extern const unsigned char world_map[WORLD_W / 2 * WORLD_H];
+extern const unsigned char world_tiles[WORLD_TILES];
+extern const unsigned char world_colors[WORLD_TILES];  /* tile_colors, by index */
 extern const unsigned char world_start_x;
 extern const unsigned char world_start_y;
 

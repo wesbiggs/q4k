@@ -139,23 +139,31 @@ static void draw_local(void)
 static void draw_world(void)
 {
     unsigned char vx, vy, wx, wy, code;
-    unsigned int  row_base;
+    const unsigned char *row;
     unsigned char *scr, *col;
 
     for (vy = 0; vy < VIEW_H; ++vy) {
         /* Unsigned wraparound is exactly what we want at the world edges:
            the mask folds -1 to WORLD_W-1 for free. */
         wy = (hero.y + vy - VIEW_CY) & WORLD_MASK;
-        row_base = (unsigned int)wy << WORLD_SHIFT;
+        row = world_map + ((unsigned int)wy << (WORLD_SHIFT - 1));
 
         scr = SCREEN_RAM + (unsigned int)vy * SCR_W;
         col = COLOR_RAM  + (unsigned int)vy * SCR_W;
 
         for (vx = 0; vx < VIEW_W; ++vx) {
             wx = (hero.x + vx - VIEW_CX) & WORLD_MASK;
-            code = world_map[row_base + wx];
-            *scr++ = code;
-            *col++ = tile_colors[code - TILE_BASE];
+            code = row[wx >> 1];            /* two squares a byte */
+            if (wx & 1) {
+                code >>= 4;
+            }
+            /* Masked in its own statement: indexed by an unsigned char,
+               cc65 reads the tables directly. `[code & 0x0F]` is an int
+               and goes through a pointer, which cost a third of the
+               redraw. */
+            code &= 0x0F;
+            *scr++ = world_tiles[code];
+            *col++ = world_colors[code];
         }
     }
 }

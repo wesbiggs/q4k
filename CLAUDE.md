@@ -143,8 +143,9 @@ the call returns success.
 
 **A screen test that walks in the open is flaky by construction.** Overworld
 and dungeon squares roll for wandering monsters, and the seed now comes from
-the player's own timing, so the roll differs every run. Walk inside a town:
-towns never roll. This is what turned the save test red one run in several,
+the player's own timing, so the roll differs every run. Walk inside a town
+(towns never roll), or pass `--poke no_encounters=1` to switch the rolls
+off anywhere. This is what turned the save test red one run in several,
 with a rat on the screen instead of the map.
 
 **People block movement**, so two NPCs in a line make the inner one

@@ -65,6 +65,11 @@ static const unsigned char boss_stage[NUM_DUNGEONS] = {
    once looked like zero. */
 unsigned char enc_rolls, enc_fights;
 
+/* Nonzero and nothing wanders out at you: --poke no_encounters=1 lets a
+   screen test walk the overworld or a dungeon without a fight turning up
+   on a different square every run. Nothing in the game sets it. */
+unsigned char no_encounters;
+
 /* Mirror progress into the probe page so the headless harness can assert on
    it. Stage doubles as a turn counter, which is what lets a test say "walk
    three squares, then show me the screen". */
@@ -314,7 +319,7 @@ static void arrive(unsigned char code, unsigned char x, unsigned char y)
 
 static void wander_check(void)
 {
-    if (scene == SCENE_TOWN) {
+    if (scene == SCENE_TOWN || no_encounters) {
         return;
     }
     ++enc_rolls;

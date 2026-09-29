@@ -3,8 +3,16 @@
 
 unsigned char world_tile(unsigned char x, unsigned char y)
 {
-    return world_map[((unsigned int)(y & WORLD_MASK) << WORLD_SHIFT)
-                     | (x & WORLD_MASK)];
+    unsigned char b;
+
+    x &= WORLD_MASK;
+    b = world_map[((unsigned int)(y & WORLD_MASK) << (WORLD_SHIFT - 1))
+                  | (x >> 1)];
+    if (x & 1) {
+        b >>= 4;
+    }
+    b &= 0x0F;
+    return world_tiles[b];
 }
 
 unsigned char world_flag(unsigned char x, unsigned char y)
