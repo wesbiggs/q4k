@@ -21,7 +21,7 @@
  19 |········································|
  20 |                                        |
  21 |                                        |
- 22 |                                        |
- 23 |A letter fights. 1-6 picks the ground.  |
- 24 |F1 level, F3 weapon, F5 armour, F7 bow. |
+ 22 |A letter fights. 1-6 picks the ground.  |
+ 23 |F1 level, F3 weapon, F5 armour, F7 bow. |
+ 24 |+ sets how many wanderers come.         |
     +----------------------------------------+

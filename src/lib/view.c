@@ -279,6 +279,7 @@ void view_draw_panel(void)
     /* Where you are: the land, a town by name, or how deep you have gone. */
     cclearxy(PANEL_X, 10, PANEL_W);
     cclearxy(PANEL_X, 11, PANEL_W);
+    cclearxy(PANEL_X, 12, PANEL_W);     /* a fight's second row of health */
     textcolor(COLOR_LIGHTBLUE);
     if (scene == SCENE_TOWN) {
         cputsxy(PANEL_X, 10, town_names[place]);

@@ -99,6 +99,12 @@ in a straight line and within reach with nothing solid between. Beside you,
 they strike like everything else. Tougher things turn up as you rise in
 level: rats and goblins from the start, drakes from level seven.
 
+As you rise, the smaller things come in numbers: up to one of a kind for
+each time your level covers the level it first appears at, and never more
+than six. At level six that is as many as six rats or three giant wasps.
+They go round one another to reach you, and an archer will not shoot
+through its fellows. Keepers and Maldrath always come alone.
+
 ## The world
 
 The overworld is a wrapping 64x64 grid. Towns are exactly one 21x19 screen,
