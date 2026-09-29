@@ -8,7 +8,7 @@
   6 |e A cutthroat        ·                  |
   7 |f A bandit           ·Bare hands        |
   8 |g A skeleton         ·Travel clothes    |
-  9 |h A skeleton archer  ·                  |
+  9 |h A bone archer      ·                  |
  10 |i An ogre            ·                  |
  11 |j A wraith           ·                  |
  12 |k A drake            ·                  |

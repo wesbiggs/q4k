@@ -45,7 +45,7 @@ const Wanderer wanderers[] = {
     { 4, { "A bandit",    12,  5, 2,  9, 15, T_BANDIT,   TC_BANDIT,   10, 1,
            3, 6 } },
     { 4, { "A skeleton",  15,  6, 3, 12, 12, T_SKELETON, TC_SKELETON,  8, 1 } },
-    { 5, { "A skeleton archer",
+    { 5, { "A bone archer",
                           13,  4, 2, 14, 14, T_SKELETON, COLOR_GRAY3,  8, 1,
            5, 8 } },
     { 5, { "An ogre",     22,  8, 3, 18, 25, T_OGRE,     TC_OGRE,      7, 1 } },
@@ -400,9 +400,11 @@ static void draw_field(void)
     }
 }
 
-/* What you are fighting goes where the panel would name the place. A
-   group's health is listed three to a row, the living only; a lone
-   monster's stays up at 0 when it falls. */
+/* What you are fighting goes where the panel would name the place, with
+   " x 3" after it while more than one is standing. A group's health is
+   listed three to a row, the living only; a lone monster's stays up at 0
+   when it falls. The longest wanderer's name, "A bone archer", leaves room
+   for the count. */
 static void show_foe(void)
 {
     char buf[6];
@@ -413,6 +415,11 @@ static void show_foe(void)
     cclearxy(PANEL_X, 12, PANEL_W);
     textcolor(foe->color);
     cputsxy(PANEL_X, 10, foe->name);
+    if (alive > 1) {
+        cputs(" x ");
+        utoa(alive, buf, 10);
+        cputs(buf);
+    }
     textcolor(COLOR_GRAY1);
     cputsxy(PANEL_X, 11, "HP");
     textcolor(COLOR_WHITE);

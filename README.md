@@ -93,7 +93,7 @@ comes for you; you walk into it to strike.
 | `P` | drink a healing draught |
 | `R` | run -- three times in four, and never from a keeper or Maldrath |
 
-Some things shoot back. Bandits and skeleton archers carry bows, the
+Some things shoot back. Bandits and bone archers carry bows, the
 Drowned King throws water and Maldrath breathes fire, each whenever you are
 in a straight line and within reach with nothing solid between. Beside you,
 they strike like everything else. Tougher things turn up as you rise in
