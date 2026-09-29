@@ -29,8 +29,9 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   has room, add the module to `HICODEMODS` as well: its code stays in HIGH
   but its rodata goes back to MAIN (the shop is there already). Changing
   either list needs the objects rebuilt, because a target-specific `CFLAGS`
-  will not invalidate them on its own. All three regions are tight: about
-  180 bytes free in HIGH, 320 in MAIN and 380 in BSS.
+  will not invalidate them on its own. About 2.7K is free in HIGH, since
+  the overworld went to four bits a square and the towns and battle fields
+  to nybble runs; MAIN (250 bytes) and BSS (380) are still tight.
 - `$B000-$C4FF` **BSS**, then the RS-232 buffers, C stack and probe page.
   HIGH's top 4K is RAM under BASIC ROM (banked out at startup), taken from
   BSS.
@@ -143,8 +144,9 @@ the call returns success.
 
 **A screen test that walks in the open is flaky by construction.** Overworld
 and dungeon squares roll for wandering monsters, and the seed now comes from
-the player's own timing, so the roll differs every run. Walk inside a town:
-towns never roll. This is what turned the save test red one run in several,
+the player's own timing, so the roll differs every run. Walk inside a town
+(towns never roll), or pass `--poke no_encounters=1` to switch the rolls
+off anywhere. This is what turned the save test red one run in several,
 with a rat on the screen instead of the map.
 
 **People block movement**, so two NPCs in a line make the inner one

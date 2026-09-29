@@ -9,6 +9,8 @@
  *   a-o      fight that monster
  *   1-6      the ground a wanderer is met on (keepers are always met in
  *            a dungeon room and Maldrath in his lair, as in the game)
+ *   +        how many wanderers come at once, 1 to MAX_FOES (keepers
+ *            and Maldrath always come alone)
  *   F1       hero level, 1-10, which also sets full health
  *   F3/F5/F7 weapon, armour, bow
  *
@@ -33,6 +35,7 @@
 
 #define K_A   0x41      /* PETSCII a, unshifted */
 #define K_1   0x31
+#define K_PLUS 0x2B
 #define K_F1  0x85
 #define K_F3  0x86
 #define K_F5  0x87
@@ -41,7 +44,7 @@
 #define MAX_LEVEL 10
 #define LIST_Y    2
 
-static unsigned char level = 1, ground = 0;
+static unsigned char level = 1, ground = 0, group = 1;
 static unsigned char count;      /* monsters on the menu */
 
 /* Menu entry n: the wanderers in order, then the keepers, then Maldrath. */
@@ -68,6 +71,12 @@ static void draw_menu(void)
     cputs(" on ");
     textcolor(COLOR_WHITE);
     cputs(tile_names[arena_tile[ground] - TILE_BASE]);
+    if (group > 1) {                /* short: the map column is 21 wide */
+        textcolor(COLOR_GRAY1);
+        cputs(" x");
+        textcolor(COLOR_WHITE);
+        cputc('0' + group);
+    }
 
     for (n = 0; n < count; ++n) {
         m = entry(n);
@@ -113,11 +122,11 @@ static unsigned char key(void)
 static void fight(unsigned char n)
 {
     if (n < num_wanderers) {
-        battle_fight(entry(n), arena_tile[ground], 1);
+        battle_fight(entry(n), arena_tile[ground], 1, group);
     } else if (n < num_wanderers + NUM_DUNGEONS) {
-        battle_fight(entry(n), T_FLOOR, 0);
+        battle_fight(entry(n), T_FLOOR, 0, 1);
     } else {
-        battle_fight(entry(n), T_LAIR, 0);
+        battle_fight(entry(n), T_LAIR, 0, 1);
     }
 }
 
@@ -136,6 +145,7 @@ int main(void)
 
     view_message("A letter fights. 1-6 picks the ground.");
     view_message("F1 level, F3 weapon, F5 armour, F7 bow.");
+    view_message("+ sets how many wanderers come.");
 
     for (;;) {
         kit_out();
@@ -151,6 +161,8 @@ int main(void)
             fight(k - K_A);
         } else if (k >= K_1 && k < K_1 + NUM_ARENAS) {
             ground = k - K_1;
+        } else if (k == K_PLUS) {
+            group = group % MAX_FOES + 1;
         } else if (k == K_F1) {
             level = level % MAX_LEVEL + 1;
         } else if (k == K_F3) {

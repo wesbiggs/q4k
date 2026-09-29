@@ -170,15 +170,18 @@ unsigned char encounter_roll(unsigned char tile)
     return chance && (unsigned char)(rand() % 100) < chance;
 }
 
-static void award(const Monster *m)
+/* For `n` of them: a group pays for every one it had. */
+static void award(const Monster *m, unsigned char n)
 {
-    hero.xp += m->xp;
-    gold += m->gold;
+    unsigned int xp = m->xp * n, pay = m->gold * n;
+
+    hero.xp += xp;
+    gold += pay;
 
     strcpy(msg, "You gain ");
-    cat_num(m->xp);
+    cat_num(xp);
     strcat(msg, " experience and ");
-    cat_num(m->gold);
+    cat_num(pay);
     strcat(msg, " marks.");
     view_message(msg);
 
@@ -214,7 +217,8 @@ static unsigned char strike(const Monster *m, unsigned char m_hp,
 }
 
 /* Returns 1 if that was the end of you. `how` begins the line, as it does
-   for strike(): "It hits you for " or a shot's. */
+   for strike(): "It hits you for ", a group's "A rat hits you for " built
+   in msg, or a shot's. */
 static unsigned char bitten(unsigned char atk, unsigned char guard,
                             const char *how)
 {
@@ -224,7 +228,9 @@ static unsigned char bitten(unsigned char atk, unsigned char guard,
     hit = hit > (armour_def[armour_lv] + guard)
           ? hit - armour_def[armour_lv] - guard : 1;
 
-    strcpy(msg, how);
+    if (how != msg) {
+        strcpy(msg, how);
+    }
     cat_num(hit);
     strcat(msg, ".");
     view_message(msg);
@@ -260,10 +266,10 @@ static unsigned char quaff(void)
 
 /* The log carries on into the map afterwards, so a win needs no pause --
    and a "Press a key." would stay in it. Dying moves you, so it does. */
-static unsigned char won(const Monster *m)
+static unsigned char won(const Monster *m, unsigned char n)
 {
     view_message("It falls.");
-    award(m);
+    award(m, n);
     return BATTLE_WON;
 }
 
@@ -295,7 +301,13 @@ static unsigned char got_away(void)
  *
  * A monster can be bigger than one square -- Maldrath is two by two. Its
  * position is its top-left square, and everything below asks "is this
- * square part of it" rather than "is this the square it is on". */
+ * square part of it" rather than "is this the square it is on".
+ *
+ * Wanderers can come in a group of up to MAX_FOES, all of one kind. Each
+ * takes its turn in order, as `cur`, with its square copied into (mx,my),
+ * so the pathfinding and aiming see one monster at a time and treat the
+ * rest of the group as walls. Keepers and Maldrath always come alone,
+ * which is what lets a two-by-two body ignore the group entirely. */
 
 #define FIELD_SIZE (LOCAL_W * LOCAL_H)
 #define VAL_X      (PANEL_X + 9)
@@ -319,22 +331,45 @@ static unsigned char hx, hy, mx, my;
 static unsigned char size;      /* the monster's, squares a side */
 static const Monster *foe;
 
-/* Is (x,y) part of the monster? Unsigned, so a square above or to the left
-   of it wraps round to a large number and fails the same test. */
+/* The group: where each one stands, the health it has left (0 once it has
+   fallen) and its banked moves. */
+static unsigned char foes, alive, cur;
+static unsigned char foe_x[MAX_FOES], foe_y[MAX_FOES];
+static unsigned char foe_hp[MAX_FOES], foe_pace[MAX_FOES];
+
+/* Is (x,y) part of the monster whose turn it is, at (mx,my)? Unsigned, so
+   a square above or to the left of it wraps round to a large number and
+   fails the same test. foe_at() below asks the same of the whole group. */
 static unsigned char on_foe(unsigned char x, unsigned char y)
 {
     return (unsigned char)(x - mx) < size && (unsigned char)(y - my) < size;
 }
 
-/* Draw the ground at (x,y), or the part of the monster standing there. */
+/* Which of the group has any part of it on (x,y), or 0xFF. */
+static unsigned char foe_at(unsigned char x, unsigned char y)
+{
+    unsigned char i;
+
+    for (i = 0; i < foes; ++i) {
+        if (foe_hp[i] && (unsigned char)(x - foe_x[i]) < size
+                      && (unsigned char)(y - foe_y[i]) < size) {
+            return i;
+        }
+    }
+    return 0xFF;
+}
+
+/* Draw the ground at (x,y), or the part of a monster standing there. */
 static void paint(unsigned char x, unsigned char y)
 {
     unsigned int  at = (unsigned int)y * SCR_W + x;
     unsigned char code = field[(unsigned int)y * LOCAL_W + x];
+    unsigned char i = foe_at(x, y);
 
-    if (on_foe(x, y)) {
-        SCREEN_RAM[at] = foe->glyph + (unsigned char)((y - my) * size)
-                                    + (unsigned char)(x - mx);
+    if (i != 0xFF) {
+        SCREEN_RAM[at] = foe->glyph
+                       + (unsigned char)((y - foe_y[i]) * size)
+                       + (unsigned char)(x - foe_x[i]);
         COLOR_RAM[at]  = foe->color;
     } else {
         SCREEN_RAM[at] = code;
@@ -365,24 +400,37 @@ static void draw_field(void)
     }
 }
 
-/* What you are fighting goes where the panel would name the place. */
-static void show_foe(const Monster *m, unsigned char m_hp)
+/* What you are fighting goes where the panel would name the place. A
+   group's health is listed three to a row, the living only; a lone
+   monster's stays up at 0 when it falls. */
+static void show_foe(void)
 {
     char buf[6];
+    unsigned char i, x = VAL_X, y = 11;
 
     cclearxy(PANEL_X, 10, PANEL_W);
     cclearxy(PANEL_X, 11, PANEL_W);
-    textcolor(m->color);
-    cputsxy(PANEL_X, 10, m->name);
+    cclearxy(PANEL_X, 12, PANEL_W);
+    textcolor(foe->color);
+    cputsxy(PANEL_X, 10, foe->name);
     textcolor(COLOR_GRAY1);
     cputsxy(PANEL_X, 11, "HP");
     textcolor(COLOR_WHITE);
-    utoa(m_hp, buf, 10);
-    cputsxy(VAL_X, 11, buf);
+    for (i = 0; i < foes; ++i) {
+        if (foe_hp[i] || foes == 1) {
+            utoa(foe_hp[i], buf, 10);
+            cputsxy(x, y, buf);
+            x += 3;
+            if (x > VAL_X + 6) {
+                x = VAL_X;
+                ++y;
+            }
+        }
+    }
 }
 
-/* Is the hero beside the monster -- up, down, left or right of any part
-   of it? */
+/* Is the hero beside the monster whose turn it is -- up, down, left or
+   right of any part of it? */
 static unsigned char next_to(void)
 {
     return on_foe(hx, hy - 1) || on_foe(hx, hy + 1)
@@ -429,14 +477,15 @@ static void seed(unsigned char x, unsigned char y)
  *     on a 21x19 field never comes near that many squares at once.
  *
  * `seen` starts as a copy of the walls, which marks them visited before
- * the flood begins. */
+ * the flood begins, and the rest of the group is marked the same way: a
+ * monster goes round its fellows rather than through them. */
 static unsigned char step_x, step_y;
 
 static unsigned char flood(void)
 {
     register unsigned char *row;
     unsigned char head = 0;
-    unsigned char x, y, tx, ty;
+    unsigned char x, y, tx, ty, i;
 
     tail = 0;
     tx = mx + 1;
@@ -445,6 +494,11 @@ static unsigned char flood(void)
     y = hy + 1;
     if (size == 1) {
         memcpy(seen, wall, sizeof(seen));
+        for (i = 0; i < foes; ++i) {
+            if (i != cur && foe_hp[i]) {
+                seen_row[foe_y[i] + 1][foe_x[i] + 1] = 1;
+            }
+        }
         seed(x, y);
     } else {
         memcpy(seen, roomy, sizeof(seen));
@@ -503,21 +557,23 @@ static void foe_step(void)
     unsigned char ox = mx, oy = my;
 
     if (flood()) {
-        mx = step_x - 1;
-        my = step_y - 1;
+        mx = foe_x[cur] = step_x - 1;
+        my = foe_y[cur] = step_y - 1;
         paint_body(ox, oy);
         paint_body(mx, my);
     }
 }
 
-/* Where the monster starts: anywhere in the top third of the field that
-   its whole body can stand on and that has a way through to the hero, so
-   no fight begins with it shut in a pocket of trees. The field's own spot
-   from assets/arenas.txt is kept for when a few tries find nowhere. */
+/* Where monster `cur` starts: anywhere in the top third of the field that
+   its whole body can stand on, that the rest of the group has left free,
+   and that has a way through to the hero, so no fight begins with it shut
+   in a pocket of trees. The field's own spot from assets/arenas.txt is
+   kept for when a few tries find nowhere for the first; for any after it,
+   returns 0 and the group is smaller. */
 #define START_ROWS  (LOCAL_H / 3)
 #define START_TRIES 16
 
-static void foe_start(unsigned char a)
+static unsigned char foe_start(unsigned char a)
 {
     unsigned char tries;
     const unsigned char *stand = size == 1 ? wall : roomy;
@@ -525,12 +581,17 @@ static void foe_start(unsigned char a)
     for (tries = 0; tries < START_TRIES; ++tries) {
         mx = (unsigned char)(rand() % (LOCAL_W - size + 1));
         my = (unsigned char)(rand() % (START_ROWS - size + 1));
-        if (!stand[(unsigned int)(my + 1) * RIM_W + mx + 1] && flood()) {
-            return;
+        if (!stand[(unsigned int)(my + 1) * RIM_W + mx + 1]
+            && foe_at(mx, my) == 0xFF && flood()) {
+            return 1;
         }
+    }
+    if (cur) {
+        return 0;
     }
     mx = arena_mx[a];
     my = arena_my[a];
+    return 1;
 }
 
 /* A movement key as a direction, or 0xFF. */
@@ -550,11 +611,13 @@ static unsigned char fold(unsigned char key)
     return (key >= 0xC1 && key <= 0xDA) ? key - 0x80 : key;
 }
 
-/* Shoot the bow `dir`. The shot flies straight until it meets the monster,
+/* Shoot the bow `dir`. The shot flies straight until it meets a monster,
    something solid, the edge of the field or the end of its range. Water
-   does not stop it; trees, boulders and walls do. Returns the damage. */
-static unsigned char loose(const Monster *m, unsigned char m_hp,
-                           unsigned char dir)
+   does not stop it; trees, boulders and walls do. Returns the damage, and
+   leaves which one it hit in `target`. */
+static unsigned char target;
+
+static unsigned char loose(unsigned char dir)
 {
     unsigned char x = hx, y = hy, flew = 0, hit = 0;
     const char *what = bow_lv == NUM_BOWS - 1 ? "Your bolt" : "Your arrow";
@@ -571,7 +634,7 @@ static unsigned char loose(const Monster *m, unsigned char m_hp,
             break;                           /* off the field */
         }
         ++flew;
-        if (on_foe(x, y)) {
+        if ((target = foe_at(x, y)) != 0xFF) {
             hit = 1;
             break;
         }
@@ -585,7 +648,7 @@ static unsigned char loose(const Monster *m, unsigned char m_hp,
     if (hit) {
         strcpy(msg, what);
         strcat(msg, " hits for ");
-        return strike(m, m_hp, bow_atk[bow_lv], msg);
+        return strike(foe, foe_hp[target], bow_atk[bow_lv], msg);
     }
     strcpy(msg, what);
     strcat(msg, " goes wide.");
@@ -595,7 +658,8 @@ static unsigned char loose(const Monster *m, unsigned char m_hp,
 
 /* Can the monster shoot the hero from where it stands? The same rules as
    the hero's bow, turned round: straight up, down, left or right, within
-   its reach, and nothing solid in between. Returns the direction, or 0xFF,
+   its reach, and nothing solid in between -- the rest of its group
+   included. Returns the direction, or 0xFF,
    and leaves where the shot sets off from in (sx,sy) and how far it flies
    in `flew`. A body bigger than a square shoots from whichever part of it
    lines up. */
@@ -643,7 +707,7 @@ static unsigned char aim(void)
             return dir;
         }
         if (tile_flags[field[(unsigned int)y * LOCAL_W + x] - TILE_BASE]
-            == TF_BLOCK) {
+            == TF_BLOCK || foe_at(x, y) != 0xFF) {
             break;
         }
     }
@@ -651,10 +715,9 @@ static unsigned char aim(void)
 }
 
 unsigned char battle_fight(const Monster *m, unsigned char ground,
-                           unsigned char can_flee)
+                           unsigned char can_flee, unsigned char count)
 {
-    unsigned char m_hp = m->hp;
-    unsigned char a, key, guard, dir, nx, ny;
+    unsigned char a, key, guard, dir, nx, ny, dmg;
     unsigned char rel, pace;
     unsigned char *edge;
     unsigned int  i;
@@ -686,15 +749,24 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
     }
     hx = arena_hx[a];
     hy = arena_hy[a];
-    foe_start(a);
     foe = m;
+
+    /* Placed one at a time, each clear of the ones before it. */
+    memset(foe_hp, 0, sizeof(foe_hp));
+    memset(foe_pace, 0, sizeof(foe_pace));
+    foes = count;
+    for (cur = 0; cur < count && foe_start(a); ++cur) {
+        foe_x[cur] = mx;
+        foe_y[cur] = my;
+        foe_hp[cur] = m->hp;
+    }
+    foes = alive = cur;
 
     /* Speed is relative: armour slows you a tenth a grade, from 1.0 in
        travel clothes to 0.6 in plate, and whatever you lose it gains.
        Its moves are banked in tenths, so a relative 1.5 moves once, then
        twice, then once. */
     rel = m->speed + 10 - (HERO_SPEED - armour_lv);
-    pace = 0;
 
     view_restore();
     draw_field();
@@ -704,14 +776,21 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
     strcpy(msg, m->name);
     strcat(msg, " comes at you!");
     view_message(msg);
+    if (foes > 1) {
+        strcpy(msg, "And ");
+        cat_num(foes - 1);
+        strcat(msg, " more!");
+        view_message(msg);
+    }
     view_message(can_flee ? "Walk into it to strike. R runs."
                           : "Walk into it to strike.");
 
     for (;;) {
         view_draw_panel();
-        show_foe(m, m_hp);
+        show_foe();
 
         guard = 0;
+        dmg = 0;
         key = fold(cgetc());
         dir = key_dir(key);
 
@@ -727,7 +806,7 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
                     view_message("You lower the bow.");
                     continue;                /* no turn spent */
                 }
-                m_hp -= loose(m, m_hp, dir);
+                dmg = loose(dir);
                 dir = 0xFF;                  /* shooting is not walking */
                 break;
 
@@ -770,8 +849,9 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
             }
             sprite_face(dir);
 
-            if (on_foe(nx, ny)) {
-                m_hp -= strike(m, m_hp, weapon_atk[weapon_lv], "You strike for ");
+            if ((target = foe_at(nx, ny)) != 0xFF) {
+                dmg = strike(m, foe_hp[target], weapon_atk[weapon_lv],
+                             "You strike for ");
             } else if (nx >= LOCAL_W || ny >= LOCAL_H
                        || wall[(unsigned int)(ny + 1) * RIM_W + nx + 1]) {
                 /* Unsigned: stepping off the top or left wraps to 255. */
@@ -784,44 +864,63 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
             }
         }
 
-        if (m_hp == 0) {
-            nx = mx;
-            ny = my;
-            mx = my = 0xFF;                  /* off the field */
-            paint_body(nx, ny);
-            show_foe(m, 0);
-            return won(m);
+        /* strike() never does less than 1, so a blow that landed is
+           never 0; a shot that went wide is. */
+        if (dmg) {
+            foe_hp[target] -= dmg;
+            if (!foe_hp[target]) {
+                paint_body(foe_x[target], foe_y[target]);   /* ground now */
+                if (!--alive) {
+                    show_foe();
+                    return won(m, foes);
+                }
+                view_message("It falls.");
+            }
         }
 
-        /* Its turn: as many moves as it has banked whole ones. Beside
-           you it strikes; in line and in reach it shoots (or breathes),
-           and that is the rest of its turn -- a fast archer nocks one
-           arrow at a time. */
-        pace += rel;
-        for (; pace >= 10; pace -= 10) {
-            if (next_to()) {
-                if (bitten(m->atk, guard, "It hits you for ")) {
-                    view_draw_panel();
-                    return lost();
-                }
-            } else if ((dir = aim()) != 0xFF) {
-                sprite_shot(sx, sy, dir, flew, m->kind);
-                if (bitten(m->shot, guard, shot_hits[m->kind])) {
-                    view_draw_panel();
-                    return lost();
-                }
-                pace %= 10;
-                break;
-            } else {
-                foe_step();
+        /* Their turn, one after another: as many moves each as it has
+           banked whole ones. Beside you it strikes; in line and in reach it
+           shoots (or breathes), and that is the rest of its turn -- a fast
+           archer nocks one arrow at a time. */
+        for (cur = 0; cur < foes; ++cur) {
+            if (!foe_hp[cur]) {
+                continue;
             }
+            mx = foe_x[cur];
+            my = foe_y[cur];
+            pace = foe_pace[cur] + rel;
+            for (; pace >= 10; pace -= 10) {
+                if (next_to()) {
+                    /* Alone it is "it"; in a group, say which. */
+                    if (foes > 1) {
+                        strcpy(msg, m->name);
+                        strcat(msg, " hits you for ");
+                    }
+                    if (bitten(m->atk, guard,
+                               foes > 1 ? msg : "It hits you for ")) {
+                        view_draw_panel();
+                        return lost();
+                    }
+                } else if ((dir = aim()) != 0xFF) {
+                    sprite_shot(sx, sy, dir, flew, m->kind);
+                    if (bitten(m->shot, guard, shot_hits[m->kind])) {
+                        view_draw_panel();
+                        return lost();
+                    }
+                    pace %= 10;
+                    break;
+                } else {
+                    foe_step();
+                }
+            }
+            foe_pace[cur] = pace;
         }
     }
 }
 
 unsigned char battle_wander(void)
 {
-    unsigned char top, i;
+    unsigned char top, i, most;
 
     /* The rat and the goblin are there from level 1, so `top` is never 0. */
     for (top = 0; top < NUM_WANDERERS && wanderers[top].from <= hero.level;
@@ -829,19 +928,26 @@ unsigned char battle_wander(void)
     }
     i = (unsigned char)(rand() % top);
 
+    /* As many as the hero has levels for each one's worth: a level-6 hero
+       can meet up to six rats (from level 1) or three wasps (from 2). */
+    most = hero.level / wanderers[i].from;
+    if (most > MAX_FOES) {
+        most = MAX_FOES;
+    }
+
     /* Above ground, the ground you were on; below it, the one room. */
     return battle_fight(&wanderers[i].m,
                        scene == SCENE_WORLD ? map_at(hero.x, hero.y)
                                             : T_FLOOR,
-                       1);
+                       1, (unsigned char)(1 + rand() % most));
 }
 
 unsigned char battle_boss(unsigned char dungeon)
 {
-    return battle_fight(&keepers[dungeon], T_FLOOR, 0);
+    return battle_fight(&keepers[dungeon], T_FLOOR, 0, 1);
 }
 
 unsigned char battle_dragon(void)
 {
-    return battle_fight(&maldrath, T_LAIR, 0);
+    return battle_fight(&maldrath, T_LAIR, 0, 1);
 }
