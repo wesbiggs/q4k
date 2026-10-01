@@ -104,7 +104,21 @@ code, which the interrupt would steal cycles from; `M` toggles it. To hear it
 without a human: `x64sc ... -sound -soundrecdev wav -soundrecarg out.wav`
 with the game past its title screen -- `-keybuf` does not get there, so drive
 it through `tools/screendump.py` with `-warp` and `-silent` stripped.
-`--peek music_state` and `--peek music_idx` show whether it is playing.
+`--peek music_state` and `--peek music_idx` show whether it is playing. (If
+VICE's coreaudio device is unavailable -- Bluetooth switching, say -- use
+`-sounddev wav -soundarg out.wav` instead of `-soundrecdev`: it writes the
+file without needing a sound card.)
+
+Sound effects are on voice 3, from the same interrupt, and work whether or not
+the music is on (`M` only mutes the music): `sfx_play(SFX_STEP / SFX_MELEE /
+SFX_BOW)`. Each is a short table of steps in `music.s` -- frames, waveform,
+pitch, pitch change per frame. Two things about the SID cost an afternoon.
+Noise gets *quieter* as its pitch rises: a full-level burst at a high pitch
+measured 17 dB under a pulse thump, so crackle wants low pitches. And the
+envelope's attack can start up to 32 ms late when its rates change (the ADSR
+delay bug), so an effect kept quiet by closing the gate early, before the
+attack finishes, wandered by 12 dB from one play to the next. Keep the gate
+up for the whole effect and set the loudness with the sustain level.
 
 ## Testing
 

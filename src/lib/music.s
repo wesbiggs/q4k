@@ -1,4 +1,5 @@
-; The theme, played on SID voices 1 and 2 from the frame interrupt.
+; The theme, played on SID voices 1 and 2 from the frame interrupt, and the
+; sound effects on voice 3.
 ;
 ; The score is two bytes a note in music_data.s (generated from
 ; assets/theme.txt): pitch index, slur flag at bit 6, vibrato flag at bit 7,
@@ -23,6 +24,7 @@
 
         .export _music_start, _music_stop, _music_pause, _music_resume
         .export _music_toggle, _music_state, _music_idx
+        .export _sfx_play
         .import music_notes, music_harm, music_count, music_npitch, music_tempo
         .import music_freq_lo, music_freq_hi
         .interruptor music_irq
@@ -35,6 +37,11 @@ SID_V2F  = $D407                ; voice 2, the same registers seven on
 SID_V2C  = $D40B
 SID_V2AD = $D40C
 SID_V2SR = $D40D
+SID_V3F  = $D40E                ; voice 3
+SID_V3PW = $D410
+SID_V3C  = $D412
+SID_V3AD = $D413
+SID_V3SR = $D414
 SID_VOL  = $D418
 PALFLAG  = $02A6                ; the KERNAL's own: 0 NTSC, 1 PAL
 
@@ -59,12 +66,40 @@ m_vph:   .res 1                 ; where it is in the vibrato cycle
 m_fpe:   .res 1                 ; frames to an eighth, for this machine's clock
 m_hflg:  .res 1                 ; the second voice's flags for the current note
 m_force: .res 1                 ; strike it even if it is held: after a pause
-m_poff:  .res 1                 ; where this machine's half of the pitch table starts
+m_poff:  .res 1
+m_sx_on: .res 1                 ; an effect is playing
+m_sx_pos: .res 1                ; the next step of it, in sfx_data
+m_sx_left: .res 1               ; frames left in this one
+m_sx_fhi: .res 1                ; its pitch, high byte
+m_sx_dlt: .res 1                ; and how much that moves each frame
+m_foot:  .res 1                 ; which foot the next step is                 ; where this machine's half of the pitch table starts
 
         .segment "HIDATA"
 ; The vibrato, in multiples of the frequency's high byte: about 1.2% at the
 ; peak, a fifth of a semitone.
 vibtab: .byte 0, 2, 3, 3, 3, 2, 0, <-2, <-3, <-3, <-3, <-2
+
+; The effects. A record is its attack/decay and sustain/release, then steps
+; of four bytes -- frames, control (waveform and gate), pitch's high byte,
+; and how that moves each frame -- and a zero. The envelope always climbs to
+; full level when the gate goes up, so how loud an effect is comes down to
+; its sustain level. (Closing the gate early to cut the climb short does not
+; work: the attack's start is delayed by a varying amount, and the level
+; wanders by 12 dB.)
+sfx_off: .byte sfx_step_a - sfx_data, sfx_step_b - sfx_data
+         .byte sfx_melee - sfx_data, sfx_bow - sfx_data
+sfx_data:
+; a trudge: a breath of low noise, a different pitch for each foot. It is quiet
+; because of its low sustain level, held for the length of the step
+sfx_step_a: .byte $00, $26,  4, $81, $0A, 0,  3, $80, $0A, 0,  0
+sfx_step_b: .byte $00, $26,  4, $81, $0E, 0,  3, $80, $0E, 0,  0
+; a blow: a crack of low noise that falls away. The gate stays up for the whole
+; of it and the decay does the fading: the envelope can take up to 32 ms to
+; start its attack when its rates change (the SID's ADSR delay bug), so a
+; gate that closes early never reaches full level.
+sfx_melee:  .byte $05, $00,  3, $81, $24, <-3,  8, $81, $12, <-1,  2, $80, $0C, 0,  0
+; a bow hit: a tick of noise, then a woody thump falling in pitch
+sfx_bow:    .byte $03, $04,  1, $81, $60, 0,  3, $41, $0C, <-2,  5, $40, $06, <-1,  0
 
         .segment "HICODE"
 
@@ -124,8 +159,6 @@ _music_pause:
         bne @no
         lda #2
         sta _music_state
-        lda #0
-        sta SID_VOL
         lda #TRI_OFF
         sta SID_CTRL
         lda #HARM_OFF
@@ -151,7 +184,6 @@ _music_toggle:
 _music_stop:
         lda #0
         sta _music_state
-        sta SID_VOL
         lda #TRI_OFF
         sta SID_CTRL
         lda #HARM_OFF
@@ -159,6 +191,7 @@ _music_stop:
         rts
 
 music_irq:
+        jsr sfx_tick
         lda _music_state
         cmp #1
         beq @run
@@ -285,4 +318,73 @@ music_irq:
         ldx #0                  ; and round again
 @keep:  stx _music_idx
         clc
+        rts
+
+; void sfx_play(unsigned char id): 0 a step (the feet take turns), 1 a blow
+; in melee, 2 a bow hit. Works whether or not the music is on.
+_sfx_play:
+        cmp #0
+        bne @other
+        lda m_foot
+        eor #1
+        sta m_foot
+        jmp @go
+@other: clc
+        adc #1
+@go:    tax
+        lda #0
+        sta m_sx_on
+        sta SID_V3C             ; gate down, so a repeat is struck afresh
+        lda sfx_off,x
+        tay
+        lda sfx_data,y
+        sta SID_V3AD
+        lda sfx_data+1,y
+        sta SID_V3SR
+        lda #0
+        sta SID_V3PW
+        lda #$08
+        sta SID_V3PW+1          ; a square, for the one record that is a pulse
+        lda #$0F
+        sta SID_VOL
+        iny
+        iny
+        sty m_sx_pos
+        lda #1
+        sta m_sx_left           ; the next frame starts the first step
+        sta m_sx_on
+        rts
+
+sfx_tick:
+        lda m_sx_on
+        beq @done
+        dec m_sx_left
+        bne @sweep
+        ldy m_sx_pos
+        lda sfx_data,y
+        beq @end
+        sta m_sx_left
+        lda sfx_data+2,y
+        sta m_sx_fhi
+        sta SID_V3F+1
+        lda sfx_data+3,y
+        sta m_sx_dlt
+        lda #0
+        sta SID_V3F
+        lda sfx_data+1,y
+        sta SID_V3C
+        tya
+        clc
+        adc #4
+        sta m_sx_pos
+@done:  rts
+@sweep: lda m_sx_fhi
+        clc
+        adc m_sx_dlt
+        sta m_sx_fhi
+        sta SID_V3F+1
+        rts
+@end:   lda #0
+        sta SID_V3C
+        sta m_sx_on
         rts

@@ -390,6 +390,7 @@ static void try_move(signed char dx, signed char dy, unsigned char dir)
 
     /* The step is shown before anything it leads to -- a fight, a town,
        the stairs -- takes the screen away. */
+    sfx_play(SFX_STEP);
     sprite_walk(dir);
     hero.x = (unsigned char)nx;
     hero.y = (unsigned char)ny;

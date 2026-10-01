@@ -19,4 +19,15 @@ void music_pause(void);     /* silence, keeping the place */
 void music_resume(void);
 unsigned char music_toggle(void);   /* the M key; returns 1 if now playing */
 
+
+/*
+ * Sound effects, on voice 3, played from the same interrupt. They sound
+ * whether or not the music is on.
+ */
+#define SFX_STEP   0    /* a trudge; the feet take turns */
+#define SFX_MELEE  1    /* a blow in melee, either way */
+#define SFX_BOW    2    /* a shot that lands, either way */
+
+void sfx_play(unsigned char id);
+
 #endif
