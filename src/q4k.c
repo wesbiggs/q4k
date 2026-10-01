@@ -25,6 +25,7 @@
 #include <q4k/probe.h>
 #include <q4k/savegame.h>
 #include <q4k/shop.h>
+#include <q4k/music.h>
 #include <q4k/sprite.h>
 #include <q4k/tiles.h>
 #include <q4k/title.h>
@@ -47,6 +48,7 @@
 #define K_T           0x54
 #define K_L           0x4C
 #define K_P           0x50
+#define K_M           0x4D
 #define K_HELP        0x3F
 #define K_F1          0x85   /* save -- S is already "walk south" */
 #define K_F3          0x86   /* load */
@@ -472,6 +474,7 @@ int main(void)
        swallow whatever the player typed ahead. */
     restored = title_screen(hero.name, NAME_LEN);
     view_init();
+    music_start();
 
     view_message("Press ? for help.");
     if (restored) {
@@ -529,6 +532,10 @@ int main(void)
 
             case K_L:
                 look();
+                break;
+
+            case K_M:
+                view_message(music_toggle() ? "Music on." : "Music off.");
                 break;
 
             case K_F1:

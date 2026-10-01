@@ -1,0 +1,21 @@
+# The main theme, transcribed from Wes's whistling and corrected at the piano.
+# 4/4, eight bars, 90 bpm, looped during play.
+#
+# Note = letter, optional b (flat), octave (4 = the octave of middle C),
+# ':' and a length in eighths. Optional marks follow the length:
+#   ~   slurred into the next note: the pitch changes, the note is not
+#       struck again
+#   v   vibrato, which comes in a third of a second after the note starts
+#   h   the harmony moves here, though it would otherwise hold. Only the
+#       generator's "long" harmony mode looks at it (HARMONY in mkmusic.py)
+# The harmony is not written here: tools/mkmusic.py derives it, in fourths.
+# '|' ends a bar and is checked: every bar must total 8 eighths.
+tempo 90
+C4:3~ D4:1~ E4:2 C5:2 |
+Bb4:3~ A4:1~ G4:4 |
+Bb4:3~ A4:1~ G4:2 F4:2 |
+E4:1 F4:1 G4:6v |
+C4:3~ D4:1~ E4:2 C4:2 |
+Bb3:3~ C4:1~ D4:4 |
+Bb3:3~ C4:1~ D4:2 F4:2 |
+E4:1h D4:1 C4:6v |

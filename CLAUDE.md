@@ -31,7 +31,8 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   either list needs the objects rebuilt, because a target-specific `CFLAGS`
   will not invalidate them on its own. About 2.7K is free in HIGH, since
   the overworld went to four bits a square and the towns and battle fields
-  to nybble runs; MAIN (250 bytes) and BSS (380) are still tight.
+  to nybble runs; MAIN (about 90 bytes since the music's interrupt hook and the M key went
+  in) and BSS (about 365) are still tight.
 - `$B000-$C4FF` **BSS**, then the RS-232 buffers, C stack and probe page.
   HIGH's top 4K is RAM under BASIC ROM (banked out at startup), taken from
   BSS.
@@ -82,6 +83,28 @@ place game data there. The C stack (2K) lives directly below it.
 
 **Colour RAM is write-only-ish nybbles at `$D800`** and is *not* covered by the
 VIC bank switch — it stays at `$D800` regardless of where the screen matrix is.
+
+## Music
+
+`assets/theme.txt` is the score (`~` slurs a note into the next, `v` adds
+vibrato); `tools/mkmusic.py` turns it into `src/lib/music_data.s`, and
+`src/lib/music.s` plays it from cc65's interruptor chain (the
+KERNAL's 50/60 Hz IRQ), in pure assembly that touches no zero page: a
+triangle lead on voice 1, and on voice 2 a quiet triangle (the pulse it started as was too loud
+and too bright) holding one
+note a bar, a perfect fourth below whichever of the bar's melody notes leaves
+the least clashing, resting for the bar's last eighth
+(`HARMONY_REST = False` in the generator never re-strikes it: only the pitch
+changes). A quick attack on a quiet SID voice clicks, because the envelope
+always climbs to full level first; voice 2 uses a 100 ms attack for that
+reason. (`HARMONY = "long"` in `tools/mkmusic.py` moves it only on
+long notes instead, and `h` marks in the score force a move there). The generator works the harmony out; the score is just the tune. The player
+and data live in HIGH, which has about 1.3K left with them in. `music_pause()`/`music_resume()` wrap the disk
+code, which the interrupt would steal cycles from; `M` toggles it. To hear it
+without a human: `x64sc ... -sound -soundrecdev wav -soundrecarg out.wav`
+with the game past its title screen -- `-keybuf` does not get there, so drive
+it through `tools/screendump.py` with `-warp` and `-silent` stripped.
+`--peek music_state` and `--peek music_idx` show whether it is playing.
 
 ## Testing
 

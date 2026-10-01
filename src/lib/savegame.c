@@ -7,6 +7,7 @@
 #include <q4k/dungeon.h>
 #include <q4k/fov.h>
 #include <q4k/game.h>
+#include <q4k/music.h>
 #include <q4k/rle.h>
 #include <q4k/savegame.h>
 
@@ -89,7 +90,7 @@ static void gather(void)
     memcpy(blob.seen, fov_seen, sizeof(blob.seen));
 }
 
-unsigned char save_game(void)
+static unsigned char do_save(void)
 {
     MEMSIZ = 0xC700;
     gather();
@@ -114,7 +115,7 @@ unsigned char save_game(void)
     return SAVE_OK;
 }
 
-unsigned char load_game(void)
+static unsigned char do_load(void)
 {
     MEMSIZ = 0xC700;
 
@@ -157,4 +158,24 @@ unsigned char load_game(void)
     }
 
     return SAVE_OK;
+}
+
+/* The music steps out of the way of the serial bus, which the interrupt would
+   otherwise be stealing cycles from. */
+unsigned char save_game(void)
+{
+    unsigned char r;
+    music_pause();
+    r = do_save();
+    music_resume();
+    return r;
+}
+
+unsigned char load_game(void)
+{
+    unsigned char r;
+    music_pause();
+    r = do_load();
+    music_resume();
+    return r;
 }
