@@ -49,6 +49,7 @@
 #define K_L           0x4C
 #define K_P           0x50
 #define K_M           0x4D
+#define K_X           0x58
 #define K_HELP        0x3F
 #define K_F1          0x85   /* save -- S is already "walk south" */
 #define K_F3          0x86   /* load */
@@ -390,7 +391,7 @@ static void try_move(signed char dx, signed char dy, unsigned char dir)
 
     /* The step is shown before anything it leads to -- a fight, a town,
        the stairs -- takes the screen away. */
-    sfx_play(SFX_STEP);
+    sfx_step(code);
     sprite_walk(dir);
     hero.x = (unsigned char)nx;
     hero.y = (unsigned char)ny;
@@ -537,6 +538,10 @@ int main(void)
 
             case K_M:
                 view_message(music_toggle() ? "Music on." : "Music off.");
+                break;
+
+            case K_X:
+                view_message(sfx_toggle() ? "Effects on." : "Effects off.");
                 break;
 
             case K_F1:

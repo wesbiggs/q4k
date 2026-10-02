@@ -22,12 +22,14 @@ unsigned char music_toggle(void);   /* the M key; returns 1 if now playing */
 
 /*
  * Sound effects, on voice 3, played from the same interrupt. They sound
- * whether or not the music is on.
+ * whether or not the music is on, and X turns them off separately.
  */
-#define SFX_STEP   0    /* a trudge; the feet take turns */
-#define SFX_MELEE  1    /* a blow in melee, either way */
-#define SFX_BOW    2    /* a shot that lands, either way */
+#define SFX_MELEE  7    /* a blow in melee, either way */
+#define SFX_BOW    8    /* a shot that lands, either way */
 
 void sfx_play(unsigned char id);
+void sfx_step(unsigned char tile);  /* a step onto that tile, by terrain */
+unsigned char sfx_toggle(void);     /* the X key; returns 1 if now on */
+void sfx_delay(void);   /* wait out the last effect, if they are on */
 
 #endif

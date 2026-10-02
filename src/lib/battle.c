@@ -21,6 +21,8 @@
 #define K_POTION     0x50
 #define K_RUN        0x52
 #define K_F          0x46
+#define K_M          0x4D
+#define K_X          0x58
 #define K_SPACE      0x20
 #define K_CRSR_DOWN  0x11
 #define K_CRSR_RIGHT 0x1D
@@ -840,6 +842,14 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
                 }
                 break;
 
+            case K_M:
+                view_message(music_toggle() ? "Music on." : "Music off.");
+                continue;                    /* no turn spent */
+
+            case K_X:
+                view_message(sfx_toggle() ? "Effects on." : "Effects off.");
+                continue;
+
             default:
                 if (dir == 0xFF) {
                     continue;
@@ -906,6 +916,7 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
                         strcpy(msg, m->name);
                         strcat(msg, " hits you for ");
                     }
+                    sfx_delay();         /* let the blow before it finish */
                     sfx_play(SFX_MELEE);
                     if (bitten(m->atk, guard,
                                foes > 1 ? msg : "It hits you for ")) {
@@ -914,6 +925,7 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
                     }
                 } else if ((dir = aim()) != 0xFF) {
                     sprite_shot(sx, sy, dir, flew, m->kind);
+                    sfx_delay();
                     sfx_play(SFX_BOW);
                     if (bitten(m->shot, guard, shot_hits[m->kind])) {
                         view_draw_panel();

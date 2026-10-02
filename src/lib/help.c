@@ -52,7 +52,7 @@ void help_screen(void)
     cputsxy(3, 11, "SPACE  Wait a turn");
     cputsxy(3, 12, "L      Look where you stand");
     cputsxy(3, 13, "?      This screen   M  Music");
-    cputsxy(3, 14, "Q      Quit");
+    cputsxy(3, 14, "Q      Quit          X  Effects");
 
     textcolor(COLOR_LIGHTBLUE);
     cputsxy(1, 15, "In a fight");
