@@ -95,6 +95,7 @@ GEN_GEO   := assets/geography.json
 GEN_FONT  := src/lib/font_data.c
 GEN_LOOT  := include/q4k/loot_data.h src/lib/loot_data.c
 GEN_VER   := include/q4k/version.h
+GEN_MUSIC := src/lib/music_data.s
 
 # Where the letters come from. FONT_SOURCE is "rom" for the machine's own
 # character set, or a path to a C64 charset binary. FONT_STYLE only applies
@@ -109,7 +110,7 @@ FONT_SOURCE ?= rom
 FONT_STYLE  ?= bold
 
 assets: $(GEN_TILES) $(GEN_MAP) $(GEN_TOWN) $(GEN_ARENA) $(GEN_GEO) $(GEN_FONT) \
-        $(GEN_LOOT) $(GEN_VER)
+        $(GEN_LOOT) $(GEN_VER) $(GEN_MUSIC)
 
 # The version lives in VERSION alone; the release workflow checks the tag
 # against it. No Python needed, so this one is plain shell.
@@ -138,6 +139,9 @@ $(GEN_LOOT): assets/loot.txt assets/towns.txt assets/overworld.txt \
              assets/tiles.txt assets/npcs.json tools/mkloot.py tools/mktowns.py \
              tools/mktiles.py
 	tools/mkloot.py
+
+$(GEN_MUSIC): assets/theme.txt tools/mkmusic.py
+	tools/mkmusic.py
 
 $(GEN_GEO): assets/overworld.txt assets/towns.txt assets/places.txt \
             assets/tiles.txt tools/mkgeo.py
