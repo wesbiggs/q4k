@@ -7,7 +7,7 @@
 #define RS232_DEVICE  2
 
 /* Top of BASIC memory. The KERNAL drops its two RS-232 buffers just below
-   this when the port opens; cfg/c64-q4k.cfg reserves $C500-$C6FF for them. */
+   this when the port opens; cfg/c64-q4k.cfg reserves $CC00-$CDFF for them. */
 #define MEMSIZ (*(unsigned int *)0x0283)
 
 /* Low byte of the jiffy clock, bumped 60 times a second by the KERNAL IRQ. */
@@ -22,7 +22,7 @@ void (*modem_idle)(void);
 
 unsigned char modem_open(unsigned char baud_code)
 {
-    MEMSIZ = 0xC700;
+    MEMSIZ = 0xCE00;
 
     /* The "filename" for device 2 is the control byte, and optionally a
        command byte. setnam() measures with strlen, so a command byte of zero

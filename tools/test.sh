@@ -48,6 +48,20 @@ else
     fail=1
 fi
 
+# The continents are generated, so no screen test would notice a square a
+# mountain had cut off from the landing -- only searching every one does. The
+# model of the generator is searched over every game seed and compass point,
+# then the C64's own continents are held up against the model's.
+if [ -f dist/isletest.prg ]; then
+    if tools/checkisle.py --machine-seeds 16 >/dev/null 2>&1; then
+        echo "PASS  checkisle"
+    else
+        echo "FAIL  checkisle"
+        tools/checkisle.py --machine-seeds 16 || true
+        fail=1
+    fi
+fi
+
 # The dialogue gates are decided host-side, and what matters about them --
 # that the giver never knows the word, that a guess does not pass -- never
 # shows on a screen.

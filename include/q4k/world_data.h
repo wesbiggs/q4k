@@ -7,11 +7,20 @@
 #define WORLD_MASK   0x3F  /* dimensions are powers of two, so wrapping is a mask */
 #define WORLD_SHIFT  6
 
-#define WORLD_TILES  11
+#define WORLD_TILES  12
 
-/* Two squares a byte, even column in the low nybble; each an index
-   into world_tiles. Use world_tile() rather than reading it. */
-extern const unsigned char world_map[WORLD_W / 2 * WORLD_H];
+/* Where the ports are, and how far out to sea each has clear water.
+   Indexed north, east, south, west. */
+#define PORT_LANE    8
+extern const unsigned char world_port_x[4];
+extern const unsigned char world_port_y[4];
+
+/* Each row is runs: the high nybble is a run's length less one,
+   the low nybble an index into world_tiles. world_rows[y] is
+   where row y begins. Use world_tile() rather than reading it. */
+extern const unsigned char world_runs[810];
+extern const unsigned char world_rows[WORLD_H];
+extern const unsigned char world_pages[3];
 extern const unsigned char world_tiles[WORLD_TILES];
 extern const unsigned char world_colors[WORLD_TILES];  /* tile_colors, by index */
 extern const unsigned char world_start_x;

@@ -22,24 +22,35 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   does not fit in it.
 - `$3800-$3FFF` **charset**, built at runtime. Must be in VIC bank 0 and not
   at `$1000`/`$1800`, where the VIC sees character ROM whatever RAM holds.
-- `$4000-$AFFF` **HIGH** — `HIDATA` for bulk tables (the overworld, the
+- `$4000-$B67F` **HIGH** — `HIDATA` for bulk tables (the overworld, the
   towns) and `HICODE` for module code that will not fit below. Modules listed
   in the Makefile's `HIMODS` are compiled with `--code-name HICODE`; add to
   that list when MAIN overflows. When HIGH is the one that overflows and MAIN
   has room, add the module to `HICODEMODS` as well: its code stays in HIGH
-  but its rodata goes back to MAIN (the shop is there already). Changing
-  either list needs the objects rebuilt, because a target-specific `CFLAGS`
-  will not invalidate them on its own. About 2.7K is free in HIGH, since
-  the overworld went to four bits a square and the towns and battle fields
-  to nybble runs; MAIN (about 25 bytes since the music's interrupt hook and the M and X keys
-  went in) and BSS (about 365) are still tight.
-- `$B000-$C4FF` **BSS**, then the RS-232 buffers, C stack and probe page.
-  HIGH's top 4K is RAM under BASIC ROM (banked out at startup), taken from
-  BSS.
-- `local[]`, the town or dungeon map, **is the font image** (2K of HIDATA),
-  reused once `charset_install()` has copied it to `$3800`. Install the
-  charset before anything writes a map; `charset_install()` refuses a
-  second copy, since by then it would copy the map.
+  but its rodata goes back to MAIN (the shop and the ships are there already).
+  Changing either list needs the objects rebuilt, because a target-specific
+  `CFLAGS` will not invalidate them on its own. About 650 bytes are free in
+  HIGH and 380 in BSS. Changing `cfg/` relinks everything now; it used to
+  need a `make clean`.
+- **The C stack is at the top of MAIN, not where the cfg used to say.** cc65's
+  startup points `sp` at `__MAIN_START__ + __MAIN_SIZE__`, `$3800`, and it
+  grows down through the dead ONCE segment and then MAIN's spare bytes (about
+  85 now). So MAIN's "free" bytes are the stack's headroom: do not spend them
+  on code or data without measuring how deep the stack goes. The 2K the cfg
+  reserved at `$C700-$CEFF` was never touched, and is now BSS and the RS-232
+  buffers: the buffers are at `$CC00`, `MEMSIZ` is `$CE00`.
+- `$B680-$CBFF` **BSS**, then the RS-232 buffers, a spare page and the probe
+  page. HIGH's top 4K is RAM under BASIC ROM (banked out at startup), taken
+  from BSS.
+- `local[]`, the town, dungeon or continent map, **is the font image** (2K of
+  HIDATA), reused once `charset_install()` has copied it to `$3800`. Install
+  the charset before anything writes a map; `charset_install()` refuses a
+  second copy, since by then it would copy the map. Its last row (64 bytes)
+  is also the overworld's row buffer -- `world_row()` unpacks the run-coded
+  map a row at a time into it -- so a continent is 64x31, not 64x32, and
+  nothing else may keep anything in that row while the overworld is drawn.
+  (The ship draws the overworld while a continent is still being built into
+  the rest of local[], which is why the row buffer cannot overlap the map.)
 - `$0340-$03FF` **hero sprite** data (blocks 13 to 15, in the cassette
   buffer). Sprites must sit in VIC bank 0 like the charset; all three are in
   use. Nothing else may use the tape buffer.
@@ -54,6 +65,11 @@ That is why the small tools use `cfg/c64-tool.cfg` instead: without it a
 1.4K hello world becomes a 14K one.
 
 ## Things that will bite you
+
+**cl65 makes `foo.s` from `foo.c` in the source directory on its way to
+`foo.o`, and deletes it afterwards.** An assembly module whose name matches a C
+module's is overwritten and then deleted, with no complaint. The continent
+generator is `isle_gen.s` (next to `isle.c`) for that reason.
 
 **Screen codes are not ASCII and not PETSCII.** They index the active charset.
 q4k runs the lowercase/mixed set (`VIC.addr = 0x17`, i.e. `$D018 = $17`) because
@@ -99,7 +115,7 @@ changes). A quick attack on a quiet SID voice clicks, because the envelope
 always climbs to full level first; voice 2 uses a 100 ms attack for that
 reason. (`HARMONY = "long"` in `tools/mkmusic.py` moves it only on
 long notes instead, and `h` marks in the score force a move there). The generator works the harmony out; the score is just the tune. The player
-and data live in HIGH, which has about 800 bytes left with them in. `music_pause()`/`music_resume()` wrap the disk
+and data live in HIGH (what is free now is under Memory). `music_pause()`/`music_resume()` wrap the disk
 code, which the interrupt would steal cycles from. Pausing zeroes the master
 volume *and waits twelve jiffies*: with the drive emulated, VICE makes no new
 sound while the drive works and replays its last audio buffer, so a note
@@ -132,6 +148,49 @@ up for the whole effect, at least three frames at a stretch, and set the
 loudness with the sustain level. A pulse is far louder than noise or a
 triangle at the same sustain. The terrain steps were balanced by recording
 each and measuring it; do the same for a new one.
+
+## Continents
+
+Four ports -- `port <north|east|south|west> <x> <y>` lines in
+`assets/overworld.txt`, which `tools/mkmap.py` checks: each on a `P`, with
+`PORT_LANE` squares of open sea straight out -- send a ship to a continent of
+its own (`src/lib/sail.c`). The voyage is a camera, not a ship: the ship
+(`T_SHIP`, a screen code written over the view with the hero sprite hidden)
+stays in the middle of the viewport and the land moves. Leaving, the home coast
+slides off the far edge until the view is open sea; arriving, the new coast
+slides on from that same view, so there is no seam, and the last frame is the
+one the map draws next. `world_view()` is the one drawing routine for both: any
+position on the overworld or on a continent in local[], plus a window
+(`world_x0..y1`) outside which it draws only sea -- which is how a coast is
+slid off without the far side of the wrapping world turning up in the gap.
+Positions are biased by 64 so that going a little off a map stays a small
+positive `unsigned char`, which cc65 does cheaply; signed arithmetic tripled the
+code. After the slide on, the camera pans to where the map's own clamped camera
+would be, so a landing near the edge still ends without a jump. The continent
+is built (`isle_work()`, a couple of pieces a frame) while the old coast slides
+away; it is about two seconds of 6502, and a ship left standing at sea for that
+long looked like a hang. Home is the same in the other order. Stepping onto the
+port is the only trigger, so arriving on one does not sail again.
+
+Continents are never stored. `src/lib/isle_gen.s` builds one into local[] from
+`lore_seed` and the compass point -- the same land every visit, different in
+the next game -- and has an LFSR of its own, so it touches neither `rand()` nor
+the encounter seed and nothing needs reseeding after it. The land is one random
+walk stamping pluses and 3x3s, so it is connected by construction, laying down
+the biome the walker is currently "in". Mountain ranges and lakes are walks
+that only turn a square into an obstacle when `removable()` says the walkable
+edge neighbours stay joined round it: a purely local test, sufficient (not
+necessary) to keep every walkable square reachable, and cheap for a 6502. The
+landing is the first walkable square along the middle row or column from the
+edge the ship comes in at, and is never turned into an obstacle.
+
+`tools/isleref.py` is the same algorithm in Python, bit for bit.
+`tools/checkisle.py` searches it for unreachable squares over every seed and
+every compass point, then has the emulated machine (`src/isletest.c`) build the
+same continents and compares a checksum of each, and one whole map, with the
+model's. Change the generator in both places or that check will say so; it
+runs in `make test`. It is assembly because in C it came to 1.3K, when HIGH had
+700 bytes.
 
 ## Testing
 
@@ -182,10 +241,10 @@ touching all 399 squares at all: keeping a list of what was lit took it to
 resolution to settle questions like this in a couple of minutes.
 
 **Disk access needs MEMSIZ raised first.** `$0283` points at the top of
-BASIC memory, which is `$A000` on a stock machine — exactly where this
-game's BSS starts. Leave it there and KERNAL SAVE writes nothing and LOAD
+BASIC memory, which is `$A000` on a stock machine — below this
+game's BSS. Leave it there and KERNAL SAVE writes nothing and LOAD
 walks into the weeds, both without an error you can see. `savegame.c` and
-`modem.c` both raise it to `$C700` before touching the drive.
+`modem.c` both raise it to `$CE00` before touching the drive.
 
 **`cbm_save`'s last argument is a byte count, not an end address** — unlike
 almost every other save routine on this machine. Passing an end address
@@ -254,7 +313,8 @@ with the machine otherwise idle, around 20 runs of each case. If three
 sprites really do fail, hide them during disk access in `savegame.c`: every
 enabled sprite takes CPU cycles from the KERNAL's serial-bus code.
 
-`--peek SYM[+OFF][:WIDTH]` prints any global after the run; `--poke
+`--peek SYM[+OFF][:WIDTH]` prints any global after the run (wider than 8
+bytes, just the bytes as hex, last first); `--poke
 SYM=VALUE` (and `SYM+OFFSET=VALUE`) writes one before it. Both use the label
 file ld65 emits next to the binary. Prefer it over adding debug
 hooks to the game: the quest, the inventory and the party struct are all

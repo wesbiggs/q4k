@@ -7,6 +7,7 @@
 #include <q4k/dungeon.h>
 #include <q4k/fov.h>
 #include <q4k/game.h>
+#include <q4k/isle.h>
 #include <q4k/music.h>
 #include <q4k/rle.h>
 #include <q4k/savegame.h>
@@ -92,7 +93,7 @@ static void gather(void)
 
 static unsigned char do_save(void)
 {
-    MEMSIZ = 0xC700;
+    MEMSIZ = 0xCE00;
     gather();
 
     /* CBM DOS will not overwrite, so scratch any previous save first. The
@@ -117,7 +118,7 @@ static unsigned char do_save(void)
 
 static unsigned char do_load(void)
 {
-    MEMSIZ = 0xC700;
+    MEMSIZ = 0xCE00;
 
     if (cbm_load(SAVE_NAME, SAVE_DEVICE, &blob) == 0) {
         return SAVE_EDISK;
@@ -150,6 +151,9 @@ static unsigned char do_load(void)
        that dungeon starts unexplored again. What you can see now is worked
        out afresh before the next draw. */
     fov_forget();
+    if (scene == SCENE_ISLE) {
+        isle_build(place);      /* from lore_seed: the same land */
+    }
     if (scene == SCENE_DUNGEON) {
         dungeon_build(place, depth);
         reseed();

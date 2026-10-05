@@ -215,6 +215,13 @@ def report_peeks(mon, syms, peeks):
             raise SystemExit("screendump: no symbol %r" % name)
         addr = syms[name] + offset
         data = mon.mem_get(addr, addr + width - 1)
+        if width > 8:
+            # Too long to be a number: just the bytes, last one first, as
+            # hex -- the same digits a number would have printed.
+            print("screendump: %s+%d @ $%04X = - ($%s)"
+                  % (name, offset, addr, data[:width][::-1].hex().upper()),
+                  file=sys.stderr)
+            continue
         value = int.from_bytes(data[:width], "little")
         print("screendump: %s+%d @ $%04X = %d ($%0*X)"
               % (name, offset, addr, value, width * 2, value),

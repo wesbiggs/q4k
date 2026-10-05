@@ -42,6 +42,7 @@ void help_screen(void)
     textcolor(COLOR_WHITE);
     cputsxy(3, 4, "W A S D  or the cursor keys");
     cputsxy(3, 5, "Walk into someone to talk or trade");
+    cputsxy(3, 6, "Step onto a port to sail");
 
     textcolor(COLOR_LIGHTBLUE);
     cputsxy(1, 7, "Commands");

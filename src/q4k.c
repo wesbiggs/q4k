@@ -26,6 +26,7 @@
 #include <q4k/savegame.h>
 #include <q4k/shop.h>
 #include <q4k/music.h>
+#include <q4k/sail.h>
 #include <q4k/sprite.h>
 #include <q4k/tiles.h>
 #include <q4k/title.h>
@@ -301,6 +302,10 @@ static void arrive(unsigned char code, unsigned char x, unsigned char y)
 {
     signed char i;
 
+    if (code == T_PORT) {
+        sail_out();
+        return;
+    }
     if (code == T_LAIR) {
         face_the_dragon();
         return;
@@ -417,7 +422,9 @@ static void try_move(signed char dx, signed char dy, unsigned char dir)
         return;
     }
 
-    if (code == T_STAIRDN) {
+    if (code == T_PORT) {
+        sail_home();            /* on a continent: the landing */
+    } else if (code == T_STAIRDN) {
         descend();
     } else if (code == T_STAIRUP) {
         ascend();

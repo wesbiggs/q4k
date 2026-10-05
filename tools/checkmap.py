@@ -97,7 +97,7 @@ def main():
         if line.startswith("start "):
             _, x, y = line.split()
             start = (int(x), int(y))
-        elif line.strip() and not line.startswith("#"):
+        elif line.strip() and not line.startswith(("#", "port ")):
             rows.append(line)
 
     h, w = len(rows), len(rows[0])
@@ -107,10 +107,11 @@ def main():
     for y in range(h):
         for x in range(w):
             c = rows[y][x]
-            if c in "TCDL":
+            if c in "TCDLP":
                 targets.append((c, x, y))
 
-    label = {"T": "town", "C": "castle", "D": "dungeon", "L": "lair"}
+    label = {"T": "town", "C": "castle", "D": "dungeon", "L": "lair",
+             "P": "port"}
     bad = 0
     for c, x, y in targets:
         ok = (x, y) in seen

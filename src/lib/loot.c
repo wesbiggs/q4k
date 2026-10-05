@@ -33,6 +33,12 @@ static unsigned char loot_bit(void)
         return NO_LOOT;
     }
 
+    /* Nothing is hidden on the continents; the compass point they are
+       indexed by would otherwise be taken for a town. */
+    if (scene == SCENE_ISLE) {
+        return NO_LOOT;
+    }
+
     map = (scene == SCENE_WORLD) ? LOOT_WORLD : place;
     found = loot_table;
     for (i = 0; i < NUM_LOOT; ++i, ++found) {

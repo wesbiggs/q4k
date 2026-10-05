@@ -7,6 +7,7 @@
 #include <q4k/battle.h>
 #include <q4k/fov.h>
 #include <q4k/game.h>
+#include <q4k/isle.h>
 #include <q4k/charset.h>
 #include <q4k/sprite.h>
 #include <q4k/tiles.h>
@@ -136,44 +137,12 @@ static void draw_local(void)
     }
 }
 
-static void draw_world(void)
-{
-    unsigned char vx, vy, wx, wy, code;
-    const unsigned char *row;
-    unsigned char *scr, *col;
-
-    for (vy = 0; vy < VIEW_H; ++vy) {
-        /* Unsigned wraparound is exactly what we want at the world edges:
-           the mask folds -1 to WORLD_W-1 for free. */
-        wy = (hero.y + vy - VIEW_CY) & WORLD_MASK;
-        row = world_map + ((unsigned int)wy << (WORLD_SHIFT - 1));
-
-        scr = SCREEN_RAM + (unsigned int)vy * SCR_W;
-        col = COLOR_RAM  + (unsigned int)vy * SCR_W;
-
-        for (vx = 0; vx < VIEW_W; ++vx) {
-            wx = (hero.x + vx - VIEW_CX) & WORLD_MASK;
-            code = row[wx >> 1];            /* two squares a byte */
-            if (wx & 1) {
-                code >>= 4;
-            }
-            /* Masked in its own statement: indexed by an unsigned char,
-               cc65 reads the tables directly. `[code & 0x0F]` is an int
-               and goes through a pointer, which cost a third of the
-               redraw. */
-            code &= 0x0F;
-            *scr++ = world_tiles[code];
-            *col++ = world_colors[code];
-        }
-    }
-}
-
 /* The hero is not in the map at all: the square they stand on is drawn like
    any other, and the sprite goes over the top of it. */
 void view_draw(void)
 {
     if (scene == SCENE_WORLD) {
-        draw_world();
+        world_draw();
         sprite_show(VIEW_CX, VIEW_CY);
     } else {
         draw_local();
@@ -287,6 +256,8 @@ void view_draw_panel(void)
         cputsxy(PANEL_X, 10, dungeon_names[place]);
         cputsxy(PANEL_X, 11, "Level");
         put_num(PANEL_X + 6, 11, depth);
+    } else if (scene == SCENE_ISLE) {
+        cputsxy(PANEL_X, 10, isle_name());
     } else {
         cputsxy(PANEL_X, 10, "Keldmarch");
     }

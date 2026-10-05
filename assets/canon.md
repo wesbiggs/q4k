@@ -6,10 +6,10 @@ the world, and anything absent is something NPCs should not invent.
 
 ## The land of Keldmarch
 
-A single continent ringed by ocean. The ocean wraps: sail far enough west and
-you return from the east. A spine of grey mountains, the **Sundering**, runs
-north to south and splits the land in two. The eastern side is open farmland.
-The west is forest, marsh and rock.
+A single continent ringed by ocean, and the only land anyone lives on. The
+ocean wraps: sail far enough west and you return from the east. A spine of
+grey mountains, the **Sundering**, runs north to south and splits the land in
+two. The eastern side is open farmland. The west is forest, marsh and rock.
 
 **King Matheson** has ruled from Castle Matheson in the south for nineteen
 years. He is fair, tired, and out of options.
@@ -54,6 +54,18 @@ western face. Everyone knows roughly where. Nobody goes.
   the **Tidal Key**, held in Wardlow. Its keeper is **the Drowned King**.
 - **Blackpit** (11, 35) — western, in the deep forest. Sealed by the **Ashen
   Key**, held in Ashcombe. Its keeper is **the Pit Warden**.
+
+## The ports
+
+Four ports keep a ship each, one on every coast: the **north port** at
+(28, 7), a short walk from Wardlow; the **east port** at (56, 20); the **south
+port** at (36, 58), below Castle Matheson; and the **west port** at (7, 36),
+at the edge of Blackpit's forest. A ship sails straight out to sea and finds
+one country over the water, a different one from each port. Those countries
+have no towns and no king. Sailors call them wild -- sand, forest, marsh or
+mountain -- and say nothing more, because nobody has stayed there. Nobody in
+Keldmarch knows of any treasure or any danger over the water beyond what wild
+country always holds.
 
 ## Tone
 

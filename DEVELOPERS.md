@@ -47,8 +47,10 @@ Every test is a screen: `tests/golden/<name>.txt` is the whole 40x25 text
 screen a program should leave, and a `<name>.cmd` beside it, if there is
 one, holds the `tools/screendump.py` arguments that get it there -- keys to
 type, globals to poke. `tools/test.sh` (which `make test` runs) diffs each
-against a fresh headless run, and also runs `tools/checkmap.py` and the
-dialogue host's own tests. Save and load get a fresh disk each run.
+against a fresh headless run, and also runs `tools/checkmap.py`,
+`tools/checkisle.py` (the continents: nothing on any screen would show a
+square cut off from the landing) and the dialogue host's own tests. Save and
+load get a fresh disk each run.
 
 The `test` workflow (`.github/workflows/test.yml`) runs `make test` on every
 push to any branch, and that is the run to watch: the suite takes a while
@@ -108,10 +110,11 @@ VERSION             the version, and the only place it is written
 CHANGELOG.md        what each release changed; its notes on GitHub
 ```
 
-Besides the game, `make` builds five dev tools: `tiles` (the whole tile set),
+Besides the game, `make` builds six dev tools: `tiles` (the whole tile set),
 `charset` (all 256 screen codes), `dungeontest` (preview generated dungeon
-levels), `arena` (fight any monster on any ground, at any level and in any
-kit) and `serialtest` (a modem loopback).
+levels), `isletest` (build the continents for a run of seeds and draw one;
+`tools/checkisle.py` drives it), `arena` (fight any monster on any ground, at
+any level and in any kit) and `serialtest` (a modem loopback).
 
 Generated files (`src/lib/*_data.c`, `include/q4k/tiles.h`, `world_data.h`,
 `town_data.h`, `version.h`, `assets/geography.json`) are checked in so the build needs no

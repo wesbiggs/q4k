@@ -48,8 +48,7 @@ def world_rows():
     rows = []
     for line in open("assets/overworld.txt"):
         line = line.rstrip("\n")
-        if line.strip() and not line.startswith("#") \
-                and not line.startswith("start "):
+        if line.strip() and not line.startswith(("#", "start ", "port ")):
             rows.append(line)
     return rows
 

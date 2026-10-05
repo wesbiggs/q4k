@@ -119,6 +119,28 @@ with you until you go into a different dungeon, so going back in -- by the
 stairs, or from Millford after dying down there -- is not starting over.
 Every level has at least one chest, and some have three.
 
+### Across the sea
+
+Keldmarch has four ports, an anchor on the coast at each compass point:
+north, east, south and west. Step onto one and a ship takes you out to sea,
+and you watch it go -- the ship holds the middle of the screen while Keldmarch
+slides away behind it, until you are alone on open sea, and then the far
+continent slides in the same way until the ship reaches its port and you
+come ashore. Step onto that port again
+and the ship takes you home.
+
+Each port has a continent of its own, and none of them is on the map you
+start with: they are made when you sail, from the game's secret seed and the
+port you sailed from. A new game has new continents, and the same continent
+is the same land every time you come back to it. Each is mostly one kind of
+ground -- the plains, a forest, a swamp, the desert, or mountains with a
+little grass between -- with a little of the others, ranges of mountain and
+lakes. Everywhere you can stand can be walked to from the port you arrived
+at: mountains and water are never allowed to cut a piece of land off.
+
+Wandering monsters meet you there as they do at home, on the ground you are
+crossing. There is nothing else yet: no towns and no treasure, only land.
+
 ## Talking to people
 
 Every person you meet answers in their own voice, from the world's canon and

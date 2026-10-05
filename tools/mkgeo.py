@@ -63,7 +63,7 @@ def main():
                 if t.flag not in ("TF_BLOCK", "TF_WATER", "actor")}
 
     rows = [l.rstrip("\n") for l in open("assets/overworld.txt")
-            if l.strip() and not l.startswith("#") and not l.startswith("start")]
+            if l.strip() and not l.startswith(("#", "start", "port "))]
     h, w = len(rows), len(rows[0])
 
     places = {}

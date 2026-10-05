@@ -1,10 +1,10 @@
 /*
  * Quest for the King -- game state and the scene the player is standing in.
  *
- * Three scenes share one set of movement and drawing code. The overworld is
- * a wrapping 64x64 map in ROM; towns (21x19) and dungeon levels (DUN_W x
- * DUN_H, bigger than the screen) live in one RAM buffer, rebuilt whenever
- * the player goes somewhere.
+ * Four scenes share one set of movement and drawing code. The overworld is
+ * a wrapping 64x64 map in ROM; towns (21x19), dungeon levels (DUN_W x
+ * DUN_H, bigger than the screen) and the continents over the sea (64x32)
+ * live in one RAM buffer, rebuilt whenever the player goes somewhere.
  */
 
 #ifndef Q4K_GAME_H
@@ -16,6 +16,7 @@
 #define SCENE_WORLD    0
 #define SCENE_TOWN     1
 #define SCENE_DUNGEON  2
+#define SCENE_ISLE     3   /* a continent over the sea; place = compass point */
 
 /* Quest progress. Keep in step with STAGES in host/npcd.py -- the number is
    sent to the dialogue daemon so NPCs know where the story has got to. */

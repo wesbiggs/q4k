@@ -32,7 +32,7 @@ C1541    := c1541
 # --static-locals: locals become static storage -- faster on 6502 (no stack
 # frame juggling) at the cost of no recursion. Right trade for a tile RPG.
 CFLAGS   := -t $(TARGET) -Osir --static-locals -I include
-ASFLAGS  := -t $(TARGET) -I include
+ASFLAGS  := -t $(TARGET) -I include --asm-include-dir include
 # The game gets the full memory map; the demos and tools get a lean one that
 # skips the HIGH region and its contiguity padding.
 LDFLAGS  := -t $(TARGET)
@@ -45,7 +45,7 @@ LDFLAGS  := -t $(TARGET)
 DEPFLAGS  = -Wc --create-full-dep,$(@:.o=.d) -Wc --dep-target,$@
 # dungeontest links the maps and the font, and arena the fights, so both need
 # the game's map too.
-LDCFG     = cfg/c64-$(if $(filter q4k dungeontest arena,$*),q4k,tool).cfg
+LDCFG     = cfg/c64-$(if $(filter q4k dungeontest arena isletest,$*),q4k,tool).cfg
 
 MAINS    := $(wildcard src/*.c)
 PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
@@ -57,13 +57,13 @@ PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 # flags are needed: --code-name alone leaves the string literals behind, and
 # screens like the help text are mostly string literals.
 HIMODS   := dialog battle shop inn dungeon panel title help savegame sprite \
-            loot fov
+            loot fov world sail
 
 # Code above the charset, constants below: for when HIGH is the one that is
 # full and MAIN still has room. The shop's names and prices went back down
 # when the dungeon work and the version check together overflowed HIGH by
-# 88 bytes.
-HICODEMODS := shop
+# 88 bytes; the ship's messages did the same for sail.
+HICODEMODS := shop sail
 
 LIBSRC   := $(wildcard src/lib/*.c) $(wildcard src/lib/*.s)
 LIBOBJ   := $(patsubst src/lib/%.c,$(BUILD)/lib/%.o,$(wildcard src/lib/*.c)) \
@@ -81,13 +81,17 @@ endif
 
 all: dirs assets $(PRGS)
 
+# Assembly cannot see tiles.h; it has its own generated copy of the codes.
+$(BUILD)/lib/isle_gen.o: include/q4k/tiles.inc
+
 # --- generated from assets ---------------------------------------------------
 #
 # The generated C and the geography the NPCs are given are checked in, so a
 # plain build needs no Python. These rules keep them from going stale: edit
 # an asset and the next make regenerates whatever depended on it.
 
-GEN_TILES := include/q4k/tiles.h src/lib/tiles_data.c src/lib/tiles_names.c
+GEN_TILES := include/q4k/tiles.h include/q4k/tiles.inc src/lib/tiles_data.c \
+            src/lib/tiles_names.c
 GEN_MAP   := include/q4k/world_data.h src/lib/map_data.c
 GEN_TOWN  := include/q4k/town_data.h src/lib/town_data.c
 GEN_ARENA := include/q4k/arena_data.h src/lib/arena_data.c
@@ -191,7 +195,7 @@ $(BUILD)/%.o: src/%.c
 -include $(patsubst src/%.c,$(BUILD)/%.d,$(MAINS)) \
          $(patsubst src/lib/%.c,$(BUILD)/lib/%.d,$(wildcard src/lib/*.c))
 
-$(DIST)/%.prg: $(BUILD)/%.o $(LIB)
+$(DIST)/%.prg: $(BUILD)/%.o $(LIB) $(wildcard cfg/*.cfg)
 	@mkdir -p $(DIST)
 	$(CL65) $(LDFLAGS) -C $(LDCFG) -m $(BUILD)/$*.map \
 	    -Wl -Ln,$(BUILD)/$*.lbl -o $@ $< $(LIB)
