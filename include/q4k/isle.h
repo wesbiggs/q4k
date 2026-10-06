@@ -24,7 +24,9 @@
 #define ISLE_H  31              /* which the overworld's row buffer is */
 
 /* Compass points are numbered as the ports are indexed: 0 north, 1 east, 2
-   south, 3 west. Going the other way is d ^ 2. */
+   south, 3 west. Going the other way is d ^ 2. The home continent is built by
+   the same code, as ISLE_HOME. */
+#define ISLE_HOME 4
 
 /* The five kinds a continent can be mostly made of (isle_gen.s knows the
    numbers too). */
@@ -52,6 +54,18 @@ extern unsigned char isle_sx, isle_sy;
 extern unsigned char isle_dock_x, isle_dock_y;
 
 extern unsigned char isle_biome;        /* BIOME_*: what it is mostly made of */
+
+/* Home's four ports, by the compass point each sends a ship to; a continent's
+   landing is port 0 (the same bytes as isle_dock_x and _y). */
+extern unsigned char isle_port_x[4], isle_port_y[4];
+
+/* The places on it, in the order they were put down: home's are the first
+   town (where the story starts), the castle, the first dungeon, Maldrath's
+   lair and one more town; a continent has its story place and one town. The
+   story place is a town if isle_story is 0 and a dungeon if it is 1, which
+   the caller sets before building. */
+extern unsigned char isle_story;
+extern unsigned char isle_fx[5], isle_fy[5];
 const char *isle_name(void);
 
 #endif /* Q4K_ISLE_H */

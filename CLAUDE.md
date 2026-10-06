@@ -18,47 +18,63 @@ the story and how to play.
 
 Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
 
-- `$0801-$37FF` **MAIN** — code and rodata. Twelve kilobytes, and the game
+- `$0801-$37FF` **MAIN** -- code and rodata. Twelve kilobytes, and the game
   does not fit in it.
 - `$3800-$3FFF` **charset**, built at runtime. Must be in VIC bank 0 and not
   at `$1000`/`$1800`, where the VIC sees character ROM whatever RAM holds.
-- `$4000-$B67F` **HIGH** — `HIDATA` for bulk tables (the overworld, the
-  towns) and `HICODE` for module code that will not fit below. Modules listed
-  in the Makefile's `HIMODS` are compiled with `--code-name HICODE`; add to
-  that list when MAIN overflows. When HIGH is the one that overflows and MAIN
-  has room, add the module to `HICODEMODS` as well: its code stays in HIGH
-  but its rodata goes back to MAIN (the shop and the ships are there already).
-  Changing either list needs the objects rebuilt, because a target-specific
-  `CFLAGS` will not invalidate them on its own. About 650 bytes are free in
-  HIGH and 380 in BSS. Changing `cfg/` relinks everything now; it used to
-  need a `make clean`.
+  Its reverse-video half is mostly glyphs the game never draws, and
+  `charset_install()` copies only the ones it does, so three runs of them are
+  free for read-only data: `CHDATA1` (112 bytes, `$3C90`), `CHDATA2` (248,
+  `$3D08`) and `CHDATA3` (448, `$3E40`), each a linker segment of its own. A
+  module puts its rodata there with `#pragma rodata-name ("CHDATA3")` after
+  its includes (inn, sprite and the lot are there; the land and town
+  generators' tables are in `CHDATA1`). `$A0` is the input cursor, `$C0-$C7`
+  the bow shot's sprite block, and `$80-$91` the actors: leave those alone,
+  and check `assets/tiles.txt` before using any glyph above `$91` on screen.
+- `$4000-$B7FF` **HIGH** -- `HIDATA` for bulk tables (the towns) and `HICODE`
+  for module code that will not fit below. Modules listed in the Makefile's
+  `HIMODS` are compiled with `--code-name HICODE`; add to that list when MAIN
+  overflows. When HIGH is the one that overflows and MAIN has room, add the
+  module to `HICODEMODS` as well: its code stays in HIGH but its rodata goes
+  back to MAIN (the shop and the ships are there already). Changing either
+  list needs the objects rebuilt, because a target-specific `CFLAGS` will not
+  invalidate them on its own. About 100 bytes are free in HIGH, 220 in MAIN
+  and 120 in BSS. Changing `cfg/` relinks everything.
 - **The C stack is at the top of MAIN, not where the cfg used to say.** cc65's
   startup points `sp` at `__MAIN_START__ + __MAIN_SIZE__`, `$3800`, and it
   grows down through the dead ONCE segment and then MAIN's spare bytes (about
-  85 now). So MAIN's "free" bytes are the stack's headroom: do not spend them
+  220 now). So MAIN's "free" bytes are the stack's headroom: do not spend them
   on code or data without measuring how deep the stack goes. The 2K the cfg
   reserved at `$C700-$CEFF` was never touched, and is now BSS and the RS-232
-  buffers: the buffers are at `$CC00`, `MEMSIZ` is `$CE00`.
-- `$B680-$CBFF` **BSS**, then the RS-232 buffers, a spare page and the probe
-  page. HIGH's top 4K is RAM under BASIC ROM (banked out at startup), taken
-  from BSS.
+  buffers: the buffers are at `$CD00`, `MEMSIZ` is `$CF00`.
+- `$B800-$CCFF` **BSS**, then the RS-232 buffers and the probe page at
+  `$CF00`. HIGH's top 4K is RAM under BASIC ROM (banked out at startup),
+  taken from BSS.
+- **The RAM under the ROMs** (`src/lib/vault.s`). `$D000-$DFFF`, under the I/O
+  area, holds the home continent for the whole game, 64 by 64 bytes of tiles;
+  `$E000-$FFF9`, under the KERNAL, holds a continent put away while a town or
+  a dungeon is in `local[]` (four 1984-byte slots, `$800` apart; only slot 0 is
+  used). Reaching either takes the machine to all-RAM (`$01 = $34`), which
+  takes the KERNAL and the I/O area away, so interrupts are off for as long as
+  it lasts and the only code that may run is in ordinary RAM and calls nothing
+  of the KERNAL's. An NMI cannot be turned off and its vector is read from RAM
+  under the KERNAL too, so `vault_enter` points it at an RTI. Everything is a
+  copy of a screenful or a row (`vault_row`, `vault_tile`, `vault_park`,
+  `vault_unpark`, about 30 ms at the worst) except building home, which the
+  generator does in place, a few seconds with nothing else running.
 - `local[]`, the town, dungeon or continent map, **is the font image** (2K of
   HIDATA), reused once `charset_install()` has copied it to `$3800`. Install
   the charset before anything writes a map; `charset_install()` refuses a
-  second copy, since by then it would copy the map. Its last row (64 bytes)
-  is also the overworld's row buffer -- `world_row()` unpacks the run-coded
-  map a row at a time into it -- so a continent is 64x31, not 64x32, and
-  nothing else may keep anything in that row while the overworld is drawn.
-  (The ship draws the overworld while a continent is still being built into
-  the rest of local[], which is why the row buffer cannot overlap the map.)
+  second copy, since by then it would copy the map. Its last row (64 bytes) is
+  also the row buffer home is drawn through (`world_view()` copies a row out of
+  the vault into it), so a continent is 64x31, not 64x32, and nothing else may
+  keep anything in that row while the overworld is drawn. (The ship draws home
+  while a continent is still being built into the rest of local[].)
 - `$0340-$03FF` **hero sprite** data (blocks 13 to 15, in the cassette
   buffer). Sprites must sit in VIC bank 0 like the charset; all three are in
   use. Nothing else may use the tape buffer.
-- More sprite blocks come out of the **charset's reverse half**, which the
-  game never draws except `$A0` (the input cursor). Glyphs `$C0-$C7` are
-  `$3E00-$3E3F`, the bow shot's block. Any 8 aligned glyphs from `$80-$FF`
-  (not `$A0-$A7`) make another, but check `assets/tiles.txt` first: actor
-  glyphs live at `$80-$90`.
+- More sprite blocks come out of the **charset's reverse half**; see the
+  glyph list above before taking one.
 
 The PRG is one contiguous load, so MAIN and the charset gap are `fill = yes`.
 That is why the small tools use `cfg/c64-tool.cfg` instead: without it a
@@ -69,7 +85,8 @@ That is why the small tools use `cfg/c64-tool.cfg` instead: without it a
 **cl65 makes `foo.s` from `foo.c` in the source directory on its way to
 `foo.o`, and deletes it afterwards.** An assembly module whose name matches a C
 module's is overwritten and then deleted, with no complaint. The continent
-generator is `isle_gen.s` (next to `isle.c`) for that reason.
+land generator is `isle_gen.s` (next to `isle.c`) for that reason, and the
+towns' is `tgen.s` (next to `town_gen.c`).
 
 **Screen codes are not ASCII and not PETSCII.** They index the active charset.
 q4k runs the lowercase/mixed set (`VIC.addr = 0x17`, i.e. `$D018 = $17`) because
@@ -149,48 +166,89 @@ loudness with the sustain level. A pulse is far louder than noise or a
 triangle at the same sustain. The terrain steps were balanced by recording
 each and measuring it; do the same for a new one.
 
-## Continents
+## The land
 
-Four ports -- `port <north|east|south|west> <x> <y>` lines in
-`assets/overworld.txt`, which `tools/mkmap.py` checks: each on a `P`, with
-`PORT_LANE` squares of open sea straight out -- send a ship to a continent of
-its own (`src/lib/sail.c`). The voyage is a camera, not a ship: the ship
+Home -- Keldmarch -- and the four continents across the sea come out of one
+generator, `src/lib/isle_gen.s`, from `lore_seed` and a compass point (0-3 a
+continent, 4 home): the same land every visit, a different one in the next
+game, none of it stored anywhere. It has an LFSR of its own, so it touches
+neither `rand()` nor the encounter seed and nothing needs reseeding after it.
+The land is one random walk stamping pluses and 3x3s, so it is connected by
+construction, laying down the biome the walker is currently "in". Mountain
+ranges and lakes are walks that only turn a square into an obstacle when
+`removable()` says the walkable edge neighbours stay joined round it: a purely
+local test, sufficient (not necessary) to keep every walkable square
+reachable.
+
+Home is 64x64 and has more land (a longer walk) and two kinds of ground, plains
+or forest; a continent is 64x31 in `local[]` and any of five. A *special*
+square (a landing, a town, a castle, a dungeon, a lair) is an even `G_` value,
+so as far as connectivity goes it is not there: stepping onto it does
+something, so nobody walks *through* one. Placing one has to leave the rest
+joined and itself reachable, which is what keeps that true: the landings go in
+first, with the land beside them marked `PROT` so no obstacle takes it, and
+the places go in last, each on a square `removable()` allows, at least
+`LANDING_APART` from a landing and `apart` from the places before it (given up
+two at a time every 128 tries, so a small land cannot stop it); a lair wants a
+mountain beside it. Home has four landings, one on each coast (the first land
+along the middle row or column), and five places: Millford, the castle, the
+Hollow Crown, Maldrath's lair and a town. A continent has one landing and two
+places: its story place (a town, Wardlow or Ashcombe, or a dungeon, the
+Drowned Stair or Blackpit) and a town. `tools/isleref.py` is the same
+algorithm in Python, draw for draw; `tools/checkisle.py` searches it for
+unreachable squares over every seed and compass point, then has the emulated
+machine (`src/isletest.c`) build the same land and compares a checksum of each,
+and parts of two maps, with the model's. Change the generator in both places or
+that check will say so; it runs in `make test`. It is assembly because in C it
+came to 1.3K, when HIGH had 700 bytes.
+
+Which continent holds which story place is a shuffle of `lore_seed`
+(`slot_of()` in `game.c`; `homepath.py` has it too): slot 0 is Wardlow, 1 the
+Drowned Stair, 2 Ashcombe, 3 Blackpit, which is the order the quest wants
+them in. A port opens when `quest_stage >= Q_EMBER + slot` -- until then the
+captain "will not sail yet" -- so the continents open one at a time and the
+captains need no state of their own. Home's places are `home_fx/fy` (copied out
+of `isle_fx/fy` when it is built, because building a continent overwrites
+those) and a continent's are `isle_fx/fy`; `place_at()` says which place a
+square is, and `q4k.c`'s `arrive()` turns that into a town or a dungeon.
+
+Going in to a town or a dungeon from the overworld remembers where
+(`ret_x/ret_y`) and, from a continent, puts it away in slot 0; coming out puts
+it back. `land` says which one you are on (4 is home) and is saved.
+
+Four ports, one on each of home's coasts. A ship (`src/lib/sail.c`) takes you
+to the continent of its own: the voyage is a camera, not a ship. The ship
 (`T_SHIP`, a screen code written over the view with the hero sprite hidden)
 stays in the middle of the viewport and the land moves. Leaving, the home coast
 slides off the far edge until the view is open sea; arriving, the new coast
 slides on from that same view, so there is no seam, and the last frame is the
 one the map draws next. `world_view()` is the one drawing routine for both: any
-position on the overworld or on a continent in local[], plus a window
-(`world_x0..y1`) outside which it draws only sea -- which is how a coast is
-slid off without the far side of the wrapping world turning up in the gap.
-Positions are biased by 64 so that going a little off a map stays a small
-positive `unsigned char`, which cc65 does cheaply; signed arithmetic tripled the
-code. After the slide on, the camera pans to where the map's own clamped camera
-would be, so a landing near the edge still ends without a jump. The continent
-is built (`isle_work()`, a couple of pieces a frame) while the old coast slides
-away; it is about two seconds of 6502, and a ship left standing at sea for that
-long looked like a hang. Home is the same in the other order. Stepping onto the
-port is the only trigger, so arriving on one does not sail again.
+position on home or on a continent in local[], plus a window (`world_x0..y1`)
+outside which it draws only sea. Positions are biased by 64 so that going a
+little off a map stays a small positive `unsigned char`, which cc65 does
+cheaply; signed arithmetic tripled the code. After the slide on, the camera
+pans to where the map's own clamped camera would be, so a landing near the
+edge still ends without a jump. The continent is built (`isle_work()`, a
+couple of pieces a frame) while the old coast slides away; it is about two
+seconds of 6502, and a ship left standing at sea for that long looked like a
+hang. Home is the same in the other order, except that it is already built.
+Stepping onto the port is the only trigger, so arriving on one does not sail
+again.
 
-Continents are never stored. `src/lib/isle_gen.s` builds one into local[] from
-`lore_seed` and the compass point -- the same land every visit, different in
-the next game -- and has an LFSR of its own, so it touches neither `rand()` nor
-the encounter seed and nothing needs reseeding after it. The land is one random
-walk stamping pluses and 3x3s, so it is connected by construction, laying down
-the biome the walker is currently "in". Mountain ranges and lakes are walks
-that only turn a square into an obstacle when `removable()` says the walkable
-edge neighbours stay joined round it: a purely local test, sufficient (not
-necessary) to keep every walkable square reachable, and cheap for a 6502. The
-landing is the first walkable square along the middle row or column from the
-edge the ship comes in at, and is never turned into an obstacle.
+Every land has a town of its own, made by `src/lib/tgen.s` (in C it came to
+1.8K): an inn, a shop (a smithy, an armourer or a bowyer), a third building
+(a potion shop, or an empty house small or large) and up to two houses with a
+villager in, on a grid of six lots with a street between, each building
+bottom-aligned in its lot with its door in the bottom wall, so nothing overlaps
+and every door opens on a street by construction. The keeper stands just
+inside the door and what the building sells is on the corners of its top row.
+`tools/townref.py` is the model, and `checkisle.py` checks all of that and that
+the C64 builds the same towns. The ground and the scenery in the lots follow the
+land's biome. Home's biome is `home_biome`.
 
-`tools/isleref.py` is the same algorithm in Python, bit for bit.
-`tools/checkisle.py` searches it for unreachable squares over every seed and
-every compass point, then has the emulated machine (`src/isletest.c`) build the
-same continents and compares a checksum of each, and one whole map, with the
-model's. Change the generator in both places or that check will say so; it
-runs in `make test`. It is assembly because in C it came to 1.3K, when HIGH had
-700 bytes.
+Home is built when the story first needs it (stepping out of Millford, or
+loading a game past it) and the first time takes a few seconds with nothing
+else running: see Memory.
 
 ## Testing
 
@@ -223,13 +281,13 @@ reseeds afterwards, and a screen test that enters a dungeon must pin
 `src/rngtest.c` measures `rand()`'s distribution after `srand()`; it is what
 ruled the generator out when the encounter rate looked wrong.
 
-**NPCs will invent geography** unless you hand them the real thing.
-`tools/mkgeo.py` measures bearings and walking distances off the actual map
-into `assets/geography.json`, and the daemon gives each speaker only the
-lines for where they stand, plus an instruction not to guess at the rest.
-Anything that moves a place on the map must regenerate it -- `make` does,
-and `assets/places.txt` makes a moved dungeon a hard error rather than a
-wrong direction.
+**NPCs will invent geography** unless they are told not to. The land is made
+fresh for every game, so there is nothing true to say about which way anywhere
+lies: `tools/mkgeo.py` writes only who lives where into `assets/geography.json`,
+and the daemon tells whoever is speaking that they are not sure of the
+distances. Keep directions and coordinates out of `assets/canon.md`, the hints
+and the NPCs' lines. (Sending the host the real bearings when a game starts is
+the obvious next step.)
 
 **Measure before optimising on this machine; the intuitions do not
 transfer.** Field of view clears the squares lit last turn, and the obvious
@@ -244,7 +302,7 @@ resolution to settle questions like this in a couple of minutes.
 BASIC memory, which is `$A000` on a stock machine — below this
 game's BSS. Leave it there and KERNAL SAVE writes nothing and LOAD
 walks into the weeds, both without an error you can see. `savegame.c` and
-`modem.c` both raise it to `$CE00` before touching the drive.
+`modem.c` both raise it to `$CF00` before touching the drive.
 
 **`cbm_save`'s last argument is a byte count, not an end address** — unlike
 almost every other save routine on this machine. Passing an end address
@@ -257,6 +315,18 @@ the player's own timing, so the roll differs every run. Walk inside a town
 (towns never roll), or pass `--poke no_encounters=1` to switch the rolls
 off anywhere. This is what turned the save test red one run in several,
 with a rat on the screen instead of the map.
+
+**A test that has to be somewhere on the overworld walks there.** Home is
+made from the seed when you step out of Millford, so there is no position to
+poke in advance: start in Millford with `--poke quest_stage=1` (nobody leaves
+before Garrett has talked to them) and `--poke lore_seed=N`, and type the way.
+`tools/homepath.py SEED FROM TO` works the keys out from the model of the
+generator (`--land D` for a continent, `hop` to step off a landing and back),
+and `tools/mkcmds.py` writes the `.cmd` files that use it; the daemon tests in
+`tools/test.sh` call it inline. Change the generator or the seed and rerun
+`mkcmds.py`, then look at what moved before blessing. Pokes are applied at the
+title screen, before the game starts, so `lore_seed` and `quest_stage` stay
+(`game_init()` runs earlier still).
 
 **People block movement**, so two NPCs in a line make the inner one
 unreachable. `tools/checkmap.py` checks this; run `make test` after editing

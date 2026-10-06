@@ -1,27 +1,27 @@
     +----------------------------------------+
   0 |                     ·Alaric            |
-  1 |       #######       ·HP       20/20    |
-  2 |       #_____#       ·Level    1        |
-  3 |    #_____@__________·Exp      0        |
-  4 |       #_____#       ·Gold     60       |
-  5 |       ##_##_#       ·Draughts 1        |
+  1 |                     ·HP       20/20    |
+  2 |                     ·Level    1        |
+  3 |                     ·Exp      0        |
+  4 |                     ·Gold     9        |
+  5 |                     ·Draughts 1        |
   6 |                     ·                  |
   7 |                     ·Bare hands        |
   8 |                     ·Travel clothes    |
-  9 |                     ·                  |
- 10 |                     ·The Drowned Stair |
- 11 |                     ·Level 1           |
- 12 |                     ·                  |
- 13 |                     ·Tidal Key         |
- 14 |                     ·                  |
+  9 |######               ·                  |
+ 10 |#____#               ·The Hollow Crown  |
+ 11 |#____#               ·Level 1           |
+ 12 |#__@_________________·                  |
+ 13 |#____#               ·Iron Sigil        |
+ 14 |######               ·                  |
  15 |                     ·                  |
  16 |                     ·                  |
  17 |                     ·                  |
  18 |                     ·                  |
  19 |········································|
- 20 |Press ? for help.                       |
- 21 |Hail, Alaric!                           |
- 22 |A new day dawns in Millford.            |
- 23 |Walk into someone to speak with them.   |
- 24 |The Drowned Stair                       |
+ 20 |A new day dawns in Millford.            |
+ 21 |Walk into someone to speak with them.   |
+ 22 |The land takes shape...                 |
+ 23 |You take the road.                      |
+ 24 |The Hollow Crown                        |
     +----------------------------------------+

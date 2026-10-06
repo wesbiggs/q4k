@@ -9,7 +9,11 @@
 #include <q4k/panel.h>
 #include <q4k/sprite.h>
 #include <q4k/text.h>
+#include <q4k/town_gen.h>
 #include <q4k/view.h>
+
+/* Read-only data goes in the charset's spare glyphs: cfg/c64-q4k.cfg. */
+#pragma rodata-name ("CHDATA3")
 
 #define TITLE_Y   0
 #define LIST_Y    3
@@ -23,6 +27,9 @@
 #define ROOM_PRICE  20
 
 static char line[SCR_W + 1];
+
+/* What the host knows the inns the generator makes by. */
+static const char proc_inn_id[] = "wayside";
 
 static void purse(void)
 {
@@ -61,7 +68,8 @@ static void ale(unsigned char inn)
     }
     panel_lit("You drink.", COLOR_GRAY2);
     if (dialog_line == LINE_UP
-        && dialog_hint(inn_ids[inn], quest_stage, lore_seed) != DIALOG_OK) {
+        && dialog_hint(inn < NUM_INNS ? inn_ids[inn] : proc_inn_id,
+                       quest_stage, lore_seed) != DIALOG_OK) {
         panel_lit("The keeper is busy.", COLOR_GRAY2);
     }
 }
@@ -86,7 +94,7 @@ void inn_open(unsigned char inn)
     sprite_hide();
     clrscr();
     textcolor(COLOR_YELLOW);
-    cputsxy(0, TITLE_Y, inn_names[inn]);
+    cputsxy(0, TITLE_Y, inn < NUM_INNS ? inn_names[inn] : town_gen_inn());
     textcolor(COLOR_GRAY1);
     chlinexy(0, TITLE_Y + 1, SCR_W);
     chlinexy(0, HINT_Y - 1, SCR_W);

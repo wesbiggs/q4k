@@ -7,15 +7,15 @@
   5 |~~~~~~~~FFF~FFFFFFFFFF~~~~~~~~~~        |
   6 |~~~~~~FFFFF~~~FFFFFFFF~~~~~~~~~~        |
   7 |~~~~~~FFFFFFFFF,FFFFFF~~~~~~~~~~        |
-  8 |~~~~~~~F^^^FFFFFFFFFF.~~~~~~~~~~        |
+  8 |~~~~~~~F^^^FFFFFFFFTF.~~~~~~~~~~        |
   9 |~~~~~~~~~~~FFFFFFF~FF.~~~~~~~~~~        |
  10 |~~~~~~~~~~~~~FFFF~FFFF~~~~~~~~~~        |
  11 |~~~~~~~~~~~~~FFFFF~FF~~~~FFF~~~~        |
- 12 |~~~~~~~~~~~~FFFFFFFF^^^,~FFFF~~~        |
+ 12 |~~~~~~~~~~~~FFFFFFFF^^D,~FFFF~~~        |
  13 |~~~~~~~~~~~~FFFFF~FFF^,,,FFFF~~~        |
  14 |~~~~~~~~~~~~FFF~~~FFF,,,,,~~~~~~        |
  15 |                                        |
- 16 |SEED 7  COMPASS 2  WALKABLE 672         |
+ 16 |SEED 7  COMPASS 2  WALKABLE 669         |
  17 |BIOME 1  LANDING 32,2  SHIP FROM 32,0   |
  18 |                                        |
  19 |                                        |

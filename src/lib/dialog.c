@@ -9,6 +9,9 @@
 #include <q4k/text.h>
 #include <q4k/view.h>
 
+/* Read-only data goes in the charset's spare glyphs: cfg/c64-q4k.cfg. */
+#pragma rodata-name ("CHDATA2")
+
 #define TR_Y       3    /* transcript area */
 #define TR_H      16
 #define IN_Y      21

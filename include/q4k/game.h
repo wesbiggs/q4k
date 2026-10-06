@@ -13,7 +13,7 @@
 #include <q4k/loot_data.h>
 #include <q4k/town_data.h>
 
-#define SCENE_WORLD    0
+#define SCENE_WORLD    0   /* home, the continent the story starts on */
 #define SCENE_TOWN     1
 #define SCENE_DUNGEON  2
 #define SCENE_ISLE     3   /* a continent over the sea; place = compass point */
@@ -57,6 +57,12 @@ extern unsigned char scene;
 extern unsigned char place;    /* town index, or dungeon index      */
 extern unsigned char depth;    /* dungeon level, 1 at the entrance  */
 
+/* Which land you are on, or went into a town or a dungeon from: ISLE_HOME (4)
+   or a compass point, 0 to 3. And where on it that was, so that you come out
+   where you went in. */
+extern unsigned char land;
+extern unsigned char ret_x, ret_y;
+
 /* The current town or dungeon level. The overworld is read from ROM.
  *
  * Rows are LOCAL_STRIDE apart whatever the place's width, so finding a
@@ -98,22 +104,62 @@ unsigned char map_at(unsigned char x, unsigned char y);
 unsigned char map_flag(unsigned char x, unsigned char y);
 void          map_set(unsigned char x, unsigned char y, unsigned char code);
 
-/* Where the dungeons are, indexed 0..NUM_DUNGEONS-1. */
-extern const unsigned char dungeon_wx[NUM_DUNGEONS];
-extern const unsigned char dungeon_wy[NUM_DUNGEONS];
 extern const char *const   dungeon_names[NUM_DUNGEONS];
 extern const unsigned char dungeon_key[NUM_DUNGEONS];   /* IT_* needed  */
 extern const unsigned char dungeon_prize[NUM_DUNGEONS]; /* IT_* it drops */
 extern const unsigned char dungeon_deep[NUM_DUNGEONS];  /* levels       */
 
-/* -1 if (x,y) is not a dungeon mouth. */
-signed char   dungeon_at(unsigned char x, unsigned char y);
-signed char   town_at(unsigned char x, unsigned char y);
+/* The places on the land. Home has five, in the order isle.h gives (Millford,
+   the castle, the Hollow Crown, Maldrath's lair, a town of its own), and each
+   continent two: its story place and a town of its own. Which is which on a
+   continent depends on the game: see slot_of(). */
+/* A town the generator makes (src/lib/town_gen.c): one to a land. */
+#define TOWN_PROC    NUM_TOWNS
+
+#define PLACE_NONE   0xFF
+#define NUM_HOME_PLACES 5
+
+extern unsigned char home_fx[NUM_HOME_PLACES], home_fy[NUM_HOME_PLACES];
+extern unsigned char home_biome;        /* what home is mostly made of */
+
+/* The inn of a town the generator made: after the hand-drawn ones. */
+#define INN_PROC     255
+extern unsigned char home_port_x[4], home_port_y[4];
+
+/* Build home if it has not been: several seconds, once a game, in which
+   nothing else runs. Whoever calls it says so first. */
+void          home_ensure(void);
+unsigned char home_built(void);
+/* Forget it (a new game's, or a restored game's seed is different). */
+void          home_forget(void);
+
+/* The place at (x,y) of the land you are on, as an index into the lists
+   above, or PLACE_NONE. */
+unsigned char place_at(unsigned char x, unsigned char y);
+
+/* The story is told across the four continents in a different order each
+   game: slot 0 is where the Tidal Key is (a town, Wardlow), 1 the Drowned
+   Stair, 2 Ashcombe, 3 Blackpit. slot_of(d) is the slot of compass point d;
+   the continent opens when the story reaches Q_EMBER + its slot. */
+unsigned char slot_of(unsigned char d);
+
+/* The people of the town you are standing in, and its way out. */
+extern const TownEnt *here_ents;
+extern unsigned char  here_n;
+extern unsigned char  here_ex, here_ey;
+const char   *town_name(void);
 
 /* Unpack town `index` into local[] without moving anyone. */
 void          town_unpack(unsigned char index);
+/* Build the town (the map and its people) and set where you stand to its
+   doorstep: for a restored game too. */
+void          town_build(unsigned char index);
+/* Go into a town, or a dungeon, from the overworld; and come out. */
 void          enter_town(unsigned char index);
+void          enter_local(void);
 void          leave_local(void);
+/* Wake up in Millford, as after a fight lost. */
+void          respawn(void);
 
 unsigned char has(unsigned char item);
 void          give(unsigned char item);

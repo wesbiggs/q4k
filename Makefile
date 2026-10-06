@@ -57,7 +57,7 @@ PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 # flags are needed: --code-name alone leaves the string literals behind, and
 # screens like the help text are mostly string literals.
 HIMODS   := dialog battle shop inn dungeon panel title help savegame sprite \
-            loot fov world sail
+            loot fov world sail modem actor charset_define town_gen
 
 # Code above the charset, constants below: for when HIGH is the one that is
 # full and MAIN still has room. The shop's names and prices went back down
@@ -92,7 +92,6 @@ $(BUILD)/lib/isle_gen.o: include/q4k/tiles.inc
 
 GEN_TILES := include/q4k/tiles.h include/q4k/tiles.inc src/lib/tiles_data.c \
             src/lib/tiles_names.c
-GEN_MAP   := include/q4k/world_data.h src/lib/map_data.c
 GEN_TOWN  := include/q4k/town_data.h src/lib/town_data.c
 GEN_ARENA := include/q4k/arena_data.h src/lib/arena_data.c
 GEN_GEO   := assets/geography.json
@@ -113,7 +112,7 @@ GEN_MUSIC := src/lib/music_data.s
 FONT_SOURCE ?= rom
 FONT_STYLE  ?= bold
 
-assets: $(GEN_TILES) $(GEN_MAP) $(GEN_TOWN) $(GEN_ARENA) $(GEN_GEO) $(GEN_FONT) \
+assets: $(GEN_TILES) $(GEN_TOWN) $(GEN_ARENA) $(GEN_GEO) $(GEN_FONT) \
         $(GEN_LOOT) $(GEN_VER) $(GEN_MUSIC)
 
 # The version lives in VERSION alone; the release workflow checks the tag
@@ -128,9 +127,6 @@ $(GEN_VER): VERSION
 $(GEN_TILES): assets/tiles.txt tools/mktiles.py
 	tools/mktiles.py
 
-$(GEN_MAP): assets/overworld.txt assets/tiles.txt tools/mkmap.py tools/mktiles.py
-	tools/mkmap.py
-
 $(GEN_TOWN): assets/towns.txt assets/tiles.txt assets/npcs.json tools/mktowns.py \
              tools/rle.py
 	tools/mktowns.py
@@ -139,7 +135,7 @@ $(GEN_ARENA): assets/arenas.txt assets/tiles.txt tools/mkarenas.py \
               tools/mktiles.py tools/checkmap.py tools/rle.py
 	tools/mkarenas.py
 
-$(GEN_LOOT): assets/loot.txt assets/towns.txt assets/overworld.txt \
+$(GEN_LOOT): assets/loot.txt assets/towns.txt \
              assets/tiles.txt assets/npcs.json tools/mkloot.py tools/mktowns.py \
              tools/mktiles.py
 	tools/mkloot.py
@@ -147,7 +143,7 @@ $(GEN_LOOT): assets/loot.txt assets/towns.txt assets/overworld.txt \
 $(GEN_MUSIC): assets/theme.txt tools/mkmusic.py
 	tools/mkmusic.py
 
-$(GEN_GEO): assets/overworld.txt assets/towns.txt assets/places.txt \
+$(GEN_GEO): assets/towns.txt assets/places.txt \
             assets/tiles.txt tools/mkgeo.py
 	tools/mkgeo.py
 

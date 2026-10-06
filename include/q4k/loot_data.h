@@ -4,14 +4,11 @@
 
 #define NUM_LOOT    2
 
-/* Where a treasure is: a town index, or the overworld. */
-#define LOOT_WORLD  0xFF
-
 #define LOOT_GOLD     0
 #define LOOT_DRAUGHT  1
 
 typedef struct {
-    unsigned char map;     /* TOWN_* or LOOT_WORLD */
+    unsigned char map;     /* TOWN_* */
     unsigned char x, y;
     unsigned char kind;    /* LOOT_* */
     unsigned int  amount;

@@ -140,6 +140,11 @@ if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ]; then
     rm -f "$saves" "$base"
 fi
 
+# Home is made from the game's seed, so the tests that go somewhere on it walk
+# there, with keys worked out from the model of the generator.
+SEED=0x5a
+keys() { python3 tools/homepath.py "$SEED" "$@"; }
+
 # The dialogue case needs a daemon on the other end of the modem line, in
 # --mock mode so the replies are the same every run.
 if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
@@ -148,9 +153,10 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
     sleep 1
     compare dialog tests/golden-dialog.txt \
         tools/screendump.py dist/q4k.prg --rs232 25299 \
-        --keys 'Alaric\rwwwwwwwwwwwwaaaawaaawhat of the blade\r' --settle 32
-    # Brann -> Vane: start beside Wardlow holding the Emberstone, with the
-    # run's secrets pinned (seed $5A makes the fishers' word "dead low").
+        --keys 'Alaric\rwwwwwwwwwwwwaaaawaaawhat of the blade\rcould I have a dagger\r' --settle 40
+    # Brann -> Vane: sail to Wardlow (the south continent, for seed $5A)
+    # holding the Emberstone, with the run's secrets pinned (that seed makes
+    # the fishers' word "dead low").
     # Asking for the key is refused; saying the word earns it, announced in
     # the transcript. Saying goodbye then has Vane end the conversation
     # (mock mode's BYE), which waits for a key. Stepping onto a town square
@@ -158,20 +164,20 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
     if [ -f tests/golden-tidal.txt ]; then
         compare tidal tests/golden-tidal.txt \
             tools/screendump.py dist/q4k.prg --rs232 25299 \
-            --poke scene=0 --poke party+0=28 --poke party+1=10 \
-            --poke quest_stage=3 --poke items=8 --poke lore_seed=0x5a \
-            --keys 'Alaric\rdwwwwwwwaaaawwwmay I have the key\rdead low\rgoodbye\r' \
-            --settle 32
+            --poke quest_stage=3 --poke items=8 --poke lore_seed=$SEED \
+            --poke no_encounters=1 \
+            --keys 'Alaric\rs'"$(keys millford port2)$(keys dock story --land 2)"'wwwwwwwaaaawwwmay I have the key\rdead low\rgoodbye\r' \
+            --settle 100
     fi
-    # The king, from a new game started outside the castle gate: neither his
+    # The king, from a new game that walks to the castle: neither his
     # greeting nor a "hello" hands over the Sigil; asking about the quest
     # has him say so, and it arrives in the transcript.
     if [ -f tests/golden-sigil.txt ]; then
         compare sigil tests/golden-sigil.txt \
             tools/screendump.py dist/q4k.prg --rs232 25299 \
-            --poke scene=0 --poke party+0=28 --poke party+1=52 \
-            --keys 'Alaric\rwwwwwwwwwwwwhello\rwhat is my quest\r' \
-            --settle 32
+            --poke quest_stage=1 --poke lore_seed=$SEED --poke no_encounters=1 \
+            --keys 'Alaric\rs'"$(keys millford castle)"'wwwwwwwwwwwhello\rwhat is my quest\r' \
+            --settle 100
     fi
     # The inn in Millford, wounded: an ale brings a hint from the daemon's
     # deck (mock mode shuffles it the same way every run), and a bed puts
@@ -179,7 +185,7 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
     if [ -f tests/golden-inn.txt ]; then
         compare inn tests/golden-inn.txt \
             tools/screendump.py dist/q4k.prg --rs232 25299 \
-            --poke party+4=5 --keys 'Alaric\rwwddddd12' --settle 24
+            --poke party+4=5 --poke gold=60 --keys 'Alaric\rwwddddd12' --settle 24
     fi
     kill "$daemon" 2>/dev/null || true
     wait "$daemon" 2>/dev/null || true   # reap quietly; no job-control noise

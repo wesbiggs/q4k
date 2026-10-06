@@ -29,7 +29,7 @@ static const char *const outward[4] = {
  * window that world_view() is given is drawn as water. */
 #define BIAS 64
 
-static unsigned char island;    /* flying over a continent, not the overworld */
+static unsigned char island;    /* flying over a continent, not home */
 static unsigned char cx, cy;    /* the viewport's top-left */
 static unsigned char ix, iy;    /* the ship */
 
@@ -47,7 +47,7 @@ static void frame(void)
 {
     unsigned char vx = ix - cx, vy = iy - cy;
 
-    world_view(cx, cy, island);
+    world_view(cx, cy, island ? SRC_ISLE : SRC_HOME);
     if (vx < VIEW_W && vy < VIEW_H) {
         put(vx, vy, T_SHIP, TC_SHIP);
     }
@@ -133,8 +133,8 @@ static void sea(unsigned char d, unsigned char home, unsigned char work)
     unsigned char n = (d & 1) ? VIEW_W : VIEW_H, ex, ey;
 
     island = 0;
-    ix = world_port_x[d] + BIAS;
-    iy = world_port_y[d] + BIAS;
+    ix = home_port_x[d] + BIAS;
+    iy = home_port_y[d] + BIAS;
     if (home) {
         go(d, 1);
     }
@@ -148,8 +148,8 @@ static void sea(unsigned char d, unsigned char home, unsigned char work)
         go(d, n);
         ex = ix;
         ey = iy;
-        ix = world_port_x[d] + BIAS;
-        iy = world_port_y[d] + BIAS;
+        ix = home_port_x[d] + BIAS;
+        iy = home_port_y[d] + BIAS;
         fly(d, ex, ey, work);
     }
 }
@@ -159,22 +159,31 @@ void sail_out(void)
     unsigned char d, ex, ey;
 
     for (d = 0; d < 3; ++d) {
-        if (world_port_x[d] == hero.x && world_port_y[d] == hero.y) {
+        if (home_port_x[d] == hero.x && home_port_y[d] == hero.y) {
             break;
         }
+    }
+
+    /* The captains take you where the story does. */
+    if (quest_stage < Q_EMBER + slot_of(d)) {
+        view_message("The captain will not sail yet.");
+        return;
     }
 
     view_message(outward[d]);
     sprite_hide();
 
     /* The home coast slides off while the other shore is made behind it. */
+    isle_story = slot_of(d) & 1;
     isle_begin(d);
     sea(d, 0, 1);
     while (isle_work()) {
     }
     scene = SCENE_ISLE;
-    place = d;
+    land  = d;
     depth = 0;
+    local_w = ISLE_W;
+    local_h = ISLE_H;
     view_draw_panel();
 
     /* Then the new one slides on, the ship keeping to the middle, until it is
@@ -201,8 +210,9 @@ void sail_out(void)
 
 void sail_home(void)
 {
-    unsigned char d = place, ex, ey;
+    unsigned char d = land, ex, ey;
 
+    home_ensure();      /* built long since, unless a restored game is only now back */
     sprite_hide();
 
     /* From the landing: the view as the map draws it, then the ship to the
@@ -230,12 +240,14 @@ void sail_home(void)
 
     /* Then the home coast slides on until the ship is beside the port. */
     scene = SCENE_WORLD;
+    land  = ISLE_HOME;
     depth = 0;
+    local_w = local_h = WORLD_SIZE;
     view_draw_panel();
     sea(d, 1, 0);
 
-    hero.x = world_port_x[d];
-    hero.y = world_port_y[d];
+    hero.x = home_port_x[d];
+    hero.y = home_port_y[d];
     ++game_turn;
     view_message("You land in Keldmarch.");
 }

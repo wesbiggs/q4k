@@ -6,7 +6,7 @@ Written in C (cc65) with assembly where it pays, run and tested under VICE.
 A letter comes from King Matheson. The dragon Maldrath has been burning
 Keldmarch for three winters and two armies have not come back. The blade that
 can banish him was broken, and its three binding stones are sealed in three
-deep places. Buy a sword, walk south, and start asking people questions.
+deep places. Take a dagger from the smith, find the king, and start asking people questions.
 
 The plot is deliberately the oldest one there is. What is not old is who you
 talk to: every NPC answers in their own voice, from the world's canon and
@@ -66,7 +66,7 @@ shop, or take a seat at their inn.
 | `?` | keys, and what you are supposed to be doing next |
 | `Q` | quit |
 
-Treasure is hidden in towns, out on the overworld and in dungeon chests, and
+Treasure is hidden in the castle and in dungeon chests, and
 a square need not look like anything: stand on it and press `L`. Innkeepers
 sell a mug of ale for five marks, and with it -- when the dialogue host is
 on the line -- a hint at where to look or what to do next; a bed for twenty
@@ -107,10 +107,14 @@ through its fellows. Keepers and Maldrath always come alone.
 
 ## The world
 
-The overworld is a wrapping 64x64 grid. Towns are exactly one 21x19 screen,
-so they never scroll: walk in and the whole place is in front of you.
-Dungeon levels are 48x32 and scroll with you, like the overworld, until you
-reach an edge. A dungeon level you walk back into is the level you left.
+Home, Keldmarch, is a 64x64 map, and nothing in the game is in the same place
+twice: it is made from the game's secret seed when you step out of Millford, so
+a new game has the castle, the Hollow Crown and Maldrath's lair somewhere new,
+and in the same place every time you come back to it in the same game. The
+edge of the map is sea. Towns are exactly one 21x19 screen, so they never
+scroll: walk in and the whole place is in front of you. Dungeon levels are
+48x32 and scroll with you, like the overworld, until you reach an edge. A
+dungeon level you walk back into is the level you left.
 
 Dungeons are dark. A room lights up whole when you stand in it, you can see
 straight along a corridor until something stops the eye, and squares you
@@ -126,22 +130,27 @@ north, east, south and west. Step onto one and a ship takes you out to sea,
 and you watch it go -- the ship holds the middle of the screen while Keldmarch
 slides away behind it, until you are alone on open sea, and then the far
 continent slides in the same way until the ship reaches its port and you
-come ashore. Step onto that port again
-and the ship takes you home.
+come ashore. Step onto that port again and the ship takes you home.
 
-Each port has a continent of its own, and none of them is on the map you
-start with: they are made when you sail, from the game's secret seed and the
-port you sailed from. A new game has new continents, and the same continent
-is the same land every time you come back to it. Each is mostly one kind of
-ground -- the plains, a forest, a swamp, the desert, or mountains with a
-little grass between -- with a little of the others, ranges of mountain and
-lakes. Everywhere you can stand can be walked to from the port you arrived
-at: mountains and water are never allowed to cut a piece of land off.
+The captains answer to the king and will not sail for a stranger at first: the
+first country opens when you have brought the Emberstone out of the Hollow
+Crown, and one more with each token you win after it. Wardlow, Ashcombe, the
+Drowned Stair and Blackpit are one to a country, and which is which is
+different in every game; nobody can tell you the bearing, only that it is
+over the water.
 
-Wandering monsters meet you there as they do at home, on the ground you are
-crossing. There is nothing else yet: no towns and no treasure, only land.
+None of those countries is on any map to begin with: they are made when you
+sail, from the game's secret seed and the port you sailed from, and the same
+country is the same land every time you come back to it. Each is mostly one
+kind of ground -- the plains, a forest, a swamp, the desert, or mountains with
+a little grass between -- with a little of the others, ranges of mountain and
+lakes. Everywhere you can stand can be walked to from the port you arrived at:
+mountains and water are never allowed to cut a piece of land off.
 
-## Talking to people
+Every land has a town of its own as well: an inn, a shop, and a house or two,
+laid out differently each time. The shop is a smithy, an armourer or a bowyer;
+a third building may sell draughts. Keldmarch's own castle sells blades, mail
+and bows, so you never have to go over the water to be armed.
 
 Every person you meet answers in their own voice, from the world's canon and
 from how far you have got. The answers come from a language model running on

@@ -9,7 +9,10 @@ void charset_install(void)
     static unsigned char done;
 
     if (!done) {
-        memcpy(CHARSET_RAM, font_image, CHARSET_BYTES);
+        /* Not the glyphs in between: those hold data (see cfg/c64-q4k.cfg).
+           The shot's block ($C0-$C7) is drawn afresh by sprite.c anyway. */
+        memcpy(CHARSET_RAM, font_image, CHARSET_LOW);
+        memcpy(CHARSET_RAM + CHARSET_CURSOR, font_image + CHARSET_CURSOR, 8);
         done = 1;
     }
 }

@@ -15,6 +15,10 @@
 
 #define CHARSET_RAM   ((unsigned char *)0x3800)
 #define CHARSET_BYTES 2048
+/* Glyphs $00-$91 (text and tiles), and $A0, the input cursor, are all that is
+   copied: see charset_install(). */
+#define CHARSET_LOW    0x490
+#define CHARSET_CURSOR 0x500
 
 /* The character set the game draws with, built by tools/mkfont.py. */
 extern const unsigned char font_image[CHARSET_BYTES];

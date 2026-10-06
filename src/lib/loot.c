@@ -7,6 +7,9 @@
 #include <q4k/loot.h>
 #include <q4k/view.h>
 
+/* Read-only data goes in the charset's spare glyphs: cfg/c64-q4k.cfg. */
+#pragma rodata-name ("CHDATA2")
+
 #define NO_LOOT 0xFF
 
 static char msg[24];
@@ -33,13 +36,12 @@ static unsigned char loot_bit(void)
         return NO_LOOT;
     }
 
-    /* Nothing is hidden on the continents; the compass point they are
-       indexed by would otherwise be taken for a town. */
-    if (scene == SCENE_ISLE) {
+    /* Nothing is hidden out on the land. */
+    if (scene != SCENE_TOWN) {
         return NO_LOOT;
     }
 
-    map = (scene == SCENE_WORLD) ? LOOT_WORLD : place;
+    map = place;
     found = loot_table;
     for (i = 0; i < NUM_LOOT; ++i, ++found) {
         if (found->map == map && found->x == hero.x && found->y == hero.y) {

@@ -127,12 +127,13 @@ static void draw_local(void)
 
     /* Only towns have people in them, and towns never scroll. */
     if (scene == SCENE_TOWN) {
-        for (i = town_ent_first[place]; i < town_ent_first[place + 1]; ++i) {
-            x = town_ents[i].x;
-            y = town_ents[i].y;
+        for (i = 0; i < here_n; ++i) {
+            x = here_ents[i].x;
+            y = here_ents[i].y;
             SCREEN_RAM[(unsigned int)y * SCR_W + x] = T_VILLAGER;
             COLOR_RAM[(unsigned int)y * SCR_W + x]  =
-                (town_ents[i].kind == ENT_NPC) ? COLOR_CYAN : COLOR_YELLOW;
+                (here_ents[i].kind == ENT_NPC || here_ents[i].kind == ENT_VILLAGER)
+                ? COLOR_CYAN : COLOR_YELLOW;
         }
     }
 }
@@ -142,12 +143,13 @@ static void draw_local(void)
 void view_draw(void)
 {
     if (scene == SCENE_WORLD) {
-        world_draw();
-        sprite_show(VIEW_CX, VIEW_CY);
+        cam_x = camera(hero.x, VIEW_CX, WORLD_SIZE, VIEW_W);
+        cam_y = camera(hero.y, VIEW_CY, WORLD_SIZE, VIEW_H);
+        world_draw(cam_x, cam_y);
     } else {
         draw_local();
-        sprite_show(hero.x - cam_x, hero.y - cam_y);
     }
+    sprite_show(hero.x - cam_x, hero.y - cam_y);
 }
 
 #define VAL_X  (PANEL_X + 9)
@@ -251,7 +253,7 @@ void view_draw_panel(void)
     cclearxy(PANEL_X, 12, PANEL_W);     /* a fight's second row of health */
     textcolor(COLOR_LIGHTBLUE);
     if (scene == SCENE_TOWN) {
-        cputsxy(PANEL_X, 10, town_names[place]);
+        cputsxy(PANEL_X, 10, town_name());
     } else if (scene == SCENE_DUNGEON) {
         cputsxy(PANEL_X, 10, dungeon_names[place]);
         cputsxy(PANEL_X, 11, "Level");

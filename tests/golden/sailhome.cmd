@@ -1,1 +1,1 @@
-dist/q4k.prg --poke scene=0 --poke party+0=28 --poke party+1=8 --poke lore_seed=0x5a --poke no_encounters=1 --keys Alaric\rwws --stage 6
+dist/q4k.prg --poke lore_seed=0x5a --poke no_encounters=1 --timeout 90 --poke quest_stage=3 --keys Alaric\rsdsdddddssssssssssssssssssssssssssssda --stage 41
