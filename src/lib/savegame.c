@@ -7,9 +7,12 @@
 #include <q4k/dungeon.h>
 #include <q4k/fov.h>
 #include <q4k/game.h>
+#include <q4k/isle.h>
 #include <q4k/music.h>
 #include <q4k/rle.h>
 #include <q4k/savegame.h>
+#include <q4k/vault.h>
+#include <q4k/world.h>
 
 /* Top of BASIC memory. The KERNAL treats anything above it as out of
    bounds, and our BSS -- where the save block lives -- starts at $B000,
@@ -53,6 +56,8 @@ typedef struct {
     unsigned char scene;
     unsigned char place;
     unsigned char depth;
+    unsigned char land;
+    unsigned char ret_x, ret_y;
     unsigned char looted[LOOTED_BYTES];
     unsigned char seen[FOV_BYTES];
 } SaveGame;
@@ -86,13 +91,16 @@ static void gather(void)
     blob.scene       = scene;
     blob.place       = place;
     blob.depth       = depth;
+    blob.land        = land;
+    blob.ret_x       = ret_x;
+    blob.ret_y       = ret_y;
     memcpy(blob.looted, looted, sizeof(blob.looted));
     memcpy(blob.seen, fov_seen, sizeof(blob.seen));
 }
 
 static unsigned char do_save(void)
 {
-    MEMSIZ = 0xC700;
+    MEMSIZ = 0xCF00;
     gather();
 
     /* CBM DOS will not overwrite, so scratch any previous save first. The
@@ -117,7 +125,7 @@ static unsigned char do_save(void)
 
 static unsigned char do_load(void)
 {
-    MEMSIZ = 0xC700;
+    MEMSIZ = 0xCF00;
 
     if (cbm_load(SAVE_NAME, SAVE_DEVICE, &blob) == 0) {
         return SAVE_EDISK;
@@ -139,12 +147,36 @@ static unsigned char do_load(void)
     scene       = blob.scene;
     place       = blob.place;
     depth       = blob.depth;
+    land        = blob.land;
+    ret_x       = blob.ret_x;
+    ret_y       = blob.ret_y;
     memcpy(looted, blob.looted, sizeof(looted));
 
-    /* Rebuild the map rather than store it. items has to be restored first:
-       whether the keeper is still down there depends on it. */
+    /* Rebuild the maps rather than store them, all from lore_seed. items has
+       to be restored first: whether the keeper is still down there depends
+       on it. Home is only needed once you have left Millford; a continent is
+       put away if you are in a town or a dungeon on it. */
+    home_forget();
+    if (quest_stage > Q_START) {
+        home_ensure();
+    }
+    if (land != ISLE_HOME) {
+        isle_story = slot_of(land) & 1;
+        isle_build(land);
+        if (scene == SCENE_TOWN || scene == SCENE_DUNGEON) {
+            vault_park(0);
+        }
+    }
+    if (scene == SCENE_WORLD) {
+        local_w = local_h = WORLD_SIZE;
+    } else if (scene == SCENE_ISLE) {
+        local_w = ISLE_W;
+        local_h = ISLE_H;
+    }
     if (scene == SCENE_TOWN) {
-        town_unpack(place);
+        town_build(place);
+        hero.x = blob.who.x;            /* town_build puts you at the door */
+        hero.y = blob.who.y;
     }
     /* Only the level you saved on comes back with its map; the rest of
        that dungeon starts unexplored again. What you can see now is worked

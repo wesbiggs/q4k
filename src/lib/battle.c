@@ -961,8 +961,8 @@ unsigned char battle_wander(void)
 
     /* Above ground, the ground you were on; below it, the one room. */
     return battle_fight(&wanderers[i].m,
-                       scene == SCENE_WORLD ? map_at(hero.x, hero.y)
-                                            : T_FLOOR,
+                       scene != SCENE_DUNGEON ? map_at(hero.x, hero.y)
+                                              : T_FLOOR,
                        1, (unsigned char)(1 + rand() % most));
 }
 

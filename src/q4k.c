@@ -21,11 +21,13 @@
 #include <q4k/game.h>
 #include <q4k/help.h>
 #include <q4k/inn.h>
+#include <q4k/isle.h>
 #include <q4k/loot.h>
 #include <q4k/probe.h>
 #include <q4k/savegame.h>
 #include <q4k/shop.h>
 #include <q4k/music.h>
+#include <q4k/sail.h>
 #include <q4k/sprite.h>
 #include <q4k/tiles.h>
 #include <q4k/title.h>
@@ -116,7 +118,10 @@ static void died(void)
 {
     gold /= 2;
     heal_full();
-    enter_town(TOWN_MILLFORD);
+    if (!home_built()) {
+        view_message("The land takes shape...");
+    }
+    respawn();
     view_restore();
     view_message("You wake in Millford, lighter of purse.");
 }
@@ -175,6 +180,14 @@ static const char *quest_after_talk(unsigned char granted)
             break;
 
         case NPC_SMITH:
+            if (quest_stage == Q_START) {
+                if (granted == GRANT_DAGGER || granted == GRANT_OPEN) {
+                    quest_stage = Q_SUMMONED;
+                    weapon_lv   = 1;
+                    return "Garrett gives you a dagger.";
+                }
+                break;
+            }
             if (has(IT_EMBER) && has(IT_TEAR) && has(IT_HEART)
                 && !has(IT_BLADE)) {
                 quest_stage = Q_FORGED;
@@ -192,9 +205,13 @@ static const char *quest_after_talk(unsigned char granted)
 
 static void interact(unsigned char index)
 {
-    const TownEnt *e = &town_ents[index];
+    const TownEnt *e = &here_ents[index];
     const char *note;
 
+    if (e->kind == ENT_VILLAGER) {
+        view_message("They have nothing to say to you.");
+        return;
+    }
     if (e->kind == ENT_SHOP) {
         shop_open(e->param);
         back_to_map();
@@ -229,8 +246,8 @@ static signed char entity_at(unsigned char x, unsigned char y)
     if (scene != SCENE_TOWN) {
         return -1;
     }
-    for (i = town_ent_first[place]; i < town_ent_first[place + 1]; ++i) {
-        if (town_ents[i].x == x && town_ents[i].y == y) {
+    for (i = 0; i < here_n; ++i) {
+        if (here_ents[i].x == x && here_ents[i].y == y) {
             return (signed char)i;
         }
     }
@@ -243,6 +260,7 @@ static void enter_dungeon(unsigned char index)
         view_message("The way in is sealed.");
         return;
     }
+    enter_local();
     scene = SCENE_DUNGEON;
     place = index;
     depth = 1;
@@ -299,25 +317,44 @@ static void face_the_dragon(void)
 /* Stepping onto something on the overworld. */
 static void arrive(unsigned char code, unsigned char x, unsigned char y)
 {
-    signed char i;
+    unsigned char i, slot;
 
+    if (code == T_PORT) {
+        if (scene == SCENE_ISLE) {
+            sail_home();                /* the landing */
+        } else {
+            sail_out();
+        }
+        return;
+    }
     if (code == T_LAIR) {
         face_the_dragon();
         return;
     }
 
-    i = town_at(x, y);
-    if (i >= 0) {
-        /* Leaving home for the first time is the story starting. */
-        enter_town((unsigned char)i);
-        view_message(town_names[place]);
+    i = place_at(x, y);
+    if (i == PLACE_NONE) {
         return;
     }
-
-    i = dungeon_at(x, y);
-    if (i >= 0) {
-        enter_dungeon((unsigned char)i);
+    if (land == ISLE_HOME) {
+        switch (i) {
+            case 0: i = TOWN_MILLFORD; break;
+            case 1: i = TOWN_CASTLE;   break;
+            case 2: enter_dungeon(0);  return;
+            default: i = TOWN_PROC;    break;
+        }
+    } else if (i == 0) {
+        slot = slot_of(land);
+        if (slot & 1) {
+            enter_dungeon(1 + (slot >> 1));
+            return;
+        }
+        i = TOWN_WARDLOW + (slot >> 1);
+    } else {
+        i = TOWN_PROC;
     }
+    enter_town(i);
+    view_message(town_name());
 }
 
 static void wander_check(void)
@@ -347,10 +384,7 @@ static void try_move(signed char dx, signed char dy, unsigned char dir)
     /* Turn first: bumping into a wall or a person still faces them. */
     sprite_face(dir);
 
-    if (scene == SCENE_WORLD) {
-        nx &= WORLD_MASK;
-        ny &= WORLD_MASK;
-    } else if (nx < 0 || ny < 0 || nx >= local_w || ny >= local_h) {
+    if (nx < 0 || ny < 0 || nx >= local_w || ny >= local_h) {
         view_message("Blocked.");
         return;
     }
@@ -397,7 +431,7 @@ static void try_move(signed char dx, signed char dy, unsigned char dir)
     hero.y = (unsigned char)ny;
     ++game_turn;
 
-    if (scene == SCENE_WORLD) {
+    if (scene == SCENE_WORLD || scene == SCENE_ISLE) {
         if (flag == TF_ENTER) {
             arrive(code, hero.x, hero.y);
         } else {
@@ -407,9 +441,15 @@ static void try_move(signed char dx, signed char dy, unsigned char dir)
     }
 
     if (scene == SCENE_TOWN) {
-        if (hero.x == town_ex[place] && hero.y == town_ey[place]) {
-            if (place == TOWN_MILLFORD && quest_stage == Q_START) {
-                quest_stage = Q_SUMMONED;
+        if (hero.x == here_ex && hero.y == here_ey) {
+            if (quest_stage == Q_START) {
+                /* Nobody leaves Millford before Garrett has talked to them. */
+                hero.y = here_ey - 1;
+                view_message("It's not safe out there without a weapon.");
+                return;
+            }
+            if (!home_built()) {
+                view_message("The land takes shape...");
             }
             leave_local();
             view_message("You take the road.");

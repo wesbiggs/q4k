@@ -6,8 +6,8 @@
 #pragma rodata-name (push, "HIDATA")
 
 const Loot loot_table[] = {
-    { TOWN_CASTLE,    19, 11, LOOT_GOLD,    14 },
-    { TOWN_CASTLE,    18, 13, LOOT_GOLD,    19 },
+    { TOWN_CASTLE,     6,  7, LOOT_GOLD,    14 },
+    { TOWN_CASTLE,    14,  7, LOOT_GOLD,    19 },
 };
 
 #pragma rodata-name (pop)

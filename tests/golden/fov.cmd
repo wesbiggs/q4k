@@ -1,1 +1,1 @@
-dist/q4k.prg --poke scene=0 --poke party+0=23 --poke party+1=16 --poke items=2 --poke lore_seed=0x5a --keys Alaric\ra --settle 5
+dist/q4k.prg --poke lore_seed=0x5a --poke no_encounters=1 --timeout 90 --poke quest_stage=2 --poke items=1 --keys Alaric\rsdsdddddddsssssddddddddddddsssssssssssssss --stage 43

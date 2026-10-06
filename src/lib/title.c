@@ -29,7 +29,7 @@
 
 static const char *const story[] = {
     "The dragon Maldrath came over the",
-    "Sundering three winters ago, and has",
+    "mountains three winters ago, and has",
     "not left. Two armies went against him.",
     "Neither came back.",
     "",

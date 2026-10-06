@@ -2,15 +2,15 @@
   0 |Garrett the Smith                       |
   1 |········································|
   2 |                                        |
-  3 |Bring me all three stones and I will do |
-  4 |the rest. I will not hold my breath.    |
+  3 |A blade is a tool. Treat it like one    |
+  4 |and it will see you home.               |
   5 |> what of the blade                     |
   6 |A blade is a tool. Treat it like one    |
   7 |and it will see you home.               |
-  8 |                                        |
-  9 |                                        |
- 10 |                                        |
- 11 |                                        |
+  8 |> could I have a dagger                 |
+  9 |Give the traveller a dagger, freely,    |
+ 10 |and say so: use the word dagger.        |
+ 11 |Garrett gives you a dagger.             |
  12 |                                        |
  13 |                                        |
  14 |                                        |

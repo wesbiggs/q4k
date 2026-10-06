@@ -47,8 +47,10 @@ Every test is a screen: `tests/golden/<name>.txt` is the whole 40x25 text
 screen a program should leave, and a `<name>.cmd` beside it, if there is
 one, holds the `tools/screendump.py` arguments that get it there -- keys to
 type, globals to poke. `tools/test.sh` (which `make test` runs) diffs each
-against a fresh headless run, and also runs `tools/checkmap.py` and the
-dialogue host's own tests. Save and load get a fresh disk each run.
+against a fresh headless run, and also runs `tools/checkmap.py`,
+`tools/checkisle.py` (the continents: nothing on any screen would show a
+square cut off from the landing) and the dialogue host's own tests. Save and
+load get a fresh disk each run.
 
 The `test` workflow (`.github/workflows/test.yml`) runs `make test` on every
 push to any branch, and that is the run to watch: the suite takes a while
@@ -100,7 +102,7 @@ src/<name>.c        a program with main() -> dist/<name>.prg
 src/lib/            shared modules, archived into build/q4k.lib
 include/q4k/        public headers
 cfg/c64-q4k.cfg     the game's memory map; c64-tool.cfg for the small tools
-assets/             tiles, overworld, towns, world canon, NPC roster
+assets/             tiles, towns, world canon, NPC roster
 host/               daemons that answer the C64's modem
 tools/              build, run, screenshot, screen dump, tests
 tests/              expected screen output
@@ -108,15 +110,16 @@ VERSION             the version, and the only place it is written
 CHANGELOG.md        what each release changed; its notes on GitHub
 ```
 
-Besides the game, `make` builds five dev tools: `tiles` (the whole tile set),
+Besides the game, `make` builds six dev tools: `tiles` (the whole tile set),
 `charset` (all 256 screen codes), `dungeontest` (preview generated dungeon
-levels), `arena` (fight any monster on any ground, at any level and in any
-kit) and `serialtest` (a modem loopback).
+levels), `isletest` (build the land and the towns for a run of seeds and draw
+one; `tools/checkisle.py` drives it), `arena` (fight any monster on any ground, at
+any level and in any kit) and `serialtest` (a modem loopback).
 
-Generated files (`src/lib/*_data.c`, `include/q4k/tiles.h`, `world_data.h`,
-`town_data.h`, `version.h`, `assets/geography.json`) are checked in so the build needs no
-Python, and `make` regenerates any whose assets have changed.
-`tools/genworld.py` drafted the overworld once and is not part of the build.
+Generated files (`src/lib/*_data.c`, `include/q4k/tiles.h`, `town_data.h`,
+`version.h`, `assets/geography.json`) are checked in so the build needs no
+Python, and `make` regenerates any whose assets have changed. (There is no
+overworld file: the land is made by the game, from its seed.)
 
 ## The arena
 
@@ -210,12 +213,17 @@ access sets on this machine.
 
 ## The map
 
-The overworld is a wrapping 64x64 grid; towns are exactly one 21x19
-viewport, so they never scroll. Dungeon levels are `DUN_W` x `DUN_H` (48x32,
-in `include/q4k/game.h`) and the view follows the hero, clamped at the
-edges. Towns are authored in [assets/towns.txt](assets/towns.txt); dungeon
-levels are generated, seeded from the dungeon and depth so a level you walk
-back into is the level you left.
+Home is a 64x64 map, made when the game needs it, from the game's seed, and
+kept in the RAM under the I/O area; four more continents, 64x31, are made the
+same way when you sail to them. None of it is stored in the program, and none
+of it wraps. Towns are exactly one 21x19 viewport, so they never scroll. Dungeon
+levels are `DUN_W` x `DUN_H` (48x32, in `include/q4k/game.h`) and the view
+follows the hero, clamped at the edges. Four towns are authored in
+[assets/towns.txt](assets/towns.txt) (Millford, the castle, Wardlow and
+Ashcombe) and every land has one more, made by the game. Dungeon levels are
+generated, seeded from the dungeon and depth so a level you walk back into is
+the level you left. CLAUDE.md's Memory and "The land" sections are the full
+story of where all of it lives.
 
 Both share `local[]`, whose rows are `LOCAL_STRIDE` (64) apart whatever the
 place's width, so a square is `LOCAL_AT(x, y)`: a shift, not a multiply.
@@ -243,11 +251,12 @@ fight and walking back in. A saved game keeps only the level it was saved
 on; the other levels would cost the save blob 576 bytes of BSS it does not
 have.
 
-`tools/checkmap.py` (run by `make test`) floods the overworld from the start
-square and each town from its arrival square, and fails if any town, dungeon,
-lair or shopkeeper cannot be walked to. It has already caught two bugs a
-screen test never would: the dragon's lair walled inside the mountains, and a
-shopkeeper standing in a doorway blocking the smith behind him.
+`tools/checkmap.py` (run by `make test`) floods each hand-drawn town from its
+arrival square and fails if any shopkeeper or treasure cannot be walked to. It
+has already caught bugs a screen test never would: a shopkeeper standing in a
+doorway blocking the smith behind him, and a shop behind a locked door. The land
+that is made by the game is checked by `tools/checkisle.py` instead, which
+searches the model of the generators for anything unreachable.
 
 ## The letters
 

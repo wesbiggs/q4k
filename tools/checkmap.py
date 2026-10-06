@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Check that everywhere the quest sends you can actually be walked to.
+"""Check that everywhere in the towns drawn by hand can actually be walked to.
 
-Two hand-edited things can quietly break the game, and no screen test would
-notice either. A town can end up sealed behind the mountains. And because
-people block movement, a shopkeeper standing in a doorway can wall off the
-NPC behind them -- which is exactly how the smith became unreachable.
+Hand-edited towns can quietly break the game, and no screen test would
+notice. Because people block movement, a shopkeeper standing in a doorway can
+wall off the NPC behind them -- which is exactly how the smith became
+unreachable. (The land itself is generated, and tools/checkisle.py searches
+that.)
 
-This floods the overworld from the start position, and each town from its
-arrival square, and fails if anything the quest needs -- or any treasure in
-assets/loot.txt -- cannot be walked to.
+This floods each town from its arrival square, and fails if anything in it --
+or any treasure in assets/loot.txt -- cannot be walked to.
 """
 
 import os
@@ -18,8 +18,6 @@ from collections import deque
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mkloot
 import mktiles
-
-SRC = "assets/overworld.txt"
 
 
 def flood(passable, start, w, h, wrap):
@@ -91,46 +89,11 @@ def main():
     walkable = {c for c, t in by_char.items()
                 if t.flag not in ("TF_BLOCK", "TF_WATER", "actor")}
 
-    rows, start = [], None
-    for line in open(SRC):
-        line = line.rstrip("\n")
-        if line.startswith("start "):
-            _, x, y = line.split()
-            start = (int(x), int(y))
-        elif line.strip() and not line.startswith("#"):
-            rows.append(line)
-
-    h, w = len(rows), len(rows[0])
-    seen = flood(lambda x, y: rows[y][x] in walkable, start, w, h, True)
-
-    targets = []
-    for y in range(h):
-        for x in range(w):
-            c = rows[y][x]
-            if c in "TCDL":
-                targets.append((c, x, y))
-
-    label = {"T": "town", "C": "castle", "D": "dungeon", "L": "lair"}
-    bad = 0
-    for c, x, y in targets:
-        ok = (x, y) in seen
-        print("  %-8s %2d,%-2d  %s" % (label[c], x, y,
-                                       "reachable" if ok else "UNREACHABLE"))
-        bad += not ok
-
     loot = mkloot.parse()
-    for where, x, y, kind, amount, _ in loot:
-        if where != mkloot.WORLD:
-            continue
-        ok = (x, y) in seen
-        print("  %-8s %2d,%-2d  %s" % ("loot", x, y,
-                                       "reachable" if ok else "UNREACHABLE"))
-        bad += not ok
-
+    bad = 0
     bad += check_towns(by_char, walkable, loot)
 
-    print("checkmap: %d overworld targets, %d walkable squares, %d problems"
-          % (len(targets), len(seen), bad))
+    print("checkmap: %d problems" % bad)
     return 1 if bad else 0
 
 

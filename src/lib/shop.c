@@ -109,10 +109,10 @@ void shop_open(unsigned char kind)
     sprite_hide();
     clrscr();
     textcolor(COLOR_YELLOW);
-    cputsxy(0, TITLE_Y, kind == SHOP_WEAPON ? "The Forge"
-                      : kind == SHOP_ARMOUR ? "The King's Armoury"
+    cputsxy(0, TITLE_Y, kind == SHOP_WEAPON ? "The Smithy"
+                      : kind == SHOP_ARMOUR ? "The Armourer"
                       : kind == SHOP_BOW    ? "The Bowyer"
-                                            : "The Village Shop");
+                                            : "The Apothecary");
     textcolor(COLOR_GRAY1);
     chlinexy(0, TITLE_Y + 1, SCR_W);
     chlinexy(0, HINT_Y - 1, SCR_W);

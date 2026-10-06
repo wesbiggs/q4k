@@ -20,7 +20,7 @@ SHOPS = {"weapon": "SHOP_WEAPON", "armour": "SHOP_ARMOUR", "item": "SHOP_ITEM",
 
 
 class Town:
-    __slots__ = ("id", "name", "wx", "wy", "ents", "rows", "start", "exit",
+    __slots__ = ("id", "name", "ents", "rows", "start", "exit",
                  "placed", "codes", "inns")
 
 
@@ -48,9 +48,6 @@ def parse(by_char):
             cur.ents, cur.rows, cur.inns = {}, [], {}
             cur.start = cur.exit = None
             towns.append(cur)
-        elif word == "at":
-            _, x, y = line.split()
-            cur.wx, cur.wy = int(x), int(y)
         elif word == "ent":
             parts = line.split(None, 4)
             cur.ents[parts[1]] = (parts[2], parts[3])
@@ -154,12 +151,12 @@ def main():
                 "#define NUM_TOWNS   %d\n#define NUM_TOWN_ENTS %d\n"
                 "#define NUM_INNS    %d\n\n"
                 "#define ENT_NPC     0\n#define ENT_SHOP    1\n"
-                "#define ENT_INN     2\n\n"
+                "#define ENT_INN     2\n#define ENT_VILLAGER 3\n\n"
                 "#define SHOP_WEAPON 0\n#define SHOP_ARMOUR 1\n"
                 "#define SHOP_ITEM   2\n#define SHOP_BOW    3\n\n"
                 "typedef struct {\n"
                 "    unsigned char x, y;\n"
-                "    unsigned char kind;   /* ENT_NPC | ENT_SHOP | ENT_INN */\n"
+                "    unsigned char kind;   /* ENT_NPC | ENT_SHOP | ENT_INN | ENT_VILLAGER */\n"
                 "    unsigned char param;  /* npc, shop kind or inn index */\n"
                 "} TownEnt;\n\n"
                 % (SRC, W, H, len(towns), len(ents), len(inns)))
@@ -170,8 +167,6 @@ def main():
         f.write("\n/* Run-length encoded: unpack with rle_unpack(). */\n"
                 "extern const unsigned char *const town_map[NUM_TOWNS];\n"
                 "extern const char *const   town_names[NUM_TOWNS];\n"
-                "extern const unsigned char town_wx[NUM_TOWNS];\n"
-                "extern const unsigned char town_wy[NUM_TOWNS];\n"
                 "extern const unsigned char town_sx[NUM_TOWNS];\n"
                 "extern const unsigned char town_sy[NUM_TOWNS];\n"
                 "extern const unsigned char town_ex[NUM_TOWNS];\n"
@@ -195,15 +190,12 @@ def main():
             packed += rle.write_c(f, "map_%d" % i, t.codes, W)
             f.write("\n")
         f.write("const unsigned char *const town_map[NUM_TOWNS] = {\n    %s\n};\n\n"
-                "#pragma rodata-name (pop)\n\n"
                 % ", ".join("map_%d" % i for i in range(len(towns))))
 
         def table(name, values, fmt="%d"):
             f.write("const unsigned char %s[NUM_TOWNS] = { %s };\n"
                     % (name, ", ".join(fmt % v for v in values)))
 
-        table("town_wx", [t.wx for t in towns])
-        table("town_wy", [t.wy for t in towns])
         table("town_sx", [t.start[0] for t in towns])
         table("town_sy", [t.start[1] for t in towns])
         table("town_ex", [t.exit[0] for t in towns])
@@ -232,7 +224,7 @@ def main():
         for x, y, kind, param in ents:
             f.write("    { %2d, %2d, %-8s %s },\n" % (x, y, kind + ",", param))
         f.write("};\n\nconst unsigned char town_ent_first[NUM_TOWNS + 1] = {\n"
-                "    %s\n};\n" % ", ".join(str(i) for i in first))
+                "    %s\n};\n\n#pragma rodata-name (pop)\n" % ", ".join(str(i) for i in first))
 
     print("mktowns: %d towns, %d entities, %d npcs, %d inns, maps packed to "
           "%d bytes" % (len(towns), len(ents), len(npc_ids), len(inns), packed))

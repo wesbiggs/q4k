@@ -2,10 +2,10 @@
   0 |King Matheson                           |
   1 |········································|
   2 |                                        |
-  3 |The Hollow Crown lies south of here.    |
+  3 |The Hollow Crown is in our own country. |
   4 |What keeps it now is called the Gaoler. |
   5 |> hello                                 |
-  6 |The Hollow Crown lies south of here.    |
+  6 |The Hollow Crown is in our own country. |
   7 |What keeps it now is called the Gaoler. |
   8 |> what is my quest                      |
   9 |Take the Iron Sigil. It opens the       |

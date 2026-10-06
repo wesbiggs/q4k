@@ -312,12 +312,11 @@ class Ping(unittest.TestCase):
 
 
 class Geography(unittest.TestCase):
-    def test_bearing_follows_the_road(self):
-        # Across the map's wrap Wardlow is south of the castle; on foot
-        # it is north, and north is what the steward must say.
-        lines = NPCS.geo["from"]["castle"]
-        wardlow = [l for l in lines if l.startswith("Wardlow")][0]
-        self.assertIn("lies north,", wardlow)
+    def test_nobody_is_given_directions_yet(self):
+        # The land is made fresh each game, so there is nothing true to say
+        # about which way anywhere lies, and an NPC must not guess.
+        self.assertEqual(NPCS.directions_for("steward"),
+                         "You are not sure of the distances to anywhere else.")
 
 
 if __name__ == "__main__":

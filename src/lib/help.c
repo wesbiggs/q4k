@@ -9,15 +9,15 @@
 /* What to do next, by quest stage. Two lines each, because the useful
    version of this names the person and the place. */
 static const char *const task[10][2] = {
-    { "A letter has come from the king.",   "Go south to Castle Matheson."       },
-    { "Go south to Castle Matheson and",    "speak with the king."               },
+    { "A letter has come from the king.",   "Garrett the smith will arm you."    },
+    { "Go to Castle Matheson and",          "speak with the king."               },
     { "The Iron Sigil opens the Hollow",    "Crown. Bring back the Emberstone."  },
-    { "Take the Emberstone to Loremaster",  "Vane in Wardlow."                   },
-    { "The Tidal Key opens the Drowned",    "Stair. Bring back the Silver Tear." },
-    { "Take the Silver Tear to Mother Ash", "in Ashcombe."                       },
-    { "The Ashen Key opens Blackpit.",      "Bring back the Dragon's Heart."     },
+    { "Take the Emberstone to Vane in",     "Wardlow, over the sea. Try the ports." },
+    { "The Tidal Key opens the Drowned",    "Stair, over the sea. Bring the Tear." },
+    { "Take the Silver Tear to Mother Ash", "in Ashcombe, over the sea."         },
+    { "The Ashen Key opens Blackpit, over", "the sea. Bring the Dragon's Heart." },
     { "Take all three stones to Garrett",   "the smith in Millford."             },
-    { "Dragonbane is yours. Maldrath",      "lairs high in the Sundering."       },
+    { "Dragonbane is yours. Maldrath",      "lairs in the mountains of Keldmarch." },
     { "Maldrath is banished.",              "Keldmarch is free."                 },
 };
 
@@ -42,6 +42,7 @@ void help_screen(void)
     textcolor(COLOR_WHITE);
     cputsxy(3, 4, "W A S D  or the cursor keys");
     cputsxy(3, 5, "Walk into someone to talk or trade");
+    cputsxy(3, 6, "Step onto a port to sail");
 
     textcolor(COLOR_LIGHTBLUE);
     cputsxy(1, 7, "Commands");

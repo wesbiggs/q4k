@@ -4,6 +4,9 @@
 #include <q4k/actor.h>
 #include <q4k/sprite.h>
 
+/* Read-only data goes in the charset's spare glyphs: cfg/c64-q4k.cfg. */
+#pragma rodata-name ("CHDATA3")
+
 #define SPR_FIGURE  ((unsigned char *)0x0340)   /* block 13 */
 #define SPR_EDGE    ((unsigned char *)0x0380)   /* block 14 */
 #define SPR_TUNIC   ((unsigned char *)0x03C0)   /* block 15 */

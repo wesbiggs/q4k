@@ -18,6 +18,7 @@
 #define GRANT_NONE   0
 #define GRANT_TIDAL  1   /* Vane heard the fishers' word for the dry hour */
 #define GRANT_SIGIL  2   /* the king handed over the Sigil, past hello    */
+#define GRANT_DAGGER 3   /* Garrett handed over a dagger, once asked      */
 /* Nobody to ask, so nothing is gated: the game stays winnable without the
    modem. Passed to dialog_talk()'s `given` when the line is not up. */
 #define GRANT_OPEN   0xFF

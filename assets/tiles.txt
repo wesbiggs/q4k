@@ -321,7 +321,19 @@ tile crown c 0x7D block yellow
 .######.
 ........
 
-# $7E-$7F are free for more terrain. Terrain must stay contiguous from $60,
+# The port: where a ship waits. Stepping onto one sets sail -- from the
+# overworld to a continent over the water, and from there home again.
+tile port P 0x7E enter orange
+...##...
+...##...
+..#..#..
+...##...
+.######.
+#..##..#
+.#.##.#.
+..####..
+
+# $7F is free for more terrain. Terrain must stay contiguous from $60,
 # so the actors below sit clear of it, after the monsters in the reverse
 # half; nothing stores them in an RLE map, which could not hold them.
 #
@@ -510,3 +522,17 @@ tile wasp z 0x90 actor yellow
 ..#..#..
 ..####..
 ...##...
+
+# The ship, drawn over the sea square it sails on while the hero is afloat.
+# The hero is a sprite, so this is a screen code the voyage writes into the
+# map cell by hand.
+
+tile ship h 0x91 actor white
+....#...
+....##..
+....###.
+....#...
+########
+.######.
+..####..
+........
