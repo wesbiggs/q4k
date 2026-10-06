@@ -64,6 +64,7 @@ shop, or take a seat at their inn.
 | `F1` / `F3` | save / restore |
 | `SPACE` | wait a turn |
 | `?` | keys, and what you are supposed to be doing next |
+| `M` / `X` | music / sound effects on or off (costs no turn) |
 | `Q` | quit |
 
 Treasure is hidden in the castle and in dungeon chests, and
@@ -152,6 +153,8 @@ laid out differently each time. The shop is a smithy, an armourer or a bowyer;
 a third building may sell draughts. Keldmarch's own castle sells blades, mail
 and bows, so you never have to go over the water to be armed.
 
+## Talking to people
+
 Every person you meet answers in their own voice, from the world's canon and
 from how far you have got. The answers come from a language model running on
 the machine the emulator is on, reached over the C64's modem port at 300
@@ -183,6 +186,5 @@ the quest depends on the modem, so the game can be finished without it.
 With it, some things have to be earned: listen for the words people tell
 you, because sometimes the right word is what opens a door.
 
-People know the real lay of the land. Ask the way and they give the true
-bearing and distance on foot, and tell you when the road bends a long way
-round.
+People know who lives where, but not the lay of the land: the world is made
+fresh for every game, so nobody will give you a bearing or a distance.
