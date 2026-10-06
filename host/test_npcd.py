@@ -34,6 +34,48 @@ def mock():
     return npcd.Dialogue(NPCS, mock=True)
 
 
+class Geography(unittest.TestCase):
+    def test_directions_follow_the_seed(self):
+        self.assertNotEqual(NPCS.directions_for("steward", 1),
+                            NPCS.directions_for("steward", 2))
+
+    def test_every_story_place_is_on_one_continent(self):
+        import geo
+        for seed in range(256):
+            places, _, ports = geo.world(seed)
+            seen = {places[p][0] for p in
+                    ("wardlow", "drownedstair", "ashcombe", "blackpit")}
+            self.assertEqual(seen, {0, 1, 2, 3})
+            self.assertEqual({story for _, _, story in ports.values()},
+                             {"wardlow", "drownedstair", "ashcombe",
+                              "blackpit"})
+
+    def test_the_port_to_a_place_matches_the_game(self):
+        # The game opens the port at compass point d onto the continent whose
+        # slot is slot_of(d); Wardlow is slot 0.
+        import geo
+        for seed in (0, 1, 0x5A, 255):
+            places, _, ports = geo.world(seed)
+            d = next(d for d in range(4) if geo.slot_of(seed, d) == 0)
+            self.assertEqual(ports[d][2], "wardlow")
+            self.assertEqual(places["wardlow"][0], d)
+
+    def test_bearings(self):
+        import geo
+        self.assertEqual(geo.bearing((10, 10), (10, 2)), "north")
+        self.assertEqual(geo.bearing((10, 10), (20, 10)), "east")
+        self.assertEqual(geo.bearing((10, 10), (4, 16)), "south-west")
+
+    def test_prompt_carries_the_directions_for_the_seed(self):
+        prompt = NPCS.system_for("tam", 0, seed=SEED)
+        self.assertIn("Castle Matheson is", prompt)
+        self.assertIn("harbour", prompt)
+        self.assertNotEqual(prompt, NPCS.system_for("tam", 0, seed=SEED + 1))
+
+    def test_a_stranger_knows_nothing(self):
+        self.assertIn("not sure", NPCS.directions_for("nobody", SEED))
+
+
 class Secrets(unittest.TestCase):
     def test_seed_is_repeatable(self):
         self.assertEqual(NPCS.secret("tideword", SEED),
@@ -309,14 +351,6 @@ class Ping(unittest.TestCase):
 
     def test_ping_request(self):
         self.assertEqual(npcd.parse_request("PING")[0], "PING")
-
-
-class Geography(unittest.TestCase):
-    def test_nobody_is_given_directions_yet(self):
-        # The land is made fresh each game, so there is nothing true to say
-        # about which way anywhere lies, and an NPC must not guess.
-        self.assertEqual(NPCS.directions_for("steward"),
-                         "You are not sure of the distances to anywhere else.")
 
 
 if __name__ == "__main__":

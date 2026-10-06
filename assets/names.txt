@@ -1,0 +1,34 @@
+# Names that the game picks from at run time, one table each. The C64 indexes
+# them (src/lib/isle.c, src/lib/town_gen.c) and the host reads the same lists
+# through assets/geography.json, so edit them here and nowhere else.
+#
+#   land <Name>     a continent, by what it is mostly made of: plains, forest,
+#                   swamp, desert, mountains, in that order (exactly 5)
+#   town <Name>     the town a land makes for itself (exactly 8)
+#   inn <Name>      its inn (exactly 4)
+#   stride <town|inn> <n>
+#                   which one a land gets: index = (lore_seed + n * land) mod
+#                   the count, land being 0-3 for a continent and 4 for home
+
+land The Green Downs
+land The Briar Wood
+land The Sallow Mire
+land The Amber Waste
+land The Iron Crags
+
+town Harrowby
+town Thistledown
+town Marrow Ford
+town Oldcombe
+town Saltmere
+town Greywick
+town Fenhallow
+town Stonebridge
+
+inn The Wayfarer
+inn The Salted Pig
+inn The Rusty Plough
+inn The Last Lantern
+
+stride town 3
+stride inn 1

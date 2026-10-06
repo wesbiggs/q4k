@@ -8,10 +8,9 @@ the world, and anything absent is something NPCs should not invent.
 
 The home country, **Keldmarch**, is a continent ringed by ocean: Millford, Castle
 Matheson, the Hollow Crown, Maldrath's lair and one more town, which the people
-who live there will name if asked. It is never the same twice: no two seasons
-have the sea or the mountains where the last put them, and nobody in the world
-gives a bearing or a count of leagues. Four more countries lie across the
-water, one off each coast, and every one of them has a town or two of its own.
+who live there will name if asked. Locals know their way about it and give
+a point of the compass and a rough walk, never a count of leagues. Four more
+countries lie across the water, one off each coast, and every one of them has a town or two of its own.
 
 **King Matheson** has ruled from Castle Matheson for nineteen years. He is
 fair, tired, and out of options.
@@ -60,8 +59,8 @@ Everyone knows roughly where. Nobody goes.
   Key**, held in Ashcombe. Its keeper is **the Pit Warden**.
 
 Wardlow, Ashcombe, the Drowned Stair and Blackpit each lie on a different
-shore. Which is which depends on the year: nobody in Keldmarch can say, and
-the captains will tell you when you ask them.
+shore. Which is which depends on the year; what the people of each place know of
+the way is listed for them separately.
 
 ## The ports
 

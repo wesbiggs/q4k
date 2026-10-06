@@ -1,5 +1,11 @@
 {
- "from": {},
+ "lands": [
+  "The Green Downs",
+  "The Briar Wood",
+  "The Sallow Mire",
+  "The Amber Waste",
+  "The Iron Crags"
+ ],
  "npc_place": {
   "ash": "ashcombe",
   "brann": "wardlow",
@@ -52,5 +58,16 @@
    "kind": "town",
    "name": "Wardlow"
   }
- }
+ },
+ "town_stride": 3,
+ "towns": [
+  "Harrowby",
+  "Thistledown",
+  "Marrow Ford",
+  "Oldcombe",
+  "Saltmere",
+  "Greywick",
+  "Fenhallow",
+  "Stonebridge"
+ ]
 }

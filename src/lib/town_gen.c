@@ -3,6 +3,7 @@
 #include <q4k/actor.h>
 #include <q4k/game.h>
 #include <q4k/isle.h>
+#include <q4k/names_data.h>
 #include <q4k/tiles.h>
 #include <q4k/town_gen.h>
 
@@ -11,13 +12,8 @@ void           town_tiles(unsigned char biome);
 extern TownEnt proc_ents[5];
 extern unsigned char proc_n;
 
-static const char *const names[8] = {
-    "Harrowby", "Thistledown", "Marrow Ford", "Oldcombe", "Saltmere",
-    "Greywick", "Fenhallow", "Stonebridge",
-};
-static const char *const inns[4] = {
-    "The Wayfarer", "The Salted Pig", "The Rusty Plough", "The Last Lantern",
-};
+static const char *const names[8] = TOWN_NAMES;
+static const char *const inns[4] = INN_NAMES;
 
 void town_gen(void)
 {
@@ -35,10 +31,10 @@ void town_gen(void)
 
 const char *town_gen_name(void)
 {
-    return names[(lore_seed + 3 * land) & 7];
+    return names[(lore_seed + TOWN_STRIDE * land) & (TOWN_COUNT - 1)];
 }
 
 const char *town_gen_inn(void)
 {
-    return inns[(lore_seed + land) & 3];
+    return inns[(lore_seed + INN_STRIDE * land) & (INN_COUNT - 1)];
 }

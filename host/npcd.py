@@ -77,6 +77,8 @@ import urllib.error
 import urllib.request
 import zlib
 
+import geo
+
 # Ollama's OpenAI-compatible chat endpoint. Plain HTTP against the local
 # daemon, so this file has no third-party dependencies at all.
 #
@@ -132,12 +134,14 @@ Your manner: {voice}
 Something you know, and may share if it comes up: {knows}
 {extra}
 
-The ways out of here, which you have walked and know to be right:
+The lay of the land, which you know well and know to be right (north is
+the top of a map; a walk of a day is the longest you have ever made):
 {directions}
 
-Those are the only directions you know. If you are asked the way to
-somewhere not on that list, say you do not know the road -- do not guess a
-direction, a distance or a landmark.
+Those are the only directions you know. Answer a question about the way
+with the one or two facts that fit it, in your own words. If you are asked
+the way to somewhere not on that list, say you do not know the road -- do
+not guess a direction, a distance or a landmark.
 
 How things stand with the traveller in front of you: {situation}
 
@@ -307,15 +311,17 @@ class Npcs:
         if secrets_path and os.path.exists(secrets_path):
             self.secrets = {k: v for k, v in json.load(open(secrets_path)).items()
                             if not k.startswith("_")}
-        # Measured from the actual map by tools/mkgeo.py. Without it a model
-        # will cheerfully send the player north to somewhere that is south.
+        # Who lives where (tools/mkgeo.py). Where *everywhere* is comes from
+        # geo.py, worked out from the game's seed: without it a model will
+        # cheerfully send the player north to somewhere that is south.
         self.geo = {}
         if geo_path and os.path.exists(geo_path):
             self.geo = json.load(open(geo_path))
+            geo.use(self.geo)
 
-    def directions_for(self, npc_id):
+    def directions_for(self, npc_id, seed=0):
         where = self.geo.get("npc_place", {}).get(npc_id)
-        lines = self.geo.get("from", {}).get(where) if where else None
+        lines = geo.lines_for(where, seed) if where else []
         if not lines:
             return "You are not sure of the distances to anywhere else."
         return "\n".join("- " + line for line in lines)
@@ -391,7 +397,7 @@ class Npcs:
                          + rule["hint"])
         return "\n".join(extra)
 
-    def system_for(self, npc_id, stage=0, extra=""):
+    def system_for(self, npc_id, stage=0, extra="", seed=0):
         """The whole system prompt for one NPC, assembled host-side.
 
         The client sends nothing but an id, a stage number and a seed; world
@@ -403,7 +409,7 @@ class Npcs:
         return (SYSTEM_PREFACE.format(**npc)
                 + "\n" + self.canon + "\n"
                 + SYSTEM_RULES.format(limit=MAX_REPLY, situation=situation,
-                                      directions=self.directions_for(npc_id),
+                                      directions=self.directions_for(npc_id, seed),
                                       extra=extra, **npc))
 
     def mock_reply(self, npc_id, text, stage=0, seed=0):
@@ -535,7 +541,8 @@ class Dialogue:
 
         extra = self.npcs.extra_for(npc_id, stage, seed, text, opening)
         messages = [{"role": "system",
-                     "content": self.npcs.system_for(npc_id, stage, extra)}]
+                     "content": self.npcs.system_for(npc_id, stage, extra,
+                                                  seed)}]
         messages += turns[-HISTORY_TURNS:]
 
         try:

@@ -94,6 +94,7 @@ GEN_TILES := include/q4k/tiles.h include/q4k/tiles.inc src/lib/tiles_data.c \
             src/lib/tiles_names.c
 GEN_TOWN  := include/q4k/town_data.h src/lib/town_data.c
 GEN_ARENA := include/q4k/arena_data.h src/lib/arena_data.c
+GEN_NAMES := include/q4k/names_data.h
 GEN_GEO   := assets/geography.json
 GEN_FONT  := src/lib/font_data.c
 GEN_LOOT  := include/q4k/loot_data.h src/lib/loot_data.c
@@ -112,7 +113,7 @@ GEN_MUSIC := src/lib/music_data.s
 FONT_SOURCE ?= rom
 FONT_STYLE  ?= bold
 
-assets: $(GEN_TILES) $(GEN_TOWN) $(GEN_ARENA) $(GEN_GEO) $(GEN_FONT) \
+assets: $(GEN_TILES) $(GEN_TOWN) $(GEN_ARENA) $(GEN_NAMES) $(GEN_GEO) $(GEN_FONT) \
         $(GEN_LOOT) $(GEN_VER) $(GEN_MUSIC)
 
 # The version lives in VERSION alone; the release workflow checks the tag
@@ -143,8 +144,11 @@ $(GEN_LOOT): assets/loot.txt assets/towns.txt \
 $(GEN_MUSIC): assets/theme.txt tools/mkmusic.py
 	tools/mkmusic.py
 
-$(GEN_GEO): assets/towns.txt assets/places.txt \
-            assets/tiles.txt tools/mkgeo.py
+$(GEN_NAMES): assets/names.txt tools/mknames.py
+	tools/mknames.py
+
+$(GEN_GEO): assets/towns.txt assets/places.txt assets/names.txt \
+            assets/tiles.txt tools/mkgeo.py tools/mknames.py
 	tools/mkgeo.py
 
 # A stamp holding the chosen font, so that changing FONT_SOURCE on the

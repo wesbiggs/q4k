@@ -281,13 +281,21 @@ reseeds afterwards, and a screen test that enters a dungeon must pin
 `src/rngtest.c` measures `rand()`'s distribution after `srand()`; it is what
 ruled the generator out when the encounter rate looked wrong.
 
-**NPCs will invent geography** unless they are told not to. The land is made
-fresh for every game, so there is nothing true to say about which way anywhere
-lies: `tools/mkgeo.py` writes only who lives where into `assets/geography.json`,
-and the daemon tells whoever is speaking that they are not sure of the
-distances. Keep directions and coordinates out of `assets/canon.md`, the hints
-and the NPCs' lines. (Sending the host the real bearings when a game starts is
-the obvious next step.)
+**NPCs will invent geography** unless they are told where things are. The
+land is made fresh for every game, so the host works it out: the C64 already
+sends `lore_seed` with every request, and `host/geo.py` builds the same lands
+with `tools/isleref.py` (cached per seed) and gives each NPC a compass point
+and a rough walk to every place on their land, to the harbours, and to what
+lies across each one. Nothing extra goes over the wire and the 6502 pays
+nothing. `tools/mkgeo.py` writes who lives where and every name the host uses into
+`assets/geography.json`, from `towns.txt`, `places.txt` and `names.txt` (the
+lands, the towns a land makes for itself, their inns: `tools/mknames.py` turns
+that file into `include/q4k/names_data.h` for `isle.c` and `town_gen.c`, so
+the game and the host cannot disagree).
+Change how the generator places things and the model changes with it, so the
+NPCs stay right; `host/test_npcd.py` checks that `geo.slot_of` and the port
+order agree with the game. Keep leagues and coordinates out of `assets/canon.md`
+and the NPCs' lines: the host supplies the bearings.
 
 **Measure before optimising on this machine; the intuitions do not
 transfer.** Field of view clears the squares lit last turn, and the obvious

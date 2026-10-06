@@ -5,9 +5,8 @@
 #   place <id> <marker> <Name>
 #
 # <marker> is D for a dungeon and L for a lair. Where they are is not written
-# down: the land is made fresh for every game (src/lib/isle_gen.s), so the
-# game would have to tell the host, and until it does the NPCs are told only
-# that they are not sure of the distances.
+# down: the land is made fresh for every game (src/lib/isle_gen.s), and the
+# host works it out from the game's seed (host/geo.py).
 
 place hollowcrown D The Hollow Crown
 place drownedstair D The Drowned Stair
