@@ -1,1 +1,1 @@
-dist/q4k.prg --poke lore_seed=0x5a --poke no_encounters=1 --timeout 90 --poke quest_stage=1 --keys Alaric\rsdsddddssssssssssssssssssssssssswwwwwwwwwwaaaalddddddddl --stage 56
+dist/q4k.prg --poke lore_seed=0x5a --poke no_encounters=1 --timeout 90 --poke quest_stage=1 --keys Alaric\rsdsddddssssssssssssssssssssssssswwwwwwwwwwaaaalddddddddl --stage 57
