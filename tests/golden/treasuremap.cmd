@@ -1,0 +1,1 @@
+dist/q4k.prg --poke lore_seed=0x5a --poke no_encounters=1 --timeout 90 --poke quest_stage=1 --poke tmap=5 --poke tmap+4=25 --poke tmap+8=16 --poke tmap+12=26 --poke tmap+16=21 --keys Alaric\ri --settle 8

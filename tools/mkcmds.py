@@ -104,5 +104,39 @@ def main():
                               "--stage", str(len(to_port0) + 2)])
 
 
+def treasure_spot():
+    """A plain square a few steps from Millford, for a map to point at."""
+    import isleref as ref
+    land = ref.build(SEED, ref.HOME)
+    mx, my = land.places[0]
+    for dy in range(-6, 7):
+        for dx in range(-6, 7):
+            if dx and dy and 4 <= abs(dx) + abs(dy) <= 6:
+                t = land.tiles[(my + dy) * ref.W + mx + dx]
+                if t in ref.WALK:
+                    return mx + dx, my + dy
+    sys.exit("no square to bury treasure on")
+
+
+def main_treasure():
+    import isleref as ref
+    x, y = treasure_spot()
+    mx, my = ref.build(SEED, ref.HOME).places[0]
+    # tmap is five rows of four: land + 1 (home is 4), x, y, and the town it
+    # measures from
+    # (x, y). Slot 0 holds this one; the rest stay empty.
+    held = ["--poke", "tmap=5", "--poke", "tmap+4=%d" % x,
+            "--poke", "tmap+8=%d" % y, "--poke", "tmap+12=%d" % mx,
+            "--poke", "tmap+16=%d" % my]
+    walk = keys("millford", "%d,%d" % (x, y))
+    # walk to where the map says, and dig
+    write("treasure", POKES + ["--poke", "quest_stage=1"] + held
+          + ["--keys", "Alaric\\rs" + walk + "l", "--stage", str(len(walk) + 3)])
+    # and the list of maps (a screen that waits for a key, so no stage)
+    write("treasuremap", POKES + ["--poke", "quest_stage=1"] + held
+          + ["--keys", "Alaric\\ri", "--settle", "8"])
+
+
 if __name__ == "__main__":
     main()
+    main_treasure()

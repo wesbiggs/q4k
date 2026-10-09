@@ -51,7 +51,7 @@ void help_screen(void)
     cputsxy(3,  9, "P      Drink a healing draught");
     cputsxy(3, 10, "F1     Save       F3  Restore");
     cputsxy(3, 11, "SPACE  Wait a turn");
-    cputsxy(3, 12, "L      Look where you stand");
+    cputsxy(3, 12, "L      Look, dig     I  Maps");
     cputsxy(3, 13, "?      This screen   M  Music");
     cputsxy(3, 14, "Q      Quit          X  Effects");
 

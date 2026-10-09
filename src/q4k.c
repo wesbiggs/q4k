@@ -49,6 +49,7 @@
 #define K_Q           0x51
 #define K_T           0x54
 #define K_L           0x4C
+#define K_I           0x49
 #define K_P           0x50
 #define K_M           0x4D
 #define K_X           0x58
@@ -574,6 +575,10 @@ int main(void)
 
             case K_L:
                 look();
+                break;
+
+            case K_I:
+                treasure_maps();
                 break;
 
             case K_M:

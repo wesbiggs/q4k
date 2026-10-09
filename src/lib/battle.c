@@ -7,6 +7,7 @@
 #include <q4k/arena_data.h>
 #include <q4k/battle.h>
 #include <q4k/game.h>
+#include <q4k/loot.h>
 #include <q4k/music.h>
 #include <q4k/rle.h>
 #include <q4k/sprite.h>
@@ -273,6 +274,7 @@ static unsigned char won(const Monster *m, unsigned char n)
 {
     view_message("It falls.");
     award(m, n);
+    treasure_drop();
     return BATTLE_WON;
 }
 
@@ -323,13 +325,16 @@ static unsigned char got_away(void)
 /* The hero's speed in tenths, before armour takes its share. */
 #define HERO_SPEED 10
 
-static unsigned char field[FIELD_SIZE];
-static unsigned char wall[RIM_W * RIM_H];    /* 1 where nothing can stand */
-static unsigned char roomy[RIM_W * RIM_H];   /* 0 where a 2x2 body fits,
+/* The fight's scratch is not BSS: it is the overlay, the same bytes the title
+   screen ran from before the first fight (overlay.s). Nothing in it carries
+   from one fight to the next; each is set up in battle_fight(). */
+extern unsigned char field[FIELD_SIZE];
+extern unsigned char wall[RIM_W * RIM_H];    /* 1 where nothing can stand */
+extern unsigned char roomy[RIM_W * RIM_H];   /* 0 where a 2x2 body fits,
                                                 by its top-left square */
-static unsigned char seen[RIM_W * RIM_H];
+extern unsigned char seen[RIM_W * RIM_H];
+extern unsigned char queue_x[256], queue_y[256];
 static unsigned char *seen_row[RIM_H];
-static unsigned char queue_x[256], queue_y[256];
 static unsigned char hx, hy, mx, my;
 static unsigned char size;      /* the monster's, squares a side */
 static const Monster *foe;

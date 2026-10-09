@@ -60,6 +60,7 @@ shop, or take a seat at their inn.
 |---|---|
 | `T` | talk to whoever is beside you |
 | `L` | look where you stand, and take anything hidden there |
+| `I` | read your treasure maps |
 | `P` | drink a healing draught |
 | `F1` / `F3` | save / restore |
 | `SPACE` | wait a turn |
@@ -72,6 +73,10 @@ a square need not look like anything: stand on it and press `L`. Innkeepers
 sell a mug of ale for five marks, and with it -- when the dialogue host is
 on the line -- a hint at where to look or what to do next; a bed for twenty
 puts you back to full health.
+
+Now and then a beaten monster drops a treasure map. It gives the land and how
+many leagues east or west and north or south of a town the treasure is buried,
+a league being one step. Walk there, press `L`, and dig. You can hold four.
 
 A healing draught restores a share of your full health, so it is worth a
 turn late in the game as well as early, and its price climbs to match: five

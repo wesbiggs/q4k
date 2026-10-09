@@ -97,6 +97,17 @@ extern unsigned char lore_seed;
 extern unsigned char items;       /* IT_* bitmask */
 extern unsigned char looted[LOOTED_BYTES];
 
+/* Treasure maps the hero carries, MAPS of them, kept as five rows of MAPS
+   bytes so a save is one memcpy: which land, plus one (0 for an empty slot),
+   the buried square, and the town the map measures from. See loot.h. */
+#define MAPS     4
+#define TM_LAND  0
+#define TM_X     MAPS
+#define TM_Y     (2 * MAPS)
+#define TM_RX    (3 * MAPS)
+#define TM_RY    (4 * MAPS)
+extern unsigned char tmap[5 * MAPS];
+
 void          game_init(void);
 
 /* Tile and terrain flag at (x,y) in whatever scene is current. */

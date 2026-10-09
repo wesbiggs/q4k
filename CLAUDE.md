@@ -31,19 +31,31 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   generators' tables are in `CHDATA1`). `$A0` is the input cursor, `$C0-$C7`
   the bow shot's sprite block, and `$80-$91` the actors: leave those alone,
   and check `assets/tiles.txt` before using any glyph above `$91` on screen.
-- `$4000-$B7FF` **HIGH** -- `HIDATA` for bulk tables (the towns) and `HICODE`
+- `$4000-$4937` **OVL**, the overlay: 2360 bytes at the bottom of HIGH that
+  are two things in turn. The title screen (`TITLECODE`/`TITLEDATA`, the
+  Makefile gives `title.o` those names) runs from it once, at startup, and
+  the fight's scratch arrays (`field`, `wall`, `roomy`, `seen` and the two
+  queues in `battle.c`) are the same bytes afterwards: `src/lib/overlay.s`
+  names them. The arrays hold nothing from one fight to the next, so a fight
+  may use them freely, but **nothing may start a fight before the title
+  screen returns, and the title screen may not run twice.** It freed the
+  title's two kilobytes of HIGH. `__OVLSIZE__` in the cfg is the arrays'
+  total and BSS starts that much higher; if the arrays change size, change
+  it and the sums in `overlay.s`. Padding after the title is in the PRG.
+  Anything else that runs once, or while no fight can, could live here too.
+- `$4938-$C137` **HIGH** -- `HIDATA` for bulk tables (the towns) and `HICODE`
   for module code that will not fit below. Modules listed in the Makefile's
   `HIMODS` are compiled with `--code-name HICODE`; add to that list when MAIN
   overflows. When HIGH is the one that overflows and MAIN has room, add the
   module to `HICODEMODS` as well: its code stays in HIGH but its rodata goes
   back to MAIN (the shop and the ships are there already). Changing either
   list needs the objects rebuilt, because a target-specific `CFLAGS` will not
-  invalidate them on its own. About 100 bytes are free in HIGH, 220 in MAIN
-  and 120 in BSS. Changing `cfg/` relinks everything.
+  invalidate them on its own. About 285 bytes are free in HIGH, 200 in MAIN
+  and 50 in BSS. Changing `cfg/` relinks everything.
 - **The C stack is at the top of MAIN, not where the cfg used to say.** cc65's
   startup points `sp` at `__MAIN_START__ + __MAIN_SIZE__`, `$3800`, and it
   grows down through the dead ONCE segment and then MAIN's spare bytes (about
-  220 now). So MAIN's "free" bytes are the stack's headroom: do not spend them
+  200 now). So MAIN's "free" bytes are the stack's headroom: do not spend them
   on code or data without measuring how deep the stack goes. The 2K the cfg
   reserved at `$C700-$CEFF` was never touched, and is now BSS and the RS-232
   buffers: the buffers are at `$CD00`, `MEMSIZ` is `$CF00`.
@@ -116,6 +128,20 @@ place game data there. The C stack (2K) lives directly below it.
 
 **Colour RAM is write-only-ish nybbles at `$D800`** and is *not* covered by the
 VIC bank switch — it stays at `$D800` regardless of where the screen matrix is.
+
+## Treasure maps
+
+A fight won on the overworld drops a map one time in `treasure_odds` (10;
+`--poke treasure_odds=1` makes it every time). It picks a random plain
+(`TF_PASS`) square of the land the hero is on, and the map says how far east
+or west and north or south of a town it is, in leagues, a league being a
+square: Millford on home, the land's own town on a continent. `tmap[]` holds
+four of them, five rows of four bytes (land + 1, x, y, and the town's x, y;
+land 0 is an empty slot) and is saved with the game (`Q4K6`). `I` lists them
+(`treasure_maps()`), and `L` on the square (`dig()` in `loot.c`) digs it up and
+tears the map. Dungeon fights drop nothing: only home is readable from the
+vault wherever you stand, and a continent's tiles are not in `local[]`.
+Nothing is stored for a map beyond those bytes, and nothing needs `looted[]`.
 
 ## Music
 

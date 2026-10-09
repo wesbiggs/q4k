@@ -56,7 +56,7 @@ PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 # set-piece screens), so putting them out of the way costs nothing. Both
 # flags are needed: --code-name alone leaves the string literals behind, and
 # screens like the help text are mostly string literals.
-HIMODS   := dialog battle shop inn dungeon panel title help savegame sprite \
+HIMODS   := dialog battle shop inn dungeon panel help savegame sprite \
             loot fov world sail modem actor charset_define town_gen
 
 # Code above the charset, constants below: for when HIGH is the one that is
@@ -64,6 +64,11 @@ HIMODS   := dialog battle shop inn dungeon panel title help savegame sprite \
 # when the dungeon work and the version check together overflowed HIGH by
 # 88 bytes; the ship's messages did the same for sail.
 HICODEMODS := shop sail
+
+# The title screen is not in HIGH at all: it runs once, at the start, from the
+# overlay at the bottom of HIGH, where the fights keep their scratch arrays
+# afterwards (src/lib/overlay.s and cfg/c64-q4k.cfg).
+$(BUILD)/lib/title.o: CFLAGS += --code-name TITLECODE --rodata-name TITLEDATA
 
 LIBSRC   := $(wildcard src/lib/*.c) $(wildcard src/lib/*.s)
 LIBOBJ   := $(patsubst src/lib/%.c,$(BUILD)/lib/%.o,$(wildcard src/lib/*.c)) \

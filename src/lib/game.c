@@ -26,6 +26,7 @@ unsigned char quest_stage;
 unsigned char items;
 unsigned char lore_seed;
 unsigned char looted[LOOTED_BYTES];
+unsigned char tmap[5 * MAPS];
 
 unsigned char home_fx[NUM_HOME_PLACES], home_fy[NUM_HOME_PLACES];
 unsigned char home_biome;

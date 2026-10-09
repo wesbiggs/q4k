@@ -22,7 +22,7 @@
 
 #define SAVE_DEVICE 8
 #define CMD_CHANNEL 15
-#define MAGIC       "Q4K5"   /* 5: bigger dungeons, seen as bits, 3 chests */
+#define MAGIC       "Q4K6"   /* 6: treasure maps; 5: bigger dungeons, seen as bits */
 
 /* Everything the drive reads is spelled in numeric bytes: cc65 would
    re-encode a string literal, and "S0:..." came out with a shifted $D3 for
@@ -59,6 +59,7 @@ typedef struct {
     unsigned char land;
     unsigned char ret_x, ret_y;
     unsigned char looted[LOOTED_BYTES];
+    unsigned char tmap[5 * MAPS];
     unsigned char seen[FOV_BYTES];
 } SaveGame;
 
@@ -95,6 +96,7 @@ static void gather(void)
     blob.ret_x       = ret_x;
     blob.ret_y       = ret_y;
     memcpy(blob.looted, looted, sizeof(blob.looted));
+    memcpy(blob.tmap, tmap, sizeof(tmap));
     memcpy(blob.seen, fov_seen, sizeof(blob.seen));
 }
 
@@ -151,6 +153,7 @@ static unsigned char do_load(void)
     ret_x       = blob.ret_x;
     ret_y       = blob.ret_y;
     memcpy(looted, blob.looted, sizeof(looted));
+    memcpy(tmap, blob.tmap, sizeof(tmap));
 
     /* Rebuild the maps rather than store them, all from lore_seed. items has
        to be restored first: whether the keeper is still down there depends
