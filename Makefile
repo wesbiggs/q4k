@@ -57,7 +57,7 @@ PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 # flags are needed: --code-name alone leaves the string literals behind, and
 # screens like the help text are mostly string literals.
 HIMODS   := dialog battle shop inn dungeon panel help savegame sprite \
-            loot fov world sail modem actor charset_define town_gen
+            loot fov world sail modem actor town_gen
 
 # Code above the charset, constants below: for when HIGH is the one that is
 # full and MAIN still has room. The shop's names and prices went back down
@@ -69,6 +69,10 @@ HICODEMODS := shop sail
 # overlay at the bottom of HIGH, where the fights keep their scratch arrays
 # afterwards (src/lib/overlay.s and cfg/c64-q4k.cfg).
 $(BUILD)/lib/title.o: CFLAGS += --code-name TITLECODE --rodata-name TITLEDATA
+# ... and so is what draws the game's character set, which is done before the
+# first fight: charset_define.o here, and the glyphs in tiles_data.c (see
+# tools/mktiles.py, which marks them).
+$(BUILD)/lib/charset_define.o: CFLAGS += --code-name TITLECODE
 
 LIBSRC   := $(wildcard src/lib/*.c) $(wildcard src/lib/*.s)
 LIBOBJ   := $(patsubst src/lib/%.c,$(BUILD)/lib/%.o,$(wildcard src/lib/*.c)) \

@@ -52,7 +52,7 @@
 #define PULSE_STEPS   6
 
 static char input[INPUT_MAX];
-static char reply[REPLY_MAX];
+extern char reply[REPLY_MAX];   /* overlay.s: scratch that start-up uses first */
 static char seg[SCR_W + 1];
 
 static unsigned char line_open;

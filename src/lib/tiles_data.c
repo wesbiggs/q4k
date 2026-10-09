@@ -71,6 +71,9 @@ const unsigned char tile_colors[TILE_COUNT] = {
      8,      /* $7E port */
 };
 
+#pragma rodata-name (push, "TITLEDATA")
+#pragma code-name (push, "TITLECODE")
+
 static const unsigned char glyphs[49][8] = {
     { 0x00, 0x10, 0x38, 0x00, 0x00, 0x01, 0x07, 0x00 },  /* grass */
     { 0x18, 0x3C, 0x7E, 0xFF, 0x7E, 0x18, 0x18, 0x00 },  /* forest */
@@ -136,3 +139,6 @@ void tiles_install(void)
         charset_define(codes[i], glyphs[i]);
     }
 }
+
+#pragma code-name (pop)
+#pragma rodata-name (pop)

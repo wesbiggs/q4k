@@ -124,6 +124,11 @@ def main():
             c.write("    %2d,      /* $%02X %s */\n" % (t.color, t.code, t.name))
         c.write("};\n\n")
 
+        # The glyphs and the code that copies them in are wanted once, at
+        # start-up, so they go in the overlay with the title screen (see
+        # cfg/c64-q4k.cfg), not in MAIN.
+        c.write('#pragma rodata-name (push, "TITLEDATA")\n'
+                '#pragma code-name (push, "TITLECODE")\n\n')
         c.write("static const unsigned char glyphs[%d][8] = {\n" % len(tiles))
         for t in tiles:
             c.write("    { %s },  /* %s */\n"
@@ -135,7 +140,9 @@ def main():
                 "    charset_install();\n"
                 "    for (i = 0; i < %d; ++i) {\n"
                 "        charset_define(codes[i], glyphs[i]);\n"
-                "    }\n}\n" % len(tiles))
+                "    }\n}\n\n"
+                "#pragma code-name (pop)\n#pragma rodata-name (pop)\n"
+                % len(tiles))
 
     # Names live in their own module so only the preview tool links them in.
     with open("src/lib/tiles_names.c", "w") as c:

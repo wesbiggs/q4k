@@ -31,31 +31,37 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   generators' tables are in `CHDATA1`). `$A0` is the input cursor, `$C0-$C7`
   the bow shot's sprite block, and `$80-$91` the actors: leave those alone,
   and check `assets/tiles.txt` before using any glyph above `$91` on screen.
-- `$4000-$4937` **OVL**, the overlay: 2360 bytes at the bottom of HIGH that
-  are two things in turn. The title screen (`TITLECODE`/`TITLEDATA`, the
-  Makefile gives `title.o` those names) runs from it once, at startup, and
-  the fight's scratch arrays (`field`, `wall`, `roomy`, `seen` and the two
-  queues in `battle.c`) are the same bytes afterwards: `src/lib/overlay.s`
-  names them. The arrays hold nothing from one fight to the next, so a fight
-  may use them freely, but **nothing may start a fight before the title
-  screen returns, and the title screen may not run twice.** It freed the
-  title's two kilobytes of HIGH. `__OVLSIZE__` in the cfg is the arrays'
-  total and BSS starts that much higher; if the arrays change size, change
-  it and the sums in `overlay.s`. Padding after the title is in the PRG.
-  Anything else that runs once, or while no fight can, could live here too.
-- `$4938-$C137` **HIGH** -- `HIDATA` for bulk tables (the towns) and `HICODE`
+- `$4000-$49EB` **OVL**, the overlay: 2540 bytes at the bottom of HIGH that
+  are two things in turn. What runs once at start-up lives in it -- the
+  title screen (`title.o`), `charset_define.o` and the glyph table with
+  `tiles_install()` in `tiles_data.c` (marked by `tools/mktiles.py`), all in
+  the linker segments `TITLECODE`/`TITLEDATA`, which the Makefile gives them
+  (`cfg/c64-tool.cfg` has the same two so the small tools still link) -- and
+  afterwards the same bytes are scratch: the fight's arrays (`field`, `wall`,
+  `roomy`, `seen` and the two queues in `battle.c`) and the dialogue's `reply`
+  buffer, which `src/lib/overlay.s` names. None of them holds anything from
+  one fight, or one turn of talk, to the next, so each may be used freely, but
+  **nothing may start a fight or a conversation before start-up is done (the
+  title screen and `view_init()` have returned), and none of the start-up code
+  may run twice.** `__OVLSIZE__` in the cfg is the arrays' total and BSS
+  starts that much higher; it must be at least what start-up needs (the
+  linker says if not), and any excess is wasted, so when you move more
+  start-up code in, alias more scratch to match, and change the sums in
+  `overlay.s`. Padding after the start-up code is in the PRG. Moving it out
+  freed about 2K of HIGH and 500 bytes of MAIN.
+- `$49EC-$C1EB` **HIGH** -- `HIDATA` for bulk tables (the towns) and `HICODE`
   for module code that will not fit below. Modules listed in the Makefile's
   `HIMODS` are compiled with `--code-name HICODE`; add to that list when MAIN
   overflows. When HIGH is the one that overflows and MAIN has room, add the
   module to `HICODEMODS` as well: its code stays in HIGH but its rodata goes
   back to MAIN (the shop and the ships are there already). Changing either
   list needs the objects rebuilt, because a target-specific `CFLAGS` will not
-  invalidate them on its own. About 285 bytes are free in HIGH, 200 in MAIN
+  invalidate them on its own. About 360 bytes are free in HIGH, 690 in MAIN
   and 50 in BSS. Changing `cfg/` relinks everything.
 - **The C stack is at the top of MAIN, not where the cfg used to say.** cc65's
   startup points `sp` at `__MAIN_START__ + __MAIN_SIZE__`, `$3800`, and it
   grows down through the dead ONCE segment and then MAIN's spare bytes (about
-  200 now). So MAIN's "free" bytes are the stack's headroom: do not spend them
+  690 now). So MAIN's "free" bytes are the stack's headroom: do not spend them
   on code or data without measuring how deep the stack goes. The 2K the cfg
   reserved at `$C700-$CEFF` was never touched, and is now BSS and the RS-232
   buffers: the buffers are at `$CD00`, `MEMSIZ` is `$CF00`.
