@@ -19,6 +19,8 @@
 #define GRANT_TIDAL  1   /* Vane heard the fishers' word for the dry hour */
 #define GRANT_SIGIL  2   /* the king handed over the Sigil, past hello    */
 #define GRANT_DAGGER 3   /* Garrett handed over a dagger, once asked      */
+#define GRANT_ASHEN  4   /* Mother Ash gave up the Ashen Key for the Tear */
+#define GRANT_FORGE  5   /* Garrett agreed to reforge Dragonbane          */
 /* Nobody to ask, so nothing is gated: the game stays winnable without the
    modem. Passed to dialog_talk()'s `given` when the line is not up. */
 #define GRANT_OPEN   0xFF

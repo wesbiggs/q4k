@@ -56,8 +56,12 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   module to `HICODEMODS` as well: its code stays in HIGH but its rodata goes
   back to MAIN (the shop and the ships are there already). Changing either
   list needs the objects rebuilt, because a target-specific `CFLAGS` will not
-  invalidate them on its own. About 360 bytes are free in HIGH, 690 in MAIN
-  and 50 in BSS. Changing `cfg/` relinks everything.
+  invalidate them on its own. About 140 bytes are free in HIGH, 500 in MAIN
+  and 50 in BSS. The Makefile's `SMALLMODS` (loot, shop, inn and help) are
+  built with `-Or`, not `-Osir`: without `-Os` cc65 stops inlining shifts and
+  the like, which is about a tenth smaller but pulled some runtime helpers
+  into MAIN (the figures above are after that). Not for anything whose timing
+  was measured. Changing `cfg/` relinks everything.
 - **The C stack is at the top of MAIN, not where the cfg used to say.** cc65's
   startup points `sp` at `__MAIN_START__ + __MAIN_SIZE__`, `$3800`, and it
   grows down through the dead ONCE segment and then MAIN's spare bytes (about
@@ -140,10 +144,11 @@ VIC bank switch — it stays at `$D800` regardless of where the screen matrix is
 A fight won on the overworld drops a map one time in `treasure_odds` (10;
 `--poke treasure_odds=1` makes it every time). It picks a random plain
 (`TF_PASS`) square of the land the hero is on, and the map says how far east
-or west and north or south of a town it is, in leagues, a league being a
-square: Millford on home, the land's own town on a continent. `tmap[]` holds
-four of them, five rows of four bytes (land + 1, x, y, and the town's x, y;
-land 0 is an empty slot) and is saved with the game (`Q4K6`). `I` lists them
+or west and north or south of a place it is, in leagues, a league being a
+square: the nearest one on that land (`place_near.s`; `anchor_name()` in
+`loot.c` names it). `tmap[]` holds four of them, six rows of four bytes
+(land + 1, x, y, the anchor's x, y, and which of the land's places it is;
+land 0 is an empty slot) and is saved with the game (`Q4K7`). `I` lists them
 (`treasure_maps()`), and `L` on the square (`dig()` in `loot.c`) digs it up and
 tears the map. Dungeon fights drop nothing: only home is readable from the
 vault wherever you stand, and a continent's tiles are not in `local[]`.
@@ -348,6 +353,13 @@ walks into the weeds, both without an error you can see. `savegame.c` and
 almost every other save routine on this machine. Passing an end address
 produces a two-byte file containing only the load address, and a silent one:
 the call returns success.
+
+**Fights are rarer and running is harder than they were.** `encounter_roll()`
+rolls out of 200, so the percentages in it are halves, and `got_away()` is
+three in eight. `L` where nothing is hidden raises the dead one time in
+`grave_odds` (5; `--poke grave_odds=0` for never), except in towns and with
+`no_encounters` set. In a dungeon each level counts as one more hero level
+when `battle_wander()` picks what turns up and how many.
 
 **A screen test that walks in the open is flaky by construction.** Overworld
 and dungeon squares roll for wandering monsters, and the seed now comes from

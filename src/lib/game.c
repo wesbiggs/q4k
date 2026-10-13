@@ -26,7 +26,12 @@ unsigned char quest_stage;
 unsigned char items;
 unsigned char lore_seed;
 unsigned char looted[LOOTED_BYTES];
-unsigned char tmap[5 * MAPS];
+unsigned char tmap[TM_SIZE];
+
+/* Nonzero and nothing wanders out at you: --poke no_encounters=1 lets a
+   screen test walk the overworld or a dungeon without a fight turning up
+   on a different square every run. Nothing in the game sets it. */
+unsigned char no_encounters;
 
 unsigned char home_fx[NUM_HOME_PLACES], home_fy[NUM_HOME_PLACES];
 unsigned char home_biome;

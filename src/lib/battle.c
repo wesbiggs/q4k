@@ -171,7 +171,8 @@ unsigned char encounter_roll(unsigned char tile)
         case T_FLOOR:  chance = 10; break;   /* dungeon corridors */
         default:       chance = 0;  break;
     }
-    return chance && (unsigned char)(rand() % 100) < chance;
+    /* Half what it was: the odds are out of 200 now. */
+    return chance && (unsigned char)(rand() % 200) < chance;
 }
 
 /* For `n` of them: a group pays for every one it had. */
@@ -286,10 +287,11 @@ static unsigned char lost(void)
     return BATTLE_DEAD;
 }
 
-/* Three in four, as it always was. */
+/* Three in eight: it was three in four, and running from every fight made
+   the rest of the game optional. */
 static unsigned char got_away(void)
 {
-    if ((rand() % 4) != 0) {
+    if ((rand() & 7) < 3) {
         view_message("You get away.");
         return 1;
     }
@@ -730,7 +732,7 @@ static unsigned char aim(void)
     return 0xFF;                             /* out of reach, or blocked */
 }
 
-unsigned char battle_fight(const Monster *m, unsigned char ground,
+static unsigned char fight(const Monster *m, unsigned char ground,
                            unsigned char can_flee, unsigned char count)
 {
     unsigned char a, key, guard, dir, nx, ny, dmg;
@@ -947,28 +949,60 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
     }
 }
 
+/* The panel's rows for the place stay out of the way while a fight names
+   its foe there: view_draw_panel() repainting them showed through. */
+unsigned char battle_fight(const Monster *m, unsigned char ground,
+                           unsigned char can_flee, unsigned char count)
+{
+    unsigned char r;
+
+    view_fighting = 1;
+    r = fight(m, ground, can_flee, count);
+    view_fighting = 0;
+    return r;
+}
+
+/* Fight `n` of wanderer `i`. Above ground, on the ground you were on;
+   below it, the one room. */
+static unsigned char wander_fight(unsigned char i, unsigned char n)
+{
+    return battle_fight(&wanderers[i].m,
+                       scene != SCENE_DUNGEON ? map_at(hero.x, hero.y)
+                                              : T_FLOOR,
+                       1, n);
+}
+
+/* Each level down counts as one more of the hero's own: the pool of what
+   turns up is drawn from further along the list, and in bigger groups. */
 unsigned char battle_wander(void)
 {
-    unsigned char top, i, most;
+    unsigned char top, i, most, lvl;
+
+    lvl = hero.level + (scene == SCENE_DUNGEON ? depth - 1 : 0);
 
     /* The rat and the goblin are there from level 1, so `top` is never 0. */
-    for (top = 0; top < NUM_WANDERERS && wanderers[top].from <= hero.level;
+    for (top = 0; top < NUM_WANDERERS && wanderers[top].from <= lvl;
          ++top) {
     }
     i = (unsigned char)(rand() % top);
 
     /* As many as the hero has levels for each one's worth: a level-6 hero
        can meet up to six rats (from level 1) or three wasps (from 2). */
-    most = hero.level / wanderers[i].from;
+    most = lvl / wanderers[i].from;
     if (most > MAX_FOES) {
         most = MAX_FOES;
     }
+    return wander_fight(i, (unsigned char)(1 + rand() % most));
+}
 
-    /* Above ground, the ground you were on; below it, the one room. */
-    return battle_fight(&wanderers[i].m,
-                       scene != SCENE_DUNGEON ? map_at(hero.x, hero.y)
-                                              : T_FLOOR,
-                       1, (unsigned char)(1 + rand() % most));
+/* What a grave robber meets: the dead, whatever else is about. The skeleton
+   and the wraith are fixed places in wanderers[]. */
+unsigned char battle_undead(void)
+{
+    if (hero.level >= 6) {
+        return wander_fight(9, 1);
+    }
+    return wander_fight(6, (unsigned char)(1 + rand() % 2));
 }
 
 unsigned char battle_boss(unsigned char dungeon)

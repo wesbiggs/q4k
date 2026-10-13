@@ -97,7 +97,7 @@ comes for you; you walk into it to strike.
 | `F` then a direction | shoot your bow, if you have one |
 | `SPACE` | stand your ground: take less from the next blow |
 | `P` | drink a healing draught |
-| `R` | run -- three times in four, and never from a keeper or Maldrath |
+| `R` | run -- three times in eight, and never from a keeper or Maldrath |
 
 Some things shoot back. Bandits and bone archers carry bows, the
 Drowned King throws water and Maldrath breathes fire, each whenever you are

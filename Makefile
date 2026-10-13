@@ -31,7 +31,8 @@ C1541    := c1541
 # -Osir: optimize, inline known routines, use register vars where it pays.
 # --static-locals: locals become static storage -- faster on 6502 (no stack
 # frame juggling) at the cost of no recursion. Right trade for a tile RPG.
-CFLAGS   := -t $(TARGET) -Osir --static-locals -I include
+OPT      := -Osir
+CFLAGS    = -t $(TARGET) $(OPT) --static-locals -I include
 ASFLAGS  := -t $(TARGET) -I include --asm-include-dir include
 # The game gets the full memory map; the demos and tools get a lean one that
 # skips the HIGH region and its contiguity padding.
@@ -64,6 +65,14 @@ HIMODS   := dialog battle shop inn dungeon panel help savegame sprite \
 # when the dungeon work and the version check together overflowed HIGH by
 # 88 bytes; the ship's messages did the same for sail.
 HICODEMODS := shop sail
+
+# The screens that run no faster for being fat are compiled without -Os,
+# which inlines known routines and costs about a tenth of their size: 300
+# bytes of HIGH between them. Not the fight, the generators or the modem,
+# whose timing was measured with it. Changing this list needs the objects
+# rebuilt, as above.
+SMALLMODS  := loot shop inn help
+$(foreach m,$(SMALLMODS),$(eval $(BUILD)/lib/$(m).o: OPT := -Or))
 
 # The title screen is not in HIGH at all: it runs once, at the start, from the
 # overlay at the bottom of HIGH, where the fights keep their scratch arrays

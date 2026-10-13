@@ -3,10 +3,12 @@
 #include <string.h>
 
 #include <q4k/actor.h>
+#include <q4k/battle.h>
 #include <q4k/dungeon.h>
 #include <q4k/game.h>
 #include <q4k/isle.h>
 #include <q4k/loot.h>
+#include <q4k/place_near.h>
 #include <q4k/sprite.h>
 #include <q4k/tiles.h>
 #include <q4k/town_gen.h>
@@ -62,30 +64,41 @@ static unsigned char loot_bit(void)
 
 static unsigned char dig(void);
 
-void look(void)
+/* Looking where there is nothing to find stirs the dead one time in this
+   many, so combing a whole area for loot has a price. Not constant, so that
+   a test can pin it with --poke grave_odds=1 (or 0 for never). */
+unsigned char grave_odds = 5;
+
+unsigned char look(void)
 {
     unsigned char bit, mask, kind;
     unsigned int amount;
 
     if ((scene == SCENE_WORLD || scene == SCENE_ISLE) && dig()) {
-        return;
+        return LOOK_NOTHING;
     }
     bit = loot_bit();
     if (bit == NO_LOOT) {
-        view_message("You see nothing.");
-        return;
+        if (scene == SCENE_TOWN || no_encounters || !grave_odds
+            || rand() % grave_odds) {
+            view_message("You see nothing.");
+            return LOOK_NOTHING;
+        }
+        view_message("The ground stirs. The dead rise!");
+        ++game_turn;
+        return battle_undead();
     }
 
     mask = 1 << (bit & 7);
     bit >>= 3;
     if (looted[bit] & mask) {
         view_message("You've already taken everything.");
-        return;
+        return LOOK_NOTHING;
     }
     looted[bit] |= mask;
 
     /* A dungeon chest is even odds a draught or gold, the gold worth 10 per
-       quest stage plus a d20. Rolled now rather than when the level is
+       quest stage and 8 per level below the first, plus a d20. Rolled now rather than when the level is
        built, which would spend the level's own seeded draws. */
     if (scene == SCENE_DUNGEON) {
         if (rand() & 1) {
@@ -94,6 +107,7 @@ void look(void)
         } else {
             kind   = LOOT_GOLD;
             amount = ((unsigned int)quest_stage << 3) + (quest_stage << 1)
+                   + ((unsigned int)(depth - 1) << 3)
                    + 1 + (unsigned char)(rand() % 20);
         }
     } else {
@@ -106,7 +120,7 @@ void look(void)
         potions += (unsigned char)amount;
         if (amount == 1) {
             view_message("You find a draught.");
-            return;
+            return LOOK_NOTHING;
         }
     } else {
         gold += amount;
@@ -116,6 +130,7 @@ void look(void)
     utoa(amount, msg + strlen(msg), 10);
     strcat(msg, kind == LOOT_DRAUGHT ? " draughts." : " gold.");
     view_message(msg);
+    return LOOK_NOTHING;
 }
 
 #pragma rodata-name ("HIDATA")
@@ -151,14 +166,28 @@ static unsigned char dig(void)
 
 static const char *const compass[4] = { "north", "east", "south", "west" };
 
-/* The town a map measures from, in the land `l` that it is on. */
-static const char *anchor_name(unsigned char l)
+/* Home's places, in the order the generator places them (place_at()), and
+   a continent's story place. Millford and the castle are the first two
+   towns; the rest are towns, named by the land. */
+static const char *anchor_name(unsigned char l, unsigned char pl)
 {
     const char *name;
-    unsigned char was = land;
+    unsigned char was = land, slot;
 
     if (l == ISLE_HOME) {
-        return town_names[TOWN_MILLFORD];
+        if (pl < 2) {
+            return town_names[pl];
+        }
+        if (pl == 2) {
+            return dungeon_names[0];
+        }
+        if (pl == 3) {
+            return "Maldrath's lair";
+        }
+    } else if (pl == 0) {
+        slot = slot_of(l);
+        return slot & 1 ? dungeon_names[1 + (slot >> 1)]
+                        : town_names[TOWN_WARDLOW + (slot >> 1)];
     }
     land = l;                   /* town_gen_name() reads it */
     name = town_gen_name();
@@ -186,6 +215,18 @@ static void leg(unsigned char from, unsigned char to, unsigned char neg,
     strcat(msg, compass[to < from ? neg : pos]);
 }
 
+/* Slot `i`'s map measures from the place of this land nearest the buried
+   square (place_near.s), by steps: far from Millford is still near
+   something. */
+static void nearest(unsigned char i)
+{
+    near_x = tmap[TM_X + i];
+    near_y = tmap[TM_Y + i];
+    tmap[TM_PL + i] = place_near();
+    tmap[TM_RX + i] = near_fx;
+    tmap[TM_RY + i] = near_fy;
+}
+
 void treasure_drop(void)
 {
     unsigned char i, n, x, y;
@@ -208,8 +249,7 @@ void treasure_drop(void)
             tmap[TM_LAND + i] = land + 1;
             tmap[TM_X + i]    = x;
             tmap[TM_Y + i]    = y;
-            tmap[TM_RX + i]   = land == ISLE_HOME ? home_fx[0] : isle_fx[1];
-            tmap[TM_RY + i]   = land == ISLE_HOME ? home_fy[0] : isle_fy[1];
+            nearest(i);
             view_message("It had a treasure map! (I)");
             return;
         }
@@ -247,7 +287,7 @@ void treasure_maps(void)
         leg(tmap[TM_RX + i], tmap[TM_X + i], 3, 1, 0);
         leg(tmap[TM_RY + i], tmap[TM_Y + i], 0, 2, msg[0] != '\0');
         strcat(msg, " of ");
-        strcat(msg, anchor_name(l));
+        strcat(msg, anchor_name(l, tmap[TM_PL + i]));
         textcolor(COLOR_WHITE);
         cputsxy(3, row + 1, msg);
         row += 3;

@@ -3,6 +3,17 @@
 Each release's section here becomes its notes on GitHub; the release
 workflow reads the one headed with the tag's version.
 
+## Unreleased
+
+- Fights come about half as often, and running works three times in eight.
+- Deeper dungeon levels draw tougher monsters, in bigger groups, and their
+  chests hold more.
+- `L` where there is nothing to find can raise the dead.
+- Mother Ash and Garrett hand things over when asked, not the moment you
+  walk up; once Maldrath is banished the people know it.
+- Treasure maps measure from the nearest place, not always Millford.
+- More rumours, and the place's name no longer flashes under a fight.
+
 ## 0.9.0 — 2026-09-26
 
 The first numbered release.

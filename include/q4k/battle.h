@@ -81,6 +81,9 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
 /* True if crossing `tile` should bring something out of the scenery. */
 unsigned char encounter_roll(unsigned char tile);
 
+/* The dead, for whoever digs where nothing is buried. Returns BATTLE_*. */
+unsigned char battle_undead(void);
+
 unsigned char battle_wander(void);
 unsigned char battle_boss(unsigned char dungeon);
 unsigned char battle_dragon(void);

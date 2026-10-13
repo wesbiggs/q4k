@@ -22,7 +22,7 @@
 
 #define SAVE_DEVICE 8
 #define CMD_CHANNEL 15
-#define MAGIC       "Q4K6"   /* 6: treasure maps; 5: bigger dungeons, seen as bits */
+#define MAGIC       "Q4K7"   /* 7: maps name a place; 6: treasure maps; 5: bigger dungeons, seen as bits */
 
 /* Everything the drive reads is spelled in numeric bytes: cc65 would
    re-encode a string literal, and "S0:..." came out with a shifted $D3 for
@@ -59,7 +59,7 @@ typedef struct {
     unsigned char land;
     unsigned char ret_x, ret_y;
     unsigned char looted[LOOTED_BYTES];
-    unsigned char tmap[5 * MAPS];
+    unsigned char tmap[TM_SIZE];
     unsigned char seen[FOV_BYTES];
 } SaveGame;
 

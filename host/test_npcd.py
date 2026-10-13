@@ -200,6 +200,40 @@ class Sigil(unittest.TestCase):
         self.assertIn(rule["hint"], later)
 
 
+class Gifts(unittest.TestCase):
+    """Mother Ash and Garrett's reforging need the host's say-so too."""
+
+    def test_ash_holds_the_key_until_asked(self):
+        _, _, grant, _ = mock().reply("ash", "Hello.", 5, SEED, opening=True)
+        self.assertEqual(grant, 0)
+        text, _, grant, _ = mock().reply("ash", "I have the Silver Tear", 5,
+                                         SEED)
+        self.assertEqual(grant, 4)
+        self.assertIn("Ashen Key", text)
+
+    def test_ash_gives_nothing_before_the_tear(self):
+        _, _, grant, _ = mock().reply("ash", "give me the key", 4, SEED)
+        self.assertEqual(grant, 0)
+
+    def test_garrett_reforges_when_asked_with_the_stones(self):
+        _, _, grant, _ = mock().reply("smith", "Hello.", 7, SEED, opening=True)
+        self.assertEqual(grant, 0)
+        text, _, grant, _ = mock().reply("smith", "here are the stones", 7,
+                                         SEED)
+        self.assertEqual(grant, 5)
+        self.assertIn("reforge", text)
+
+    def test_garrett_still_gives_the_dagger_first(self):
+        _, _, grant, _ = mock().reply("smith", "may I have a dagger", 0, SEED)
+        self.assertEqual(grant, 3)
+        _, _, grant, _ = mock().reply("smith", "may I have a dagger", 7, SEED)
+        self.assertNotEqual(grant, 3)
+
+    def test_the_end_is_known(self):
+        self.assertIn("banished", npcd.STAGES[9])
+        self.assertIn("this traveller", npcd.STAGES[9])
+
+
 class Protocol(unittest.TestCase):
     def test_full_request(self):
         self.assertEqual(npcd.parse_request("SAY vane 3 5a dead low"),

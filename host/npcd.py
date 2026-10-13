@@ -104,7 +104,9 @@ STAGES = [
     "The traveller has two stones, and the Ashen Key to Blackpit.",
     "The traveller has all three stones: Emberstone, Silver Tear, Dragon's Heart.",
     "Garrett has reforged Dragonbane. The traveller is going after Maldrath.",
-    "Maldrath is banished. It is over, and everyone knows it.",
+    "Maldrath is banished, and this traveller did it with Dragonbane. It is "
+    "the news of the age and everyone in the land knows it: speak of it as "
+    "done, whatever you once said of him.",
 ]
 
 MAX_REPLY = 150          # what fits in the C64's dialogue box
@@ -343,8 +345,13 @@ class Npcs:
 
     def gives(self, npc_id, stage):
         """The NPC's grant rule, if it is live at this stage."""
-        rule = self.npcs[npc_id].get("gives")
-        return rule if rule and in_stage(rule, stage) else None
+        rules = self.npcs[npc_id].get("gives")
+        if isinstance(rules, dict):
+            rules = [rules]
+        for rule in rules or []:
+            if in_stage(rule, stage):
+                return rule
+        return None
 
     def topic(self, npc_id, stage, said):
         """The first topic the player's line touches, if any."""
