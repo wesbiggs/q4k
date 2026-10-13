@@ -56,9 +56,9 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   module to `HICODEMODS` as well: its code stays in HIGH but its rodata goes
   back to MAIN (the shop and the ships are there already). Changing either
   list needs the objects rebuilt, because a target-specific `CFLAGS` will not
-  invalidate them on its own. About 220 bytes are free in HIGH, 450 in MAIN
-  and 50 in BSS. The Makefile's `SMALLMODS` (loot, shop, inn, help and
-  battle) are
+  invalidate them on its own. About 20 bytes are free in HIGH, 430 in MAIN
+  and 50 in BSS. The Makefile's `SMALLMODS` (loot, shop, inn, help, battle,
+  dialog and dungeon) are
   built with `-Or`, not `-Osir`: without `-Os` cc65 stops inlining shifts and
   the like, which is about a tenth smaller but pulled some runtime helpers
   into MAIN (the figures above are after that). The fight is in it on the
@@ -362,6 +362,16 @@ three in eight. `L` where nothing is hidden raises the dead one time in
 `grave_odds` (5; `--poke grave_odds=0` for never), except in towns and with
 `no_encounters` set. In a dungeon each level counts as one more hero level
 when `battle_wander()` picks what turns up and how many.
+
+**The arenas have an exit on each side.** The middle row (`LOCAL_H / 2`) is
+open at both edges and every other edge square is a wall, so walking off
+the side at that row is a flight that always works (`can_flee` only: not from
+a keeper or Maldrath), after however many blows the thing behind you has had
+on the way. `scatter()` in `battle.c` puts two or three boulders down at the
+start of each fight, only where the square and all eight round it are open
+(`open9.s`), so they can cut nothing off; not for Maldrath, who is two
+squares across. Fights are therefore not the same twice, and their goldens
+come from `rand()`'s sequence.
 
 **A screen test that walks in the open is flaky by construction.** Overworld
 and dungeon squares roll for wandering monsters, and the seed now comes from

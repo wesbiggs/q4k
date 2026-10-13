@@ -72,7 +72,7 @@ HICODEMODS := shop sail
 # milliseconds slower goes unnoticed. Not the generators or the modem, whose
 # timing was measured with it. Changing this list needs the objects rebuilt,
 # as above.
-SMALLMODS  := loot shop inn help battle
+SMALLMODS  := loot shop inn help battle dialog dungeon
 $(foreach m,$(SMALLMODS),$(eval $(BUILD)/lib/$(m).o: OPT := -Or))
 
 # The title screen is not in HIGH at all: it runs once, at the start, from the

@@ -746,6 +746,35 @@ static unsigned char aim(void)
     return 0xFF;                             /* out of reach, or blocked */
 }
 
+/* No two fights are fought on the same ground: a few boulders go down where
+   the field is open all round, so that whatever they are, nothing is cut off
+   from anything, and none beside either start or in the lanes to the sides'
+   gaps. */
+/* No two fights are fought on the same ground: a few boulders go down where
+   the ground is open all round (so nothing is cut off from anything), never
+   on the hero's own square. Run once the walls are marked. */
+unsigned char open9(const unsigned char *w);     /* open9.s */
+
+static void scatter(unsigned char a)
+{
+    unsigned char n, tries, x, y;
+    unsigned char *w;
+
+    n = 2 + (rand() & 1);
+    for (tries = 0; tries < 16; ++tries) {
+        x = 2 + ((unsigned char)rand() & 15);
+        y = 2 + ((unsigned char)rand() & 15);
+        w = wall + (unsigned int)(y + 1) * RIM_W + x + 1;
+        if ((x != arena_hx[a] || y != arena_hy[a]) && open9(w)) {
+            *w = 1;
+            field[(unsigned int)y * LOCAL_W + x] = T_BOULDER;
+            if (!--n) {
+                break;
+            }
+        }
+    }
+}
+
 static unsigned char fight(const Monster *m, unsigned char ground,
                            unsigned char can_flee, unsigned char count)
 {
@@ -770,6 +799,9 @@ static unsigned char fight(const Monster *m, unsigned char ground,
         for (nx = 0; nx < LOCAL_W; ++nx, ++i) {
             edge[nx] = tile_flags[field[i] - TILE_BASE] != TF_PASS;
         }
+    }
+    if (m->size == 1) {
+        scatter(a);
     }
     size = m->size;
     if (size == 2) {
@@ -899,7 +931,12 @@ static unsigned char fight(const Monster *m, unsigned char ground,
                              "You strike for ");
             } else if (nx >= LOCAL_W || ny >= LOCAL_H
                        || wall[(unsigned int)(ny + 1) * RIM_W + nx + 1]) {
-                /* Unsigned: stepping off the top or left wraps to 255. */
+                /* Unsigned: stepping off the top or left wraps to 255. The
+                   gaps in the middle of the sides are the way out. */
+                if (can_flee && ny == LOCAL_H / 2 && nx >= LOCAL_W) {
+                    view_message("You get away.");
+                    return BATTLE_FLED;
+                }
                 continue;                    /* bumping costs no turn */
             } else {
                 sprite_walk(dir);

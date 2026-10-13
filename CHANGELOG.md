@@ -15,6 +15,9 @@ workflow reads the one headed with the tag's version.
 - The bow shoots arrows, one a shot: a first bow comes with twelve, the bowyer
   sells ten for 12 marks (fourth item on his list), and some fights leave a
   few. The panel shows how many; saves are `Q4K8`.
+- Fight fields have an exit in the middle of each side, with boulders in
+  different places every time; walking out of one is a sure way to run,
+  if the thing chasing you lets you get there.
 - More rumours, and the place's name no longer flashes under a fight.
 
 ## 0.9.0 — 2026-09-26
