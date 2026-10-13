@@ -117,7 +117,7 @@ extern unsigned char arrows;
 #define ARROW_PACK   10
 #define ARROW_PRICE  12
 #define ARROW_FREE   12
-#define ARROW_MAX    99
+#define ARROW_MAX    40
 extern unsigned char no_encounters;   /* a test switch: see game.c */
 
 void          game_init(void);

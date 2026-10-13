@@ -97,8 +97,7 @@ comes for you; you walk into it to strike.
 | `F` then a direction | shoot your bow, if you have one (one arrow a shot) |
 | `SPACE` | stand your ground: take less from the next blow |
 | `P` | drink a healing draught |
-| `R` | run -- three times in eight, and never from a keeper or Maldrath |
-| walk off the side | the gap in the middle of the left or right edge is a way out, if you can reach it with the thing behind you still on its feet |
+| walk off the side | the gap in the middle of the left or right edge is the only way to flee, and it always works if you reach it -- but not from a keeper or Maldrath |
 
 Some things shoot back. Bandits and bone archers carry bows, the
 Drowned King throws water and Maldrath breathes fire, each whenever you are

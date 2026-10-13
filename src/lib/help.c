@@ -58,9 +58,9 @@ void help_screen(void)
     textcolor(COLOR_LIGHTBLUE);
     cputsxy(1, 15, "In a fight");
     textcolor(COLOR_WHITE);
-    cputsxy(3, 16, "Walk into it; SPACE guards; R runs");
+    cputsxy(3, 16, "Walk into it to strike; SPACE guards");
     cputsxy(3, 17, "F then a direction shoots your bow");
-    cputsxy(3, 18, "No running from keepers or Maldrath");
+    cputsxy(3, 18, "Flee by a side gap (not keepers)");
 
     textcolor(COLOR_GRAY1);
     chlinexy(0, 19, SCR_W);

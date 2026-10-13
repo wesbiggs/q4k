@@ -20,7 +20,6 @@
 #define K_S          0x53
 #define K_D          0x44
 #define K_POTION     0x50
-#define K_RUN        0x52
 #define K_F          0x46
 #define K_M          0x4D
 #define K_X          0x58
@@ -298,18 +297,6 @@ static unsigned char lost(void)
     view_message("Press a key.");
     cgetc();
     return BATTLE_DEAD;
-}
-
-/* Three in eight: it was three in four, and running from every fight made
-   the rest of the game optional. */
-static unsigned char got_away(void)
-{
-    if ((rand() & 7) < 3) {
-        view_message("You get away.");
-        return 1;
-    }
-    view_message("It cuts you off.");
-    return 0;
 }
 
 /* --- the field ----------------------------------------------------------
@@ -746,11 +733,11 @@ static unsigned char aim(void)
     return 0xFF;                             /* out of reach, or blocked */
 }
 
-/* No two fights are fought on the same ground: a few boulders go down where
+/* No two fights are fought on the same ground: some ten boulders go down where
    the field is open all round, so that whatever they are, nothing is cut off
    from anything, and none beside either start or in the lanes to the sides'
    gaps. */
-/* No two fights are fought on the same ground: a few boulders go down where
+/* No two fights are fought on the same ground: some ten boulders go down where
    the ground is open all round (so nothing is cut off from anything), never
    on the hero's own square. Run once the walls are marked. */
 unsigned char open9(const unsigned char *w);     /* open9.s */
@@ -760,8 +747,8 @@ static void scatter(unsigned char a)
     unsigned char n, tries, x, y;
     unsigned char *w;
 
-    n = 2 + (rand() & 1);
-    for (tries = 0; tries < 16; ++tries) {
+    n = 8 + (rand() & 3);
+    for (tries = 0; tries < 60; ++tries) {
         x = 2 + ((unsigned char)rand() & 15);
         y = 2 + ((unsigned char)rand() & 15);
         w = wall + (unsigned int)(y + 1) * RIM_W + x + 1;
@@ -846,7 +833,7 @@ static unsigned char fight(const Monster *m, unsigned char ground,
         strcat(msg, " more!");
         view_message(msg);
     }
-    view_message(can_flee ? "Walk into it to strike. R runs."
+    view_message(can_flee ? "Walk into it to strike. Flee by a side."
                           : "Walk into it to strike.");
 
     for (;;) {
@@ -886,16 +873,6 @@ static unsigned char fight(const Monster *m, unsigned char ground,
             case K_POTION:
                 if (!quaff()) {
                     continue;
-                }
-                break;
-
-            case K_RUN:
-                if (!can_flee) {
-                    view_message("There is nowhere to run.");
-                    continue;
-                }
-                if (got_away()) {
-                    return BATTLE_FLED;
                 }
                 break;
 

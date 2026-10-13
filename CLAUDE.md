@@ -56,7 +56,7 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   module to `HICODEMODS` as well: its code stays in HIGH but its rodata goes
   back to MAIN (the shop and the ships are there already). Changing either
   list needs the objects rebuilt, because a target-specific `CFLAGS` will not
-  invalidate them on its own. About 20 bytes are free in HIGH, 430 in MAIN
+  invalidate them on its own. About 130 bytes are free in HIGH, 430 in MAIN
   and 50 in BSS. The Makefile's `SMALLMODS` (loot, shop, inn, help, battle,
   dialog and dungeon) are
   built with `-Or`, not `-Osir`: without `-Os` cc65 stops inlining shifts and
@@ -356,9 +356,9 @@ almost every other save routine on this machine. Passing an end address
 produces a two-byte file containing only the load address, and a silent one:
 the call returns success.
 
-**Fights are rarer and running is harder than they were.** `encounter_roll()`
-rolls out of 200, so the percentages in it are halves, and `got_away()` is
-three in eight. `L` where nothing is hidden raises the dead one time in
+**Fights are rarer, and there is no `R`.** `encounter_roll()`
+rolls out of 200, so the percentages in it are halves; the only way out of a
+fight is the gap in a side (below). `L` where nothing is hidden raises the dead one time in
 `grave_odds` (5; `--poke grave_odds=0` for never), except in towns and with
 `no_encounters` set. In a dungeon each level counts as one more hero level
 when `battle_wander()` picks what turns up and how many.
@@ -367,7 +367,7 @@ when `battle_wander()` picks what turns up and how many.
 open at both edges and every other edge square is a wall, so walking off
 the side at that row is a flight that always works (`can_flee` only: not from
 a keeper or Maldrath), after however many blows the thing behind you has had
-on the way. `scatter()` in `battle.c` puts two or three boulders down at the
+on the way. `scatter()` in `battle.c` puts eight to eleven boulders down at the
 start of each fight, only where the square and all eight round it are open
 (`open9.s`), so they can cut nothing off; not for Maldrath, who is two
 squares across. Fights are therefore not the same twice, and their goldens
