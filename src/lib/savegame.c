@@ -22,7 +22,7 @@
 
 #define SAVE_DEVICE 8
 #define CMD_CHANNEL 15
-#define MAGIC       "Q4K7"   /* 7: maps name a place; 6: treasure maps; 5: bigger dungeons, seen as bits */
+#define MAGIC       "Q4K8"   /* 8: arrows; 7: maps name a place; 6: treasure maps; 5: bigger dungeons, seen as bits */
 
 /* Everything the drive reads is spelled in numeric bytes: cc65 would
    re-encode a string literal, and "S0:..." came out with a shifted $D3 for
@@ -50,6 +50,7 @@ typedef struct {
     unsigned char weapon_lv;
     unsigned char armour_lv;
     unsigned char bow_lv;
+    unsigned char arrows;
     unsigned char quest_stage;
     unsigned char items;
     unsigned char lore_seed;
@@ -86,6 +87,7 @@ static void gather(void)
     blob.weapon_lv   = weapon_lv;
     blob.armour_lv   = armour_lv;
     blob.bow_lv      = bow_lv;
+    blob.arrows      = arrows;
     blob.quest_stage = quest_stage;
     blob.items       = items;
     blob.lore_seed   = lore_seed;
@@ -143,6 +145,7 @@ static unsigned char do_load(void)
     weapon_lv   = blob.weapon_lv;
     armour_lv   = blob.armour_lv;
     bow_lv      = blob.bow_lv;
+    arrows      = blob.arrows;
     quest_stage = blob.quest_stage;
     items       = blob.items;
     lore_seed   = blob.lore_seed;

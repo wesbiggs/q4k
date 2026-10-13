@@ -51,7 +51,7 @@ static void stock(unsigned char kind)
             break;
         case SHOP_BOW:
             names = bow_names;    costs = bow_cost;
-            level = &bow_lv;      top = NUM_BOWS - 1;
+            level = &bow_lv;      top = NUM_BOWS;      /* and the arrows */
             break;
         default:
             level = 0;            top = 1;
@@ -138,6 +138,17 @@ void shop_open(unsigned char kind)
             note("You cannot afford that.", COLOR_LIGHTRED);
             continue;
         }
+        if (level == &bow_lv && pick == NUM_BOWS) {
+            if (!bow_lv || arrows > ARROW_MAX - ARROW_PACK) {
+                note(bow_lv ? "Your quiver is full." : "You have no bow.",
+                     COLOR_GRAY2);
+            } else {
+                gold -= cost;
+                arrows += ARROW_PACK;
+                note("Straight ones, mind.", COLOR_LIGHTGREEN);
+            }
+            continue;
+        }
         if (level && pick <= *level) {
             note("You have better already.", COLOR_GRAY2);
             continue;
@@ -145,6 +156,9 @@ void shop_open(unsigned char kind)
 
         gold -= cost;
         if (level) {
+            if (level == &bow_lv && !*level) {
+                arrows += ARROW_FREE;       /* a first bow comes strung */
+            }
             *level = pick;
         } else {
             ++potions;

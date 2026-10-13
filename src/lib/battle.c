@@ -86,12 +86,12 @@ const unsigned int  armour_cost[NUM_ARMOUR] = { 0, 30, 110, 260, 500 };
 
 /* A bow hits a little softer than a blade of the same price: what you are
    paying for is not having to be next to it. */
-const char *const bow_names[NUM_BOWS] = {
-    "No bow", "Short bow", "Longbow", "Crossbow",
+const char *const bow_names[NUM_BOWS + 1] = {
+    "No bow", "Short bow", "Longbow", "Crossbow", "10 arrows",
 };
 const unsigned char bow_atk[NUM_BOWS]   = { 0, 3, 6, 10 };
 const unsigned char bow_range[NUM_BOWS] = { 0, 6, 10, 15 };
-const unsigned int  bow_cost[NUM_BOWS]  = { 0, 80, 150, 350 };
+const unsigned int  bow_cost[NUM_BOWS + 1] = { 0, 80, 150, 350, ARROW_PRICE };
 
 /* Experience needed for each level, from level 1. */
 static const unsigned int level_at[] = {
@@ -273,8 +273,21 @@ static unsigned char quaff(void)
    and a "Press a key." would stay in it. Dying moves you, so it does. */
 static unsigned char won(const Monster *m, unsigned char n)
 {
+    unsigned char got;
+
     view_message("It falls.");
     award(m, n);
+    if (bow_lv && arrows < ARROW_MAX && !(rand() & 3)) {
+        got = 1 + (unsigned char)(rand() % 4);
+        arrows += got;
+        if (arrows > ARROW_MAX) {
+            arrows = ARROW_MAX;
+        }
+        strcpy(msg, "You gather ");
+        cat_num(got);
+        strcat(msg, " arrows.");
+        view_message(msg);
+    }
     treasure_drop();
     return BATTLE_WON;
 }
@@ -639,6 +652,7 @@ static unsigned char loose(unsigned char dir)
     unsigned char x = hx, y = hy, flew = 0, hit = 0;
     const char *what = bow_lv == NUM_BOWS - 1 ? "Your bolt" : "Your arrow";
 
+    --arrows;
     sprite_face(dir);
     while (flew < bow_range[bow_lv]) {
         switch (dir) {
@@ -816,6 +830,10 @@ static unsigned char fight(const Monster *m, unsigned char ground,
             case K_F:
                 if (!bow_lv) {
                     view_message("You have no bow.");
+                    continue;
+                }
+                if (!arrows) {
+                    view_message("You have no arrows.");
                     continue;
                 }
                 view_message("Shoot which way?");

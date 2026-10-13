@@ -66,12 +66,13 @@ HIMODS   := dialog battle shop inn dungeon panel help savegame sprite \
 # 88 bytes; the ship's messages did the same for sail.
 HICODEMODS := shop sail
 
-# The screens that run no faster for being fat are compiled without -Os,
-# which inlines known routines and costs about a tenth of their size: 300
-# bytes of HIGH between them. Not the fight, the generators or the modem,
-# whose timing was measured with it. Changing this list needs the objects
-# rebuilt, as above.
-SMALLMODS  := loot shop inn help
+# These are compiled without -Os, which unrolls shifts and multiplies by
+# constants and costs about a tenth of their size: the screens lose nothing
+# by it, and the fight (battle) is turn-based, so a flood fill a few
+# milliseconds slower goes unnoticed. Not the generators or the modem, whose
+# timing was measured with it. Changing this list needs the objects rebuilt,
+# as above.
+SMALLMODS  := loot shop inn help battle
 $(foreach m,$(SMALLMODS),$(eval $(BUILD)/lib/$(m).o: OPT := -Or))
 
 # The title screen is not in HIGH at all: it runs once, at the start, from the

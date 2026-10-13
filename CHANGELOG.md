@@ -12,6 +12,9 @@ workflow reads the one headed with the tag's version.
 - Mother Ash and Garrett hand things over when asked, not the moment you
   walk up; once Maldrath is banished the people know it.
 - Treasure maps measure from the nearest place, not always Millford.
+- The bow shoots arrows, one a shot: a first bow comes with twelve, the bowyer
+  sells ten for 12 marks (fourth item on his list), and some fights leave a
+  few. The panel shows how many; saves are `Q4K8`.
 - More rumours, and the place's name no longer flashes under a fight.
 
 ## 0.9.0 — 2026-09-26

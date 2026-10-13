@@ -56,12 +56,14 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   module to `HICODEMODS` as well: its code stays in HIGH but its rodata goes
   back to MAIN (the shop and the ships are there already). Changing either
   list needs the objects rebuilt, because a target-specific `CFLAGS` will not
-  invalidate them on its own. About 140 bytes are free in HIGH, 500 in MAIN
-  and 50 in BSS. The Makefile's `SMALLMODS` (loot, shop, inn and help) are
+  invalidate them on its own. About 220 bytes are free in HIGH, 450 in MAIN
+  and 50 in BSS. The Makefile's `SMALLMODS` (loot, shop, inn, help and
+  battle) are
   built with `-Or`, not `-Osir`: without `-Os` cc65 stops inlining shifts and
   the like, which is about a tenth smaller but pulled some runtime helpers
-  into MAIN (the figures above are after that). Not for anything whose timing
-  was measured. Changing `cfg/` relinks everything.
+  into MAIN (the figures above are after that). The fight is in it on the
+  grounds that a turn-based flood fill can afford to be slower; nothing
+  whose timing was measured is. Changing `cfg/` relinks everything.
 - **The C stack is at the top of MAIN, not where the cfg used to say.** cc65's
   startup points `sp` at `__MAIN_START__ + __MAIN_SIZE__`, `$3800`, and it
   grows down through the dead ONCE segment and then MAIN's spare bytes (about

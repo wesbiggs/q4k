@@ -110,6 +110,14 @@ extern unsigned char looted[LOOTED_BYTES];
 #define TM_PL    (5 * MAPS)
 #define TM_SIZE  (6 * MAPS)
 extern unsigned char tmap[TM_SIZE];
+
+/* What the bow shoots: one a shot, found after fights and sold ten at a time
+   by the bowyer, who throws twelve in with a bow. */
+extern unsigned char arrows;
+#define ARROW_PACK   10
+#define ARROW_PRICE  12
+#define ARROW_FREE   12
+#define ARROW_MAX    99
 extern unsigned char no_encounters;   /* a test switch: see game.c */
 
 void          game_init(void);

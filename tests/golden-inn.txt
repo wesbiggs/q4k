@@ -8,9 +8,9 @@
   6 |You have 35 marks. Health 20 of 20.     |
   7 |                                        |
   8 |You drink.                              |
-  9 |Whoever falls out there gets carried    |
- 10 |home to Millford, and wakes with half   |
- 11 |their purse gone.                       |
+  9 |Old Tam will tell you about the second  |
+ 10 |army if you let him. He is the part of  |
+ 11 |it that came back.                      |
  12 |You sleep, and wake mended.             |
  13 |                                        |
  14 |                                        |

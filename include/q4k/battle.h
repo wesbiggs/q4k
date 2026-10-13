@@ -28,10 +28,12 @@ extern const unsigned int  armour_cost[NUM_ARMOUR];
    shot flies straight up, down, left or right. */
 #define NUM_BOWS 4
 
-extern const char *const   bow_names[NUM_BOWS];
+/* bow_names and bow_cost have one more entry than the bows: the bowyer's
+   ten arrows, which the shop lists after them. */
+extern const char *const   bow_names[NUM_BOWS + 1];
 extern const unsigned char bow_atk[NUM_BOWS];
 extern const unsigned char bow_range[NUM_BOWS];
-extern const unsigned int  bow_cost[NUM_BOWS];
+extern const unsigned int  bow_cost[NUM_BOWS + 1];
 
 #define BATTLE_WON   0
 #define BATTLE_FLED  1

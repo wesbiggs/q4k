@@ -247,6 +247,7 @@ void view_draw_panel(void)
     cclearxy(PANEL_X, 9, PANEL_W);
     if (bow_lv) {
         cputsxy(PANEL_X, 9, bow_names[bow_lv]);
+        put_num(PANEL_X + 10, 9, arrows);
     }
 
     if (!view_fighting) {
