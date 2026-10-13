@@ -5,6 +5,8 @@ workflow reads the one headed with the tag's version.
 
 ## Unreleased
 
+- The music stops while the world is built (the first time out of Millford)
+  and comes back after, if it was on.
 - Fights come about half as often, and there is no running (`R` is gone):
   fight, or reach a gap in the side of the field.
 - Deeper dungeon levels draw tougher monsters, in bigger groups, and their

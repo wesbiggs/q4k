@@ -6,6 +6,7 @@
 #include <q4k/town_gen.h>
 #include <q4k/tiles.h>
 #include <q4k/isle.h>
+#include <q4k/music.h>
 #include <q4k/vault.h>
 #include <q4k/world.h>
 
@@ -109,7 +110,12 @@ void home_ensure(void)
     if (home_ok) {
         return;
     }
+    /* A few seconds in which the machine is mostly in all-RAM mode with
+       interrupts off (vault.s): the SID would hold whatever note it was on
+       as a drone. Silence it first, and bring it back after if it was on. */
+    music_pause();
     isle_build(ISLE_HOME);
+    music_resume();
     memcpy(home_fx, isle_fx, NUM_HOME_PLACES);
     memcpy(home_fy, isle_fy, NUM_HOME_PLACES);
     memcpy(home_port_x, isle_port_x, 4);
