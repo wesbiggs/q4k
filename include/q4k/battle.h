@@ -28,10 +28,12 @@ extern const unsigned int  armour_cost[NUM_ARMOUR];
    shot flies straight up, down, left or right. */
 #define NUM_BOWS 4
 
-extern const char *const   bow_names[NUM_BOWS];
+/* bow_names and bow_cost have one more entry than the bows: the bowyer's
+   ten arrows, which the shop lists after them. */
+extern const char *const   bow_names[NUM_BOWS + 1];
 extern const unsigned char bow_atk[NUM_BOWS];
 extern const unsigned char bow_range[NUM_BOWS];
-extern const unsigned int  bow_cost[NUM_BOWS];
+extern const unsigned int  bow_cost[NUM_BOWS + 1];
 
 #define BATTLE_WON   0
 #define BATTLE_FLED  1
@@ -80,6 +82,9 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
 
 /* True if crossing `tile` should bring something out of the scenery. */
 unsigned char encounter_roll(unsigned char tile);
+
+/* The dead, for whoever digs where nothing is buried. Returns BATTLE_*. */
+unsigned char battle_undead(void);
 
 unsigned char battle_wander(void);
 unsigned char battle_boss(unsigned char dungeon);

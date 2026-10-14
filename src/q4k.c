@@ -71,11 +71,6 @@ static const unsigned char boss_stage[NUM_DUNGEONS] = {
    once looked like zero. */
 unsigned char enc_rolls, enc_fights;
 
-/* Nonzero and nothing wanders out at you: --poke no_encounters=1 lets a
-   screen test walk the overworld or a dungeon without a fight turning up
-   on a different square every run. Nothing in the game sets it. */
-unsigned char no_encounters;
-
 /* Mirror progress into the probe page so the headless harness can assert on
    it. Stage doubles as a turn counter, which is what lets a test say "walk
    three squares, then show me the screen". */
@@ -173,7 +168,8 @@ static const char *quest_after_talk(unsigned char granted)
             break;
 
         case NPC_ASH:
-            if (has(IT_TEAR) && !has(IT_ASHEN)) {
+            if (has(IT_TEAR) && !has(IT_ASHEN)
+                && (granted == GRANT_ASHEN || granted == GRANT_OPEN)) {
                 quest_stage = Q_ASHEN;
                 give(IT_ASHEN);
                 return "Mother Ash gives you the Ashen Key.";
@@ -190,7 +186,8 @@ static const char *quest_after_talk(unsigned char granted)
                 break;
             }
             if (has(IT_EMBER) && has(IT_TEAR) && has(IT_HEART)
-                && !has(IT_BLADE)) {
+                && !has(IT_BLADE)
+                && (granted == GRANT_FORGE || granted == GRANT_OPEN)) {
                 quest_stage = Q_FORGED;
                 give(IT_BLADE);
                 weapon_lv = NUM_WEAPONS - 1;
@@ -358,6 +355,17 @@ static void arrive(unsigned char code, unsigned char x, unsigned char y)
     view_message(town_name());
 }
 
+/* After a fight that began away from the map's own turn: dying wakes you in
+   Millford; anything else goes back to the map. */
+static void fought(unsigned char result)
+{
+    if (result == BATTLE_DEAD) {
+        died();
+    } else {
+        back_to_map();
+    }
+}
+
 static void wander_check(void)
 {
     if (scene == SCENE_TOWN || no_encounters) {
@@ -368,11 +376,7 @@ static void wander_check(void)
         return;
     }
     ++enc_fights;
-    if (battle_wander() == BATTLE_DEAD) {
-        died();
-    } else {
-        back_to_map();
-    }
+    fought(battle_wander());
 }
 
 static void try_move(signed char dx, signed char dy, unsigned char dir)
@@ -574,7 +578,10 @@ int main(void)
                 break;
 
             case K_L:
-                look();
+                key = look();
+                if (key != LOOK_NOTHING) {
+                    fought(key);
+                }
                 break;
 
             case K_I:

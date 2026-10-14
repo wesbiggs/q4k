@@ -171,6 +171,7 @@ int main(void)
             armour_lv = (armour_lv + 1) % NUM_ARMOUR;
         } else if (k == K_F7) {
             bow_lv = (bow_lv + 1) % NUM_BOWS;
+            arrows = ARROW_MAX;
         }
     }
     /* not reached; the loop is the program */

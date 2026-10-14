@@ -20,7 +20,6 @@
 #define K_S          0x53
 #define K_D          0x44
 #define K_POTION     0x50
-#define K_RUN        0x52
 #define K_F          0x46
 #define K_M          0x4D
 #define K_X          0x58
@@ -86,12 +85,12 @@ const unsigned int  armour_cost[NUM_ARMOUR] = { 0, 30, 110, 260, 500 };
 
 /* A bow hits a little softer than a blade of the same price: what you are
    paying for is not having to be next to it. */
-const char *const bow_names[NUM_BOWS] = {
-    "No bow", "Short bow", "Longbow", "Crossbow",
+const char *const bow_names[NUM_BOWS + 1] = {
+    "No bow", "Short bow", "Longbow", "Crossbow", "10 arrows",
 };
 const unsigned char bow_atk[NUM_BOWS]   = { 0, 3, 6, 10 };
 const unsigned char bow_range[NUM_BOWS] = { 0, 6, 10, 15 };
-const unsigned int  bow_cost[NUM_BOWS]  = { 0, 80, 150, 350 };
+const unsigned int  bow_cost[NUM_BOWS + 1] = { 0, 80, 150, 350, ARROW_PRICE };
 
 /* Experience needed for each level, from level 1. */
 static const unsigned int level_at[] = {
@@ -171,7 +170,8 @@ unsigned char encounter_roll(unsigned char tile)
         case T_FLOOR:  chance = 10; break;   /* dungeon corridors */
         default:       chance = 0;  break;
     }
-    return chance && (unsigned char)(rand() % 100) < chance;
+    /* Half what it was: the odds are out of 200 now. */
+    return chance && (unsigned char)(rand() % 200) < chance;
 }
 
 /* For `n` of them: a group pays for every one it had. */
@@ -272,8 +272,21 @@ static unsigned char quaff(void)
    and a "Press a key." would stay in it. Dying moves you, so it does. */
 static unsigned char won(const Monster *m, unsigned char n)
 {
+    unsigned char got;
+
     view_message("It falls.");
     award(m, n);
+    if (bow_lv && arrows < ARROW_MAX && !(rand() & 3)) {
+        got = 1 + (unsigned char)(rand() % 4);
+        arrows += got;
+        if (arrows > ARROW_MAX) {
+            arrows = ARROW_MAX;
+        }
+        strcpy(msg, "You gather ");
+        cat_num(got);
+        strcat(msg, " arrows.");
+        view_message(msg);
+    }
     treasure_drop();
     return BATTLE_WON;
 }
@@ -284,17 +297,6 @@ static unsigned char lost(void)
     view_message("Press a key.");
     cgetc();
     return BATTLE_DEAD;
-}
-
-/* Three in four, as it always was. */
-static unsigned char got_away(void)
-{
-    if ((rand() % 4) != 0) {
-        view_message("You get away.");
-        return 1;
-    }
-    view_message("It cuts you off.");
-    return 0;
 }
 
 /* --- the field ----------------------------------------------------------
@@ -637,6 +639,7 @@ static unsigned char loose(unsigned char dir)
     unsigned char x = hx, y = hy, flew = 0, hit = 0;
     const char *what = bow_lv == NUM_BOWS - 1 ? "Your bolt" : "Your arrow";
 
+    --arrows;
     sprite_face(dir);
     while (flew < bow_range[bow_lv]) {
         switch (dir) {
@@ -730,7 +733,36 @@ static unsigned char aim(void)
     return 0xFF;                             /* out of reach, or blocked */
 }
 
-unsigned char battle_fight(const Monster *m, unsigned char ground,
+/* No two fights are fought on the same ground: some ten boulders go down where
+   the field is open all round, so that whatever they are, nothing is cut off
+   from anything, and none beside either start or in the lanes to the sides'
+   gaps. */
+/* No two fights are fought on the same ground: some ten boulders go down where
+   the ground is open all round (so nothing is cut off from anything), never
+   on the hero's own square. Run once the walls are marked. */
+unsigned char open9(const unsigned char *w);     /* open9.s */
+
+static void scatter(unsigned char a)
+{
+    unsigned char n, tries, x, y;
+    unsigned char *w;
+
+    n = 8 + (rand() & 3);
+    for (tries = 0; tries < 60; ++tries) {
+        x = 2 + ((unsigned char)rand() & 15);
+        y = 2 + ((unsigned char)rand() & 15);
+        w = wall + (unsigned int)(y + 1) * RIM_W + x + 1;
+        if ((x != arena_hx[a] || y != arena_hy[a]) && open9(w)) {
+            *w = 1;
+            field[(unsigned int)y * LOCAL_W + x] = T_BOULDER;
+            if (!--n) {
+                break;
+            }
+        }
+    }
+}
+
+static unsigned char fight(const Monster *m, unsigned char ground,
                            unsigned char can_flee, unsigned char count)
 {
     unsigned char a, key, guard, dir, nx, ny, dmg;
@@ -754,6 +786,9 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
         for (nx = 0; nx < LOCAL_W; ++nx, ++i) {
             edge[nx] = tile_flags[field[i] - TILE_BASE] != TF_PASS;
         }
+    }
+    if (m->size == 1) {
+        scatter(a);
     }
     size = m->size;
     if (size == 2) {
@@ -798,7 +833,7 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
         strcat(msg, " more!");
         view_message(msg);
     }
-    view_message(can_flee ? "Walk into it to strike. R runs."
+    view_message(can_flee ? "Walk into it to strike. Flee by a side."
                           : "Walk into it to strike.");
 
     for (;;) {
@@ -814,6 +849,10 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
             case K_F:
                 if (!bow_lv) {
                     view_message("You have no bow.");
+                    continue;
+                }
+                if (!arrows) {
+                    view_message("You have no arrows.");
                     continue;
                 }
                 view_message("Shoot which way?");
@@ -834,16 +873,6 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
             case K_POTION:
                 if (!quaff()) {
                     continue;
-                }
-                break;
-
-            case K_RUN:
-                if (!can_flee) {
-                    view_message("There is nowhere to run.");
-                    continue;
-                }
-                if (got_away()) {
-                    return BATTLE_FLED;
                 }
                 break;
 
@@ -879,7 +908,12 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
                              "You strike for ");
             } else if (nx >= LOCAL_W || ny >= LOCAL_H
                        || wall[(unsigned int)(ny + 1) * RIM_W + nx + 1]) {
-                /* Unsigned: stepping off the top or left wraps to 255. */
+                /* Unsigned: stepping off the top or left wraps to 255. The
+                   gaps in the middle of the sides are the way out. */
+                if (can_flee && ny == LOCAL_H / 2 && nx >= LOCAL_W) {
+                    view_message("You get away.");
+                    return BATTLE_FLED;
+                }
                 continue;                    /* bumping costs no turn */
             } else {
                 sprite_walk(dir);
@@ -947,28 +981,60 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
     }
 }
 
+/* The panel's rows for the place stay out of the way while a fight names
+   its foe there: view_draw_panel() repainting them showed through. */
+unsigned char battle_fight(const Monster *m, unsigned char ground,
+                           unsigned char can_flee, unsigned char count)
+{
+    unsigned char r;
+
+    view_fighting = 1;
+    r = fight(m, ground, can_flee, count);
+    view_fighting = 0;
+    return r;
+}
+
+/* Fight `n` of wanderer `i`. Above ground, on the ground you were on;
+   below it, the one room. */
+static unsigned char wander_fight(unsigned char i, unsigned char n)
+{
+    return battle_fight(&wanderers[i].m,
+                       scene != SCENE_DUNGEON ? map_at(hero.x, hero.y)
+                                              : T_FLOOR,
+                       1, n);
+}
+
+/* Each level down counts as one more of the hero's own: the pool of what
+   turns up is drawn from further along the list, and in bigger groups. */
 unsigned char battle_wander(void)
 {
-    unsigned char top, i, most;
+    unsigned char top, i, most, lvl;
+
+    lvl = hero.level + (scene == SCENE_DUNGEON ? depth - 1 : 0);
 
     /* The rat and the goblin are there from level 1, so `top` is never 0. */
-    for (top = 0; top < NUM_WANDERERS && wanderers[top].from <= hero.level;
+    for (top = 0; top < NUM_WANDERERS && wanderers[top].from <= lvl;
          ++top) {
     }
     i = (unsigned char)(rand() % top);
 
     /* As many as the hero has levels for each one's worth: a level-6 hero
        can meet up to six rats (from level 1) or three wasps (from 2). */
-    most = hero.level / wanderers[i].from;
+    most = lvl / wanderers[i].from;
     if (most > MAX_FOES) {
         most = MAX_FOES;
     }
+    return wander_fight(i, (unsigned char)(1 + rand() % most));
+}
 
-    /* Above ground, the ground you were on; below it, the one room. */
-    return battle_fight(&wanderers[i].m,
-                       scene != SCENE_DUNGEON ? map_at(hero.x, hero.y)
-                                              : T_FLOOR,
-                       1, (unsigned char)(1 + rand() % most));
+/* What a grave robber meets: the dead, whatever else is about. The skeleton
+   and the wraith are fixed places in wanderers[]. */
+unsigned char battle_undead(void)
+{
+    if (hero.level >= 6) {
+        return wander_fight(9, 1);
+    }
+    return wander_fight(6, (unsigned char)(1 + rand() % 2));
 }
 
 unsigned char battle_boss(unsigned char dungeon)

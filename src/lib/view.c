@@ -212,6 +212,8 @@ static void put_items(unsigned char y)
 
 /* The panel is eighteen columns by nineteen rows and every one is spoken
    for, so the blank lines between groups are the only spacing there is. */
+unsigned char view_fighting;
+
 void view_draw_panel(void)
 {
     textcolor(COLOR_YELLOW);
@@ -245,23 +247,26 @@ void view_draw_panel(void)
     cclearxy(PANEL_X, 9, PANEL_W);
     if (bow_lv) {
         cputsxy(PANEL_X, 9, bow_names[bow_lv]);
+        put_num(PANEL_X + 10, 9, arrows);
     }
 
-    /* Where you are: the land, a town by name, or how deep you have gone. */
-    cclearxy(PANEL_X, 10, PANEL_W);
-    cclearxy(PANEL_X, 11, PANEL_W);
-    cclearxy(PANEL_X, 12, PANEL_W);     /* a fight's second row of health */
-    textcolor(COLOR_LIGHTBLUE);
-    if (scene == SCENE_TOWN) {
-        cputsxy(PANEL_X, 10, town_name());
-    } else if (scene == SCENE_DUNGEON) {
-        cputsxy(PANEL_X, 10, dungeon_names[place]);
-        cputsxy(PANEL_X, 11, "Level");
-        put_num(PANEL_X + 6, 11, depth);
-    } else if (scene == SCENE_ISLE) {
-        cputsxy(PANEL_X, 10, isle_name());
-    } else {
-        cputsxy(PANEL_X, 10, "Keldmarch");
+    if (!view_fighting) {
+        /* Where you are: the land, a town by name, or how deep you have gone. */
+        cclearxy(PANEL_X, 10, PANEL_W);
+        cclearxy(PANEL_X, 11, PANEL_W);
+        cclearxy(PANEL_X, 12, PANEL_W);     /* a fight's second row of health */
+        textcolor(COLOR_LIGHTBLUE);
+        if (scene == SCENE_TOWN) {
+            cputsxy(PANEL_X, 10, town_name());
+        } else if (scene == SCENE_DUNGEON) {
+            cputsxy(PANEL_X, 10, dungeon_names[place]);
+            cputsxy(PANEL_X, 11, "Level");
+            put_num(PANEL_X + 6, 11, depth);
+        } else if (scene == SCENE_ISLE) {
+            cputsxy(PANEL_X, 10, isle_name());
+        } else {
+            cputsxy(PANEL_X, 10, "Keldmarch");
+        }
     }
 
     put_items(13);

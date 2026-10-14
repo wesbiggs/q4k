@@ -39,6 +39,10 @@ void view_restore(void);
 void view_draw_map(void);
 void view_draw_panel(void);
 
+/* Set for the length of a fight: view_draw_panel() then leaves rows 10 to
+   12, where the foe is named, alone. */
+extern unsigned char view_fighting;
+
 /* Append a line to the log, scrolling the oldest one off the top. */
 void view_message(const char *text);
 

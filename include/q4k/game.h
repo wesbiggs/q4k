@@ -97,16 +97,28 @@ extern unsigned char lore_seed;
 extern unsigned char items;       /* IT_* bitmask */
 extern unsigned char looted[LOOTED_BYTES];
 
-/* Treasure maps the hero carries, MAPS of them, kept as five rows of MAPS
+/* Treasure maps the hero carries, MAPS of them, kept as six rows of MAPS
    bytes so a save is one memcpy: which land, plus one (0 for an empty slot),
-   the buried square, and the town the map measures from. See loot.h. */
+   the buried square, the place the map measures from (its square, then
+   which of the land's places it is: place_at()'s number). See loot.h. */
 #define MAPS     4
 #define TM_LAND  0
 #define TM_X     MAPS
 #define TM_Y     (2 * MAPS)
 #define TM_RX    (3 * MAPS)
 #define TM_RY    (4 * MAPS)
-extern unsigned char tmap[5 * MAPS];
+#define TM_PL    (5 * MAPS)
+#define TM_SIZE  (6 * MAPS)
+extern unsigned char tmap[TM_SIZE];
+
+/* What the bow shoots: one a shot, found after fights and sold ten at a time
+   by the bowyer, who throws twelve in with a bow. */
+extern unsigned char arrows;
+#define ARROW_PACK   10
+#define ARROW_PRICE  12
+#define ARROW_FREE   12
+#define ARROW_MAX    40
+extern unsigned char no_encounters;   /* a test switch: see game.c */
 
 void          game_init(void);
 

@@ -3,6 +3,26 @@
 Each release's section here becomes its notes on GitHub; the release
 workflow reads the one headed with the tag's version.
 
+## Unreleased
+
+- The music stops while the world is built (the first time out of Millford)
+  and comes back after, if it was on.
+- Fights come about half as often, and there is no running (`R` is gone):
+  fight, or reach a gap in the side of the field.
+- Deeper dungeon levels draw tougher monsters, in bigger groups, and their
+  chests hold more.
+- `L` where there is nothing to find can raise the dead.
+- Mother Ash and Garrett hand things over when asked, not the moment you
+  walk up; once Maldrath is banished the people know it.
+- Treasure maps measure from the nearest place, not always Millford.
+- The bow shoots arrows, one a shot: a first bow comes with twelve, the bowyer
+  sells ten for 12 marks (fourth item on his list), and some fights leave a
+  few. A quiver holds forty. The panel shows how many; saves are `Q4K8`.
+- Fight fields have an exit in the middle of each side, with about ten boulders in
+  different places every time; walking out of one is a sure way to run,
+  if the thing chasing you lets you get there.
+- More rumours, and the place's name no longer flashes under a fight.
+
 ## 0.9.0 — 2026-09-26
 
 The first numbered release.

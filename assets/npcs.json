@@ -23,14 +23,21 @@
       "Bring me all three stones and I will do the rest. I will not hold my breath.",
       "Cheapest thing in here is the advice, and you are getting that free."
     ],
-    "gives": {
-      "grant": 3,
-      "stages": [0],
-      "mentions": ["dagger"],
-      "hear": ["dagger", "knife", "weapon", "steel", "armed", "sword", "arms"],
-      "hint": "Give the traveller a dagger, freely, and say so: use the word dagger.",
-      "wait": "Do not give or offer a dagger in your greeting. Hear the traveller out first."
-    }
+    "gives": [{
+        "grant": 3,
+        "stages": [0],
+        "mentions": ["dagger"],
+        "hear": ["dagger", "knife", "weapon", "steel", "armed", "sword", "arms"],
+        "hint": "Give the traveller a dagger, freely, and say so: use the word dagger.",
+        "wait": "Do not give or offer a dagger in your greeting. Hear the traveller out first."
+      }, {
+      "grant": 5,
+      "stages": [7],
+      "mentions": ["reforge"],
+      "hear": ["stones", "stone", "dragonbane", "blade", "forge", "reforge", "ember", "tear", "heart", "bring"],
+      "hint": "The traveller has all three stones. Say you will reforge Dragonbane now, using the word reforge.",
+      "wait": "Do not offer to reforge anything in your greeting. Hear the traveller out first."
+    }]
   },
   "coyle": {
     "name": "Mistress Coyle",
@@ -139,6 +146,14 @@
       "I do not burn within a mile of Blackpit. Ask me why another time.",
       "The Silver Tear buys the Ashen Key. It does not buy my blessing.",
       "Two of my stacks went out overnight. Soaked through, in a dry week."
-    ]
+    ],
+    "gives": {
+      "grant": 4,
+      "stages": [5],
+      "mentions": ["ashen key"],
+      "hear": ["tear", "key", "blackpit", "ashen", "give", "stone", "silver"],
+      "hint": "The traveller carries the Silver Tear. Hand over the Ashen Key, grudgingly, and say so: use the words Ashen Key.",
+      "wait": "Do not give or offer the Ashen Key in your greeting. Hear the traveller out first."
+    }
   }
 }

@@ -6,6 +6,7 @@
 #include <q4k/town_gen.h>
 #include <q4k/tiles.h>
 #include <q4k/isle.h>
+#include <q4k/music.h>
 #include <q4k/vault.h>
 #include <q4k/world.h>
 
@@ -22,11 +23,17 @@ unsigned char potions;
 unsigned char weapon_lv;
 unsigned char armour_lv;
 unsigned char bow_lv;
+unsigned char arrows;
 unsigned char quest_stage;
 unsigned char items;
 unsigned char lore_seed;
 unsigned char looted[LOOTED_BYTES];
-unsigned char tmap[5 * MAPS];
+unsigned char tmap[TM_SIZE];
+
+/* Nonzero and nothing wanders out at you: --poke no_encounters=1 lets a
+   screen test walk the overworld or a dungeon without a fight turning up
+   on a different square every run. Nothing in the game sets it. */
+unsigned char no_encounters;
 
 unsigned char home_fx[NUM_HOME_PLACES], home_fy[NUM_HOME_PLACES];
 unsigned char home_biome;
@@ -62,6 +69,7 @@ void game_init(void)
     weapon_lv   = 0;
     armour_lv   = 0;
     bow_lv      = 0;
+    arrows      = 0;
     quest_stage = Q_START;
     items       = 0;
     lore_seed   = 0;
@@ -102,7 +110,12 @@ void home_ensure(void)
     if (home_ok) {
         return;
     }
+    /* A few seconds in which the machine is mostly in all-RAM mode with
+       interrupts off (vault.s): the SID would hold whatever note it was on
+       as a drone. Silence it first, and bring it back after if it was on. */
+    music_pause();
     isle_build(ISLE_HOME);
+    music_resume();
     memcpy(home_fx, isle_fx, NUM_HOME_PLACES);
     memcpy(home_fy, isle_fy, NUM_HOME_PLACES);
     memcpy(home_port_x, isle_port_x, 4);

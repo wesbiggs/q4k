@@ -13,9 +13,9 @@ static const char *const task[10][2] = {
     { "Go to Castle Matheson and",          "speak with the king."               },
     { "The Iron Sigil opens the Hollow",    "Crown. Bring back the Emberstone."  },
     { "Take the Emberstone to Vane in",     "Wardlow, over the sea. Try the ports." },
-    { "The Tidal Key opens the Drowned",    "Stair, over the sea. Bring the Tear." },
+    { "Take the Tidal Key over the sea to", "the Drowned Stair. Bring the Tear." },
     { "Take the Silver Tear to Mother Ash", "in Ashcombe, over the sea."         },
-    { "The Ashen Key opens Blackpit, over", "the sea. Bring the Dragon's Heart." },
+    { "Take the Ashen Key over the sea to", "Blackpit. Bring the Dragon's Heart." },
     { "Take all three stones to Garrett",   "the smith in Millford."             },
     { "Dragonbane is yours. Maldrath",      "lairs in the mountains of Keldmarch." },
     { "Maldrath is banished.",              "Keldmarch is free."                 },
@@ -58,9 +58,9 @@ void help_screen(void)
     textcolor(COLOR_LIGHTBLUE);
     cputsxy(1, 15, "In a fight");
     textcolor(COLOR_WHITE);
-    cputsxy(3, 16, "Walk into it; SPACE guards; R runs");
+    cputsxy(3, 16, "Walk into it to strike; SPACE guards");
     cputsxy(3, 17, "F then a direction shoots your bow");
-    cputsxy(3, 18, "No running from keepers or Maldrath");
+    cputsxy(3, 18, "Flee by a side gap (not keepers)");
 
     textcolor(COLOR_GRAY1);
     chlinexy(0, 19, SCR_W);

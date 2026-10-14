@@ -10,8 +10,12 @@
 #ifndef Q4K_LOOT_H
 #define Q4K_LOOT_H
 
-/* Look at the square the hero is standing on, and take whatever is there. */
-void look(void);
+/* Look at the square the hero is standing on, and take whatever is there.
+   Out in the open, or in a dungeon, looking where there is nothing now and
+   then wakes the dead: that fight's BATTLE_* comes back, and otherwise
+   LOOK_NOTHING. */
+#define LOOK_NOTHING 0xFF
+unsigned char look(void);
 
 /* A monster on the overworld may drop a map to something buried on the land
    you are standing on: the hero keeps up to MAPS of them, each giving the
