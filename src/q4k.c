@@ -631,6 +631,8 @@ int main(void)
                 break;
 
             case K_Q:
+                music_stop();       /* else the last note drones on in BASIC */
+                *(unsigned char *)0xD418 = 0;   /* master volume off: all voices */
                 sprite_hide();
                 VIC.addr = 0x15;    /* hand the ROM charset back to BASIC */
                 clrscr();
