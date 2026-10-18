@@ -276,11 +276,16 @@ release: dirs $(DIST)/q4k.prg
 
 # --- disk image -------------------------------------------------------------
 
-d64: dirs $(DIST)/$(PROG).prg
-	@rm -f $(DIST)/$(PROG).d64
-	$(C1541) -format "q4k,01" d64 $(DIST)/$(PROG).d64 >/dev/null
-	$(C1541) -attach $(DIST)/$(PROG).d64 -write $(DIST)/$(PROG).prg $(PROG) >/dev/null
-	@echo "wrote $(DIST)/$(PROG).d64   (LOAD\"$(PROG)\",8,1 then RUN)"
+# The disk is also the save disk: the game saves to unit 8 and the image
+# has room, so on a TeensyROM+ (or anywhere) one mounted .d64 is both. PROG=
+# on the command line picks another program; the default is the game.
+D64PROG = $(if $(filter command line,$(origin PROG)),$(PROG),q4k)
+
+d64: dirs $(DIST)/$(D64PROG).prg
+	@rm -f $(DIST)/$(D64PROG).d64
+	$(C1541) -format "q4k,01" d64 $(DIST)/$(D64PROG).d64 >/dev/null
+	$(C1541) -attach $(DIST)/$(D64PROG).d64 -write $(DIST)/$(D64PROG).prg $(D64PROG) >/dev/null
+	@echo "wrote $(DIST)/$(D64PROG).d64   (LOAD\"$(D64PROG)\",8,1 then RUN; saves go to the same disk)"
 
 clean:
 	rm -rf $(BUILD) $(DIST)

@@ -30,7 +30,7 @@ make shot PROG=name   headless run, save a PNG screenshot
 make test             every screen test against its golden, plus checkmap
 make bless            accept current output as the new goldens
 make assets           regenerate the C and JSON built from assets/
-make d64 PROG=name    a bootable disk image
+make d64              dist/q4k.d64: the game, first file, and its save disk (PROG=name for another)
 make release          the release's .prg, .d64 and zip, in dist/release/
 make clean
 ```

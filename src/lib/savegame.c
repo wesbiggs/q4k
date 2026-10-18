@@ -20,7 +20,14 @@
    LOAD walks into the weeds. modem.c raises it for the same reason. */
 #define MEMSIZ (*(unsigned int *)0x0283)
 
-#define SAVE_DEVICE 8
+/* The device the game was loaded from, taken from the KERNAL's current
+   device ($BA) by save_init() before anything else touches the bus. It has to
+   be read at start-up: the modem opens the RS-232 "device" (2), which
+   overwrites $BA, and tape and the screen are not disks either. Anything
+   below 8 leaves the default. Non-static so --peek can read it. */
+#define CURDEV      (*(unsigned char *)0x00BA)
+unsigned char save_device = 8;
+#define SAVE_DEVICE save_device
 #define CMD_CHANNEL 15
 #define MAGIC       "Q4K8"   /* 8: arrows; 7: maps name a place; 6: treasure maps; 5: bigger dungeons, seen as bits */
 
@@ -65,6 +72,13 @@ typedef struct {
 } SaveGame;
 
 static SaveGame blob;
+
+void save_init(void)
+{
+    if (CURDEV >= 8) {
+        save_device = CURDEV;
+    }
+}
 
 /* Reads the drive's status line and reports whether it began "00" (OK).
    Reading it also clears an error, and stops the drive light flashing. */

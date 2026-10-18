@@ -15,6 +15,8 @@
 #define SAVE_EDISK    1   /* the drive would not do it            */
 #define SAVE_EFORMAT  2   /* that file is not one of ours         */
 
+/* Call first thing in main(): remembers the device the game came from. */
+void save_init(void);
 unsigned char save_game(void);
 unsigned char load_game(void);
 

@@ -514,6 +514,7 @@ int main(void)
 
     /* First of all: game_init() unpacks Millford into local[], which is the
        font image until the charset has been copied out of it. */
+    save_init();                       /* $BA is the load device only until the modem opens */
     tiles_install();
     game_init();                       /* seeds hero.name with the default */
     /* No keyboard drain here: the title screen already discarded the
