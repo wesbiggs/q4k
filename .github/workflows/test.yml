@@ -25,14 +25,14 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Restore and save are separate steps: actions/cache on its own only
       # saves after a green run, and one flaky test would then rebuild VICE
       # on every push until something passed.
       - name: Restore toolchain
         id: cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             ~/vice
@@ -69,7 +69,7 @@ jobs:
 
       - name: Save toolchain
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             ~/vice
