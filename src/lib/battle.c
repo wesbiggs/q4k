@@ -167,7 +167,7 @@ unsigned char encounter_roll(unsigned char tile)
         case T_SHORE:  chance = 7;  break;
         case T_FOREST: chance = 12; break;
         case T_SWAMP:  chance = 16; break;
-        case T_FLOOR:  chance = 10; break;   /* dungeon corridors */
+        case T_FLOOR:  chance = 5;  break;   /* dungeon corridors */
         default:       chance = 0;  break;
     }
     /* Half what it was: the odds are out of 200 now. */

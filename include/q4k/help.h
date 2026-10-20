@@ -6,4 +6,7 @@
 
 void help_screen(void);
 
+/* Say what to do next, in the message window. */
+void quest_hint(void);
+
 #endif /* Q4K_HELP_H */

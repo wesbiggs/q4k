@@ -5,6 +5,15 @@ workflow reads the one headed with the tag's version.
 
 ## Unreleased
 
+- Towns, dungeons and stairs are entered with `>` and left with `<`, standing
+  on them, rather than by walking in; ports and the dragon's lair still work
+  by walking. Saving and restoring ask for `Y` first.
+- Moving the story on shows the next step in the message window, as on the
+  `?` screen, which also shows the world's seed. `F5` on the title screen
+  chooses the seed for a new game.
+- Dungeon fights are half as likely per step. Shops say one thing on a sale
+  and towns no longer announce themselves or the road out.
+
 - The music stops while the world is built (the first time out of Millford)
   and comes back after, if it was on.
 - Fights come about half as often, and there is no running (`R` is gone):

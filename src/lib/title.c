@@ -7,6 +7,7 @@
 #include <q4k/battle.h>
 #include <q4k/charset.h>
 #include <q4k/dialog.h>
+#include <q4k/game.h>
 #include <q4k/probe.h>
 #include <q4k/savegame.h>
 #include <q4k/tiles.h>
@@ -26,6 +27,7 @@
 #define KEY_RETURN 0x0D
 #define KEY_DEL    0x14
 #define KEY_F3     0x86
+#define KEY_F5     0x87
 
 static const char *const story[] = {
     "The dragon Maldrath came over the",
@@ -49,21 +51,32 @@ static const char *const names[] = {
     "Faelan",  "Gareth",   "Halvard", "Isolde",  "Jorund",
     "Kestrel", "Lirael",   "Maelis",  "Neriah",  "Orrin",
     "Perrin",  "Quenby",   "Rowena",  "Sigrun",  "Talwyn",
-    "Ulric",   "Vesper",   "Wystan",  "Ysolde",  "Zephyr",
-    "Aveline", "Briony",   "Cedric",  "Dagny",   "Edric",
-    "Fenwick", "Gwyneth",  "Hollis",  "Ingrid",  "Leofric",
-    "Merrow",  "Niamh",    "Osric",   "Rhoswen", "Seren",
-    "Thorne",  "Tristan",  "Wendel",  "Alaric",  "Beren",
-    "Corwin",  "Eira",     "Hadric",  "Idris",   "Morgana",
+    "Ulric",   "Vesper",   "Wystan",  "Zephyr",
 };
 #define NUM_NAMES (sizeof(names) / sizeof(names[0]))
+
+/* A line of grey or red text at the foot of the screen, replacing the last. */
+static void say(unsigned char y, unsigned char color, const char *s)
+{
+    textcolor(color);
+    cclearxy(1, y, LINE_W);
+    cputsxy(1, y, s);
+}
+
+static void ask(const char *s)
+{
+    textcolor(COLOR_YELLOW);
+    cclearxy(1, ASK_Y, LINE_W);
+    cputsxy(1, ASK_Y, s);
+}
 
 unsigned char title_screen(char *name, unsigned char max)
 {
     /* Typed into a buffer of its own. Terminating `name` as it is drawn
        would erase the caller's default before the player touched a key. */
     static char entry[17];
-    unsigned char i, n = 0, key;
+    unsigned char i, n = 0, key, seeding = 0;
+    unsigned int v;
     unsigned int spins;
 
     if (max > sizeof(entry)) {
@@ -93,11 +106,10 @@ unsigned char title_screen(char *name, unsigned char max)
 
     textcolor(COLOR_GRAY1);
     chlinexy(0, ASK_Y - 1, SCR_W);
-    textcolor(COLOR_YELLOW);
-    cputsxy(1, ASK_Y, "And who are you, traveller?");
+    ask("And who are you, traveller?");
     textcolor(COLOR_GRAY2);
     cputsxy(1, HINT_Y, "RETURN alone for a random name");
-    cputsxy(1, LOAD_Y, "F3 to load a saved game");
+    cputsxy(1, LOAD_Y, "F3 to load a game, F5 to set the seed");
     textcolor(COLOR_GRAY1);
     /* Right-aligned, a column in from the edge: sizeof counts the NUL. */
     cputsxy(SCR_W - sizeof("v" Q4K_VERSION), SCR_H - 1, "v" Q4K_VERSION);
@@ -112,14 +124,10 @@ unsigned char title_screen(char *name, unsigned char max)
             cclearxy(1, LINE_Y, LINE_W);
             break;
         case LINE_NOMODEL:
-            cclearxy(1, LINE_Y, LINE_W);
-            textcolor(COLOR_LIGHTRED);
-            cputsxy(1, LINE_Y, "The host has no model.");
+            say(LINE_Y, COLOR_LIGHTRED, "The host has no model.");
             break;
         default:
-            cclearxy(1, LINE_Y, LINE_W);
-            textcolor(COLOR_LIGHTRED);
-            cputsxy(1, LINE_Y, "No host on the modem.");
+            say(LINE_Y, COLOR_LIGHTRED, "No host on the modem.");
             break;
     }
 
@@ -152,6 +160,22 @@ unsigned char title_screen(char *name, unsigned char max)
         rng_stir(spins);
         key = cgetc();
 
+        if (key == KEY_RETURN && seeding) {
+            /* The world's seed, 1 to 255: what was typed, as a number. */
+            for (v = i = 0; i < n; ++i) {
+                v = (v + v) + (v << 3) + entry[i] - 0x30;
+            }
+            lore_seed = v > 255 ? 255 : (unsigned char)v;
+            seeding = n = 0;
+            ask("And who are you, traveller?");
+            continue;
+        }
+        if (key == KEY_F5 && !seeding) {
+            seeding = 1;
+            n = 0;
+            ask("World seed, 1-255?");
+            continue;
+        }
         if (key == KEY_RETURN) {
             if (n) {
                 entry[n] = '\0';
@@ -163,21 +187,15 @@ unsigned char title_screen(char *name, unsigned char max)
             return 0;
         }
         if (key == KEY_F3) {
-            textcolor(COLOR_GRAY2);
-            cclearxy(1, ERROR_Y, SCR_W - 2);
-            cputsxy(1, ERROR_Y, "Loading...");
+            say(ERROR_Y, COLOR_GRAY2, "Loading...");
             switch (load_game()) {
                 case SAVE_OK:
                     return 1;
                 case SAVE_EFORMAT:
-                    textcolor(COLOR_LIGHTRED);
-                    cclearxy(1, ERROR_Y, SCR_W - 2);
-                    cputsxy(1, ERROR_Y, "That is not a saved game.");
+                    say(ERROR_Y, COLOR_LIGHTRED, "That is not a saved game.");
                     break;
                 default:
-                    textcolor(COLOR_LIGHTRED);
-                    cclearxy(1, ERROR_Y, SCR_W - 2);
-                    cputsxy(1, ERROR_Y, "No saved game found.");
+                    say(ERROR_Y, COLOR_LIGHTRED, "No saved game found.");
                     break;
             }
             continue;
@@ -191,6 +209,9 @@ unsigned char title_screen(char *name, unsigned char max)
 
         /* PETSCII as typed: unshifted letters arrive as $41-$5A (lower
            case in this character set), shifted ones as $C1-$DA. */
+        if (seeding && (key < 0x30 || key > 0x39)) {
+            continue;
+        }
         if (key < 0x20 || (key > 0x3F && key < 0x41)
             || (key > 0x5A && key < 0xC1) || key > 0xDA) {
             continue;               /* not something a name is made of */

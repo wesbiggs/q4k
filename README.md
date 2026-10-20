@@ -51,18 +51,21 @@ To build it yourself instead, see [DEVELOPERS.md](DEVELOPERS.md).
 ## Playing
 
 The title screen sets the scene and asks your name; RETURN alone picks a
-random one, and `F3` loads a saved game instead. Then `WASD` or the cursor
+random one, `F3` loads a saved game instead, and `F5` lets you choose the
+world's seed (1 to 255; the same seed makes the same lands and towns). The `?`
+screen shows the seed in play. Then `WASD` or the cursor
 keys move. The panel shows what you are carrying and wearing, alongside your
 stats and any quest items. Walk into someone to talk to them, open their
 shop, or take a seat at their inn.
 
 | key | |
 |---|---|
+| `>` / `<` | go in at a town or dungeon, or down a stair / out of a town, or up a stair |
 | `T` | talk to whoever is beside you |
 | `L` | look where you stand, and take anything hidden there |
 | `I` | read your treasure maps |
 | `P` | drink a healing draught |
-| `F1` / `F3` | save / restore |
+| `F1` / `F3` | save / restore (each asks `Y` first) |
 | `SPACE` | wait a turn |
 | `?` | keys, and what you are supposed to be doing next |
 | `M` / `X` | music / sound effects on or off (costs no turn) |

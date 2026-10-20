@@ -56,8 +56,8 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   module to `HICODEMODS` as well: its code stays in HIGH but its rodata goes
   back to MAIN (the shop and the ships are there already). Changing either
   list needs the objects rebuilt, because a target-specific `CFLAGS` will not
-  invalidate them on its own. About 130 bytes are free in HIGH, 430 in MAIN
-  and 50 in BSS. The Makefile's `SMALLMODS` (loot, shop, inn, help, battle,
+  invalidate them on its own. About 6 bytes are free in HIGH, 48 in MAIN (plus
+  the dead ONCE) and 16 in BSS, and the title screen has 29 to spare in OVL. The Makefile's `SMALLMODS` (loot, shop, inn, help, battle,
   dialog and dungeon) are
   built with `-Or`, not `-Osir`: without `-Os` cc65 stops inlining shifts and
   the like, which is about a tenth smaller but pulled some runtime helpers
@@ -66,9 +66,10 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   whose timing was measured is. Changing `cfg/` relinks everything.
 - **The C stack is at the top of MAIN, not where the cfg used to say.** cc65's
   startup points `sp` at `__MAIN_START__ + __MAIN_SIZE__`, `$3800`, and it
-  grows down through the dead ONCE segment and then MAIN's spare bytes (about
-  690 now). So MAIN's "free" bytes are the stack's headroom: do not spend them
-  on code or data without measuring how deep the stack goes. The 2K the cfg
+  grows down through MAIN's spare bytes (about 48 now) and then the dead ONCE
+  segment. Painting `$3700-$37FF` and running a save and a long walk found
+  the stack no deeper than 31 bytes, so what is left is plenty, but measure
+  again before spending more of it. The 2K the cfg
   reserved at `$C700-$CEFF` was never touched, and is now BSS and the RS-232
   buffers: the buffers are at `$CD00`, `MEMSIZ` is `$CF00`.
 - `$B800-$CCFF` **BSS**, then the RS-232 buffers and the probe page at

@@ -20,8 +20,8 @@
  18 |....^^^^..%%%%%%....~·                  |
  19 |········································|
  20 |Walk into someone to speak with them.   |
- 21 |The land takes shape...                 |
- 22 |You take the road.                      |
+ 21 |Press < or > here.                      |
+ 22 |The land takes shape...                 |
  23 |You sail south.                         |
  24 |The Green Downs                         |
     +----------------------------------------+

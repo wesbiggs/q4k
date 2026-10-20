@@ -4,6 +4,7 @@
 #include <q4k/game.h>
 #include <q4k/help.h>
 #include <q4k/sprite.h>
+#include <q4k/text.h>
 #include <q4k/view.h>
 
 /* What to do next, by quest stage. Two lines each, because the useful
@@ -12,7 +13,7 @@ static const char *const task[10][2] = {
     { "A letter has come from the king.",   "Garrett the smith will arm you."    },
     { "Go to Castle Matheson and",          "speak with the king."               },
     { "The Iron Sigil opens the Hollow",    "Crown. Bring back the Emberstone."  },
-    { "Take the Emberstone to Vane in",     "Wardlow, over the sea. Try the ports." },
+    { "Take the Emberstone to Vane in",     "Wardlow, over the sea." },
     { "Take the Tidal Key over the sea to", "the Drowned Stair. Bring the Tear." },
     { "Take the Silver Tear to Mother Ash", "in Ashcombe, over the sea."         },
     { "Take the Ashen Key over the sea to", "Blackpit. Bring the Dragon's Heart." },
@@ -21,9 +22,19 @@ static const char *const task[10][2] = {
     { "Maldrath is banished.",              "Keldmarch is free."                 },
 };
 
+/* The next step, in the message window: called when the story moves on. */
+void quest_hint(void)
+{
+    if (quest_stage > 0 && quest_stage < 9) {
+        view_message(task[quest_stage][0]);
+        view_message(task[quest_stage][1]);
+    }
+}
+
 void help_screen(void)
 {
     unsigned char stage = quest_stage;
+    char seed[4];
 
     if (stage > 9) {
         stage = 9;
@@ -34,15 +45,20 @@ void help_screen(void)
 
     textcolor(COLOR_YELLOW);
     cputsxy(1, 0, "Quest for the King");
+    textcolor(COLOR_GRAY2);
+    cputsxy(SCR_W - 9, 0, "Seed");
+    *str_num(seed, lore_seed) = 0;
+    text_put(SCR_W - 4, 0, seed, COLOR_GRAY2);
     textcolor(COLOR_GRAY1);
     chlinexy(0, 1, SCR_W);
 
     textcolor(COLOR_LIGHTBLUE);
-    cputsxy(1, 3, "Moving");
+    cputsxy(1, 2, "Moving");
     textcolor(COLOR_WHITE);
-    cputsxy(3, 4, "W A S D  or the cursor keys");
-    cputsxy(3, 5, "Walk into someone to talk or trade");
-    cputsxy(3, 6, "Step onto a port to sail");
+    cputsxy(3, 3, "W A S D  or the cursor keys");
+    cputsxy(3, 4, "Walk into people to talk or trade");
+    cputsxy(3, 5, "Step onto a port to sail");
+    cputsxy(3, 6, "> <  In and down, out and up");
 
     textcolor(COLOR_LIGHTBLUE);
     cputsxy(1, 7, "Commands");
@@ -71,7 +87,7 @@ void help_screen(void)
     cputsxy(3, 22, task[stage][1]);
 
     textcolor(COLOR_GRAY2);
-    cputsxy(1, 24, "Any key to return");
+    cputsxy(1, 24, "Any key");
 
     cgetc();
 }

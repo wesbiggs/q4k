@@ -21,7 +21,7 @@
  19 |                                        |
  20 |                                        |
  21 | RETURN alone for a random name         |
- 22 | F3 to load a saved game                |
+ 22 | F3 to load a game, F5 to set the seed  |
  23 |                                        |
  24 | No host on the modem.           v0.9.0 |
     +----------------------------------------+

@@ -19,9 +19,9 @@
  17 |.....................·                  |
  18 |##########+##########·                  |
  19 |········································|
- 20 |The land takes shape...                 |
- 21 |You take the road.                      |
- 22 |Castle Matheson                         |
+ 20 |Press < or > here.                      |
+ 21 |The land takes shape...                 |
+ 22 |Press < or > here.                      |
  23 |You find 14 gold.                       |
  24 |You find 19 gold.                       |
     +----------------------------------------+

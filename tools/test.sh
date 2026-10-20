@@ -106,7 +106,7 @@ if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ]; then
     c1541 -format "test,01" d64 "$saves" >/dev/null 2>&1
     compare save tests/golden-save.txt \
         tools/screendump.py dist/q4k.prg --disk "$saves" \
-        --keys 'Alaric\rww\x85ww' --settle 8
+        --keys 'Alaric\rww\x85yww' --settle 8
     # The same disk now holds a save: restore it from the title screen with
     # F3, and start back where it was made rather than in a new morning.
     if [ -f tests/golden-load.txt ]; then
@@ -126,7 +126,7 @@ if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ]; then
     c1541 -format "test,01" d64 "$saves" >/dev/null 2>&1
     turn() { sed -n 's/.*game_turn+0 @ .* = \([0-9]*\) .*/\1/p'; }
     saved=$(tools/screendump.py dist/q4k.prg --disk "$saves" \
-        --keys 'Alaric\rww\x85ww\x85' --settle 12 --peek game_turn:2 \
+        --keys 'Alaric\rww\x85yww\x85y' --settle 12 --peek game_turn:2 \
         2>&1 >/dev/null | turn) || true
     restored=$(tools/screendump.py dist/q4k.prg --disk "$saves" \
         --keys '\x86' --settle 8 --peek game_turn:2 \
@@ -166,7 +166,7 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
             tools/screendump.py dist/q4k.prg --rs232 25299 \
             --poke quest_stage=3 --poke items=8 --poke lore_seed=$SEED \
             --poke no_encounters=1 \
-            --keys 'Alaric\rs'"$(keys millford port2)$(keys dock story --land 2)"'wwwwwwwaaaawwwmay I have the key\rdead low\rgoodbye\r' \
+            --keys 'Alaric\rs<'"$(keys millford port2)$(keys dock story --land 2)"'>wwwwwwwaaaawwwmay I have the key\rdead low\rgoodbye\r' \
             --settle 100
     fi
     # The king, from a new game that walks to the castle: neither his
@@ -176,7 +176,7 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
         compare sigil tests/golden-sigil.txt \
             tools/screendump.py dist/q4k.prg --rs232 25299 \
             --poke quest_stage=1 --poke lore_seed=$SEED --poke no_encounters=1 \
-            --keys 'Alaric\rs'"$(keys millford castle)"'wwwwwwwwwwwhello\rwhat is my quest\r' \
+            --keys 'Alaric\rs<'"$(keys millford castle)"'>wwwwwwwwwwwhello\rwhat is my quest\r' \
             --settle 100
     fi
     # The inn in Millford, wounded: an ale brings a hint from the daemon's

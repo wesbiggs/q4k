@@ -163,9 +163,6 @@ void shop_open(unsigned char kind)
         } else {
             ++potions;
         }
-        note(kind == SHOP_WEAPON ? "A fair trade."
-           : kind == SHOP_ARMOUR ? "Sign for it on the way out."
-           : kind == SHOP_BOW    ? "Keep the string dry."
-                                 : "Do not haggle.", COLOR_LIGHTGREEN);
+        note("A fair trade.", COLOR_LIGHTGREEN);
     }
 }

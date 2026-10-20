@@ -54,6 +54,12 @@
 #define K_M           0x4D
 #define K_X           0x58
 #define K_HELP        0x3F
+#define K_LT          0x3C   /* < */
+#define K_GT          0x3E   /* > */
+#define K_Y           0x59
+
+/* Said on a square that has something to go through. */
+#define HINT "Press < or > here."
 #define K_F1          0x85   /* save -- S is already "walk south" */
 #define K_F3          0x86   /* load */
 
@@ -103,6 +109,20 @@ static unsigned char wait_key(void)
     }
     rng_stir(spins);
     return cgetc();
+}
+
+/* Ask, and only Y (either case) says yes. */
+static unsigned char confirm(const char *question)
+{
+    unsigned char key;
+
+    view_message(question);
+    key = wait_key();
+    if (key == K_Y || key == K_Y + 0x80) {
+        return 1;
+    }
+    view_message("Cancelled.");
+    return 0;
 }
 
 static void back_to_map(void)
@@ -352,7 +372,6 @@ static void arrive(unsigned char code, unsigned char x, unsigned char y)
         i = TOWN_PROC;
     }
     enter_town(i);
-    view_message(town_name());
 }
 
 /* After a fight that began away from the map's own turn: dying wakes you in
@@ -437,8 +456,10 @@ static void try_move(signed char dx, signed char dy, unsigned char dir)
     ++game_turn;
 
     if (scene == SCENE_WORLD || scene == SCENE_ISLE) {
-        if (flag == TF_ENTER) {
+        if (code == T_PORT || code == T_LAIR) {
             arrive(code, hero.x, hero.y);
+        } else if (flag == TF_ENTER) {
+            view_message(HINT);
         } else {
             wander_check();
         }
@@ -447,28 +468,50 @@ static void try_move(signed char dx, signed char dy, unsigned char dir)
 
     if (scene == SCENE_TOWN) {
         if (hero.x == here_ex && hero.y == here_ey) {
-            if (quest_stage == Q_START) {
-                /* Nobody leaves Millford before Garrett has talked to them. */
-                hero.y = here_ey - 1;
-                view_message("It's not safe out there without a weapon.");
-                return;
-            }
-            if (!home_built()) {
-                view_message("The land takes shape...");
-            }
-            leave_local();
-            view_message("You take the road.");
+            view_message(HINT);
         }
         return;
     }
 
-    if (code == T_STAIRDN) {
-        descend();
-    } else if (code == T_STAIRUP) {
-        ascend();
-    } else {
-        wander_check();
+    if (code == T_STAIRDN || code == T_STAIRUP) {
+        view_message(HINT);
     }
+    wander_check();
+}
+
+/* > goes in at a town or a dungeon and down a stair; < comes out and goes
+   up. Nothing happens by walking onto them, bar the ports and the lair. */
+static void use_stairs(unsigned char down)
+{
+    unsigned char code = map_at(hero.x, hero.y);
+
+    if (scene == SCENE_DUNGEON) {
+        if (code == (down ? T_STAIRDN : T_STAIRUP)) {
+            if (down) {
+                descend();
+            } else {
+                ascend();
+            }
+            return;
+        }
+    } else if (down) {
+        if (scene != SCENE_TOWN && tile_flags[code - TILE_BASE] == TF_ENTER) {
+            arrive(code, hero.x, hero.y);
+            return;
+        }
+    } else if (scene == SCENE_TOWN && hero.x == here_ex && hero.y == here_ey) {
+        if (quest_stage == Q_START) {
+            /* Nobody leaves Millford before Garrett has talked to them. */
+            view_message("It's not safe out there without a weapon.");
+            return;
+        }
+        if (!home_built()) {
+            view_message("The land takes shape...");
+        }
+        leave_local();
+        return;
+    }
+    view_message("Nothing here.");
 }
 
 /* Talk to whoever is next to you. */
@@ -508,6 +551,7 @@ int main(void)
     unsigned char key;
     unsigned char seeded = 0;
     unsigned char restored;
+    unsigned char told;
     /* PETSCII throughout: hero.name and the literals are both what conio
        expects, so they concatenate straight together. */
     static char greeting[SCR_W + 1];
@@ -540,7 +584,12 @@ int main(void)
         view_message("Walk into someone to speak with them.");
     }
 
+    told = quest_stage;
     for (;;) {
+        if (quest_stage != told) {
+            told = quest_stage;
+            quest_hint();
+        }
         if (scene == SCENE_DUNGEON) {
             fov_update(hero.x, hero.y);
         }
@@ -570,6 +619,9 @@ int main(void)
             case K_A: case K_CRSR_LEFT:  try_move(-1,  0, DIR_LEFT);  break;
             case K_D: case K_CRSR_RIGHT: try_move( 1,  0, DIR_RIGHT); break;
 
+            case K_GT: use_stairs(1); break;
+            case K_LT: use_stairs(0); break;
+
             case K_T:
                 try_talk();
                 break;
@@ -598,6 +650,9 @@ int main(void)
                 break;
 
             case K_F1:
+                if (!confirm("Overwrite save? (Y/N)")) {
+                    break;
+                }
                 view_message("Saving...");
                 switch (save_game()) {
                     case SAVE_OK: view_message("Saved."); break;
@@ -606,9 +661,13 @@ int main(void)
                 break;
 
             case K_F3:
+                if (!confirm("Load game? (Y/N)")) {
+                    break;
+                }
                 view_message("Loading...");
                 switch (load_game()) {
                     case SAVE_OK:
+                        told = quest_stage;
                         back_to_map();
                         view_message("Restored.");
                         break;

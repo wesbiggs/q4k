@@ -19,8 +19,8 @@
  17 |~~~~~~~~~~~~~~~~~~~~~·                  |
  18 |~~~~~~~~~~~~~~~~~~~~~·                  |
  19 |········································|
- 20 |The land takes shape...                 |
- 21 |You take the road.                      |
+ 20 |Press < or > here.                      |
+ 21 |The land takes shape...                 |
  22 |You sail south.                         |
  23 |The Green Downs                         |
  24 |You land in Keldmarch.                  |
