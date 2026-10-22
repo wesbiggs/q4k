@@ -30,6 +30,7 @@
 #define Q_HEART     7   /* Dragon's Heart taken from Blackpit            */
 #define Q_FORGED    8   /* Garrett has reforged Dragonbane               */
 #define Q_VICTORY   9   /* Maldrath banished                             */
+#define Q_REWARDED 10   /* Got 1000 gold from the king                   */
 
 /* Things worth carrying. */
 #define IT_SIGIL   0x01

@@ -57,11 +57,21 @@
 #define K_LT          0x3C   /* < */
 #define K_GT          0x3E   /* > */
 #define K_Y           0x59
-
-/* Said on a square that has something to go through. */
-#define HINT "Press < or > here."
 #define K_F1          0x85   /* save -- S is already "walk south" */
 #define K_F3          0x86   /* load */
+
+/* In CHDATA2 because MAIN is full; see CLAUDE.md. */
+#pragma rodata-name ("CHDATA2")
+static const char msg_reward[]   = "The king rewards you 1,000 gold!";
+static const char msg_praise[]   = "The king praises your valour.";
+static const char msg_villager[] = "The villager nods politely.";
+#pragma rodata-name ("RODATA")
+
+/* Said on a square that has something to go through. */
+#define HINT_ENTER    "> to enter."
+#define HINT_EXIT     "< to exit."
+#define HINT_DESCEND  "> to descend."
+#define HINT_ASCEND   "< to ascend."
 
 /* Which stage finding each stone moves the story to. Which stone that is
    lives in game.c as dungeon_prize[], because the generator needs it too. */
@@ -134,9 +144,6 @@ static void died(void)
 {
     gold /= 2;
     heal_full();
-    if (!home_built()) {
-        view_message("The land takes shape...");
-    }
     respawn();
     view_restore();
     view_message("You wake in Millford, lighter of purse.");
@@ -170,13 +177,19 @@ static const char *quest_after_talk(unsigned char granted)
 {
     switch (talking_to) {
         case NPC_KING:
-            if (quest_stage < Q_QUESTED
-                && (granted == GRANT_SIGIL || granted == GRANT_OPEN)) {
-                quest_stage = Q_QUESTED;
-                give(IT_SIGIL);
-                return "The king gives you the Iron Sigil.";
-            }
-            break;
+	  if (quest_stage == Q_VICTORY) {
+	    quest_stage = Q_REWARDED;
+	    gold += 1000;
+	    return msg_reward;
+	  } else if (quest_stage == Q_REWARDED) {
+	    return msg_praise;
+	  } else if (quest_stage < Q_QUESTED
+		     && (granted == GRANT_SIGIL || granted == GRANT_OPEN)) {
+	    quest_stage = Q_QUESTED;
+	    give(IT_SIGIL);
+	    return "The king gives you the Iron Sigil.";
+	  } 
+	  break;
 
         case NPC_VANE:
             if (has(IT_EMBER) && !has(IT_TIDAL)
@@ -227,7 +240,7 @@ static void interact(unsigned char index)
     const char *note;
 
     if (e->kind == ENT_VILLAGER) {
-        view_message("They have nothing to say to you.");
+        view_message(msg_villager);
         return;
     }
     if (e->kind == ENT_SHOP) {
@@ -459,7 +472,7 @@ static void try_move(signed char dx, signed char dy, unsigned char dir)
         if (code == T_PORT || code == T_LAIR) {
             arrive(code, hero.x, hero.y);
         } else if (flag == TF_ENTER) {
-            view_message(HINT);
+            view_message(HINT_ENTER);
         } else {
             wander_check();
         }
@@ -468,13 +481,17 @@ static void try_move(signed char dx, signed char dy, unsigned char dir)
 
     if (scene == SCENE_TOWN) {
         if (hero.x == here_ex && hero.y == here_ey) {
-            view_message(HINT);
+            view_message(HINT_EXIT);
         }
         return;
     }
 
-    if (code == T_STAIRDN || code == T_STAIRUP) {
-        view_message(HINT);
+    if (code == T_STAIRDN) {
+      view_message(HINT_DESCEND);
+    }
+
+    if (code == T_STAIRUP) {
+        view_message(HINT_ASCEND);
     }
     wander_check();
 }
@@ -622,10 +639,6 @@ int main(void)
             case K_GT: use_stairs(1); break;
             case K_LT: use_stairs(0); break;
 
-            case K_T:
-                try_talk();
-                break;
-
             case K_P:
                 quaff();
                 break;
@@ -685,17 +698,17 @@ int main(void)
                 back_to_map();
                 break;
 
-            case K_SPACE:
-                ++game_turn;
-                wander_check();
-                break;
-
             case K_Q:
+                if (!confirm("Quit? (Y/N)")) {
+                    break;
+                }
                 music_stop();       /* else the last note drones on in BASIC */
                 *(unsigned char *)0xD418 = 0;   /* master volume off: all voices */
                 sprite_hide();
                 VIC.addr = 0x15;    /* hand the ROM charset back to BASIC */
                 clrscr();
+                asm("sei");
+                ((void (*)(void))0xFCE2)();     /* SYS 64738: the machine's reset */
                 return 0;
 
             default:

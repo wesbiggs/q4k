@@ -34,7 +34,7 @@ To reforge it a person must recover all three stones:
 Each of those places is sealed, and each seal answers to a different token.
 Whoever holds all three stones can have the blade reforged at a good anvil.
 
-Maldrath lairs high in the mountains of Keldmarch, in a burnt hollow.
+Maldrath's lair is high in the mountains of Keldmarch, in a burnt hollow.
 Everyone knows roughly where. Nobody goes.
 
 ## Places

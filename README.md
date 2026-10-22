@@ -61,15 +61,14 @@ shop, or take a seat at their inn.
 | key | |
 |---|---|
 | `>` / `<` | go in at a town or dungeon, or down a stair / out of a town, or up a stair |
-| `T` | talk to whoever is beside you |
 | `L` | look where you stand, and take anything hidden there |
 | `I` | read your treasure maps |
 | `P` | drink a healing draught |
 | `F1` / `F3` | save / restore (each asks `Y` first) |
-| `SPACE` | wait a turn |
+| `SPACE` | guard, in a fight |
 | `?` | keys, and what you are supposed to be doing next |
 | `M` / `X` | music / sound effects on or off (costs no turn) |
-| `Q` | quit |
+| `Q` | quit (asks `Y` first) |
 
 Treasure is hidden in the castle and in dungeon chests, and
 a square need not look like anything: stand on it and press `L`. Innkeepers

@@ -11,7 +11,11 @@
 #endif
 
 unsigned char       fov_seen[FOV_BYTES];
+/* In the BSS2 area ($CF14, above the RS-232 buffers, beside the probe page):
+   fov_enter() clears it before anything reads it, so it needs no zero start. */
+#pragma bss-name (push, "BSS2")
 unsigned char       fov_lit[FOV_BYTES];
+#pragma bss-name (pop)
 const unsigned char fov_bit[8] = { 1, 2, 4, 8, 16, 32, 64, 128 };
 
 #define R(y) ((y) * FOV_ROW)

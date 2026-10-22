@@ -205,7 +205,6 @@ void sail_out(void)
     hero.x = isle_dock_x;
     hero.y = isle_dock_y;
     ++game_turn;
-    view_message(isle_name());
 }
 
 void sail_home(void)
@@ -249,5 +248,4 @@ void sail_home(void)
     hero.x = home_port_x[d];
     hero.y = home_port_y[d];
     ++game_turn;
-    view_message("You land in Keldmarch.");
 }

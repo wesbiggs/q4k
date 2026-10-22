@@ -78,7 +78,7 @@ const unsigned char weapon_atk[NUM_WEAPONS]  = { 1, 3, 6, 10, 15 };
 const unsigned int  weapon_cost[NUM_WEAPONS] = { 0, 25, 80, 200, 420 };
 
 const char *const armour_names[NUM_ARMOUR] = {
-    "Travel clothes", "Leather", "Chain mail", "Scale mail", "Plate",
+    "Travel clothes", "Leather", "Chain mail", "Scale mail", "Platemail",
 };
 const unsigned char armour_def[NUM_ARMOUR]  = { 0, 2, 4, 7, 10 };
 const unsigned int  armour_cost[NUM_ARMOUR] = { 0, 30, 110, 260, 500 };
@@ -86,7 +86,7 @@ const unsigned int  armour_cost[NUM_ARMOUR] = { 0, 30, 110, 260, 500 };
 /* A bow hits a little softer than a blade of the same price: what you are
    paying for is not having to be next to it. */
 const char *const bow_names[NUM_BOWS + 1] = {
-    "No bow", "Short bow", "Longbow", "Crossbow", "10 arrows",
+    "No bow", "Shortbow", "Longbow", "Composite Bow", "10 arrows",
 };
 const unsigned char bow_atk[NUM_BOWS]   = { 0, 3, 6, 10 };
 const unsigned char bow_range[NUM_BOWS] = { 0, 6, 10, 15 };
@@ -94,7 +94,7 @@ const unsigned int  bow_cost[NUM_BOWS + 1] = { 0, 80, 150, 350, ARROW_PRICE };
 
 /* Experience needed for each level, from level 1. */
 static const unsigned int level_at[] = {
-    0, 20, 50, 100, 180, 300, 460, 700, 1000, 1400,
+    0, 20, 50, 100, 200, 400, 700, 1200, 1800, 2500,
 };
 #define MAX_LEVEL (sizeof(level_at) / sizeof(level_at[0]))
 

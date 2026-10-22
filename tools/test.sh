@@ -185,7 +185,7 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
     if [ -f tests/golden-inn.txt ]; then
         compare inn tests/golden-inn.txt \
             tools/screendump.py dist/q4k.prg --rs232 25299 \
-            --poke party+4=5 --poke gold=60 --keys 'Alaric\rwwddddd12' --settle 24
+            --poke party+4=5 --poke gold=60 --poke lore_seed=$SEED --keys 'Alaric\rwwddddd12' --settle 24
     fi
     kill "$daemon" 2>/dev/null || true
     wait "$daemon" 2>/dev/null || true   # reap quietly; no job-control noise

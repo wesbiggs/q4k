@@ -208,7 +208,8 @@ static unsigned char exchange(const char *verb, const char *said)
     modem_put_literal(verb);
     modem_put_literal(who);
     modem_put(0x20);
-    modem_put(0x30 + at_stage);   /* Q_* never reaches ten, so one digit does */
+    /* One digit does: stage 10 (Q_REWARDED) goes as 9, the host's last. */
+    modem_put(0x30 + (at_stage > 9 ? 9 : at_stage));
     modem_put(0x20);
     put_nybble(lore >> 4);
     put_nybble(lore & 0x0F);

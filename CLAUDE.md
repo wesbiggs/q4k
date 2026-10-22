@@ -27,7 +27,10 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   free for read-only data: `CHDATA1` (112 bytes, `$3C90`), `CHDATA2` (248,
   `$3D08`) and `CHDATA3` (448, `$3E40`), each a linker segment of its own. A
   module puts its rodata there with `#pragma rodata-name ("CHDATA3")` after
-  its includes (inn, sprite and the lot are there; the land and town
+  its includes (inn, sprite and the lot are there, and so are a few strings of `q4k.c` and
+  `help.c` that did not fit anywhere else, as `static const char[]` between
+  two pragmas; they leave 9 bytes free in `CHDATA1`, 2 in `CHDATA2` and 8 in
+  `CHDATA3`; the land and town
   generators' tables are in `CHDATA1`). `$A0` is the input cursor, `$C0-$C7`
   the bow shot's sprite block, and `$80-$91` the actors: leave those alone,
   and check `assets/tiles.txt` before using any glyph above `$91` on screen.
@@ -56,8 +59,8 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   module to `HICODEMODS` as well: its code stays in HIGH but its rodata goes
   back to MAIN (the shop and the ships are there already). Changing either
   list needs the objects rebuilt, because a target-specific `CFLAGS` will not
-  invalidate them on its own. About 6 bytes are free in HIGH, 48 in MAIN (plus
-  the dead ONCE) and 16 in BSS, and the title screen has 29 to spare in OVL. The Makefile's `SMALLMODS` (loot, shop, inn, help, battle,
+  invalidate them on its own. About 212 bytes are free in HIGH, 214 in MAIN (plus
+  the dead ONCE) and 13 in BSS, and the title screen has 29 to spare in OVL. The Makefile's `SMALLMODS` (loot, shop, inn, help, battle,
   dialog and dungeon) are
   built with `-Or`, not `-Osir`: without `-Os` cc65 stops inlining shifts and
   the like, which is about a tenth smaller but pulled some runtime helpers
@@ -66,12 +69,20 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   whose timing was measured is. Changing `cfg/` relinks everything.
 - **The C stack is at the top of MAIN, not where the cfg used to say.** cc65's
   startup points `sp` at `__MAIN_START__ + __MAIN_SIZE__`, `$3800`, and it
-  grows down through MAIN's spare bytes (about 48 now) and then the dead ONCE
+  grows down through MAIN's spare bytes (about 214 now) and then the dead ONCE
   segment. Painting `$3700-$37FF` and running a save and a long walk found
   the stack no deeper than 31 bytes, so what is left is plenty, but measure
   again before spending more of it. The 2K the cfg
   reserved at `$C700-$CEFF` was never touched, and is now BSS and the RS-232
   buffers: the buffers are at `$CD00`, `MEMSIZ` is `$CF00`.
+- `$CF14-$CFFF` **BSS2**, 236 bytes of the probe page the probe does not use
+  (it keeps `$CF00-$CF13`; `screendump.py` reads that much). Above the RS-232
+  buffers, so it is not contiguous with BSS, and ld65 does not clear it: put
+  something there with `#pragma bss-name (push, "BSS2")` only if it is always
+  written before it is read. `fov_lit` (192 bytes) is there, and `__HIGHTOP__`
+  in the cfg is raised by the same amount, which is where HIGH's extra room
+  came from; 44 bytes of BSS2 are left. Anything that needs the probe page
+  longer must move the bound in both the cfg and `screendump.py`.
 - `$B800-$CCFF` **BSS**, then the RS-232 buffers and the probe page at
   `$CF00`. HIGH's top 4K is RAM under BASIC ROM (banked out at startup),
   taken from BSS.

@@ -19,9 +19,9 @@
  17 |~~~~~~~~~~~~~~~~~~~~~·                  |
  18 |~~~~~~~~~~~~~~~~~~~~~·                  |
  19 |········································|
- 20 |Press < or > here.                      |
- 21 |The land takes shape...                 |
- 22 |You sail south.                         |
- 23 |The Green Downs                         |
- 24 |You land in Keldmarch.                  |
+ 20 |A new day dawns in Millford.            |
+ 21 |Walk into someone to speak with them.   |
+ 22 |< to exit.                              |
+ 23 |The land takes shape...                 |
+ 24 |You sail south.                         |
     +----------------------------------------+

@@ -187,21 +187,22 @@ static void put_hp(unsigned char y)
 }
 
 /* Key items, packed so they read as a list of what you have rather than a
-   column of mostly-blank slots. */
+   column of mostly-blank slots. Dragonbane is not one of them: it is the
+   weapon line, and a seventh row would land on the rule at RULE_Y. */
 static void put_items(unsigned char y)
 {
-    static const char *const labels[7] = {
+    static const char *const labels[6] = {
         "Iron Sigil", "Tidal Key", "Ashen Key",
-        "Emberstone", "Silver Tear", "Dragon Heart", "Dragonbane",
+        "Emberstone", "Silver Tear", "Dragon Heart",
     };
     unsigned char i, bit = 1, row = y;
 
-    for (i = 0; i < 7; ++i, bit <<= 1) {
+    for (i = 0; i < 6; ++i, bit <<= 1) {
         if (!(items & bit)) {
             continue;
         }
         cclearxy(PANEL_X, row, PANEL_W);
-        textcolor(i == 6 ? COLOR_YELLOW : COLOR_LIGHTGREEN);
+        textcolor(COLOR_LIGHTGREEN);
         cputsxy(PANEL_X, row, labels[i]);
         ++row;
     }
