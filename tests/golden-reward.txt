@@ -1,0 +1,27 @@
+    +----------------------------------------+
+  0 |King Matheson                           |
+  1 |········································|
+  2 |                                        |
+  3 |The Hollow Crown is in our own country. |
+  4 |What keeps it now is called the Gaoler. |
+  5 |The king rewards you 1,000 gold!        |
+  6 |> hello                                 |
+  7 |The Hollow Crown is in our own country. |
+  8 |What keeps it now is called the Gaoler. |
+  9 |The king praises your valour.           |
+ 10 |> thank you                             |
+ 11 |Three stones, then Garrett's anvil,     |
+ 12 |then the blade. That is the whole of it.|
+ 13 |The king praises your valour.           |
+ 14 |                                        |
+ 15 |                                        |
+ 16 |                                        |
+ 17 |                                        |
+ 18 |                                        |
+ 19 |                                        |
+ 20 |········································|
+ 21 |> █                                     |
+ 22 |                                        |
+ 23 |RETURN sends   RUN/STOP leaves          |
+ 24 |                                        |
+    +----------------------------------------+

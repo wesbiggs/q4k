@@ -179,6 +179,15 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
             --keys 'Alaric\rs<'"$(keys millford castle)"'>wwwwwwwwwwwhello\rwhat is my quest\r' \
             --settle 100
     fi
+    # The king after Maldrath is banished (stage 9): the first word pays the
+    # 1,000 gold and moves the quest to Q_REWARDED, the next only praises.
+    if [ -f tests/golden-reward.txt ]; then
+        compare reward tests/golden-reward.txt \
+            tools/screendump.py dist/q4k.prg --rs232 25299 \
+            --poke quest_stage=9 --poke lore_seed=$SEED --poke no_encounters=1 \
+            --keys 'Alaric\rs<'"$(keys millford castle)"'>wwwwwwwwwwwhello\rthank you\r' \
+            --settle 100
+    fi
     # The inn in Millford, wounded: an ale brings a hint from the daemon's
     # deck (mock mode shuffles it the same way every run), and a bed puts
     # the hero back to full health for 20 marks.
