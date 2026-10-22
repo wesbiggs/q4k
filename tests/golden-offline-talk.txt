@@ -1,0 +1,27 @@
+    +----------------------------------------+
+  0 |Garrett the Smith                       |
+  1 |········································|
+  2 |                                        |
+  3 |So the king's letter found you. Nobody  |
+  4 |leaves Millford without steel, so       |
+  5 |before you go anywhere, ask me for some.|
+  6 |> A dagger                              |
+  7 |Take it. Nobody walks out of Millford   |
+  8 |with bare hands. Keep it oiled and it   |
+  9 |will see you home.                      |
+ 10 |Garrett gives you a dagger.             |
+ 11 |> Maldrath                              |
+ 12 |Steel does not mark him. Two armies     |
+ 13 |learned that. Only Dragonbane can send  |
+ 14 |him off.                                |
+ 15 |                                        |
+ 16 |········································|
+ 17 |1 The letter        2 Weapons           |
+ 18 |3 Maldrath          4 Millford          |
+ 19 |0 Leave                                 |
+ 20 |                                        |
+ 21 |                                        |
+ 22 |                                        |
+ 23 |Number to ask, 0 or RUN/STOP leaves     |
+ 24 |                                        |
+    +----------------------------------------+

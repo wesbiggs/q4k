@@ -200,4 +200,52 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
     wait "$daemon" 2>/dev/null || true   # reap quietly; no job-control noise
 fi
 
+# The offline build (make d64-offline): no modem, and what people say comes
+# off the disk. The title screen has no host to call.
+OFF=dist/offline/q4k.prg
+OFFDISK=dist/offline/q4k.d64
+if [ -f "$OFF" ] && [ -f "$OFFDISK" ]; then
+    if [ -f tests/golden-offline-title.txt ]; then
+        compare offline-title tests/golden-offline-title.txt \
+            tools/screendump.py "$OFF"
+    fi
+    # Garrett at stage 0 has one greeting. Asking for the dagger hands it
+    # over in the transcript and takes the topic off the renumbered menu, so
+    # 3 is then Maldrath.
+    if [ -f tests/golden-offline-talk.txt ]; then
+        compare offline-talk tests/golden-offline-talk.txt \
+            tools/screendump.py "$OFF" --disk "$OFFDISK" \
+            --keys 'Alaric\rwwwwwwwwwwwwaaaawaaa13' --settle 12
+    fi
+    # With no disk there are no lines to load, and Garrett hands the dagger
+    # over on the map, as the networked build does with no host.
+    if [ -f tests/golden-offline-nodisk.txt ]; then
+        compare offline-nodisk tests/golden-offline-nodisk.txt \
+            tools/screendump.py "$OFF" \
+            --keys 'Alaric\rwwwwwwwwwwwwaaaawaaa' --settle 12
+    fi
+    # The king at stage 9: his greeting is the line that gives, so the
+    # reward comes before anything is asked, and the menu is stage 10's.
+    if [ -f tests/golden-offline-reward.txt ]; then
+        compare offline-reward tests/golden-offline-reward.txt \
+            tools/screendump.py "$OFF" --disk "$OFFDISK" \
+            --poke quest_stage=9 --poke lore_seed=$SEED --poke no_encounters=1 \
+            --keys 'Alaric\rs<'"$(keys millford castle)"'>wwwwwwwwwww1' \
+            --settle 60
+    fi
+    # Two ales in Millford's inn. Which rumours is random, so this checks
+    # only that two were told and the keeper was never "busy" (no file).
+    out=$(tools/screendump.py "$OFF" --disk "$OFFDISK" --poke gold=60 \
+        --keys 'Alaric\rwwddddd11' --settle 14 2>/dev/null) || out=
+    drinks=$(printf '%s\n' "$out" | grep -c 'You drink\.') || true
+    if [ "$drinks" = 2 ] && ! printf '%s\n' "$out" | grep -q 'keeper is busy' \
+            && printf '%s\n' "$out" | grep -q 'You have 50 marks'; then
+        echo "PASS  offline-inn"
+    else
+        echo "FAIL  offline-inn"
+        printf '%s\n' "$out"
+        fail=1
+    fi
+fi
+
 exit $fail

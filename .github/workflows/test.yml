@@ -84,5 +84,9 @@ jobs:
       - name: Build
         run: make
 
+      # The offline build and its disk, for tools/test.sh's offline cases.
+      - name: Build offline
+        run: make d64-offline
+
       - name: Test
         run: make test
