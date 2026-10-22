@@ -1,0 +1,245 @@
+# What the people of Keldmarch say in the offline build (make offline), where
+# nobody is on the modem to make it up. tools/mktalk.py packs each section
+# into a file of its own on the disk, named by the NPC's index alone (NPC_* in
+# include/q4k/town_data.h), and the game loads one when you talk to them.
+# The inn rumours are not here: they come from assets/hints.json, the same
+# lines the host draws from.
+#
+#   [npc N]  Name, for the reader only
+#   greet STAGES [give] | what they say when you walk up
+#   topic STAGES [give] | Menu label | what they say when you ask
+#
+# STAGES is the quest stage (Q_* in include/q4k/game.h, 0-10): one, a range
+# like 2-8, or * for all of them. A greeting is picked at random from those
+# that fit the stage, and every stage needs at least one. At most nine topics
+# may fit any one stage; Leave is always 0. `give` hands over whatever the
+# conversation has earned (quest_after_talk() in src/q4k.c) when the line is
+# said, and nothing else does. A line that starts with white space carries on
+# the one before it. Plain ASCII only, and keep a line under about 200
+# characters: the transcript holds twelve rows. Give no directions -- the
+# land is made fresh every game.
+
+[npc 0]  Garrett the Smith, Millford
+greet 0     | So the king's letter found you. Nobody leaves Millford without
+              steel, so before you go anywhere, ask me for some.
+greet 1     | Still here? The castle will not come to you, and it is a long
+              walk. Mind that dagger's edge; it is the only one you have.
+greet 2     | The king gave you his Sigil, then. Good. A tool is only as good as
+              the hand that carries it.
+greet 3-6   | You have the look of someone who has been down a hole. Bring me the
+              stones when you have all three, not before.
+greet 7     | Is that... all three? Put them on the anvil. Carefully.
+greet 8     | Dragonbane is the best work this anvil ever did, and I did not do
+              most of it. Go and use it.
+greet 9-10  | Maldrath banished, with a blade off my anvil. They will drink to
+              that for a hundred years. I will drink to it tonight.
+topic 0 give | A dagger   | Take it. Nobody walks out of Millford with bare
+              hands. Keep it oiled and it will see you home.
+topic 7 give | Reforge it | Hold the bellows. Steady. There: Emberstone,
+              Silver Tear, Dragon's Heart, and the old steel between them. It
+              is done. That is Dragonbane.
+topic 0-1   | The letter  | Sealed with the king's own seal, asking for
+              someone from Millford. A king does not write to farmers for
+              nothing. Go and see what he wants.
+topic 2-6   | Dragonbane  | The blade that can banish Maldrath, broken long
+              ago. Three binding stones held it together. Bring me all three
+              and this anvil will do the rest.
+topic *     | Weapons     | Blades, mail and bows you buy at the castle, or in
+              a town over the water. A better blade is cheaper than a burial,
+              but only just.
+topic 0-8   | Maldrath    | Steel does not mark him. Two armies learned that.
+              Only Dragonbane can send him off.
+topic 9-10  | Maldrath    | Gone, and not coming back while the blade holds.
+              My anvil had a hand in that. I will not let anyone forget it.
+topic *     | Millford    | Farms, a forge, Coyle's shop and the Plough and
+              Harrow. Old Tam will tell you the rest, and then tell you again.
+
+[npc 1]  Mistress Coyle, Millford
+greet 0-1   | Draughts, rope, lamp oil. You will want draughts. Everyone takes
+              too few.
+greet 2-8   | Back again, and still breathing. That puts you ahead of most I
+              have sold to.
+greet 9-10  | The one who sent the dragon packing, at my counter. I will put it
+              in the window.
+topic *     | Draughts    | A draught mends what a beast has torn. Drink one
+              before a fight goes bad, not after. They cost what they cost
+              because the road is long.
+topic 0-8   | The road    | Keep to open grass. Forest and swamp are where the
+              beasts are thickest. Whoever falls out there gets carried home,
+              and wakes with half their purse gone.
+topic 0-2   | The others  | Fourth one this year headed for the castle. I
+              remember the other three. Two came back.
+topic *     | Gossip      | Tam has told the same war story since before I was
+              born. Garrett gives daggers away and wonders why he is poor. The
+              inn waters its ale. That is Millford.
+topic 0-8   | Maldrath    | He took the Harlow flock in one night, two summers
+              back, and burned the barn after, as if to make a point.
+topic 9-10  | Maldrath    | Banished, they say. I will believe it when the
+              price of wool comes down.
+
+[npc 2]  Old Tam, Millford
+greet 0     | A letter with the king's own seal, in Millford. That has not
+              happened in my lifetime, and my lifetime has been long.
+greet 1-2   | Off to see the king, eh? I saw a king once. Not this one; his
+              father. Smaller than you would think.
+greet 3-8   | You came back. Good. Sit down, I have a story about coming back.
+greet 9-10  | I marched against him and lost. You went against him and won. Let
+              an old man shake your hand.
+topic 0-8   | The army    | I marched south once, with the second army. I
+              carried messages. I am the part of it that came back, and I came
+              back because I ran.
+topic 9-10  | The army    | Five hundred went with me and none came home but
+              me. You have paid that debt. I will tell them so, when I see
+              them.
+topic 0-8   | Advice      | In the open, a gap in the line is a door: walk
+              out of a bad fight. In a deep place the keeper bars the door, so
+              go down ready.
+topic 0-8   | Maldrath    | Steel does not bite him. I saw a good sword go
+              across his neck and come away notched. The old books say he can
+              only be banished.
+topic 0-2   | The king    | Matheson is a fair man and a tired one. Nineteen
+              years on the throne, and three of them with a dragon on the
+              roof.
+topic *     | Old days    | When I was a boy Millford had two forges and no
+              dragon. Now it has one forge and a dragon. That is progress.
+
+[npc 3]  Princess Elewyn, Castle Matheson
+greet 0-1   | A visitor! Father said someone was coming from Millford. You do
+              not look like a knight. The good ones rarely do, in the stories.
+greet 2-8   | You have the Sigil! Then you are truly on the quest. Tell me
+              everything when you return. Every single thing.
+greet 9-10  | You did it! The birds are singing in the forest again; I heard
+              them this morning. I will have a song made about you.
+topic 0-8   | Knights     | In the old stories a true knight is not the one
+              with the best horse. It is the one who goes when nobody else
+              will.
+topic 0-8   | Your father | He does not sleep. He sends riders, reads old
+              books, stares at the mountains. I think he blames himself for
+              the armies.
+topic *     | My tower    | Father keeps my door locked, for my safety, he
+              says. But this castle is old, and old castles have more ways in
+              than doors. Not that I would know.
+topic 0-8   | Maldrath    | Since he came the birds have gone quiet in the
+              forests of Keldmarch. I miss them more than I can say.
+topic 9-10  | Maldrath    | Gone! And the birds came back the very next week.
+              I knew they would.
+
+[npc 4]  King Matheson, Castle Matheson
+greet 0-1   | So you are the one from Millford. I sent two armies against
+              Maldrath. I will not send a third. So I am sending you.
+greet 2     | You have the Sigil. The Hollow Crown is in our own country. Bring
+              me back a stone, not a tale.
+greet 3-7   | One stone more than any army brought home. Keep going. The
+              captains sail for you now.
+greet 8     | Dragonbane. I did not think to see it whole in my lifetime. Go,
+              and come back.
+greet 9 give | Stand. Maldrath is banished and Keldmarch is free, and the crown
+              keeps its promises.
+greet 10 give | Our champion returns. The castle is yours to walk whenever you
+              wish.
+topic 0-1 give | The quest | Maldrath can only be banished, with the blade
+              Dragonbane, and its stones are sealed in three deep places.
+              The first is the Hollow Crown. Take the Iron Sigil; it opens
+              the Crown, and nothing else does.
+topic 2-8   | The stones  | The Emberstone in the Hollow Crown, the Silver
+              Tear in the Drowned Stair, the Dragon's Heart in Blackpit. Each
+              place is sealed, and each seal answers to its own token.
+topic 2-8   | The ships   | A ship waits at a port on every coast. The
+              captains sail on my business only, and each stone you bring up
+              opens one more land to you.
+topic 2-8   | The keepers | The Gaoler holds the Crown, the Drowned King the
+              Stair, the Pit Warden Blackpit. None of them will let you run.
+topic 2-7   | The blade   | Three stones, then Garrett's anvil, then the
+              blade. That is the whole of it.
+topic 0-8   | Maldrath    | He came over the mountains three winters ago. His
+              lair is high in a burnt hollow. Everyone knows roughly where.
+              Nobody goes.
+topic 9-10  | The kingdom | The fields first, then the walls, then the songs.
+              My daughter has started on the songs already. Keldmarch will
+              mend.
+
+[npc 5]  Steward Merrit, Castle Matheson
+greet 0-1   | His majesty will see you. I advise you to be brief. You are the
+              one from Millford. Yes. Well.
+greet 2-8   | Back again. His majesty is in the hall, as ever. Do wipe your
+              boots.
+greet 9-10  | I owe you an apology. I did not believe in the plan. I am pleased
+              to have been wrong, which is not a thing I say often.
+topic 0-8   | The plan    | Two armies, and now one of you. I did not choose
+              the plan. I merely keep the accounts, and the accounts are not
+              encouraging.
+topic *     | Armoury     | The castle sells blades, mail and bows to those
+              who can pay. His majesty does not give them away. I would know.
+topic *     | Princess    | Her highness is kept safe in her tower. Her
+              highness is also of the opinion that locks are a suggestion. I
+              do not discuss it.
+topic 0-2   | Captains    | The captains sail on the crown's business only.
+              Until there is business they sit in port and complain about the
+              food.
+
+[npc 6]  Old Brann, Wardlow
+greet 0-8   | Southerner. You will want the library, and the library will want
+              quiet.
+greet 9-10  | The dragon one. Sit, if you like. The fish do not care who you
+              are, and neither, much, do I.
+topic 0-8   | The tide    | The Stair floods twice a day. Go at the wrong hour
+              and the sea keeps you. We call the hour it runs dry the bone
+              tide, for what you see on the steps then.
+topic 9-10  | The tide    | The Stair is quiet now. The lights went out the
+              week your dragon left. Make of that what you will.
+topic 0-8   | The lights  | Lights down there at low water, at the mouth of
+              the Stair. I said so once. They laughed. I have not said it
+              since.
+topic *     | Wardlow     | Salt, fish and books, that is Wardlow. The books
+              are Vane's. The fish are mine. The salt is everybody's.
+topic *     | Vane        | Clever man. Knows every tide in his tables and not
+              one of the words we use for them. Never asked.
+
+[npc 7]  Loremaster Vane, Wardlow
+greet 0-2   | A visitor from the south. The library is open, though I warn you
+              most of it is about fish.
+greet 3     | You have the Emberstone, I am told. Proof you can survive. Now,
+              can you listen?
+greet 4-8   | Back with the Tidal Key still in your hand? Do mind the hour.
+greet 9-10  | Banished, not slain. The distinction matters, and you are the one
+              person who will never get it wrong.
+topic 3 give | The dry hour | So the fishers call it the bone tide. Forty
+              years in this library and nobody told me. Take the Tidal Key,
+              and mind the hour.
+topic 0-2   | Tidal Key   | I keep it, and I will hand it to someone who has
+              brought the Emberstone out of a deep place. Not before. A key is
+              a responsibility.
+topic 2-8   | The Stair   | It floods twice a day. That is not a legend, it is
+              a tide table. Its keeper is called the Drowned King, which is a
+              title, not a pedigree.
+topic 0-8   | Maldrath    | Banished, not slain. He cannot be killed, only sent
+              away, and only with Dragonbane. Everyone gets this wrong.
+topic 9-10  | Maldrath    | Banished. I have written it down, with the date
+              and the tide. Somebody will get it wrong anyway.
+topic *     | The library | The last library in Keldmarch, and I its last
+              keeper. Most of it is tide tables. The rest is arguments about
+              tide tables.
+
+[npc 8]  Mother Ash, Ashcombe
+greet 0-4   | You are not from here. Ashcombe does not get many who are not
+              from here, and it likes it that way.
+greet 5     | You carry the Silver Tear. I can feel it from here, cold as a
+              well. I know what you want.
+greet 6     | You have my key. I hope Blackpit gives you back. It does not give
+              much back.
+greet 7-8   | You went down and came back up. Few do. Do not tell me what you
+              saw.
+greet 9-10  | The dragon is gone, they say. Blackpit is still there. Some
+              things stay shut for a reason.
+topic 5 give | Ashen Key  | The Silver Tear buys the Ashen Key. It does not buy
+              my blessing. Take it. Blackpit should stay shut, and you will
+              open it anyway.
+topic 0-8   | Blackpit    | I do not burn within a mile of it. Its keeper is
+              the Pit Warden, and the forest round it is thick with things
+              that bite. Carry draughts.
+topic 0-8   | Charcoal    | Two of my stacks went out overnight. Soaked
+              through, in a dry week. Something is wet that should not be.
+topic 9-10  | Charcoal    | My stacks burn true again. Whatever was soaking
+              them has stopped. I do not ask why.
+topic *     | Ashcombe    | Timber and charcoal, and forest on every side. We
+              keep to ourselves. The forest keeps to itself. Mostly.

@@ -32,6 +32,9 @@ make bless            accept current output as the new goldens
 make assets           regenerate the C and JSON built from assets/
 make d64              dist/q4k.d64: the game, first file, and its save disk (PROG=name for another)
 make release          the release's .prg, .d64 and zip, in dist/release/
+make offline          dist/offline/q4k.prg: the game with no modem
+make d64-offline      dist/offline/q4k.d64: that, with what everyone says
+make run-offline      ... and play it in VICE
 make clean
 ```
 
@@ -381,6 +384,24 @@ that reply -- a goodbye, offence taken, work to get back to. `ALE` is
 answered with an authored hint from [assets/hints.json](assets/hints.json)
 that fits the inn and the stage; no model is involved. With no host on the
 line at all, nothing is gated, so the game stays winnable without the modem.
+
+### Offline
+
+`make offline` builds the game without the modem: `dialog.c` and `modem.c`
+are left out of the library, `-DQ4K_OFFLINE` is on, and everything goes to
+`build/offline/` and `dist/offline/` so the two builds never share an
+object. Instead of a host, [src/lib/talk.c](src/lib/talk.c) loads what each
+person can say from the disk when you walk up to them, and the player picks a
+topic from a menu. The lines are [assets/talk.txt](assets/talk.txt), by quest
+stage; a line marked `give` is the one that hands over what the quest needs,
+and leaving without hearing it gets you nothing. The inns' rumours are the same
+`assets/hints.json` the host draws from, loaded when you buy an ale.
+[tools/mktalk.py](tools/mktalk.py) packs one file per person (`0` to `8`, by
+`NPC_*`) and per inn (`9` to `11`) onto the d64, so it only works from
+`make d64-offline`'s disk, and it checks that each file fits the overlay: in
+this build the overlay also gets the 512 bytes the RS-232 buffers had, and is
+3052 bytes. Whoever has no file on the disk falls back to the networked
+build's no-host behaviour. Vane's dry hour is always the bone tide here.
 
 ### Taming a small model
 

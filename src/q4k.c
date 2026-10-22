@@ -258,8 +258,13 @@ static void interact(unsigned char index)
        daemon there was none, so the gift is ungated and told on the map. */
     talking_to = e->param;
     note = 0;
+#ifdef Q4K_OFFLINE
+    if (dialog_talk(e->param, npc_names[e->param],
+                    quest_after_talk) != DIALOG_OK) {
+#else
     if (dialog_talk(npc_ids[e->param], npc_names[e->param],
                     quest_stage, lore_seed, quest_after_talk) != DIALOG_OK) {
+#endif
         note = quest_after_talk(GRANT_OPEN);
     }
     back_to_map();

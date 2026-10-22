@@ -67,6 +67,13 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   into MAIN (the figures above are after that). The fight is in it on the
   grounds that a turn-based flood fill can afford to be slower; nothing
   whose timing was measured is. Changing `cfg/` relinks everything.
+- **The offline build** (`make offline`, `-DQ4K_OFFLINE`, in `build/offline/`)
+  has no `dialog.o` or `modem.o`, so nothing opens the RS-232 buffers: it
+  links with `__RSBUF__ = $CF00` and `__OVLSIZE__ = $0BEC` (`OFFLINE_OVL` in
+  the Makefile), and the extra 512 bytes of overlay hold the dialogue files
+  `talk.c` loads from disk. HIGH has about 1,470 bytes free there. Measure
+  both builds after a change to either; `tools/screendump.py` finds
+  `build/offline/q4k.lbl` for `dist/offline/q4k.prg`.
 - **The C stack is at the top of MAIN, not where the cfg used to say.** cc65's
   startup points `sp` at `__MAIN_START__ + __MAIN_SIZE__`, `$3800`, and it
   grows down through MAIN's spare bytes (about 214 now) and then the dead ONCE

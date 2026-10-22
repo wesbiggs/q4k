@@ -46,6 +46,10 @@ VICE's File menu.
 **The .d64** is the same game on a disk. In VICE, or on a real machine with
 an SD card drive: `LOAD"Q4K",8` and `RUN`.
 
+**The offline disk** (`make d64-offline`) needs no modem and no host: what
+everyone says is on the disk, and you pick what to ask from a menu. Keep the
+disk in the drive, because people's lines load from it as you meet them.
+
 To build it yourself instead, see [DEVELOPERS.md](DEVELOPERS.md).
 
 ## Playing
