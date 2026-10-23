@@ -1,0 +1,27 @@
+    +----------------------------------------+
+  0 |                                        |
+  1 |           Quest for the King           |
+  2 |                                        |
+  3 |········································|
+  4 |                                        |
+  5 | The dragon Maldrath came over the      |
+  6 | mountains three winters ago, and has   |
+  7 | not left. Two armies went against him. |
+  8 | Neither came back.                     |
+  9 |                                        |
+ 10 | A letter comes, under the king's seal. |
+ 11 | Matheson summons you to the castle.    |
+ 12 |                                        |
+ 13 | The blade that can banish him was      |
+ 14 | broken, and its three binding stones   |
+ 15 | lie sealed in three deep places.       |
+ 16 |········································|
+ 17 | And who are you, traveller?            |
+ 18 | █                                      |
+ 19 |                                        |
+ 20 |                                        |
+ 21 | RETURN alone for a random name         |
+ 22 | F3 to load a game, F5 to set the seed  |
+ 23 |                                        |
+ 24 |                                 v0.9.0 |
+    +----------------------------------------+

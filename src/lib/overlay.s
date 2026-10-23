@@ -23,11 +23,17 @@
 ;                         -----
 ;                          2540 = $09EC
 ;
+; The offline build (make offline) has no reply, and no modem: it links OVL
+; 512 bytes longer, taking the RS-232 buffers' room (OFFLINE_OVL in the
+; Makefile), and loads one person's lines, or one inn's rumours, from disk into
+; the whole of it as talk (src/lib/talk.c).
+;
 ; The rule that goes with it: nothing here may be touched until the start-up
 ; (main() up to the map's first draw) is done, and none of it may run again.
 ; The cfg will not link if start-up grows past the arrays: then grow one.
 
         .export _field, _wall, _roomy, _seen, _queue_x, _queue_y, _reply
+        .export _talk
         .import __OVL_START__
 
 _field   = __OVL_START__
@@ -37,3 +43,4 @@ _seen    = __OVL_START__ + 399 + 483 + 483
 _queue_x = __OVL_START__ + 399 + 483 + 483 + 483
 _queue_y = __OVL_START__ + 399 + 483 + 483 + 483 + 256
 _reply   = __OVL_START__ + 2360
+_talk    = __OVL_START__

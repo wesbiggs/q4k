@@ -176,7 +176,13 @@ def load_symbols(prg):
     itself, which would otherwise have to carry a cheat channel it does not
     need.
     """
-    lbl = os.path.join("build",
+    # dist/<sub>/x.prg was linked in build/<sub>/ (make offline's builds are
+    # dist/offline/ and build/offline/), and the plain build is just dist/.
+    sub = os.path.relpath(os.path.dirname(os.path.abspath(prg)),
+                          os.path.abspath("dist"))
+    if sub.startswith(".."):
+        sub = "."
+    lbl = os.path.join("build", sub,
                        os.path.splitext(os.path.basename(prg))[0] + ".lbl")
     syms = {}
     if not os.path.exists(lbl):

@@ -4,6 +4,10 @@
  * Takes over the screen, dials the host over the modem port, and runs a
  * conversation: the player types, the NPC answers. The caller redraws the map
  * afterwards.
+ *
+ * The offline build (Q4K_OFFLINE, make offline) has no modem: src/lib/talk.c
+ * loads what each person can say from the disk instead, and the player picks
+ * from a menu. Its half of this header is at the end.
  */
 
 #ifndef Q4K_DIALOG_H
@@ -24,6 +28,8 @@
 /* Nobody to ask, so nothing is gated: the game stays winnable without the
    modem. Passed to dialog_talk()'s `given` when the line is not up. */
 #define GRANT_OPEN   0xFF
+
+#ifndef Q4K_OFFLINE
 
 /* What dialog_probe() found on the line when the game started. */
 #define LINE_UP       0   /* a host answered, and can talk               */
@@ -67,5 +73,26 @@ unsigned char dialog_talk(const char *npc_id, const char *place,
    caller has set up. No model is involved. DIALOG_OK if one arrived. */
 unsigned char dialog_hint(const char *inn_id, unsigned char stage,
                           unsigned char seed);
+
+#else /* Q4K_OFFLINE */
+
+/* Talk to NPC number `npc` (NPC_* in town_data.h), whose lines are the file
+   of that name on the disk (tools/mktalk.py, from assets/talk.txt), headed
+   `name`. The player picks topics until they leave. A line marked to give
+   calls `given` with GRANT_OPEN, and what it returns goes in the transcript;
+   nothing else calls it. DIALOG_ENOLINE if the file would not load. Either
+   way the caller redraws the map afterwards. */
+unsigned char dialog_talk(unsigned char npc, const char *name,
+                          const char *(*given)(unsigned char granted));
+
+/* One of inn `inn`'s rumours for the quest stage, at random, appended to
+   whatever panel the caller has set up. The file is loaded the first time
+   and kept until dialog_forget(). DIALOG_OK if one was told. */
+unsigned char dialog_hint(unsigned char inn);
+
+/* Forget what is loaded: the overlay is someone else's scratch after. */
+void dialog_forget(void);
+
+#endif /* Q4K_OFFLINE */
 
 #endif /* Q4K_DIALOG_H */

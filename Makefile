@@ -15,6 +15,9 @@
 #   make assets     regenerate the C and JSON built from assets/
 #   make shot       headless run, save a PNG screenshot
 #   make d64        build a bootable disk image
+#   make offline    the game without the modem, in dist/offline/
+#   make d64-offline   ... on a disk with what everyone says
+#   make run-offline   ... and play it in VICE
 #   make release    the files a release publishes, in dist/release/
 #   make clean
 
@@ -24,6 +27,22 @@ PROG     ?= hello
 BUILD    := build
 DIST     := dist
 
+# The offline build: no modem and no host. What people say is on the disk
+# instead, a file each, which src/lib/talk.c loads into the overlay
+# (tools/mktalk.py makes them from assets/talk.txt, and the inns' rumours from
+# assets/hints.json). Everything goes in a directory of its own, so the two
+# builds' objects never mix; use the targets at the end, which set OFFLINE.
+OFFLINE  ?= 0
+ifeq ($(OFFLINE),1)
+BUILD    := build/offline
+DIST     := dist/offline
+endif
+
+# Without the modem nothing opens the RS-232 buffers at $CD00-$CEFF, so BSS
+# can run on to the probe page and the overlay take its 512 bytes: the inns'
+# rumours did not fit in 2540. mktalk.py checks every file against this.
+OFFLINE_OVL := 0x0BEC
+
 CL65     := cl65
 AR65     := ar65
 C1541    := c1541
@@ -32,7 +51,8 @@ C1541    := c1541
 # --static-locals: locals become static storage -- faster on 6502 (no stack
 # frame juggling) at the cost of no recursion. Right trade for a tile RPG.
 OPT      := -Osir
-CFLAGS    = -t $(TARGET) $(OPT) --static-locals -I include
+CFLAGS    = -t $(TARGET) $(OPT) --static-locals -I include \
+            $(if $(filter 1,$(OFFLINE)),-DQ4K_OFFLINE)
 ASFLAGS  := -t $(TARGET) -I include --asm-include-dir include
 # The game gets the full memory map; the demos and tools get a lean one that
 # skips the HIGH region and its contiguity padding.
@@ -58,7 +78,7 @@ PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 # flags are needed: --code-name alone leaves the string literals behind, and
 # screens like the help text are mostly string literals.
 HIMODS   := dialog battle shop inn dungeon panel help savegame sprite \
-            loot fov world sail modem actor town_gen
+            loot fov world sail modem actor town_gen talk
 
 # Code above the charset, constants below: for when HIGH is the one that is
 # full and MAIN still has room. The shop's names and prices went back down
@@ -72,7 +92,7 @@ HICODEMODS := shop sail
 # milliseconds slower goes unnoticed. Not the generators or the modem, whose
 # timing was measured with it. Changing this list needs the objects rebuilt,
 # as above.
-SMALLMODS  := loot shop inn help battle dialog dungeon
+SMALLMODS  := loot shop inn help battle dialog dungeon talk
 $(foreach m,$(SMALLMODS),$(eval $(BUILD)/lib/$(m).o: OPT := -Or))
 
 # The title screen is not in HIGH at all: it runs once, at the start, from the
@@ -88,6 +108,13 @@ LIBSRC   := $(wildcard src/lib/*.c) $(wildcard src/lib/*.s)
 LIBOBJ   := $(patsubst src/lib/%.c,$(BUILD)/lib/%.o,$(wildcard src/lib/*.c)) \
             $(patsubst src/lib/%.s,$(BUILD)/lib/%.o,$(wildcard src/lib/*.s))
 
+# One build talks over the modem and the other from the disk, never both.
+ifeq ($(OFFLINE),1)
+LIBOBJ   := $(filter-out $(BUILD)/lib/dialog.o $(BUILD)/lib/modem.o,$(LIBOBJ))
+else
+LIBOBJ   := $(filter-out $(BUILD)/lib/talk.o,$(LIBOBJ))
+endif
+
 $(foreach m,$(filter-out $(HICODEMODS),$(HIMODS)),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE --rodata-name HIDATA))
 $(foreach m,$(HICODEMODS),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE))
 
@@ -95,7 +122,8 @@ ifneq ($(strip $(LIBOBJ)),)
 LIB      := $(BUILD)/q4k.lib
 endif
 
-.PHONY: all run play check shot test bless d64 release clean dirs assets
+.PHONY: all run play check shot test bless d64 release clean dirs assets \
+        offline d64-offline run-offline
 .SECONDARY: $(BUILD)/$(PROG).o
 
 all: dirs assets $(PRGS)
@@ -220,6 +248,18 @@ $(DIST)/%.prg: $(BUILD)/%.o $(LIB) $(wildcard cfg/*.cfg)
 	    -Wl -Ln,$(BUILD)/$*.lbl -o $@ $< $(LIB)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
+ifeq ($(OFFLINE),1)
+$(DIST)/q4k.prg: LDFLAGS += -Wl -D,__OVLSIZE__=$(OFFLINE_OVL) -Wl -D,__RSBUF__=0xCF00
+
+TALK_STAMP := $(BUILD)/talk/.stamp
+
+$(TALK_STAMP): assets/talk.txt assets/hints.json tools/mktalk.py \
+               include/q4k/town_data.h src/lib/town_data.c
+	@rm -rf $(BUILD)/talk
+	tools/mktalk.py $(BUILD)/talk $(OFFLINE_OVL)
+	@touch $@
+endif
+
 # --- run / verify -----------------------------------------------------------
 
 run: dirs $(DIST)/$(PROG).prg
@@ -281,11 +321,29 @@ release: dirs $(DIST)/q4k.prg
 # on the command line picks another program; the default is the game.
 D64PROG = $(if $(filter command line,$(origin PROG)),$(PROG),q4k)
 
-d64: dirs $(DIST)/$(D64PROG).prg
+d64: dirs $(DIST)/$(D64PROG).prg $(TALK_STAMP)
 	@rm -f $(DIST)/$(D64PROG).d64
 	$(C1541) -format "q4k,01" d64 $(DIST)/$(D64PROG).d64 >/dev/null
 	$(C1541) -attach $(DIST)/$(D64PROG).d64 -write $(DIST)/$(D64PROG).prg $(D64PROG) >/dev/null
+ifeq ($(OFFLINE),1)
+	$(C1541) -attach $(DIST)/$(D64PROG).d64 \
+	    $$(for f in $(BUILD)/talk/[0-9]*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
+endif
 	@echo "wrote $(DIST)/$(D64PROG).d64   (LOAD\"$(D64PROG)\",8,1 then RUN; saves go to the same disk)"
+
+# --- offline ----------------------------------------------------------------
+#
+# The same game with no modem, and its lines on the disk. Only the game is
+# built: the small tools are the same either way.
+
+offline:
+	$(MAKE) OFFLINE=1 dirs assets dist/offline/q4k.prg
+
+d64-offline:
+	$(MAKE) OFFLINE=1 assets d64
+
+run-offline: d64-offline
+	tools/run.sh dist/offline/q4k.d64
 
 clean:
 	rm -rf $(BUILD) $(DIST)

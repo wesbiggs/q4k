@@ -28,8 +28,10 @@
 
 static char line[SCR_W + 1];
 
+#ifndef Q4K_OFFLINE
 /* What the host knows the inns the generator makes by. */
 static const char proc_inn_id[] = "wayside";
+#endif
 
 static void purse(void)
 {
@@ -67,9 +69,14 @@ static void ale(unsigned char inn)
         return;
     }
     panel_lit("You drink.", COLOR_GRAY2);
+#ifdef Q4K_OFFLINE
+    /* Offline, the rumours are on the disk: talk.c loads them now. */
+    if (dialog_hint(inn) != DIALOG_OK) {
+#else
     if (dialog_line == LINE_UP
         && dialog_hint(inn < NUM_INNS ? inn_ids[inn] : proc_inn_id,
                        quest_stage, lore_seed) != DIALOG_OK) {
+#endif
         panel_lit("The keeper is busy.", COLOR_GRAY2);
     }
 }
@@ -91,6 +98,9 @@ void inn_open(unsigned char inn)
 {
     unsigned char key;
 
+#ifdef Q4K_OFFLINE
+    dialog_forget();     /* the overlay may have been a fight since */
+#endif
     sprite_hide();
     clrscr();
     textcolor(COLOR_YELLOW);
