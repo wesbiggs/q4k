@@ -223,7 +223,7 @@ static const char *quest_after_talk(unsigned char granted)
                 && (granted == GRANT_FORGE || granted == GRANT_OPEN)) {
                 quest_stage = Q_FORGED;
                 give(IT_BLADE);
-                weapon_lv = NUM_WEAPONS - 1;
+                weapon_lv = DRAGONBANE;
                 return "Garrett reforges Dragonbane.";
             }
             break;

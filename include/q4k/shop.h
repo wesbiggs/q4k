@@ -14,4 +14,10 @@ unsigned int potion_price(void);
 
 void shop_open(unsigned char kind);
 
+/* After a fight won against something that carries arms: now and then it
+   leaves a blade, mail or a bow, of the tiers this land's shops sell, and
+   the hero takes it up if it is better than what they have. Says which. */
+extern unsigned char gear_odds;
+void gear_drop(void);
+
 #endif /* Q4K_SHOP_H */

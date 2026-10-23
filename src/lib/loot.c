@@ -97,8 +97,10 @@ unsigned char look(void)
     }
     looted[bit] |= mask;
 
-    /* A dungeon chest is even odds a draught or gold, the gold worth 10 per
-       quest stage and 8 per level below the first, plus a d20. Rolled now rather than when the level is
+    /* A dungeon chest is even odds a draught or gold, the gold worth 5 per
+       quest stage and 4 per level below the first, plus a d10: a fight or
+       two's worth, no more, or a dungeon pays for the next land's shops
+       before you get there. Rolled now rather than when the level is
        built, which would spend the level's own seeded draws. */
     if (scene == SCENE_DUNGEON) {
         if (rand() & 1) {
@@ -106,9 +108,9 @@ unsigned char look(void)
             amount = 1;
         } else {
             kind   = LOOT_GOLD;
-            amount = ((unsigned int)quest_stage << 3) + (quest_stage << 1)
-                   + ((unsigned int)(depth - 1) << 3)
-                   + 1 + (unsigned char)(rand() % 20);
+            amount = (quest_stage << 2) + quest_stage
+                   + ((depth - 1) << 2)
+                   + 1 + (unsigned char)(rand() % 10);
         }
     } else {
         kind   = found->kind;
@@ -146,10 +148,11 @@ static unsigned char dig(void)
             && tmap[TM_Y + i] == hero.y) {
             tmap[TM_LAND + i] = 0;
             ++game_turn;
-            /* Worth more as the story goes on; the last bit from where it
+            /* Worth more as the story goes on, 16 a stage -- some five
+               fights' gold, for the walk -- and the last bit from where it
                lay, so that no two are the same and a test can know. */
-            amount = ((unsigned int)(quest_stage + 2) << 5)
-                   + ((hero.x ^ hero.y) & 31);
+            amount = ((unsigned int)(quest_stage + 2) << 4)
+                   + ((hero.x ^ hero.y) & 15);
             gold += amount;
             potions += 2;
             strcpy(msg, "You dig up ");
