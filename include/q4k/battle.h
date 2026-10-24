@@ -12,28 +12,30 @@
 
 #include <q4k/game.h>   /* NUM_DUNGEONS */
 
-#define NUM_WEAPONS 5
-#define NUM_ARMOUR  5
+/* What the shops sell runs from tier 1 to tier 6, each land a few tiers of
+   it (gear_range() in shop.c). Dragonbane is a weapon past the last tier,
+   which nothing sells. */
+#define NUM_WEAPONS 8
+#define DRAGONBANE  (NUM_WEAPONS - 1)
+#define NUM_ARMOUR  7
 
 extern const char *const   weapon_names[NUM_WEAPONS];
 extern const unsigned char weapon_atk[NUM_WEAPONS];
-extern const unsigned int  weapon_cost[NUM_WEAPONS];
 
 extern const char *const   armour_names[NUM_ARMOUR];
 extern const unsigned char armour_def[NUM_ARMOUR];
-extern const unsigned int  armour_cost[NUM_ARMOUR];
+extern const unsigned char armour_slow[NUM_ARMOUR];  /* tenths of speed */
 
 /* Bows are a second slot: you carry one as well as your weapon, and F in
    a fight shoots it. Index 0 is having none. Range is in squares, and a
    shot flies straight up, down, left or right. */
-#define NUM_BOWS 4
+#define NUM_BOWS 5
 
-/* bow_names and bow_cost have one more entry than the bows: the bowyer's
-   ten arrows, which the shop lists after them. */
+/* bow_names has one more entry than the bows: the bowyer's ten arrows,
+   which the shop lists after them. The prices are the shop's (shop.c). */
 extern const char *const   bow_names[NUM_BOWS + 1];
 extern const unsigned char bow_atk[NUM_BOWS];
 extern const unsigned char bow_range[NUM_BOWS];
-extern const unsigned int  bow_cost[NUM_BOWS + 1];
 
 #define BATTLE_WON   0
 #define BATTLE_FLED  1
@@ -65,6 +67,7 @@ typedef struct {
 
 extern const Wanderer      wanderers[];
 extern const unsigned char num_wanderers;
+extern const Monster       natives[];   /* two a biome, offline only */
 extern const Monster       keepers[NUM_DUNGEONS];
 extern const Monster       maldrath;
 

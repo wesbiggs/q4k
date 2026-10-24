@@ -59,8 +59,8 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   module to `HICODEMODS` as well: its code stays in HIGH but its rodata goes
   back to MAIN (the shop and the ships are there already). Changing either
   list needs the objects rebuilt, because a target-specific `CFLAGS` will not
-  invalidate them on its own. About 212 bytes are free in HIGH, 214 in MAIN (plus
-  the dead ONCE) and 13 in BSS, and the title screen has 29 to spare in OVL. The Makefile's `SMALLMODS` (loot, shop, inn, help, battle,
+  invalidate them on its own. About 44 bytes are free in HIGH, 146 in MAIN (plus
+  the dead ONCE) and 7 in BSS, and the title screen has 29 to spare in OVL. The Makefile's `SMALLMODS` (loot, shop, inn, help, battle,
   dialog and dungeon) are
   built with `-Or`, not `-Osir`: without `-Os` cc65 stops inlining shifts and
   the like, which is about a tenth smaller but pulled some runtime helpers
@@ -71,12 +71,16 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   has no `dialog.o` or `modem.o`, so nothing opens the RS-232 buffers: it
   links with `__RSBUF__ = $CF00` and `__OVLSIZE__ = $0BEC` (`OFFLINE_OVL` in
   the Makefile), and the extra 512 bytes of overlay hold the dialogue files
-  `talk.c` loads from disk. HIGH has about 1,470 bytes free there. Measure
+  `talk.c` loads from disk. HIGH has about 400 bytes free there, after what
+  only this build has: the continents' own monsters, the arms monsters drop
+  (`gear_drop()` in `shop.c`) and lightning (`SHOT_BOLT`, whose shapes put
+  `sprite.c`'s shot table in HIDATA rather than `CHDATA3`), all under
+  `#ifdef Q4K_OFFLINE` because the online build had no room. Measure
   both builds after a change to either; `tools/screendump.py` finds
   `build/offline/q4k.lbl` for `dist/offline/q4k.prg`.
 - **The C stack is at the top of MAIN, not where the cfg used to say.** cc65's
   startup points `sp` at `__MAIN_START__ + __MAIN_SIZE__`, `$3800`, and it
-  grows down through MAIN's spare bytes (about 214 now) and then the dead ONCE
+  grows down through MAIN's spare bytes (about 146 now) and then the dead ONCE
   segment. Painting `$3700-$37FF` and running a save and a long walk found
   the stack no deeper than 31 bytes, so what is left is plenty, but measure
   again before spending more of it. The 2K the cfg
@@ -88,7 +92,8 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   something there with `#pragma bss-name (push, "BSS2")` only if it is always
   written before it is read. `fov_lit` (192 bytes) is there, and `__HIGHTOP__`
   in the cfg is raised by the same amount, which is where HIGH's extra room
-  came from; 44 bytes of BSS2 are left. Anything that needs the probe page
+  came from; 44 bytes of BSS2 are left (29 offline, where the fight's
+  copy of a continent's monster, `native`, is there too). Anything that needs the probe page
   longer must move the bound in both the cfg and `screendump.py`.
 - `$B800-$CCFF` **BSS**, then the RS-232 buffers and the probe page at
   `$CF00`. HIGH's top 4K is RAM under BASIC ROM (banked out at startup),

@@ -7,9 +7,11 @@
 #include <q4k/arena_data.h>
 #include <q4k/battle.h>
 #include <q4k/game.h>
+#include <q4k/isle.h>
 #include <q4k/loot.h>
 #include <q4k/music.h>
 #include <q4k/rle.h>
+#include <q4k/shop.h>
 #include <q4k/sprite.h>
 #include <q4k/tiles.h>
 #include <q4k/view.h>
@@ -35,6 +37,9 @@ static const char *const shot_hits[] = {
     "An arrow hits you for ",
     "Flame sears you for ",
     "A wave hits you for ",
+#ifdef Q4K_OFFLINE
+    "Lightning strikes you for ",
+#endif
 };
 
 /* Kept in order of `from`: a fight picks evenly from the ones you have
@@ -58,39 +63,75 @@ const Wanderer wanderers[] = {
 #define NUM_WANDERERS (sizeof(wanderers) / sizeof(wanderers[0]))
 const unsigned char num_wanderers = NUM_WANDERERS;
 
-/* One keeper per deep place, in the order the quest opens them. */
+#ifdef Q4K_OFFLINE
+/* The continents' own, met nowhere else: two to a land, by what it is mostly
+   made of (BIOME_* order), one that closes in and one that shoots. Only in
+   the offline build, which has the room: so are the arms monsters drop. These are
+   their strengths on the first continent the story opens; native_fight()
+   makes them tougher on each one after. */
+const Monster natives[BIOMES * 2] = {
+    { "A gnoll",       16, 6, 2, 12, 14, T_GOBLIN,  COLOR_YELLOW,    11, 1 },
+    { "A centaur",     14, 5, 2, 14, 16, T_BANDIT,  COLOR_BROWN,     14, 1,
+      6, 6 },
+    { "A briar troll", 20, 7, 3, 14, 12, T_OGRE,    COLOR_GREEN,      8, 1 },
+    { "A wisp",        10, 4, 1, 14,  8, T_WRAITH,  COLOR_YELLOW,    16, 1,
+      6, 5, SHOT_FIRE },
+    { "A mire leech",  14, 6, 1, 11,  4, T_RAT,     COLOR_BROWN,      9, 1 },
+    { "A bog hag",     14, 4, 2, 14, 16, T_WRAITH,  COLOR_GREEN,     10, 1,
+      6, 6, SHOT_WATER },
+    { "A sand wyrm",   20, 7, 3, 14, 10, T_DRAKE,   COLOR_YELLOW,    12, 1 },
+    { "An efreet",     14, 5, 2, 16, 18, T_MONSTER, COLOR_ORANGE,    12, 1,
+      7, 6, SHOT_FIRE },
+    { "A rock troll",  22, 7, 4, 15, 14, T_OGRE,    COLOR_GRAY2,      7, 1 },
+    { "A storm giant", 18, 5, 3, 16, 20, T_MONSTER, COLOR_CYAN,       9, 1,
+      7, 7, SHOT_BOLT },
+};
+#endif
+
+/* One keeper per deep place, in the order the quest opens them. Each is meant
+   to be a near thing for a hero with the best their land sells and the level
+   they are likely to have by then -- the Gaoler for the Short sword and Chain
+   mail at about level 4, the Drowned King for the War axe and Platemail at
+   about 6, the Pit Warden for the Runeblade and Runed plate at about 8.
+   Played out in the arena (src/arena.c), each took two or three draughts,
+   drinking whenever one more round could have killed. */
 const Monster keepers[NUM_DUNGEONS] = {
-    { "The Gaoler",       45, 12, 5,  60,  80, T_MONSTER, TC_MONSTER, 10, 1 },
-    { "The Drowned King", 60, 15, 6,  90, 120, T_MONSTER, TC_MONSTER, 10, 1,
-      12, 4, SHOT_WATER },
-    { "The Pit Warden",   80, 18, 8, 140, 180, T_MONSTER, TC_MONSTER, 10, 1 },
+    { "The Gaoler",       45,  8, 5,  60,  80, T_MONSTER, TC_MONSTER, 10, 1 },
+    { "The Drowned King", 85, 15, 6,  90, 120, T_MONSTER, TC_MONSTER, 10, 1,
+      14, 4, SHOT_WATER },
+    { "The Pit Warden",  150, 22, 8, 140, 180, T_MONSTER, TC_MONSTER, 10, 1 },
 };
 
+/* Against Dragonbane and Runed plate at level 10, five or six draughts, played
+   out the same way. His health is a byte, like everyone's, so 250 is near all
+   it can be; the rest is in how hard he hits. */
 const Monster maldrath = {
-    "Maldrath", 120, 22, 10, 255, 0, T_DRAGONTL, TC_DRAGONTL, 10, 2,
+    "Maldrath", 250, 24, 10, 255, 0, T_DRAGONTL, TC_DRAGONTL, 10, 2,
     18, 4, SHOT_FIRE
 };
 
 const char *const weapon_names[NUM_WEAPONS] = {
     "Bare hands", "Dagger", "Short sword", "Long sword", "War axe",
+    "Greatsword", "Runeblade", "Dragonbane",
 };
-const unsigned char weapon_atk[NUM_WEAPONS]  = { 1, 3, 6, 10, 15 };
-const unsigned int  weapon_cost[NUM_WEAPONS] = { 0, 25, 80, 200, 420 };
+const unsigned char weapon_atk[NUM_WEAPONS]  = { 1, 3, 6, 10, 14, 18, 23, 28 };
 
 const char *const armour_names[NUM_ARMOUR] = {
     "Travel clothes", "Leather", "Chain mail", "Scale mail", "Platemail",
+    "Mithril mail", "Runed plate",
 };
-const unsigned char armour_def[NUM_ARMOUR]  = { 0, 2, 4, 7, 10 };
-const unsigned int  armour_cost[NUM_ARMOUR] = { 0, 30, 110, 260, 500 };
+const unsigned char armour_def[NUM_ARMOUR]  = { 0, 2, 4, 7, 10, 12, 15 };
+/* Each grade slows you a tenth, up to plate; mithril weighs what chain does,
+   and the runes on the last plate bear some of its weight. */
+const unsigned char armour_slow[NUM_ARMOUR] = { 0, 1, 2, 3, 4, 2, 3 };
 
 /* A bow hits a little softer than a blade of the same price: what you are
    paying for is not having to be next to it. */
 const char *const bow_names[NUM_BOWS + 1] = {
-    "No bow", "Shortbow", "Longbow", "Composite Bow", "10 arrows",
+    "No bow", "Shortbow", "Longbow", "Composite Bow", "Arbalest", "10 arrows",
 };
-const unsigned char bow_atk[NUM_BOWS]   = { 0, 3, 6, 10 };
-const unsigned char bow_range[NUM_BOWS] = { 0, 6, 10, 15 };
-const unsigned int  bow_cost[NUM_BOWS + 1] = { 0, 80, 150, 350, ARROW_PRICE };
+const unsigned char bow_atk[NUM_BOWS]   = { 0, 3, 6, 10, 15 };
+const unsigned char bow_range[NUM_BOWS] = { 0, 6, 10, 15, 18 };
 
 /* Experience needed for each level, from level 1. */
 static const unsigned int level_at[] = {
@@ -288,6 +329,14 @@ static unsigned char won(const Monster *m, unsigned char n)
         view_message(msg);
     }
     treasure_drop();
+#ifdef Q4K_OFFLINE
+    /* What goes armed: goblins, bandits, skeletons and ogres, and whatever
+       of the continents' own is drawn as one. */
+    if (m->glyph == T_GOBLIN
+        || (unsigned char)(m->glyph - T_BANDIT) <= T_OGRE - T_BANDIT) {
+        gear_drop();
+    }
+#endif
     return BATTLE_WON;
 }
 
@@ -324,8 +373,6 @@ static unsigned char lost(void)
 #define RIM_W      (LOCAL_W + 2)
 #define RIM_H      (LOCAL_H + 2)
 
-/* The hero's speed in tenths, before armour takes its share. */
-#define HERO_SPEED 10
 
 /* The fight's scratch is not BSS: it is the overlay, the same bytes the title
    screen ran from before the first fight (overlay.s). Nothing in it carries
@@ -813,11 +860,11 @@ static unsigned char fight(const Monster *m, unsigned char ground,
     }
     foes = alive = cur;
 
-    /* Speed is relative: armour slows you a tenth a grade, from 1.0 in
-       travel clothes to 0.6 in plate, and whatever you lose it gains.
-       Its moves are banked in tenths, so a relative 1.5 moves once, then
+    /* Speed is relative: the hero's is 1.0, less what the armour costs
+       (armour_slow: 0.6 in plate), and whatever you lose it gains. Its
+       moves are banked in tenths, so a relative 1.5 moves once, then
        twice, then once. */
-    rel = m->speed + 10 - (HERO_SPEED - armour_lv);
+    rel = m->speed + armour_slow[armour_lv];
 
     view_restore();
     draw_field();
@@ -1004,11 +1051,48 @@ static unsigned char wander_fight(unsigned char i, unsigned char n)
                        1, n);
 }
 
+#ifdef Q4K_OFFLINE
+/* One or two of the land's own, as strong as the story's order of the
+   continents makes them. A copy, which only ever lives for the fight: written
+   before it is read, so it can go where nothing is cleared (BSS2). */
+#pragma bss-name (push, "BSS2")
+static Monster native;
+#pragma bss-name (pop)
+
+static unsigned char native_fight(void)
+{
+    unsigned char s;
+
+    native = natives[isle_biome * 2 + (rand() & 1)];
+    for (s = slot_of(land); s; --s) {
+        native.hp   += 10;
+        native.atk  += 3;
+        native.def  += 1;
+        native.xp   += 10;
+        native.gold += 8;
+        if (native.reach) {
+            native.shot += 3;
+        }
+    }
+    return battle_fight(&native,
+                        scene != SCENE_DUNGEON ? map_at(hero.x, hero.y)
+                                               : T_FLOOR,
+                        1, 1 + (rand() & 1));
+}
+#endif
+
 /* Each level down counts as one more of the hero's own: the pool of what
    turns up is drawn from further along the list, and in bigger groups. */
 unsigned char battle_wander(void)
 {
     unsigned char top, i, most, lvl;
+
+#ifdef Q4K_OFFLINE
+    /* Over the sea, a quarter of what turns up is the land's own. */
+    if (land != ISLE_HOME && !(rand() & 3)) {
+        return native_fight();
+    }
+#endif
 
     lvl = hero.level + (scene == SCENE_DUNGEON ? depth - 1 : 0);
 

@@ -49,6 +49,7 @@ void sprite_walk(unsigned char dir);
 #define SHOT_ARROW 0   /* yellow; the hero's bow and the monsters' */
 #define SHOT_FIRE  1   /* orange; Maldrath's breath */
 #define SHOT_WATER 2   /* light blue; the Drowned King's */
+#define SHOT_BOLT  3   /* white; lightning, the storm giant's */
 
 /* Fly a shot of `kind` from screen cell (col,row) `squares` squares in
    `dir`, and hide it again at the end. Takes two frames a square. */

@@ -44,9 +44,12 @@ void view_chrome(void)
     chlinexy(0, RULE_Y, SCR_W);
 }
 
+unsigned char town_drawn;
+
 /* Come back from a screen something else owned, keeping the log. */
 void view_restore(void)
 {
+    town_drawn = 0;
     clrscr();
     view_chrome();
     redraw_log();
@@ -146,9 +149,10 @@ void view_draw(void)
         cam_x = camera(hero.x, VIEW_CX, WORLD_SIZE, VIEW_W);
         cam_y = camera(hero.y, VIEW_CY, WORLD_SIZE, VIEW_H);
         world_draw(cam_x, cam_y);
-    } else {
+    } else if (!town_drawn) {
         draw_local();
     }
+    town_drawn = (scene == SCENE_TOWN);
     sprite_show(hero.x - cam_x, hero.y - cam_y);
 }
 
@@ -188,7 +192,8 @@ static void put_hp(unsigned char y)
 
 /* Key items, packed so they read as a list of what you have rather than a
    column of mostly-blank slots. Dragonbane is not one of them: it is the
-   weapon line, and a seventh row would land on the rule at RULE_Y. */
+   weapon line (weapon_names[DRAGONBANE]), and a seventh row would land on
+   the rule at RULE_Y. */
 static void put_items(unsigned char y)
 {
     static const char *const labels[6] = {
@@ -238,11 +243,7 @@ void view_draw_panel(void)
        keeps to itself. */
     textcolor(COLOR_CYAN);
     cclearxy(PANEL_X, 7, PANEL_W);
-    if (has(IT_BLADE)) {
-        cputsxy(PANEL_X, 7, "Dragonbane");
-    } else {
-        cputsxy(PANEL_X, 7, weapon_names[weapon_lv]);
-    }
+    cputsxy(PANEL_X, 7, weapon_names[weapon_lv]);
     cclearxy(PANEL_X, 8, PANEL_W);
     cputsxy(PANEL_X, 8, armour_names[armour_lv]);
     cclearxy(PANEL_X, 9, PANEL_W);

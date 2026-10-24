@@ -8,6 +8,7 @@
 #include <q4k/isle.h>
 #include <q4k/music.h>
 #include <q4k/vault.h>
+#include <q4k/view.h>
 #include <q4k/world.h>
 
 unsigned char scene;
@@ -96,6 +97,7 @@ void map_set(unsigned char x, unsigned char y, unsigned char code)
 {
     if (scene != SCENE_WORLD && x < local_w && y < local_h) {
         local[LOCAL_AT(x, y)] = code;
+        town_drawn = 0;
     }
 }
 
@@ -122,6 +124,7 @@ void home_ensure(void)
     memcpy(home_port_y, isle_port_y, 4);
     home_biome = isle_biome;
     home_ok = 1;
+    lair_clear();
 }
 
 unsigned char home_built(void)

@@ -117,6 +117,16 @@ than six. At level six that is as many as six rats or three giant wasps.
 They go round one another to reach you, and an archer will not shoot
 through its fellows. Keepers and Maldrath always come alone.
 
+In the offline build each continent also has two monsters of its own, met
+nowhere else, after the ground it is mostly made of -- gnolls and centaurs on
+the plains, trolls and wisps in the forest, leeches and bog hags in the mire,
+sand wyrms and efreets in the desert, rock trolls and storm giants in the
+mountains -- one of each pair shooting arrows, fire, water or lightning, and
+each tougher on every continent the story opens after the first. And anything
+that goes armed (goblins, bandits, skeletons, ogres and their like) now and
+then leaves a blade, mail or a bow of the grades that land's shops sell; you
+take it up if it is better than yours.
+
 ## The world
 
 Home, Keldmarch, is a 64x64 map, and nothing in the game is in the same place
@@ -162,7 +172,12 @@ mountains and water are never allowed to cut a piece of land off.
 Every land has a town of its own as well: an inn, a shop, and a house or two,
 laid out differently each time. The shop is a smithy, an armourer or a bowyer;
 a third building may sell draughts. Keldmarch's own castle sells blades, mail
-and bows, so you never have to go over the water to be armed.
+and bows, so you never have to go over the water to be armed -- but only the
+plainest. There are six grades of blade and of mail and four of bow, and each
+land's shops sell a few of them: Keldmarch the first two blades and suits of
+mail and the shortbow, and each continent across the sea, in the order the
+story takes you there, a grade or so better than the one before, up to the
+sixth and the arbalest on the last.
 
 ## Talking to people
 

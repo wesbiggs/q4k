@@ -39,6 +39,13 @@ void view_restore(void);
 void view_draw_map(void);
 void view_draw_panel(void);
 
+/* Set while the town on screen is the town as it stands. A town is one
+   viewport and never scrolls, and the hero is a sprite, so view_draw()
+   leaves it alone until something clears this: view_restore(), drawing any
+   other scene, or map_set(). Redrawing it every step had the ground under
+   each person on screen for a frame before the person went over it. */
+extern unsigned char town_drawn;
+
 /* Set for the length of a fight: view_draw_panel() then leaves rows 10 to
    12, where the foe is named, alone. */
 extern unsigned char view_fighting;
