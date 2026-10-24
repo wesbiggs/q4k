@@ -16,9 +16,14 @@
 
         .include "zeropage.inc"
 
-        .export _vault_row, _vault_tile, _vault_park, _vault_unpark
+        .export _vault_row, _vault_tile, _vault_park, _vault_unpark, _lair_clear
         .export vault_enter, vault_leave
         .import _local, popa
+        .import _quest_stage, _home_fx, _home_fy
+        .include "q4k/tiles.inc"
+
+Q_VICTORY  = 9          ; game.h
+PLACE_LAIR = 3          ; game.h: home's places, in isle.h's order
 
 HOME_AT = $D000
 SLOTS   = $E000
@@ -94,6 +99,30 @@ _vault_tile:
         lda tmp1
         ldx #0
         rts
+
+; void lair_clear(void): once Maldrath is banished (quest_stage >= Q_VICTORY),
+; his lair on home is a pass. Home is made again from the seed on a restore,
+; so home_ensure() calls this every time it builds it. In MAIN, where there
+; is room; it calls nothing that is not in ordinary RAM.
+        .segment "CODE"
+
+_lair_clear:
+        lda _quest_stage
+        cmp #Q_VICTORY
+        bcc @no
+        lda _home_fy+PLACE_LAIR
+        jsr rowptr
+        lda _home_fx+PLACE_LAIR
+        ora ptr1
+        sta ptr1
+        jsr vault_enter
+        ldy #0
+        lda #T_PASS
+        sta (ptr1),y
+        jmp vault_leave
+@no:    rts
+
+        .segment "HICODE"
 
 ; ptr2 = the slot A's address.
 slotptr:

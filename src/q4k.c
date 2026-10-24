@@ -346,6 +346,7 @@ static void face_the_dragon(void)
         return;
     }
     quest_stage = Q_VICTORY;
+    lair_clear();
     back_to_map();
     view_message("Maldrath is banished. Keldmarch is free.");
 }

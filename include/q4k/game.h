@@ -141,6 +141,7 @@ extern const unsigned char dungeon_deep[NUM_DUNGEONS];  /* levels       */
 #define TOWN_PROC    NUM_TOWNS
 
 #define PLACE_NONE   0xFF
+#define PLACE_LAIR   3          /* home's */
 #define NUM_HOME_PLACES 5
 
 extern unsigned char home_fx[NUM_HOME_PLACES], home_fy[NUM_HOME_PLACES];
@@ -154,6 +155,9 @@ extern unsigned char home_port_x[4], home_port_y[4];
    nothing else runs. Whoever calls it says so first. */
 void          home_ensure(void);
 unsigned char home_built(void);
+/* Once Maldrath is banished, his lair on home becomes a mountain pass
+   (vault.s, which writes it into home's map). */
+void          lair_clear(void);
 /* Forget it (a new game's, or a restored game's seed is different). */
 void          home_forget(void);
 
