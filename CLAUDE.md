@@ -59,7 +59,7 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   module to `HICODEMODS` as well: its code stays in HIGH but its rodata goes
   back to MAIN (the shop and the ships are there already). Changing either
   list needs the objects rebuilt, because a target-specific `CFLAGS` will not
-  invalidate them on its own. About 44 bytes are free in HIGH, 190 in MAIN (plus
+  invalidate them on its own. About 44 bytes are free in HIGH, 146 in MAIN (plus
   the dead ONCE) and 7 in BSS, and the title screen has 29 to spare in OVL. The Makefile's `SMALLMODS` (loot, shop, inn, help, battle,
   dialog and dungeon) are
   built with `-Or`, not `-Osir`: without `-Os` cc65 stops inlining shifts and
@@ -80,7 +80,7 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   `build/offline/q4k.lbl` for `dist/offline/q4k.prg`.
 - **The C stack is at the top of MAIN, not where the cfg used to say.** cc65's
   startup points `sp` at `__MAIN_START__ + __MAIN_SIZE__`, `$3800`, and it
-  grows down through MAIN's spare bytes (about 190 now) and then the dead ONCE
+  grows down through MAIN's spare bytes (about 146 now) and then the dead ONCE
   segment. Painting `$3700-$37FF` and running a save and a long walk found
   the stack no deeper than 31 bytes, so what is left is plenty, but measure
   again before spending more of it. The 2K the cfg

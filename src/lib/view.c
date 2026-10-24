@@ -44,9 +44,12 @@ void view_chrome(void)
     chlinexy(0, RULE_Y, SCR_W);
 }
 
+unsigned char town_drawn;
+
 /* Come back from a screen something else owned, keeping the log. */
 void view_restore(void)
 {
+    town_drawn = 0;
     clrscr();
     view_chrome();
     redraw_log();
@@ -146,9 +149,10 @@ void view_draw(void)
         cam_x = camera(hero.x, VIEW_CX, WORLD_SIZE, VIEW_W);
         cam_y = camera(hero.y, VIEW_CY, WORLD_SIZE, VIEW_H);
         world_draw(cam_x, cam_y);
-    } else {
+    } else if (!town_drawn) {
         draw_local();
     }
+    town_drawn = (scene == SCENE_TOWN);
     sprite_show(hero.x - cam_x, hero.y - cam_y);
 }
 
