@@ -591,20 +591,18 @@ int main(void)
     view_init();
     music_start();
 
-    view_message("Press ? for help.");
     if (restored) {
+        view_message("Press ? for help.");
         strcpy(greeting, "Welcome back, ");
         strcat(greeting, hero.name);
         strcat(greeting, ".");
         view_message(greeting);
     } else {
-        /* The story is on the title screen now; this is just the morning. */
         strcpy(greeting, "Hail, ");
         strcat(greeting, hero.name);
-        strcat(greeting, "!");
+        strcat(greeting, "! Press ? for help.");
         view_message(greeting);
-        view_message("A new day dawns in Millford.");
-        view_message("Walk into someone to speak with them.");
+        quest_hint();
     }
 
     told = quest_stage;

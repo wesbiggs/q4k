@@ -19,8 +19,8 @@
  17 |....^^~...%%T%%%%.%%~·                  |
  18 |....^^^^..%%%%%%....~·                  |
  19 |········································|
- 20 |A new day dawns in Millford.            |
- 21 |Walk into someone to speak with them.   |
+ 20 |Take the Emberstone to Vane in          |
+ 21 |Wardlow, over the sea.                  |
  22 |< to exit.                              |
  23 |The land takes shape...                 |
  24 |You sail south.                         |

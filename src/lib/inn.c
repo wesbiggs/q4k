@@ -113,7 +113,7 @@ void inn_open(unsigned char inn)
     cputsxy(0, LIST_Y,     "  1  A mug of ale         5 marks");
     cputsxy(0, LIST_Y + 1, "  2  A bed for the night 20 marks");
     textcolor(COLOR_GRAY2);
-    cputsxy(0, HINT_Y, "Number to buy, SPACE to leave");
+    cputsxy(0, HINT_Y, "Number to buy, RUN/STOP leaves");
 
     panel_begin(TALK_Y, TALK_H);
 
@@ -121,7 +121,7 @@ void inn_open(unsigned char inn)
         purse();
 
         key = cgetc();
-        if (key == 0x20 || key == 0x03) {
+        if (key == 0x03) {
             return;
         }
         if (key == 0x31) {

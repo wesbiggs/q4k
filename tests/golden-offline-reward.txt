@@ -16,12 +16,12 @@
  14 |                                        |
  15 |                                        |
  16 |········································|
- 17 |1 The kingdom       0 Leave             |
+ 17 |1 The kingdom                           |
  18 |                                        |
  19 |                                        |
  20 |                                        |
  21 |                                        |
  22 |                                        |
- 23 |Number to ask, 0 or RUN/STOP leaves     |
+ 23 |Number to ask, RUN/STOP leaves          |
  24 |                                        |
     +----------------------------------------+

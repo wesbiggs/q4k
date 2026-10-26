@@ -44,7 +44,6 @@
 #define FIRST_INN (NPC_ASH + 1)
 
 #define KEY_STOP  0x03
-#define KEY_0     0x30
 #define KEY_1     0x31
 
 #define NONE      0xFF
@@ -174,8 +173,6 @@ static unsigned char menu(void)
         strcpy(seg + 2, (char *)e + 2);
         text_put(i & 1 ? COL_W : 0, MENU_Y + (i >> 1), seg, COLOR_WHITE);
     }
-    str_lit(seg, "0 Leave");
-    text_put(i & 1 ? COL_W : 0, MENU_Y + (i >> 1), seg, COLOR_GRAY2);
     return i;
 }
 
@@ -194,7 +191,7 @@ unsigned char dialog_talk(unsigned char npc, const char *name,
     chlinexy(0, 1, SCR_W);
     chlinexy(0, MENU_Y - 1, SCR_W);
     textcolor(COLOR_GRAY2);
-    cputsxy(0, HINT_Y, "Number to ask, 0 or RUN/STOP leaves");
+    cputsxy(0, HINT_Y, "Number to ask, RUN/STOP leaves");
     panel_begin(TR_Y, TR_H);
 
     /* Always from the disk: a fight may have used the overlay since. */
@@ -207,7 +204,7 @@ unsigned char dialog_talk(unsigned char npc, const char *name,
     for (;;) {
         n = menu();
         key = cgetc();
-        if (key == KEY_0 || key == KEY_STOP) {
+        if (key == KEY_STOP) {
             return DIALOG_OK;
         }
         key -= KEY_1;

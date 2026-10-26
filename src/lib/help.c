@@ -64,7 +64,7 @@ static const char *const task[10][2] = {
 /* The next step, in the message window: called when the story moves on. */
 void quest_hint(void)
 {
-    if (quest_stage > 0 && quest_stage < 9) {
+    if (quest_stage < 9) {
         view_message(task[quest_stage][0]);
         view_message(task[quest_stage][1]);
     }
