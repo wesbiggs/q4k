@@ -91,6 +91,10 @@ unsigned char title_screen(char *name, unsigned char max)
     VIC.bordercolor = COLOR_BLACK;
     VIC.bgcolor0    = COLOR_BLACK;
     VIC.addr        = CHARSET_D018;
+    /* The KERNAL's keyboard scan flips bit 1 of $D018 on C=+Shift, which
+       here points the VIC at $3000, not another font. $80 in MODE locks it
+       (what CHR$(8) does), and the reset on quit clears it again. */
+    *(unsigned char *)0x0291 = 0x80;
 
     clrscr();
 

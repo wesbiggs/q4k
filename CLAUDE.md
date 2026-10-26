@@ -60,7 +60,7 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   back to MAIN (the shop and the ships are there already). Changing either
   list needs the objects rebuilt, because a target-specific `CFLAGS` will not
   invalidate them on its own. About 44 bytes are free in HIGH, 146 in MAIN (plus
-  the dead ONCE) and 7 in BSS, and the title screen has 29 to spare in OVL. The Makefile's `SMALLMODS` (loot, shop, inn, help, battle,
+  the dead ONCE) and 7 in BSS, and the title screen has 24 to spare in OVL. The Makefile's `SMALLMODS` (loot, shop, inn, help, battle,
   dialog and dungeon) are
   built with `-Or`, not `-Osir`: without `-Os` cc65 stops inlining shifts and
   the like, which is about a tenth smaller but pulled some runtime helpers
