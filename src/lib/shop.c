@@ -197,14 +197,14 @@ void shop_open(unsigned char kind)
     chlinexy(0, TITLE_Y + 1, SCR_W);
     chlinexy(0, HINT_Y - 1, SCR_W);
 
-    str_lit(line, "Number to buy, SPACE to leave");
+    str_lit(line, "Number to buy, RUN/STOP leaves");
     text_put(0, HINT_Y, line, COLOR_GRAY2);
 
     for (;;) {
         draw();
 
         key = cgetc();
-        if (key == 0x20 || key == 0x03) {
+        if (key == 0x03) {
             return;
         }
         if (key < 0x31 || key > 0x30 + rows) {

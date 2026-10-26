@@ -19,7 +19,7 @@
  17 |                                        |
  18 |                                        |
  19 |········································|
- 20 |Number to buy, SPACE to leave           |
+ 20 |Number to buy, RUN/STOP leaves          |
  21 |                                        |
  22 |                                        |
  23 |                                        |

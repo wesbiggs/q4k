@@ -19,7 +19,7 @@
  17 |                     ·                  |
  18 |                     ·                  |
  19 |········································|
- 20 |Walk into someone to speak with them.   |
+ 20 |Crown. Seek the Emberstone.             |
  21 |< to exit.                              |
  22 |The land takes shape...                 |
  23 |> to enter.                             |
