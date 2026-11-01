@@ -23,5 +23,5 @@
  21 | RETURN alone for a random name         |
  22 | F3 to load a game, F5 to set the seed  |
  23 |                                        |
- 24 |                                 v0.9.0 |
+ 24 |                                v0.10.0 |
     +----------------------------------------+
