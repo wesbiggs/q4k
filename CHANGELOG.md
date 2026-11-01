@@ -3,8 +3,12 @@
 Each release's section here becomes its notes on GitHub; the release
 workflow reads the one headed with the tag's version.
 
-## Unreleased
+## 0.10.0 — 2026-11-01
 
+- An offline build, `q4k-0.10.0-offline.d64`: no modem and no host. What
+  everyone says is on the disk, picked from a menu of topics, and the inns'
+  rumours with it. Keep the disk in the drive. It also has each continent's
+  own monsters, arms that monsters drop, and lightning.
 - Towns, dungeons and stairs are entered with `>` and left with `<`, standing
   on them, rather than by walking in; ports and the dragon's lair still work
   by walking. Saving and restoring ask for `Y` first.
@@ -13,7 +17,6 @@ workflow reads the one headed with the tag's version.
   chooses the seed for a new game.
 - Dungeon fights are half as likely per step. Shops say one thing on a sale
   and towns no longer announce themselves or the road out.
-
 - The music stops while the world is built (the first time out of Millford)
   and comes back after, if it was on.
 - Fights come about half as often, and there is no running (`R` is gone):

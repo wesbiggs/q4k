@@ -2,6 +2,6 @@
 #ifndef Q4K_VERSION_H
 #define Q4K_VERSION_H
 
-#define Q4K_VERSION "0.9.0"
+#define Q4K_VERSION "0.10.0"
 
 #endif

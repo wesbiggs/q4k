@@ -17,13 +17,14 @@ end of the C64's modem port.
 
 Download the files from the
 [latest release](https://github.com/wesbiggs/q4k/releases/latest). There are
-three, and you only need one:
+four, and you only need one:
 
 | file | |
 |---|---|
 | `q4k-<version>.zip` | the game and everything people need to talk -- start here |
 | `q4k-<version>.prg` | the game alone |
 | `q4k-<version>.d64` | the game on a disk image, for a real C64 or any emulator |
+| `q4k-<version>-offline.d64` | the offline build: no modem or host, everyone's lines on the disk |
 
 All of them run in [VICE](https://vice-emu.sourceforge.io), the Commodore
 emulator (`brew install vice` on a Mac).
@@ -33,7 +34,7 @@ from inside the folder; this brings up the program that lets people talk,
 connects the emulator's modem port to it, and gives you a disk to save on:
 
 ```bash
-cd q4k-0.9.0
+cd q4k-0.10.0
 tools/play.sh
 ```
 
@@ -46,7 +47,7 @@ VICE's File menu.
 **The .d64** is the same game on a disk. In VICE, or on a real machine with
 an SD card drive: `LOAD"Q4K",8` and `RUN`.
 
-**The offline disk** (`make d64-offline`) needs no modem and no host: what
+**The offline disk** (`q4k-<version>-offline.d64`) needs no modem and no host: what
 everyone says is on the disk, and you pick what to ask from a menu. Keep the
 disk in the drive, because people's lines load from it as you meet them.
 
