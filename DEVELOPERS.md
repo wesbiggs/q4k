@@ -74,9 +74,11 @@ Releases are tagged `v<version>`, and a tag push runs
 - `q4k-<version>.prg`, the game;
 - `q4k-<version>.d64`, the game on a disk;
 - `q4k-<version>.zip`, the game plus the dialogue host and the assets it
-  reads, laid out as in the repo so `tools/play.sh` runs from inside it.
+  reads, laid out as in the repo so `tools/play.sh` runs from inside it;
+- `q4k-<version>-offline.d64`, the offline build (no modem, no host) on its
+  disk with everyone's lines, as `make d64-offline` makes it.
 
-`make release` builds the same three into `dist/release/`, which is the way
+`make release` builds the same four into `dist/release/`, which is the way
 to look at them before tagging.
 
 To cut one:

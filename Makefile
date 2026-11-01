@@ -292,6 +292,9 @@ bless: all
 #
 #   q4k-<version>.prg   the game, for VICE or any loader
 #   q4k-<version>.d64   the same on a disk: LOAD"Q4K",8,1 then RUN
+#   q4k-<version>-offline.d64
+#                       the offline build (no modem, no host) on its disk,
+#                       with what everyone says; the same as `make d64-offline`
 #   q4k-<version>.zip   the game plus the dialogue host and what it reads,
 #                       laid out as in the repo, so tools/play.sh runs as is
 
@@ -312,6 +315,8 @@ release: dirs $(DIST)/q4k.prg
 	tar -cf - $(REL_FILES) | tar -xf - -C $(REL_STAGE)
 	cp $(DIST)/q4k.prg $(REL_STAGE)/dist/q4k.prg
 	cd $(BUILD)/release && python3 -m zipfile -c $(CURDIR)/$(REL_DIR)/$(REL_NAME).zip $(REL_NAME)
+	$(MAKE) OFFLINE=1 assets d64
+	cp dist/offline/q4k.d64 $(REL_DIR)/$(REL_NAME)-offline.d64
 	@ls -l $(REL_DIR)
 
 # --- disk image -------------------------------------------------------------
