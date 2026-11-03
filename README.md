@@ -59,7 +59,10 @@ The title screen sets the scene and asks your name; RETURN alone picks a
 random one, `F3` loads a saved game instead, and `F5` lets you choose the
 world's seed (1 to 255; the same seed makes the same lands and towns). The `?`
 screen shows the seed in play. Then `WASD` or the cursor
-keys move. The panel shows what you are carrying and wearing, alongside your
+keys move. In the offline build a joystick in port 2 does too, and its
+button is `F` in a fight (push it again, or press a key, to answer "Shoot
+which way?") and elsewhere whichever of `>` and `<` makes sense where you
+stand. The panel shows what you are carrying and wearing, alongside your
 stats and any quest items. Walk into someone to talk to them, open their
 shop, or take a seat at their inn.
 

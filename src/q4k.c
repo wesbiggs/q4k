@@ -29,6 +29,9 @@
 #include <q4k/music.h>
 #include <q4k/sail.h>
 #include <q4k/sprite.h>
+#ifdef Q4K_OFFLINE
+#include <q4k/stick.h>
+#endif
 #include <q4k/tiles.h>
 #include <q4k/title.h>
 #include <q4k/view.h>
@@ -112,6 +115,12 @@ static void publish(void)
  * unrepeatable thing the machine has to offer -- see rng_stir(). */
 static unsigned char wait_key(void)
 {
+#ifdef Q4K_OFFLINE
+    unsigned char key = stick_key();    /* the joystick in port 2 as well */
+
+    rng_stir(stick_spins);
+    return key;
+#else
     unsigned int spins = 0;
 
     while (!kbhit()) {
@@ -119,6 +128,7 @@ static unsigned char wait_key(void)
     }
     rng_stir(spins);
     return cgetc();
+#endif
 }
 
 /* Ask, and only Y (either case) says yes. */
@@ -642,6 +652,15 @@ int main(void)
 
             case K_GT: use_stairs(1); break;
             case K_LT: use_stairs(0); break;
+#ifdef Q4K_OFFLINE
+            case STICK_FIRE:
+                /* The button is whichever of > and < means something
+                   here: out of a town, up a stair going up, otherwise in
+                   or down. */
+                use_stairs(scene != SCENE_TOWN
+                           && map_at(hero.x, hero.y) != T_STAIRUP);
+                break;
+#endif
 
             case K_P:
                 quaff();
