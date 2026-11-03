@@ -313,6 +313,16 @@ Home is built when the story first needs it (stepping out of Millford, or
 loading a game past it) and the first time takes a few seconds with nothing
 else running: see Memory.
 
+## The joystick
+
+Offline only for now (the online build has no room). `src/lib/stick.s`
+waits for a key or port 2, reading the stick once a jiffy (the debounce) and
+repeating a held direction; directions come back as the cursor keys and the
+button as `STICK_FIRE` (`$FE`, which no key types). `wait_key()` in `q4k.c`
+and `next_key()` in `battle.c` call it; the map turns the button into `>`
+or `<`, the fight into `F`. Menus, shops and the title still use `cgetc()`.
+The tests never touch `$DC00`, so a stick-only path has no golden.
+
 ## Testing
 
 **Do not run the full suite (`make test`) locally.** Push a branch and let

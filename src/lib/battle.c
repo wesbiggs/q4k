@@ -13,6 +13,9 @@
 #include <q4k/rle.h>
 #include <q4k/shop.h>
 #include <q4k/sprite.h>
+#ifdef Q4K_OFFLINE
+#include <q4k/stick.h>
+#endif
 #include <q4k/tiles.h>
 #include <q4k/view.h>
 
@@ -670,8 +673,19 @@ static unsigned char key_dir(unsigned char key)
     return 0xFF;
 }
 
-static unsigned char fold(unsigned char key)
+/* The next key, with SHIFTed letters folded onto unshifted ones; and in
+   the offline build the joystick too, its button as F. */
+static unsigned char next_key(void)
 {
+#ifdef Q4K_OFFLINE
+    unsigned char key = stick_key();
+
+    if (key == STICK_FIRE) {
+        return K_F;
+    }
+#else
+    unsigned char key = cgetc();
+#endif
     return (key >= 0xC1 && key <= 0xDA) ? key - 0x80 : key;
 }
 
@@ -889,7 +903,7 @@ static unsigned char fight(const Monster *m, unsigned char ground,
 
         guard = 0;
         dmg = 0;
-        key = fold(cgetc());
+        key = next_key();
         dir = key_dir(key);
 
         switch (key) {
@@ -903,7 +917,7 @@ static unsigned char fight(const Monster *m, unsigned char ground,
                     continue;
                 }
                 view_message("Shoot which way?");
-                dir = key_dir(fold(cgetc()));
+                dir = key_dir(next_key());
                 if (dir == 0xFF) {
                     view_message("You lower the bow.");
                     continue;                /* no turn spent */
