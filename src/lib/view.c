@@ -149,7 +149,9 @@ void view_draw(void)
         cam_x = camera(hero.x, VIEW_CX, WORLD_SIZE, VIEW_W);
         cam_y = camera(hero.y, VIEW_CY, WORLD_SIZE, VIEW_H);
         world_draw(cam_x, cam_y);
-    } else if (!town_drawn) {
+    } else if (scene != SCENE_TOWN || !town_drawn) {
+        /* A town is drawn once; anything else every turn, including the
+           first one after walking out of a town onto a continent. */
         draw_local();
     }
     town_drawn = (scene == SCENE_TOWN);
