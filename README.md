@@ -34,7 +34,7 @@ from inside the folder; this brings up the program that lets people talk,
 connects the emulator's modem port to it, and gives you a disk to save on:
 
 ```bash
-cd q4k-0.10.0
+cd q4k-0.11.0
 tools/play.sh
 ```
 
