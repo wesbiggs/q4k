@@ -3,6 +3,14 @@
 Each release's section here becomes its notes on GitHub; the release
 workflow reads the one headed with the tag's version.
 
+## 0.11.0 — 2026-11-06
+
+- The offline build takes a joystick in port 2: it moves on the map and in a
+  fight, and the button is `F` in a fight and `>` or `<` on the map, whichever
+  fits where the hero stands. A held direction repeats.
+- Leaving a continent's town now redraws the continent at once, instead of
+  showing the town until the next move.
+
 ## 0.10.0 — 2026-11-01
 
 - An offline build, `q4k-0.10.0-offline.d64`: no modem and no host. What
