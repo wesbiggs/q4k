@@ -14,10 +14,24 @@
 #include <q4k/shop.h>
 #include <q4k/sprite.h>
 #ifdef Q4K_OFFLINE
+#include <q4k/engine.h>
 #include <q4k/stick.h>
 #endif
 #include <q4k/tiles.h>
 #include <q4k/view.h>
+
+#ifdef Q4K_OFFLINE
+/* The fight is an engine of its own here (engine.h), and the map calls it
+   through fightcall.c, which has these names; so do they, inside it. */
+#define battle_wander  fight_wander
+#define battle_undead  fight_undead
+#define battle_boss    fight_boss
+#define battle_dragon  fight_dragon
+static unsigned char fight_wander(void);
+static unsigned char fight_undead(void);
+static unsigned char fight_boss(unsigned char dungeon);
+static unsigned char fight_dragon(void);
+#endif
 
 /* The letters are for walking, as they are on the map. */
 #define K_W          0x57
@@ -113,29 +127,6 @@ const Monster maldrath = {
     18, 4, SHOT_FIRE
 };
 
-const char *const weapon_names[NUM_WEAPONS] = {
-    "Bare hands", "Dagger", "Short sword", "Long sword", "War axe",
-    "Greatsword", "Runeblade", "Dragonbane",
-};
-const unsigned char weapon_atk[NUM_WEAPONS]  = { 1, 3, 6, 10, 14, 18, 23, 28 };
-
-const char *const armour_names[NUM_ARMOUR] = {
-    "Travel clothes", "Leather", "Chain mail", "Scale mail", "Platemail",
-    "Mithril mail", "Runed plate",
-};
-const unsigned char armour_def[NUM_ARMOUR]  = { 0, 2, 4, 7, 10, 12, 15 };
-/* Each grade slows you a tenth, up to plate; mithril weighs what chain does,
-   and the runes on the last plate bear some of its weight. */
-const unsigned char armour_slow[NUM_ARMOUR] = { 0, 1, 2, 3, 4, 2, 3 };
-
-/* A bow hits a little softer than a blade of the same price: what you are
-   paying for is not having to be next to it. */
-const char *const bow_names[NUM_BOWS + 1] = {
-    "No bow", "Shortbow", "Longbow", "Composite Bow", "Arbalest", "10 arrows",
-};
-const unsigned char bow_atk[NUM_BOWS]   = { 0, 3, 6, 10, 15 };
-const unsigned char bow_range[NUM_BOWS] = { 0, 6, 10, 15, 18 };
-
 /* Experience needed for each level, from level 1. */
 static const unsigned int level_at[] = {
     0, 20, 50, 100, 200, 400, 700, 1200, 1800, 2500,
@@ -147,75 +138,6 @@ static char msg[SCR_W + 1];    /* PETSCII, for the message log */
 static void cat_num(unsigned int value)
 {
     utoa(value, msg + strlen(msg), 10);
-}
-
-/* CIA 1's timer A free-runs off the system clock; by the time a person has
-   pressed a key it is unpredictable. */
-#define CIA1_TIMER (*(volatile unsigned int *)0xDC04)
-
-unsigned int last_seed;
-static unsigned int entropy;
-
-void rng_stir(unsigned int spins)
-{
-    /* Mix rather than replace: a slow decision and a fast one should both
-       leave a mark, and the timer catches what the spin count is too coarse
-       to see. */
-    entropy = (entropy << 3) ^ (entropy >> 13) ^ spins ^ CIA1_TIMER;
-}
-
-void reseed(void)
-{
-    last_seed = entropy;
-    srand(last_seed);
-}
-
-#define POTION_SHARE 40   /* per cent of full health */
-#define POTION_FLOOR 12   /* ...but never less than the old flat amount */
-
-unsigned char potion_heal(void)
-{
-    unsigned int amount = ((unsigned int)hero.hp_max * POTION_SHARE) / 100;
-
-    return (unsigned char)(amount < POTION_FLOOR ? POTION_FLOOR : amount);
-}
-
-unsigned char drink_potion(void)
-{
-    unsigned char amount;
-
-    if (!potions || hero.hp == hero.hp_max) {
-        return 0;
-    }
-    --potions;
-    amount = potion_heal();
-    if (hero.hp_max - hero.hp < amount) {
-        amount = hero.hp_max - hero.hp;
-    }
-    hero.hp += amount;
-    return amount;
-}
-
-void heal_full(void)
-{
-    hero.hp = hero.hp_max;
-}
-
-unsigned char encounter_roll(unsigned char tile)
-{
-    unsigned char chance;
-
-    /* Open ground is safer than the places nothing watches. */
-    switch (tile) {
-        case T_GRASS:  chance = 8;  break;
-        case T_SHORE:  chance = 7;  break;
-        case T_FOREST: chance = 12; break;
-        case T_SWAMP:  chance = 16; break;
-        case T_FLOOR:  chance = 5;  break;   /* dungeon corridors */
-        default:       chance = 0;  break;
-    }
-    /* Half what it was: the odds are out of 200 now. */
-    return chance && (unsigned char)(rand() % 200) < chance;
 }
 
 /* For `n` of them: a group pays for every one it had. */
@@ -331,14 +253,17 @@ static unsigned char won(const Monster *m, unsigned char n)
         strcat(msg, " arrows.");
         view_message(msg);
     }
-    treasure_drop();
 #ifdef Q4K_OFFLINE
-    /* What goes armed: goblins, bandits, skeletons and ogres, and whatever
-       of the continents' own is drawn as one. */
+    /* The map shares these out once it is back (fightcall.c): a treasure
+       map, and what goes armed -- goblins, bandits, skeletons and ogres,
+       and whatever of the continents' own is drawn as one -- may drop arms. */
+    fight_spoils = SPOIL_WON;
     if (m->glyph == T_GOBLIN
         || (unsigned char)(m->glyph - T_BANDIT) <= T_OGRE - T_BANDIT) {
-        gear_drop();
+        fight_spoils |= SPOIL_ARMED;
     }
+#else
+    treasure_drop();
 #endif
     return BATTLE_WON;
 }
@@ -1144,3 +1069,16 @@ unsigned char battle_dragon(void)
 {
     return battle_fight(&maldrath, T_LAIR, 0, 1);
 }
+
+#ifdef Q4K_OFFLINE
+/* The fight's engine: engine.h. */
+unsigned char fight_entry(void)
+{
+    switch (eng_a) {
+        case FIGHT_UNDEAD: return battle_undead();
+        case FIGHT_BOSS:   return battle_boss(eng_b);
+        case FIGHT_DRAGON: return battle_dragon();
+        default:           return battle_wander();
+    }
+}
+#endif

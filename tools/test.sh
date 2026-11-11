@@ -215,14 +215,49 @@ if [ -f "$OFF" ] && [ -f "$OFFDISK" ]; then
     if [ -f tests/golden-offline-talk.txt ]; then
         compare offline-talk tests/golden-offline-talk.txt \
             tools/screendump.py "$OFF" --disk "$OFFDISK" \
-            --keys 'Alaric\rwwwwwwwwwwwwaaaawaaa13' --settle 12
+            --keys 'Alaric\rwwwwwwwwwwwwaaaawaaa13' --settle 30
     fi
-    # With no disk there are no lines to load, and Garrett hands the dagger
-    # over on the map, as the networked build does with no host.
-    if [ -f tests/golden-offline-nodisk.txt ]; then
-        compare offline-nodisk tests/golden-offline-nodisk.txt \
-            tools/screendump.py "$OFF" \
-            --keys 'Alaric\rwwwwwwwwwwwwaaaawaaa' --settle 12
+    # With no disk there is no map's engine to load after the title screen
+    # (engine.h), so the game asks for the disk back, and keeps asking.
+    out=$(tools/screendump.py "$OFF" --keys 'Alaric\rw' --settle 8 \
+        2>/dev/null) || out=
+    if printf '%s\n' "$out" | grep -q 'Put the game disk back'; then
+        echo "PASS  offline-nodisk"
+    else
+        echo "FAIL  offline-nodisk"
+        printf '%s\n' "$out"
+        fail=1
+    fi
+    # The networked build's screen tests, played offline: everything but the
+    # title screen is the same, but now each one loads the map's engine, and
+    # the sailing ones build a continent from it. A golden of its own,
+    # tests/golden-offline-<name>.txt, wins where the two builds differ.
+    for name in q4k fov loot sail sailhome captain treasure treasuremap; do
+        golden=tests/golden-offline-$name.txt
+        [ -f "$golden" ] || golden=tests/golden/$name.txt
+        # shellcheck disable=SC2046
+        set -- $(sed "s|dist/q4k.prg|$OFF --disk $OFFDISK|" \
+            "tests/golden/$name.cmd")
+        compare "offline-$name" "$golden" tools/screendump.py "$@"
+    done
+    # A fight, there and back: the dead rise at the first L on the road out
+    # of Millford (grave_odds=1), the hero has one point of health and only
+    # guards (SPACE), so the first blow kills, and a key later they wake in
+    # Millford. That loads the fight's engine over the map's, and the map's
+    # back over it, with the map's own state (the scene, the log) intact.
+    out=$(tools/screendump.py "$OFF" --disk "$OFFDISK" \
+        --poke quest_stage=1 --poke lore_seed=$SEED --poke grave_odds=1 \
+        --poke party+4=1 \
+        --keys 'Alaric\rs<l                                                            ' \
+        --settle 40 2>/dev/null) || out=
+    if printf '%s\n' "$out" | grep -q 'The dead rise!' \
+            && printf '%s\n' "$out" | grep -q 'You wake in Millford' \
+            && ! printf '%s\n' "$out" | grep -q 'Put the game disk back'; then
+        echo "PASS  offline-fight"
+    else
+        echo "FAIL  offline-fight"
+        printf '%s\n' "$out"
+        fail=1
     fi
     # The king at stage 9: his greeting is the line that gives, so the
     # reward comes before anything is asked, and the menu is stage 10's.
@@ -231,12 +266,12 @@ if [ -f "$OFF" ] && [ -f "$OFFDISK" ]; then
             tools/screendump.py "$OFF" --disk "$OFFDISK" \
             --poke quest_stage=9 --poke lore_seed=$SEED --poke no_encounters=1 \
             --keys 'Alaric\rs<'"$(keys millford castle)"'>wwwwwwwwwww1' \
-            --settle 60
+            --settle 90
     fi
     # Two ales in Millford's inn. Which rumours is random, so this checks
     # only that two were told and the keeper was never "busy" (no file).
     out=$(tools/screendump.py "$OFF" --disk "$OFFDISK" --poke gold=60 \
-        --keys 'Alaric\rwwddddd11' --settle 14 2>/dev/null) || out=
+        --keys 'Alaric\rwwddddd11' --settle 30 2>/dev/null) || out=
     drinks=$(printf '%s\n' "$out" | grep -c 'You drink\.') || true
     if [ "$drinks" = 2 ] && ! printf '%s\n' "$out" | grep -q 'keeper is busy' \
             && printf '%s\n' "$out" | grep -q 'You have 50 marks'; then

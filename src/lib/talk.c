@@ -15,9 +15,13 @@
 #include <string.h>
 
 #include <q4k/dialog.h>
+#include <q4k/engine.h>
+#include <q4k/gift.h>
+#include <q4k/inn.h>
 #include <q4k/game.h>
 #include <q4k/music.h>
 #include <q4k/panel.h>
+#include <q4k/savegame.h>
 #include <q4k/sprite.h>
 #include <q4k/text.h>
 #include <q4k/town_data.h>
@@ -52,7 +56,6 @@
 #define MEMSIZ (*(unsigned int *)0x0283)
 
 extern unsigned char talk[];        /* overlay.s */
-extern unsigned char save_device;   /* savegame.c: where the game came from */
 
 static unsigned char held = NONE;   /* the file talk[] holds */
 static unsigned char found;         /* how many find() passed */
@@ -235,4 +238,26 @@ unsigned char dialog_hint(unsigned char inn)
 void dialog_forget(void)
 {
     held = NONE;
+}
+
+/* The talk's engine (engine.h): a person, or an inn. A person with nothing
+   on the disk still hands over what they would have, on the map: the line
+   saying so goes back in eng_text. */
+unsigned char talk_entry(void)
+{
+    const char *note;
+
+    if (eng_a == TALK_INN) {
+        inn_open(eng_b);
+        return 0;
+    }
+    if (dialog_talk(eng_b, eng_text, quest_after_talk) == DIALOG_OK) {
+        return 0;
+    }
+    note = quest_after_talk(GRANT_OPEN);
+    if (!note) {
+        return 0;
+    }
+    strcpy(eng_text, note);
+    return 1;
 }

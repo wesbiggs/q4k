@@ -4,6 +4,9 @@
 #include <q4k/actor.h>
 #include <q4k/battle.h>
 #include <q4k/dialog.h>
+#ifdef Q4K_OFFLINE
+#include <q4k/engine.h>
+#endif
 #include <q4k/game.h>
 #include <q4k/inn.h>
 #include <q4k/panel.h>
@@ -104,7 +107,11 @@ void inn_open(unsigned char inn)
     sprite_hide();
     clrscr();
     textcolor(COLOR_YELLOW);
+#ifdef Q4K_OFFLINE
+    cputsxy(0, TITLE_Y, eng_text);      /* the map knows its name: engine.h */
+#else
     cputsxy(0, TITLE_Y, inn < NUM_INNS ? inn_names[inn] : town_gen_inn());
+#endif
     textcolor(COLOR_GRAY1);
     chlinexy(0, TITLE_Y + 1, SCR_W);
     chlinexy(0, HINT_Y - 1, SCR_W);

@@ -32,6 +32,29 @@
 ; (main() up to the map's first draw) is done, and none of it may run again.
 ; The cfg will not link if start-up grows past the arrays: then grow one.
 
+        .ifdef Q4K_OFFLINE
+
+; The offline build has no OVL: start-up is what the engines' slot holds when
+; the game starts, and the fight's arrays and the talk's file are at the end of
+; their own engines, after their code, where nothing else is while they run
+; (engine.h, cfg/c64-offline.cfg). TALK_SIZE comes from the Makefile
+; (OFFLINE_OVL), which tools/mktalk.py checks every file against.
+
+        .export _field, _wall, _roomy, _seen, _queue_x, _queue_y, _talk
+
+        .segment "FIGHTBSS"
+_field:   .res 399
+_wall:    .res 483
+_roomy:   .res 483
+_seen:    .res 483
+_queue_x: .res 256
+_queue_y: .res 256
+
+        .segment "TALKBSS"
+_talk:    .res TALK_SIZE
+
+        .else
+
         .export _field, _wall, _roomy, _seen, _queue_x, _queue_y, _reply
         .export _talk
         .import __OVL_START__
@@ -44,3 +67,5 @@ _queue_x = __OVL_START__ + 399 + 483 + 483 + 483
 _queue_y = __OVL_START__ + 399 + 483 + 483 + 483 + 256
 _reply   = __OVL_START__ + 2360
 _talk    = __OVL_START__
+
+        .endif

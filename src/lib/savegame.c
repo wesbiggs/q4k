@@ -73,6 +73,9 @@ typedef struct {
 
 static SaveGame blob;
 
+/* What you had seen of the dungeon level you saved on: scene_restore(). */
+unsigned char *const save_seen = blob.seen;
+
 void save_init(void)
 {
     if (CURDEV >= 8) {
@@ -172,43 +175,9 @@ static unsigned char do_load(void)
     memcpy(looted, blob.looted, sizeof(looted));
     memcpy(tmap, blob.tmap, sizeof(tmap));
 
-    /* Rebuild the maps rather than store them, all from lore_seed. items has
-       to be restored first: whether the keeper is still down there depends
-       on it. Home is only needed once you have left Millford; a continent is
-       put away if you are in a town or a dungeon on it. */
-    home_forget();
-    if (quest_stage > Q_START) {
-        home_ensure();
-    }
-    if (land != ISLE_HOME) {
-        isle_story = slot_of(land) & 1;
-        isle_build(land);
-        if (scene == SCENE_TOWN || scene == SCENE_DUNGEON) {
-            vault_park(0);
-        }
-    }
-    if (scene == SCENE_WORLD) {
-        local_w = local_h = WORLD_SIZE;
-    } else if (scene == SCENE_ISLE) {
-        local_w = ISLE_W;
-        local_h = ISLE_H;
-    }
-    if (scene == SCENE_TOWN) {
-        town_build(place);
-        hero.x = blob.who.x;            /* town_build puts you at the door */
-        hero.y = blob.who.y;
-    }
-    /* Only the level you saved on comes back with its map; the rest of
-       that dungeon starts unexplored again. What you can see now is worked
-       out afresh before the next draw. */
-    fov_forget();
-    if (scene == SCENE_DUNGEON) {
-        dungeon_build(place, depth);
-        reseed();
-        fov_enter(place, depth);
-        memcpy(fov_seen, blob.seen, sizeof(fov_seen));
-    }
-
+    /* The maps are rebuilt from this by scene_restore() (scene.c), which
+       whoever loaded the game calls next: the offline build keeps it with
+       the map's engine, which is not in memory at the title screen. */
     return SAVE_OK;
 }
 

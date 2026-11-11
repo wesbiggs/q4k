@@ -18,6 +18,13 @@
 /* Call first thing in main(): remembers the device the game came from. */
 void save_init(void);
 unsigned char save_game(void);
+/* Restores the saved state only: call scene_restore() (game.h) next, to
+   rebuild the maps around it. */
 unsigned char load_game(void);
+
+/* The squares of the saved dungeon level that had been seen: FOV_BYTES. */
+extern unsigned char *const save_seen;
+/* The unit the game was loaded from, which the disk files are read from. */
+extern unsigned char save_device;
 
 #endif /* Q4K_SAVEGAME_H */

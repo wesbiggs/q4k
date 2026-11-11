@@ -17,6 +17,7 @@ void music_start(void);     /* from the top, and loops until stopped */
 void music_stop(void);      /* silence; music_start() begins again */
 void music_pause(void);     /* silence, keeping the place */
 void music_resume(void);
+void music_rewind(void);    /* from the first note: a new score (engine.c) */
 unsigned char music_toggle(void);   /* the M key; returns 1 if now playing */
 
 

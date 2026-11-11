@@ -2,7 +2,9 @@
 
 #include <q4k/arena_data.h>
 
+#ifndef Q4K_OFFLINE   /* offline, the Makefile puts it with an engine */
 #pragma rodata-name (push, "HIDATA")
+#endif
 
 const unsigned char arena_tile[NUM_ARENAS] = { 0x60, 0x61, 0x65, 0x66, 0x71, 0x6C };
 const unsigned char arena_hx[NUM_ARENAS] = { 10, 10, 10, 10, 9, 9 };
@@ -65,4 +67,6 @@ const unsigned char *const arena_map[NUM_ARENAS] = {
     map_0, map_1, map_2, map_3, map_4, map_5
 };
 
+#ifndef Q4K_OFFLINE
 #pragma rodata-name (pop)
+#endif

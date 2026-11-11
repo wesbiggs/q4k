@@ -15,7 +15,7 @@
 #include <q4k/view.h>
 
 /* Read-only data goes in the charset's spare glyphs: cfg/c64-q4k.cfg. */
-#pragma rodata-name ("CHDATA2")
+#pragma rodata-name (push, "CHDATA2")
 
 #define NO_LOOT 0xFF
 
@@ -135,7 +135,7 @@ unsigned char look(void)
     return LOOK_NOTHING;
 }
 
-#pragma rodata-name ("HIDATA")
+#pragma rodata-name (pop)
 
 /* Something buried here, by a map? Take it and tear the map up. */
 static unsigned char dig(void)

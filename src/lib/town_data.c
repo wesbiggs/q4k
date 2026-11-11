@@ -2,7 +2,9 @@
 
 #include <q4k/town_data.h>
 
+#ifndef Q4K_OFFLINE   /* offline, the Makefile puts it with an engine */
 #pragma rodata-name (push, "HIDATA")
+#endif
 
 /* Millford */
 static const unsigned char map_0[141] = {
@@ -119,4 +121,6 @@ const unsigned char town_ent_first[NUM_TOWNS + 1] = {
     0, 5, 11, 14, 16
 };
 
+#ifndef Q4K_OFFLINE
 #pragma rodata-name (pop)
+#endif

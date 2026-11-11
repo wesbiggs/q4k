@@ -122,6 +122,13 @@ extern unsigned char arrows;
 extern unsigned char no_encounters;   /* a test switch: see game.c */
 
 void          game_init(void);
+/* The scene a new game starts in (Millford), and the one a loaded game
+   was saved in, rebuilt: both in scene.c. Call one or the other after
+   game_init() or load_game(). */
+void          game_start(void);
+void          scene_restore(void);
+/* Whether home has been built: home_ensure() sets it. */
+extern unsigned char home_ok;
 
 /* Tile and terrain flag at (x,y) in whatever scene is current. */
 unsigned char map_at(unsigned char x, unsigned char y);
