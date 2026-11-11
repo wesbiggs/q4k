@@ -291,11 +291,13 @@ A full redraw copies 8 bytes for every cell, which this machine notices.
 **Music for each scene.** This fits the slots without any extra work. The
 player (`music.s`, about 0.9K with the sound effects) stays in core, because
 it runs from the interrupt in every mode. The score is data, 132 bytes now,
-and goes with each engine: the map's file carries the travelling tune (or one
-for each of overworld, town and dungeon, loaded when the scene changes), the
-fight's carries a battle theme, talk a quieter one. `tools/mkmusic.py` would
-write one score per file instead of `music_data.s`, all to the same address,
-the start of a small score area in core that each load overwrites. Because no
+and is loaded with each engine, inside the same pause: the map brings the
+travelling tune (or one each for overworld, town and dungeon, loaded when
+the scene changes), the fight a battle theme, talk a quieter one.
+`tools/mkmusic.py` would write each score as a small file of its own, all
+linked to the same address: a score area in core, which each load
+overwrites. (The score could go inside the engine's own file instead, but
+then each scene could have only one tune.) Because no
 score has to stay resident, each one can be as long as you like.
 `music_start()` would then take the score that was just loaded, and
 `music_pause()`/`music_resume()` would become stop/start at a swap.
