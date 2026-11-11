@@ -9,19 +9,21 @@ experiment on this branch can be measured the same way.
 
 ## The short answer
 
-| Approach | Freed (about) | Load per fight | Rework |
-|---|---|---|---|
-| A. One swap slot; the map stays resident | about 9K | the fight, ~9K | small |
-| B. The map is swapped out too | 17K | the fight in, the map back, ~22K | moderate |
-| Data only (towns, arenas, help text, FOV memory) | 2-3K | none | small |
+| Approach | Freed (about) | Load per fight | Time (vdrive / with DMA) | Rework |
+|---|---|---|---|---|
+| A. One swap slot; the map stays resident | 9K | the fight, ~9K | 0.18 s / 0.03 s | small |
+| B. The map is swapped out too | 17K | the fight in, the map back, ~22K | 0.43 s / 0.07 s | moderate |
+| Data only (towns, arenas, help text, FOV memory) | 2-3K | none | | small |
 
 On top of all of that, **about 6K under the KERNAL is unused today**
 (`$E7C0-$FFF9`, vault slots 1 to 3), and with the disk, slot 0 can be freed
 as well.
 
 Both A and B work through the same mechanism, a *far call*, and you can do A
-first and B later. Neither works unless LOAD is fast, which
-[the caveat](#the-caveat-load-speed) covers.
+first and B later. vdrive loads fast enough
+([load speed](#load-speed)) that B's extra loading costs almost nothing.
+That makes B the better target, because its one large slot suits every
+feature on the list.
 
 ## Where the bytes are
 
@@ -184,19 +186,25 @@ inventories adds a few hundred more, which is cheap. Gathering it into one
 block is the first piece of real work either approach needs, and it pays for
 itself in savegame.c.
 
-## The caveat: load speed
+## Load speed
 
-Every number above assumes LOAD is fast. On a stock 1541 the KERNAL loads
-about 400 bytes a second, so a 9K fight would take more than 20 s to load,
-and approach B could not work at all. Whether TeensyROM's vdrive gets close to
-instant depends on whether it serves the KERNAL's own serial routines or
-replaces them. Measure it on the real machine before building on it: a
-40-line program that loads a 9K file and prints the jiffy clock (`$A2`)
-would settle it. In VICE, tests run in warp mode, so they will not show the
-problem. Use `+truedrive` (or `-virtualdev`) for a fast case, and true drive
-emulation without warp for a slow one.
+Measured on the hardware: vdrive's replacement KERNAL loads the whole 38K
+`q4k.prg` in about 0.75 s, roughly 50K a second, and with DMA it is about
+six times faster again. So a 9K fight loads in about 0.18 s (0.03 s with
+DMA), and B's 22K round trip in about 0.43 s (0.07 s). VICE in warp mode is
+a fair stand-in for that, so the screen tests need nothing special beyond
+having the disk attached. (A stock 1541 manages about 400 bytes a second,
+so this design is for vdrive, or another fast loader, only.)
 
-Two other costs:
+At those speeds the fixed cost of each load matters more than its size.
+`music_pause()` waits twelve jiffies, 0.2 s, before every disk access. That
+wait is for VICE's emulated drive, which replays its last audio buffer while
+the drive works (see Music in CLAUDE.md). It would double the time a fight
+takes to start. Find out whether vdrive needs that wait at all, or whether
+the music can keep playing through a load. If neither, keep the silence but
+drop the wait when no true drive is emulated.
+
+Other costs:
 
 - **The disk becomes required for fights**, not only for talking (which is
   how the offline build already works: see `golden-offline-nodisk`). Every
@@ -230,7 +238,8 @@ map, a step for each per turn, drawing, and a fight that begins when one
 reaches you instead of from a dice roll. The actor glyphs `$80-$91` already
 draw people. A dungeon level's monsters can be saved to a file when you leave
 it, like FOV memory, so that they stay dead. Under approach A this means
-spending some of the freed 9K on the map itself.
+spending some of the freed 9K on the map itself. Under B the map engine has
+the whole slot.
 
 **Smoother, sprite-like movement.** Three of the eight hardware sprites are
 in use (hero, tunic, the shot). That leaves five for monsters near the hero,
@@ -274,8 +283,7 @@ A full redraw copies 8 bytes for every cell, which this machine notices.
 
 ## Suggested order of experiments
 
-1. **Measure load speed** on the TeensyROM and in VICE (above). Everything
-   hinges on it.
+1. **Settle the music pause** (above), since it decides what a swap costs.
 2. **Gather core state** into one block, save straight from it, and drop the
    save blob. This is useful whatever happens next.
 3. **Approach A with the fight alone.** Move the shared bits of battle.c to
@@ -284,6 +292,7 @@ A full redraw copies 8 bytes for every cell, which this machine notices.
 4. **Move the services into the same slot**, one at a time, then the title.
 5. **The data moves** (towns, FOV memory, parked continent), which free the
    RAM under the KERNAL.
-6. Then decide between staying with A and going on to B, based on what the
-   first features want: monsters on the map want A's resident map, and
-   portraits and bitmaps want B's single large slot.
+6. **Go on to B**: split view and game into their core and map halves and
+   put the map in the slot as well. Monsters on the map then grow the map
+   engine inside a 16K slot that has room to spare, instead of taking from
+   what A freed.
