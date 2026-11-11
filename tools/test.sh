@@ -250,7 +250,7 @@ if [ -f "$OFF" ] && [ -f "$OFFDISK" ]; then
         --poke party+4=1 \
         --keys 'Alaric\rs<l                                                            ' \
         --settle 40 2>/dev/null) || out=
-    if printf '%s\n' "$out" | grep -q 'The dead rise!' \
+    if printf '%s\n' "$out" | grep -q 'You fall\.' \
             && printf '%s\n' "$out" | grep -q 'You wake in Millford' \
             && ! printf '%s\n' "$out" | grep -q 'Put the game disk back'; then
         echo "PASS  offline-fight"

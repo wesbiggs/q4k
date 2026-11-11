@@ -3,7 +3,7 @@
  *
  * The offline build's dialog_talk() and dialog_hint() (see dialog.h): what
  * everyone can say is on the disk, one file per person and one per inn, made
- * by tools/mktalk.py, and loaded into the overlay when it is wanted. The
+ * by tools/mktalk.py, and loaded into talk[] when it is wanted. The
  * player picks a topic from a menu instead of typing. Only the offline build
  * archives this module, and only the networked one dialog.c and modem.c.
  */
@@ -55,7 +55,7 @@
 /* Top of BASIC memory: see savegame.c, which raises it for the same reason. */
 #define MEMSIZ (*(unsigned int *)0x0283)
 
-extern unsigned char talk[];        /* overlay.s */
+extern unsigned char talk[];        /* overlay.s: the end of this engine */
 
 static unsigned char held = NONE;   /* the file talk[] holds */
 static unsigned char found;         /* how many find() passed */
@@ -197,7 +197,7 @@ unsigned char dialog_talk(unsigned char npc, const char *name,
     cputsxy(0, HINT_Y, "Number to ask, RUN/STOP leaves");
     panel_begin(TR_Y, TR_H);
 
-    /* Always from the disk: a fight may have used the overlay since. */
+    /* Always from the disk: another engine may have had the slot since. */
     held = NONE;
     if (!load(npc)) {
         return DIALOG_ENOLINE;

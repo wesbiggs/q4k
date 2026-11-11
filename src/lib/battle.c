@@ -303,8 +303,9 @@ static unsigned char lost(void)
 
 
 /* The fight's scratch is not BSS: it is the overlay, the same bytes the title
-   screen ran from before the first fight (overlay.s). Nothing in it carries
-   from one fight to the next; each is set up in battle_fight(). */
+   screen ran from before the first fight (overlay.s), or offline the end of
+   the fight's own engine. Nothing in it carries from one fight to the next;
+   each is set up in battle_fight(). */
 extern unsigned char field[FIELD_SIZE];
 extern unsigned char wall[RIM_W * RIM_H];    /* 1 where nothing can stand */
 extern unsigned char roomy[RIM_W * RIM_H];   /* 0 where a 2x2 body fits,

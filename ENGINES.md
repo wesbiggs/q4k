@@ -1,11 +1,158 @@
 # Engines: what could come off the disk
 
-An exploration, not a plan of record. The question: with a fast drive
-(TeensyROM's vdrive), how much memory can the offline build free by keeping
-only a small core resident and loading each mode's code and data when that
-mode starts? Everything here is measured from the offline build as of 0.11.0
-(`make offline`, then `tools/modes.py`), and the tool is there so that every
-experiment on this branch can be measured the same way.
+The first half of this file is the checkpoint as built: approach B, in the
+offline build. The rest is the exploration that led to it, kept as it was
+written: with a fast drive (TeensyROM's vdrive), how much memory can the
+offline build free by keeping only a small core resident and loading each
+mode's code and data when that mode starts? Those figures are measured from
+the offline build as of 0.11.0 (`make offline`, then `tools/modes.py`).
+
+## Checkpoint 1: approach B, built
+
+The offline build (`make d64-offline`) now keeps a **core** in memory and
+loads everything else into one **slot** at `$4000` from the disk, one engine
+at a time. The online build is the same game as before. It links the same
+split-up sources the old way, and its tests cover that.
+
+| Engine | File | In the slot | Holds |
+|---|---|---:|---|
+| title | (in the PRG) | 2352 | the title screen and the charset's set-up, as before |
+| map | `e.map` | 17179 | `q4k.c`'s loop, scenes, drawing, FOV, towns, loot, treasure maps, help, sailing, the land/town/dungeon generators, the fight wrappers |
+| fight | `e.fight` | 10917 | battle, arenas, `open9`, and the fight's arrays (2360) |
+| talk | `e.talk` | 5181 | talk, inn, gifts, and the dialogue file buffer (3052) |
+| shop | `e.shop` | 2021 | the shop, and taking up dropped gear |
+
+The slot is `$4000-$83FF` (17408 bytes, sized to the map with 229 to spare).
+What is free in the offline build now:
+
+| Where | Free | Was |
+|---|---:|---:|
+| HIGH, `$A1DA-$C3FF` | 8742 | about 400 |
+| MAIN, `$2094-$37FF` (the C stack grows down from the top) | 5996 | about 160 |
+| BSS | 179 | about 60 |
+
+That is about 14.9K, all in the core and so usable from every engine. The
+slot itself has room to grow too: the fight has 6.5K spare in it, and talk
+12K.
+
+### How it works
+
+- `cfg/c64-offline.cfg` has the slot as five memory areas at the same
+  address. One is in the PRG and holds the title screen; each of the others is
+  written to a file of its own, with a two-byte load address in front.
+  `tools/mkengines.py` renames them to `e.map` and so on, and the Makefile
+  puts them on the disk.
+- The Makefile's `ENG_MAP`, `ENG_FIGHT`, `ENG_TALK` and `ENG_SHOP` lists say
+  which modules go where. Only an engine's **code and constants** move: its
+  variables (BSS and DATA) stay in the core, so the map's statics are just as
+  they were when it is loaded back after a fight. The fight's arrays and the
+  dialogue buffer are the exception: they are scratch at the end of their own
+  engine (`FIGHTBSS`, `TALKBSS`).
+- `engine_call(e, entry)` (`src/lib/engine.c`) loads engine `e`, calls its
+  entry, and loads back whatever the slot held before returning. Because the
+  map comes back byte for byte at the same address, a call from deep inside
+  the map's code (`try_move` → `wander_check` → `battle_wander`) returns
+  normally, and no call chain had to be restructured.
+- `tools/mkengines.py` runs after every offline link. It fails the build if
+  any module uses code or constants in an engine that may not be loaded:
+  the core or another engine may only reach an engine's `*_entry`. That
+  check is what makes the arrangement safe to keep changing.
+- `src/lib/boot.c` is the offline `main()`. It runs the title screen from the
+  PRG, loads `e.map` over it, and calls `map_entry()`, which is `q4k.c`'s old
+  `main()` loop.
+
+### Choices and assumptions to review
+
+1. **Offline only.** The online build keeps one flat link, as before. The
+   source was split so that each engine holds only what it calls: `arms.c`
+   (arms tables, dice, potions) out of `battle.c`; `scene.c` (building
+   scenes, rebuilding after a load) out of `game.c` and `savegame.c`;
+   `draw.c` (drawing the map, the panel's "where you are") out of `view.c`;
+   `gift.c` (`quest_after_talk`) out of `q4k.c`. Both builds link the split
+   files. In the online build MAIN went from 159 bytes free to 135, and HIGH
+   from 57 to 39.
+2. **Four engines, not one per screen.** Help, sailing, the generators and
+   saving stay in the map's engine. Help shares its quest hints with the map;
+   the others call back into map code (`isle_work`, `world_view`,
+   `town_build`). Moving them out is possible but would mean restructuring
+   those calls. The shop and the inn are separate because they only need the
+   core.
+3. **The inn travels with talk**, because an ale loads a rumour file through
+   the talk code. The map works out the inn's or person's name and hands it
+   over in `eng_text`, since the names are the map's data.
+4. **A fight's spoils are shared out by the map**, after it is reloaded
+   (`fightcall.c`): the treasure map, then dropped gear. This is the same
+   order and the same dice as before. `gear_drop()`'s roll moved in front of
+   loading the shop engine, so the shop loads only when something really
+   drops. The messages still appear in the same order in the log.
+5. **Music.** Each scene has a score file (`m.map`, `m.fight`, `m.talk`), all
+   the same tune for now, cut out of the PRG by `mkengines.py`. A score loads
+   in the same pause as its engine, and starts from the top. So **the tune
+   restarts at every fight and conversation, and again on returning to the
+   map**; before, it carried on. The shop has no score and keeps the map's
+   tune playing. Every score takes a fixed 516 bytes (32 pitches, 128 notes:
+   `MAX_PITCHES`, `MAX_NOTES` in `tools/mkmusic.py`), so they can replace one
+   another.
+6. **Sprites are hidden during every load** (the hero reappears on the next
+   draw). The open question in CLAUDE.md, about sprites and the serial bus,
+   matters more now that loads are frequent.
+7. **The disk is required.** The game cannot leave the title screen without
+   `e.map`. If a load fails, it says "Put the game disk back, then a key." in
+   the log and tries again after each key. The `offline-nodisk` test now
+   checks for that message; Garrett no longer hands the dagger over on the
+   map with no disk.
+8. **The title screen is still in the PRG.** The `OVL` arrangement and its
+   "nothing may run twice" rule are gone from the offline build: the title is
+   just what the slot holds first.
+9. **Two loads per visit.** Every fight, conversation, inn and shop loads its
+   engine and then the map again. With vdrive that is a fraction of a second
+   each way, plus the 0.2 s music pause. With a stock 1541 it would be about
+   40 s each way, so this build is for fast drives.
+10. **Not reentrant.** An engine called through `engine_call()` must not
+    make another `engine_call()`. Nothing does today, and the core's
+    `static` keeps the rule simple.
+11. **Talk with no file** (a disk missing one person's file): the gift is
+    still handed over, and its line is copied back in `eng_text` for the map
+    to show, as before.
+
+### Tests
+
+The online suite is unchanged. The offline cases are:
+
+- `offline-title`, `offline-talk`, `offline-reward`, `offline-inn`, as
+  before. Their settle times are longer to allow for the engine loads, which
+  run with full drive emulation in warp mode.
+- `offline-nodisk`: the disk prompt (see 7 above).
+- The online screen tests `q4k`, `fov`, `loot`, `sail`, `sailhome`,
+  `captain`, `treasure` and `treasuremap`, run against the offline build with
+  its disk attached, against the same goldens. A
+  `tests/golden-offline-<name>.txt` overrides one if the two builds ever
+  differ.
+- `offline-fight`: `L` raises the dead on the road (`grave_odds=1`), the
+  hero has 1 HP and only guards, and must wake up in Millford. That covers
+  the map → fight → map swap and dying.
+
+### Play-test checklist
+
+On the TeensyROM, from `q4k-…-offline.d64` (or `make d64-offline` and
+`dist/offline/q4k.d64`):
+
+- New game: the title screen, then a short pause while the map loads, then
+  Millford with the music starting.
+- Talk to Garrett (1, 2 ...) and leave with RUN/STOP; the map comes back as it
+  was. Visit the inn: an ale's rumour, a bed.
+- Buy something at a shop; the panel shows it on the way out.
+- Leave Millford and fight a few times: winning (watch for "It had a
+  treasure map!"), fleeing by a side gap, and dying (waking in Millford).
+- Kill a few goblins or bandits for a dropped blade (1 in 12).
+- Enter the Hollow Crown, go down and up a level, fight in a room.
+- Sail to a continent and back; enter its town.
+- F1 to save in a town and in a dungeon; F3 to load, and load from the title
+  screen.
+- M and X during a fight and on the map; the music should restart cleanly
+  after each fight.
+- Take the disk out (unmount it) and walk into a fight: the prompt should
+  appear, and putting the disk back plus a key should carry on.
 
 ## The short answer
 

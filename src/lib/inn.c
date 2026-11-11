@@ -102,7 +102,7 @@ void inn_open(unsigned char inn)
     unsigned char key;
 
 #ifdef Q4K_OFFLINE
-    dialog_forget();     /* the overlay may have been a fight since */
+    dialog_forget();     /* the buffer may have been something else since */
 #endif
     sprite_hide();
     clrscr();
