@@ -197,12 +197,19 @@ having the disk attached. (A stock 1541 manages about 400 bytes a second,
 so this design is for vdrive, or another fast loader, only.)
 
 At those speeds the fixed cost of each load matters more than its size.
-`music_pause()` waits twelve jiffies, 0.2 s, before every disk access. That
-wait is for VICE's emulated drive, which replays its last audio buffer while
-the drive works (see Music in CLAUDE.md). It would double the time a fight
-takes to start. Find out whether vdrive needs that wait at all, or whether
-the music can keep playing through a load. If neither, keep the silence but
-drop the wait when no true drive is emulated.
+The music has to stop for every load and save, and `music_pause()` waits
+twelve jiffies (0.2 s) for the silence to take effect, so a swap costs
+roughly 0.2 s of silence plus the load. A few things keep that from
+showing:
+
+- **A swap is a change of scene, and so a change of music.** With a tune
+  for each scene, the pause is not a gap in a tune: it is where one ends and
+  the next begins. Stop the old tune, load the engine, start the engine's own
+  tune. The silence becomes the transition, a beat before the fight music.
+- **One pause per swap, not one per file.** If an engine needs a second
+  file (its score, a portrait, a dungeon level's memory), `far_call` loads
+  them all inside a single pause.
+- **Saves and the talk files keep the pause they have now.**
 
 Other costs:
 
@@ -281,9 +288,23 @@ have to be drawn into the bitmap or kept to a text-mode band with a raster
 split. Do it after the slots exist, and prototype the drawing speed first.
 A full redraw copies 8 bytes for every cell, which this machine notices.
 
+**Music for each scene.** This fits the slots without any extra work. The
+player (`music.s`, about 0.9K with the sound effects) stays in core, because
+it runs from the interrupt in every mode. The score is data, 132 bytes now,
+and goes with each engine: the map's file carries the travelling tune (or one
+for each of overworld, town and dungeon, loaded when the scene changes), the
+fight's carries a battle theme, talk a quieter one. `tools/mkmusic.py` would
+write one score per file instead of `music_data.s`, all to the same address,
+the start of a small score area in core that each load overwrites. Because no
+score has to stay resident, each one can be as long as you like.
+`music_start()` would then take the score that was just loaded, and
+`music_pause()`/`music_resume()` would become stop/start at a swap.
+
 ## Suggested order of experiments
 
-1. **Settle the music pause** (above), since it decides what a swap costs.
+1. **One score per scene**: teach `mkmusic.py` and `music.s` to play a score
+   that was loaded rather than linked in. This is small, can be heard on its
+   own, and gives every later swap its transition.
 2. **Gather core state** into one block, save straight from it, and drop the
    save blob. This is useful whatever happens next.
 3. **Approach A with the fight alone.** Move the shared bits of battle.c to
