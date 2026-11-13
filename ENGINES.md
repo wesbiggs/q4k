@@ -1,11 +1,86 @@
 # Engines: what could come off the disk
 
-The first half of this file is the checkpoint as built: approach B, in the
-offline build. The rest is the exploration that led to it, kept as it was
+The first part of this file is the checkpoints as built: approach B, first
+in the offline build and then in both. The rest is the exploration that led to it, kept as it was
 written: with a fast drive (TeensyROM's vdrive), how much memory can the
 offline build free by keeping only a small core resident and loading each
 mode's code and data when that mode starts? Those figures are measured from
 the offline build as of 0.11.0 (`make offline`, then `tools/modes.py`).
+
+## Checkpoint 2: both builds
+
+The networked build now works the same way: the same engines, the same
+memory layout (`cfg/c64-q4k.cfg`, which both link), the same disk files. The
+two builds differ only in who talks:
+
+| | networked (`make`, `make d64`) | offline (`make offline`, `make d64-offline`) |
+|---|---|---|
+| in the talk's engine | `dialog.c`: the conversation over the modem | `talk.c`: lines from the disk, and its buffer (`talkbuf.s`) |
+| in the core | `modem.c`, and `line.c`: the title screen's call to the host, and the reply buffer | nothing |
+| on the disk | the PRG, the engines and the music | the same, and everyone's lines |
+
+`Q4K_OFFLINE` is tested in two places: the title screen's call to the host,
+and the networked half of `include/q4k/dialog.h`. Everything that used to be
+offline only for want of room -- the continents' own monsters, the arms
+monsters drop, lightning, the joystick -- is in both, and the online build's
+own flat arrangement (the `OVL` overlay that the title screen ran from and the
+fight's arrays reused, `HICODEMODS`) is gone.
+
+What changed to get there:
+
+- **`dialog.c` is in the talk's engine**, with the same interface as `talk.c`:
+  `dialog_talk(npc, name, given)` and `dialog_hint(inn)`. The ids the host
+  knows people and inns by (`npc_ids`, `inn_ids`) are only read there, so
+  `tools/mktowns.py` puts them in `TALKDATA`. `talk_entry()` moved to
+  `gift.c`, shared: with no host on the line, or no file on the disk, it hands
+  over what the quest needs and the map says so ("has nothing for you" if
+  nothing).
+- **The probe is in the core.** The title screen asks for the host before any
+  engine is loaded, from the slot itself, so the reply cannot land in the slot:
+  `line.c` (the probe, the reply buffer, reading an answer) is core, as is the
+  modem driver.
+- **The RS-232 buffers keep `$CD00-$CEFF` in both builds**, so that the
+  layout is one file. The offline build gives up the 512 bytes of BSS it had
+  taken; HIGH, which has room to spare, ends lower to make up for it
+  (`__HIGHTOP__` is `$C100`).
+- **The test programs** that link the game's modules (dungeontest, arena,
+  isletest) are compiled from the same objects, with the engines' segment
+  names, so they link with `cfg/c64-flat.cfg`, which puts every engine's
+  segments in HIGH in one load. `view_place_fn` may be unset there (the arena
+  has no map), and the panel then leaves "where you are" blank.
+- **Tests.** The online screen tests attach `dist/q4k.d64`. The save tests
+  start from a copy of it rather than a blank disk, since the game cannot
+  leave the title screen without its engines. The dialogue tests run at real
+  speed (the modem cannot be warped), where an emulated 1541 would take a
+  minute for each engine, so `screendump.py` serves the disk from VICE's
+  KERNAL traps instead when `--rs232` is given. The fight test runs against
+  both builds.
+- **Releases** publish the `.d64`s and the zip (which holds the game's disk);
+  a PRG alone would stop at the title screen. `tools/play.sh` plays from a
+  copy of the game's disk, `dist/saves.d64`, and carries `Q4K.SAV` over when
+  the game disk is newer.
+- **One behaviour change online**: the tune restarts at every fight and
+  conversation, as it already did offline (Checkpoint 1, choice 5).
+
+What is free now, measured from the two maps:
+
+| Where | networked | offline |
+|---|---:|---:|
+| HIGH, to `$C0FF` | 7253 | 7974 |
+| MAIN, to `$37FF` (the C stack grows down from the top) | 5961 | 5996 |
+| BSS, to `$CCFF` | 197 | 434 |
+| CHDATA1 / CHDATA2 / CHDATA3 | 9 / 125 / 114 | 9 / 91 / 114 |
+| BSS2 | 29 | 29 |
+
+| Engine | networked | offline |
+|---|---:|---:|
+| title (in the PRG) | 2517 | 2352 |
+| map | 17089 | 17089 |
+| fight | 10917 | 10917 |
+| talk | 2872 | 5325 (with its 3052-byte buffer) |
+| shop | 2021 | 2021 |
+
+The slot is 17408 bytes, so the map has 319 to spare.
 
 ## Checkpoint 1: approach B, built
 
@@ -63,7 +138,8 @@ slot itself has room to grow too: the fight has 6.5K spare in it, and talk
 
 ### Choices and assumptions to review
 
-1. **Offline only.** The online build keeps one flat link, as before. The
+1. **Offline only.** (Since Checkpoint 2, both builds.) The online build
+   keeps one flat link, as before. The
    source was split so that each engine holds only what it calls: `arms.c`
    (arms tables, dice, potions) out of `battle.c`; `scene.c` (building
    scenes, rebuilding after a load) out of `game.c` and `savegame.c`;

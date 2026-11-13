@@ -1,5 +1,5 @@
 /*
- * q4k -- loading engines into the slot (offline build only): see engine.h.
+ * q4k -- loading engines into the slot: see engine.h.
  *
  * Each engine is a file on the disk, linked to the slot's address, with the
  * two-byte load address in front that every PRG has, so the KERNAL's LOAD

@@ -55,14 +55,10 @@ void view_restore(void)
     redraw_log();
 }
 
+/* The charset is installed by then (boot.c, before the title screen), and the
+   code that did it may be gone. */
 void view_init(void)
 {
-#ifndef Q4K_OFFLINE
-    /* The offline build has done this already (the title screen, and boot.c
-       before it), and by now the code that does it may be gone. */
-    tiles_install();
-#endif
-
     VIC.bordercolor = COLOR_BLACK;
     VIC.bgcolor0    = COLOR_BLACK;
     VIC.addr        = CHARSET_D018;
@@ -137,15 +133,11 @@ static void put_items(unsigned char y)
    for, so the blank lines between groups are the only spacing there is. */
 unsigned char view_fighting;
 
-/* Where you are (draw.c): only the map's engine knows how to name it, so the
-   offline build, where that engine is on the disk, is told where it is when
-   the engine starts. The fight never draws it. */
-#ifdef Q4K_OFFLINE
+/* Where you are (draw.c): only the map's engine knows how to name it, and
+   that engine is on the disk, so the core is told where it is when the engine
+   starts. The fight never draws it, and a program with no map (the arena)
+   never sets it. */
 void (*view_place_fn)(void);
-#define VIEW_PLACE() view_place_fn()
-#else
-#define VIEW_PLACE() view_place()
-#endif
 
 void view_draw_panel(void)
 {
@@ -179,8 +171,8 @@ void view_draw_panel(void)
         view_num(PANEL_X + 10, 9, arrows);
     }
 
-    if (!view_fighting) {
-        VIEW_PLACE();
+    if (!view_fighting && view_place_fn) {
+        view_place_fn();
     }
 
     put_items(13);

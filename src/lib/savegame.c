@@ -176,8 +176,8 @@ static unsigned char do_load(void)
     memcpy(tmap, blob.tmap, sizeof(tmap));
 
     /* The maps are rebuilt from this by scene_restore() (scene.c), which
-       whoever loaded the game calls next: the offline build keeps it with
-       the map's engine, which is not in memory at the title screen. */
+       whoever loaded the game calls next: it is in the map's engine, which
+       is not in memory at the title screen. */
     return SAVE_OK;
 }
 

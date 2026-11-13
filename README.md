@@ -17,12 +17,11 @@ end of the C64's modem port.
 
 Download the files from the
 [latest release](https://github.com/wesbiggs/q4k/releases/latest). There are
-four, and you only need one:
+three, and you only need one:
 
 | file | |
 |---|---|
 | `q4k-<version>.zip` | the game and everything people need to talk -- start here |
-| `q4k-<version>.prg` | the game alone |
 | `q4k-<version>.d64` | the game on a disk image, for a real C64 or any emulator |
 | `q4k-<version>-offline.d64` | the offline build: no modem or host, everyone's lines on the disk |
 
@@ -38,18 +37,20 @@ cd q4k-0.11.0
 tools/play.sh
 ```
 
-**The .prg** runs on its own: open it in VICE, or drop it on the window.
+**The .d64** is the game on its disk: open it in VICE, or drop it on the
+window; on a real machine with an SD card drive, `LOAD"Q4K",8` and `RUN`.
 With nothing on the other end of the modem there are no conversations (see
 [Talking to people](#talking-to-people)), but the game can still be
-finished. To save you need a disk in drive 8: attach any blank `.d64` from
-VICE's File menu.
-
-**The .d64** is the same game on a disk. In VICE, or on a real machine with
-an SD card drive: `LOAD"Q4K",8` and `RUN`.
+finished.
 
 **The offline disk** (`q4k-<version>-offline.d64`) needs no modem and no host: what
-everyone says is on the disk, and you pick what to ask from a menu. Keep the
-disk in the drive, because people's lines load from it as you meet them.
+everyone says is on the disk, and you pick what to ask from a menu.
+
+Either way, **keep the disk in the drive**. The game loads the map, the
+fights, conversations and the shops from it as they are wanted, and saves to
+it. If it cannot find the disk it asks for it back. It is meant for a fast
+drive (an SD card drive, or VICE); a stock 1541 would take most of a minute
+for every fight.
 
 To build it yourself instead, see [DEVELOPERS.md](DEVELOPERS.md).
 
@@ -59,7 +60,7 @@ The title screen sets the scene and asks your name; RETURN alone picks a
 random one, `F3` loads a saved game instead, and `F5` lets you choose the
 world's seed (1 to 255; the same seed makes the same lands and towns). The `?`
 screen shows the seed in play. Then `WASD` or the cursor
-keys move. In the offline build a joystick in port 2 does too, and its
+keys move. A joystick in port 2 does too, and its
 button is `F` in a fight (push it again, or press a key, to answer "Shoot
 which way?") and elsewhere whichever of `>` and `<` makes sense where you
 stand. The panel shows what you are carrying and wearing, alongside your
@@ -92,8 +93,9 @@ A healing draught restores a share of your full health, so it is worth a
 turn late in the game as well as early, and its price climbs to match: five
 marks, plus five for each level you have.
 
-Saved games go to a disk in drive 8. `tools/play.sh` makes one,
-`dist/saves.d64`, the first time and attaches it every time after.
+Saved games go to the game's disk, in drive 8. `tools/play.sh` plays from a
+copy of it, `dist/saves.d64`, and keeps your save when a new game disk
+replaces it.
 
 ### Fighting
 
@@ -121,7 +123,7 @@ than six. At level six that is as many as six rats or three giant wasps.
 They go round one another to reach you, and an archer will not shoot
 through its fellows. Keepers and Maldrath always come alone.
 
-In the offline build each continent also has two monsters of its own, met
+Each continent also has two monsters of its own, met
 nowhere else, after the ground it is mostly made of -- gnolls and centaurs on
 the plains, trolls and wisps in the forest, leeches and bog hags in the mire,
 sand wyrms and efreets in the desert, rock trolls and storm giants in the

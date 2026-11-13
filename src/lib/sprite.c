@@ -72,15 +72,11 @@ static const unsigned char frames[4][2][8] = {
 /* The shots, by SHOT_* kind, pointing each way: down, up, left, right as
    DIR_* numbers them. The front is always the heavy end: an arrow's head
    with its fletching behind, a flame's body with sparks behind, a gout of
-   water with its spray behind. Lightning, which only the offline build's
-   monsters throw, is the same zigzag either way; with it the shapes do not
-   fit in the charset's spare glyphs, so they go in HIGH. */
-#ifdef Q4K_OFFLINE
+   water with its spray behind. Lightning, which only a continent's monsters
+   throw, is the same zigzag either way; with it the shapes do not fit in the
+   charset's spare glyphs, so they go in HIGH. */
 #pragma rodata-name (push, "HIDATA")
 #define SHOT_KINDS 4
-#else
-#define SHOT_KINDS 3
-#endif
 static const unsigned char shot_shapes[SHOT_KINDS][4][8] = {
     {   /* arrow */
         { 0x00, 0x14, 0x08, 0x08, 0x08, 0x08, 0x1C, 0x08 },
@@ -100,24 +96,18 @@ static const unsigned char shot_shapes[SHOT_KINDS][4][8] = {
         { 0x00, 0x40, 0xE2, 0xF5, 0xE2, 0x40, 0x00, 0x00 },
         { 0x00, 0x02, 0x47, 0xAF, 0x47, 0x02, 0x00, 0x00 },
     },
-#ifdef Q4K_OFFLINE
     {   /* lightning */
         { 0x08, 0x10, 0x3C, 0x08, 0x10, 0x3C, 0x08, 0x10 },
         { 0x10, 0x08, 0x3C, 0x10, 0x08, 0x3C, 0x10, 0x08 },
         { 0x00, 0x00, 0x24, 0x6D, 0xB6, 0x24, 0x00, 0x00 },
         { 0x00, 0x00, 0x24, 0xB6, 0x6D, 0x24, 0x00, 0x00 },
     },
-#endif
 };
 static const unsigned char shot_colors[SHOT_KINDS] = {
     COLOR_YELLOW, COLOR_ORANGE, COLOR_LIGHTBLUE,
-#ifdef Q4K_OFFLINE
     COLOR_WHITE,
 };
 #pragma rodata-name (pop)
-#else
-};
-#endif
 
 static unsigned char facing, stride;
 static unsigned char spr_x, spr_y;

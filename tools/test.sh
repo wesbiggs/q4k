@@ -85,7 +85,12 @@ for golden in tests/golden/*.txt; do
     compare "$name" "$golden" tools/screendump.py "$@"
 done
 
-# Saving and restoring needs a disk in unit 8. A fresh one each run, so the
+# The game loads its engines from its disk (include/q4k/engine.h), so every
+# case that goes past the title screen has it in unit 8: the .cmd files say
+# --disk dist/q4k.d64, and the offline cases use dist/offline/q4k.d64.
+DISK=dist/q4k.d64
+
+# Saving and restoring writes to that disk. A fresh copy each run, so the
 # case does not depend on what a previous run left lying about: walk two
 # squares, save, walk two more. The load case then restores from it.
 #
@@ -99,11 +104,11 @@ done
 # squares roll for wandering monsters, and now that the seed comes from the
 # player's own timing the roll differs every run -- any test that walks in
 # the open is flaky by construction. Towns never roll.
-if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ]; then
+if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ] && [ -f "$DISK" ]; then
     # A full template: BSD mktemp takes -t <prefix>, GNU rejects it.
     base=$(mktemp "${TMPDIR:-/tmp}/q4ksave.XXXXXX")
     saves=$base.d64
-    c1541 -format "test,01" d64 "$saves" >/dev/null 2>&1
+    cp "$DISK" "$saves"
     compare save tests/golden-save.txt \
         tools/screendump.py dist/q4k.prg --disk "$saves" \
         --keys 'Alaric\rww\x85yww' --settle 8
@@ -123,7 +128,7 @@ if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ]; then
     # then restore on a fresh machine and expect the later turn.
     base=$(mktemp "${TMPDIR:-/tmp}/q4ksave.XXXXXX")
     saves=$base.d64
-    c1541 -format "test,01" d64 "$saves" >/dev/null 2>&1
+    cp "$DISK" "$saves"
     turn() { sed -n 's/.*game_turn+0 @ .* = \([0-9]*\) .*/\1/p'; }
     saved=$(tools/screendump.py dist/q4k.prg --disk "$saves" \
         --keys 'Alaric\rww\x85yww\x85y' --settle 12 --peek game_turn:2 \
@@ -146,13 +151,16 @@ SEED=0x5a
 keys() { python3 tools/homepath.py "$SEED" "$@"; }
 
 # The dialogue case needs a daemon on the other end of the modem line, in
-# --mock mode so the replies are the same every run.
-if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
+# --mock mode so the replies are the same every run. With the modem the
+# machine runs at its real speed, and screendump.py serves the disk without
+# emulating the drive, or every conversation would wait a minute for its
+# engine.
+if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ] && [ -f "$DISK" ]; then
     python3 host/npcd.py --mock --port 25299 --quiet >/dev/null 2>&1 &
     daemon=$!
     sleep 1
     compare dialog tests/golden-dialog.txt \
-        tools/screendump.py dist/q4k.prg --rs232 25299 \
+        tools/screendump.py dist/q4k.prg --disk "$DISK" --rs232 25299 \
         --keys 'Alaric\rwwwwwwwwwwwwaaaawaaawhat of the blade\rcould I have a dagger\r' --settle 40
     # Brann -> Vane: sail to Wardlow (the south continent, for seed $5A)
     # holding the Emberstone, with the run's secrets pinned (that seed makes
@@ -163,7 +171,7 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
     # never rolls for a monster, so this is not a walk in the open.
     if [ -f tests/golden-tidal.txt ]; then
         compare tidal tests/golden-tidal.txt \
-            tools/screendump.py dist/q4k.prg --rs232 25299 \
+            tools/screendump.py dist/q4k.prg --disk "$DISK" --rs232 25299 \
             --poke quest_stage=3 --poke items=8 --poke lore_seed=$SEED \
             --poke no_encounters=1 \
             --keys 'Alaric\rs<'"$(keys millford port2)$(keys dock story --land 2)"'>wwwwwwwaaaawwwmay I have the key\rdead low\rgoodbye\r' \
@@ -174,7 +182,7 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
     # has him say so, and it arrives in the transcript.
     if [ -f tests/golden-sigil.txt ]; then
         compare sigil tests/golden-sigil.txt \
-            tools/screendump.py dist/q4k.prg --rs232 25299 \
+            tools/screendump.py dist/q4k.prg --disk "$DISK" --rs232 25299 \
             --poke quest_stage=1 --poke lore_seed=$SEED --poke no_encounters=1 \
             --keys 'Alaric\rs<'"$(keys millford castle)"'>wwwwwwwwwwwhello\rwhat is my quest\r' \
             --settle 100
@@ -183,7 +191,7 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
     # 1,000 gold and moves the quest to Q_REWARDED, the next only praises.
     if [ -f tests/golden-reward.txt ]; then
         compare reward tests/golden-reward.txt \
-            tools/screendump.py dist/q4k.prg --rs232 25299 \
+            tools/screendump.py dist/q4k.prg --disk "$DISK" --rs232 25299 \
             --poke quest_stage=9 --poke lore_seed=$SEED --poke no_encounters=1 \
             --keys 'Alaric\rs<'"$(keys millford castle)"'>wwwwwwwwwwwhello\rthank you\r' \
             --settle 100
@@ -193,11 +201,37 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ]; then
     # the hero back to full health for 20 marks.
     if [ -f tests/golden-inn.txt ]; then
         compare inn tests/golden-inn.txt \
-            tools/screendump.py dist/q4k.prg --rs232 25299 \
+            tools/screendump.py dist/q4k.prg --disk "$DISK" --rs232 25299 \
             --poke party+4=5 --poke gold=60 --poke lore_seed=$SEED --keys 'Alaric\rwwddddd12' --settle 24
     fi
     kill "$daemon" 2>/dev/null || true
     wait "$daemon" 2>/dev/null || true   # reap quietly; no job-control noise
+fi
+
+# A fight, there and back, in either build: the dead rise at the first L on
+# the road out of Millford (grave_odds=1), the hero has one point of health
+# and only guards (SPACE), so the first blow kills, and a key later they wake
+# in Millford. That loads the fight's engine over the map's, and the map's
+# back over it, with the map's own state (the scene, the log) intact.
+# fight <name> <prg> <disk>
+fight() {
+    out=$(tools/screendump.py "$2" --disk "$3" \
+        --poke quest_stage=1 --poke lore_seed=$SEED --poke grave_odds=1 \
+        --poke party+4=1 \
+        --keys 'Alaric\rs<l                                                            ' \
+        --settle 40 2>/dev/null) || out=
+    if printf '%s\n' "$out" | grep -q 'You fall\.' \
+            && printf '%s\n' "$out" | grep -q 'You wake in Millford' \
+            && ! printf '%s\n' "$out" | grep -q 'Put the game disk back'; then
+        echo "PASS  $1"
+    else
+        echo "FAIL  $1"
+        printf '%s\n' "$out"
+        fail=1
+    fi
+}
+if [ -f dist/q4k.prg ] && [ -f "$DISK" ]; then
+    fight fight dist/q4k.prg "$DISK"
 fi
 
 # The offline build (make d64-offline): no modem, and what people say comes
@@ -229,36 +263,17 @@ if [ -f "$OFF" ] && [ -f "$OFFDISK" ]; then
         fail=1
     fi
     # The networked build's screen tests, played offline: everything but the
-    # title screen is the same, but now each one loads the map's engine, and
-    # the sailing ones build a continent from it. A golden of its own,
+    # title screen is the same. A golden of its own,
     # tests/golden-offline-<name>.txt, wins where the two builds differ.
     for name in q4k fov loot sail sailhome captain treasure treasuremap; do
         golden=tests/golden-offline-$name.txt
         [ -f "$golden" ] || golden=tests/golden/$name.txt
         # shellcheck disable=SC2046
-        set -- $(sed "s|dist/q4k.prg|$OFF --disk $OFFDISK|" \
+        set -- $(sed "s|dist/q4k\.|dist/offline/q4k.|g" \
             "tests/golden/$name.cmd")
         compare "offline-$name" "$golden" tools/screendump.py "$@"
     done
-    # A fight, there and back: the dead rise at the first L on the road out
-    # of Millford (grave_odds=1), the hero has one point of health and only
-    # guards (SPACE), so the first blow kills, and a key later they wake in
-    # Millford. That loads the fight's engine over the map's, and the map's
-    # back over it, with the map's own state (the scene, the log) intact.
-    out=$(tools/screendump.py "$OFF" --disk "$OFFDISK" \
-        --poke quest_stage=1 --poke lore_seed=$SEED --poke grave_odds=1 \
-        --poke party+4=1 \
-        --keys 'Alaric\rs<l                                                            ' \
-        --settle 40 2>/dev/null) || out=
-    if printf '%s\n' "$out" | grep -q 'You fall\.' \
-            && printf '%s\n' "$out" | grep -q 'You wake in Millford' \
-            && ! printf '%s\n' "$out" | grep -q 'Put the game disk back'; then
-        echo "PASS  offline-fight"
-    else
-        echo "FAIL  offline-fight"
-        printf '%s\n' "$out"
-        fail=1
-    fi
+    fight offline-fight "$OFF" "$OFFDISK"
     # The king at stage 9: his greeting is the line that gives, so the
     # reward comes before anything is asked, and the menu is stage 10's.
     if [ -f tests/golden-offline-reward.txt ]; then

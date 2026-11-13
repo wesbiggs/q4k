@@ -6,8 +6,8 @@
 writes OUTDIR/0 .. OUTDIR/8, one per NPC (NPC_* in town_data.h), and
 OUTDIR/9 .. OUTDIR/11, the rumours of each inn (inn_ids[] in town_data.c, then
 every inn the town generator makes). The Makefile puts them on the offline
-d64 under those names, and src/lib/talk.c loads one into the overlay when it
-is needed. Each is a PRG whose load address is ignored, then entries of
+d64 under those names, and src/lib/talk.c loads one into the talk's buffer
+(src/lib/talkbuf.s) when it is needed. Each is a PRG whose load address is ignored, then entries of
 
     flags            0 a greeting or a rumour, 1 a topic; | 0x80: give
     lo << 4 | hi     the quest stages it fits, inclusive
@@ -15,8 +15,8 @@ is needed. Each is a PRG whose load address is ignored, then entries of
     text, NUL        ASCII
 
 and a 0xFF where the next flags would be. Every file must fit in ROOM bytes,
-the overlay as the offline build links it (OFFLINE_OVL in the Makefile):
-anything longer would load over code.
+the talk's buffer (TALK_SIZE in the Makefile): anything longer would load
+over whatever follows the talk's engine.
 """
 
 import json
@@ -187,7 +187,7 @@ def main():
         data = pack(entries)
         size = len(data) - 2
         if size > room:
-            die(name, "%d bytes, the overlay holds %d" % (size, room))
+            die(name, "%d bytes, the buffer holds %d" % (size, room))
         with open(os.path.join(outdir, str(num)), "wb") as f:
             f.write(data)
         print("talk %-3s %-7s %4d bytes (%d free)" % (num, name, size, room - size))

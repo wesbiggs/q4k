@@ -70,7 +70,7 @@ def town_keys(town, goals):
 
 def write(name, args):
     with open(OUT % name, "w") as f:
-        f.write("dist/q4k.prg " + " ".join(args) + "\n")
+        f.write("dist/q4k.prg --disk dist/q4k.d64 " + " ".join(args) + "\n")
 
 
 def main():

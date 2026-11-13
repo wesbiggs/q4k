@@ -1,5 +1,5 @@
 /*
- * q4k -- the fights, as the map's engine calls them (offline build only).
+ * q4k -- the fights, as the map's engine calls them.
  *
  * The fight is an engine of its own, so the map cannot call battle.c's entry
  * points directly: these have their names and load it instead, through the

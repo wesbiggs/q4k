@@ -3,15 +3,9 @@
 #include <q4k/loot_data.h>
 #include <q4k/town_data.h>
 
-#ifndef Q4K_OFFLINE   /* offline, the Makefile puts it with an engine */
-#pragma rodata-name (push, "HIDATA")
-#endif
+/* The Makefile puts this with the map's engine. */
 
 const Loot loot_table[] = {
     { TOWN_CASTLE,     6,  7, LOOT_GOLD,    14 },
     { TOWN_CASTLE,    14,  7, LOOT_GOLD,    19 },
 };
-
-#ifndef Q4K_OFFLINE
-#pragma rodata-name (pop)
-#endif

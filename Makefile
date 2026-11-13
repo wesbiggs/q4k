@@ -28,7 +28,7 @@ BUILD    := build
 DIST     := dist
 
 # The offline build: no modem and no host. What people say is on the disk
-# instead, a file each, which src/lib/talk.c loads into the overlay
+# instead, a file each, which src/lib/talk.c loads into the talk's buffer
 # (tools/mktalk.py makes them from assets/talk.txt, and the inns' rumours from
 # assets/hints.json). Everything goes in a directory of its own, so the two
 # builds' objects never mix; use the targets at the end, which set OFFLINE.
@@ -38,10 +38,10 @@ BUILD    := build/offline
 DIST     := dist/offline
 endif
 
-# Without the modem nothing opens the RS-232 buffers at $CD00-$CEFF, so BSS
-# can run on to the probe page and the overlay take its 512 bytes: the inns'
-# rumours did not fit in 2540. mktalk.py checks every file against this.
-OFFLINE_OVL := 0x0BEC
+# The talk's buffer, at the end of its engine (src/lib/talkbuf.s): offline,
+# one person's lines or one inn's rumours. mktalk.py checks every file
+# against it.
+TALK_SIZE := 0x0BEC
 
 CL65     := cl65
 AR65     := ar65
@@ -54,7 +54,7 @@ OPT      := -Osir
 CFLAGS    = -t $(TARGET) $(OPT) --static-locals -I include \
             $(if $(filter 1,$(OFFLINE)),-DQ4K_OFFLINE)
 ASFLAGS  := -t $(TARGET) -I include --asm-include-dir include \
-            $(if $(filter 1,$(OFFLINE)),--asm-define Q4K_OFFLINE=1 --asm-define TALK_SIZE=$(OFFLINE_OVL))
+            --asm-define TALK_SIZE=$(TALK_SIZE)
 # The game gets the full memory map; the demos and tools get a lean one that
 # skips the HIGH region and its contiguity padding.
 LDFLAGS  := -t $(TARGET)
@@ -65,30 +65,20 @@ LDFLAGS  := -t $(TARGET)
 # system headers. Each header also gets an empty rule, so deleting one does
 # not break the build.
 DEPFLAGS  = -Wc --create-full-dep,$(@:.o=.d) -Wc --dep-target,$@
-# dungeontest links the maps and the font, and arena the fights, so both need
-# the game's map too.
-LDCFG     = cfg/c64-$(if $(filter q4k dungeontest arena isletest,$*),q4k,tool).cfg
-ifeq ($(OFFLINE),1)
-LDCFG     = cfg/c64-$(if $(filter q4k,$*),offline,$(if $(filter dungeontest arena isletest,$*),q4k,tool)).cfg
-endif
+# The game loads its engines from the disk (cfg/c64-q4k.cfg, and its own
+# rule below). dungeontest links the maps and the font, arena the fights and
+# isletest the land, so they need the game's charset and probe page as well,
+# with everything in one load (cfg/c64-flat.cfg).
+LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest,$*),flat,tool).cfg
 
 MAINS    := $(wildcard src/*.c)
 PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 
-# Modules whose code and constants live above the character set, in the HIGH
-# region. Twelve kilobytes under the charset does not hold the whole game;
-# these are the biggest and least performance-critical parts (menus and
-# set-piece screens), so putting them out of the way costs nothing. Both
-# flags are needed: --code-name alone leaves the string literals behind, and
-# screens like the help text are mostly string literals.
-HIMODS   := dialog battle arms shop inn dungeon panel help savegame sprite \
-            loot fov world sail modem actor town_gen talk
-
-# Code above the charset, constants below: for when HIGH is the one that is
-# full and MAIN still has room. The shop's names and prices went back down
-# when the dungeon work and the version check together overflowed HIGH by
-# 88 bytes; the ship's messages did the same for sail.
-HICODEMODS := shop sail
+# The core's modules whose code and constants live above the character set,
+# in the HIGH region, rather than in MAIN. Both flags are needed: --code-name
+# alone leaves the string literals behind. (A module in an engine, below, goes
+# to its engine instead: being on this list as well would change nothing.)
+HIMODS   := arms panel savegame sprite world modem line actor
 
 # These are compiled without -Os, which unrolls shifts and multiplies by
 # constants and costs about a tenth of their size: the screens lose nothing
@@ -96,57 +86,53 @@ HICODEMODS := shop sail
 # milliseconds slower goes unnoticed. Not the generators or the modem, whose
 # timing was measured with it. Changing this list needs the objects rebuilt,
 # as above.
-SMALLMODS  := loot shop inn help battle arms dialog dungeon talk
+SMALLMODS  := loot shop inn help battle arms dialog dungeon talk gift
 $(foreach m,$(SMALLMODS),$(eval $(BUILD)/lib/$(m).o: OPT := -Or))
 
 # The title screen is not in HIGH at all: it runs once, at the start, from the
-# overlay at the bottom of HIGH, where the fights keep their scratch arrays
-# afterwards (src/lib/overlay.s and cfg/c64-q4k.cfg).
+# engines' slot, which the PRG brings it in (cfg/c64-q4k.cfg) ...
 $(BUILD)/lib/title.o: CFLAGS += --code-name TITLECODE --rodata-name TITLEDATA
 # ... and so is what draws the game's character set, which is done before the
-# first fight: charset_define.o here, and the glyphs in tiles_data.c (see
-# tools/mktiles.py, which marks them).
+# map's engine is loaded over it: charset_define.o here, and the glyphs in
+# tiles_data.c (see tools/mktiles.py, which marks them).
 $(BUILD)/lib/charset_define.o: CFLAGS += --code-name TITLECODE
 
 LIBSRC   := $(wildcard src/lib/*.c) $(wildcard src/lib/*.s)
 LIBOBJ   := $(patsubst src/lib/%.c,$(BUILD)/lib/%.o,$(wildcard src/lib/*.c)) \
             $(patsubst src/lib/%.s,$(BUILD)/lib/%.o,$(wildcard src/lib/*.s))
 
-# One build talks over the modem and the other from the disk, never both.
-# Only the offline build has engines (boot, engine, fightcall: engine.h).
-OFFONLY  := talk boot engine fightcall
+# What talks is the only difference between the two builds: the networked one
+# over the modem (dialog, with modem and line in the core), the offline one
+# from the disk (talk, and its buffer). Never both.
+OFFONLY    := talk talkbuf
+ONLINEONLY := dialog modem line
 ifeq ($(OFFLINE),1)
-LIBOBJ   := $(filter-out $(BUILD)/lib/dialog.o $(BUILD)/lib/modem.o,$(LIBOBJ))
+LIBOBJ   := $(filter-out $(patsubst %,$(BUILD)/lib/%.o,$(ONLINEONLY)),$(LIBOBJ))
 else
 LIBOBJ   := $(filter-out $(patsubst %,$(BUILD)/lib/%.o,$(OFFONLY)),$(LIBOBJ))
 endif
 
-# The offline build's engines (include/q4k/engine.h, cfg/c64-offline.cfg):
-# what is loaded into the slot for each, and so not in memory otherwise. Their
-# code and constants go in the engine's segments, and their variables stay in
-# the core's BSS and DATA, so that nothing they keep is lost when another
-# engine takes the slot. Everything else is the core. The assembly modules
-# choose their own segments when Q4K_OFFLINE is defined: isle_gen, tgen and
-# place_near are the map's, open9 the fight's, and overlay has the fight's
-# arrays and the talk's buffer. tools/mkengines.py checks after every link
-# that no engine calls another, nor the core an engine.
+# The engines (include/q4k/engine.h, cfg/c64-q4k.cfg): what is loaded into the
+# slot for each, and so not in memory otherwise. Their code and constants go
+# in the engine's segments, and their variables stay in the core's BSS and
+# DATA, so that nothing they keep is lost when another engine takes the slot.
+# Everything else is the core. The assembly modules choose their own
+# segments: isle_gen, tgen and place_near are the map's, open9 the fight's,
+# overlay has the fight's arrays and talkbuf the talk's buffer; town_data puts
+# the people's ids, which only a conversation needs, with the talk.
+# tools/mkengines.py checks after every link that no engine calls another,
+# nor the core an engine.
 ENG_MAP   := scene draw fov town_data town_gen loot loot_data help sail \
              dungeon fightcall
 ENG_FIGHT := battle arena_data
-ENG_TALK  := talk inn gift
+ENG_TALK  := talk dialog inn gift
 ENG_SHOP  := shop
 ENGMODS   := $(ENG_MAP) $(ENG_FIGHT) $(ENG_TALK) $(ENG_SHOP)
 
-ifeq ($(OFFLINE),1)
 $(foreach e,MAP FIGHT TALK SHOP,$(foreach m,$(ENG_$(e)),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name $(e)CODE --rodata-name $(e)DATA)))
-# The map loop itself, in src/q4k.c: its main() is boot.c's here.
+# The map loop itself, in src/q4k.c: its main() is boot.c's.
 $(BUILD)/q4k.o: CFLAGS += --code-name MAPCODE --rodata-name MAPDATA
-$(foreach m,$(filter-out $(HICODEMODS) $(ENGMODS),$(HIMODS)),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE --rodata-name HIDATA))
-$(foreach m,$(filter-out $(ENGMODS),$(HICODEMODS)),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE))
-else
-$(foreach m,$(filter-out $(HICODEMODS),$(HIMODS)),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE --rodata-name HIDATA))
-$(foreach m,$(HICODEMODS),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE))
-endif
+$(foreach m,$(filter-out $(ENGMODS),$(HIMODS)),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE --rodata-name HIDATA))
 
 ifneq ($(strip $(LIBOBJ)),)
 LIB      := $(BUILD)/q4k.lib
@@ -278,36 +264,38 @@ $(DIST)/%.prg: $(BUILD)/%.o $(LIB) $(wildcard cfg/*.cfg)
 	    -Wl -Ln,$(BUILD)/$*.lbl -o $@ $< $(LIB)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
-ifeq ($(OFFLINE),1)
-# The engines come out of the same link, as files beside the PRG, and the
-# scenes' music is cut out of it: tools/mkengines.py, which also checks that
-# no engine reaches into another. The disk gets them all (d64, below).
+# The game. The engines come out of the same link, as files beside the PRG,
+# and the scenes' music is cut out of it: tools/mkengines.py, which also
+# checks that no engine reaches into another. The disk gets them all (d64,
+# below); the game does not go past its title screen without them.
 ENGFILES := e.map e.fight e.talk e.shop m.map m.fight m.talk
 
 $(DIST)/q4k.prg: $(BUILD)/q4k.o $(LIB) $(wildcard cfg/*.cfg) tools/mkengines.py
 	@mkdir -p $(DIST)
-	$(CL65) $(LDFLAGS) -C cfg/c64-offline.cfg -m $(BUILD)/q4k.map \
+	$(CL65) $(LDFLAGS) -C cfg/c64-q4k.cfg -m $(BUILD)/q4k.map \
 	    -Wl -Ln,$(BUILD)/q4k.lbl -o $@ $< $(BUILD)/lib/boot.o $(LIB)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 	tools/mkengines.py $(BUILD) $@
 
+ifeq ($(OFFLINE),1)
 TALK_STAMP := $(BUILD)/talk/.stamp
 
 $(TALK_STAMP): assets/talk.txt assets/hints.json tools/mktalk.py \
                include/q4k/town_data.h src/lib/town_data.c
 	@rm -rf $(BUILD)/talk
-	tools/mktalk.py $(BUILD)/talk $(OFFLINE_OVL)
+	tools/mktalk.py $(BUILD)/talk $(TALK_SIZE)
 	@touch $@
 endif
 
 # --- run / verify -----------------------------------------------------------
 
-run: dirs $(DIST)/$(PROG).prg
-	tools/run.sh $(DIST)/$(PROG).prg
+# The game needs its disk (engine.h), so it runs from that.
+run: dirs $(DIST)/$(PROG).prg $(if $(filter q4k,$(PROG)),d64)
+	tools/run.sh $(DIST)/$(PROG).$(if $(filter q4k,$(PROG)),d64,prg)
 
 # Play with NPC dialogue: starts host/npcd.py and wires it to the modem port.
 # Q4K_MOCK=1 make play  uses canned replies instead of calling the model.
-play: dirs $(DIST)/q4k.prg
+play: dirs d64
 	tools/play.sh
 
 check: dirs $(DIST)/$(PROG).prg
@@ -318,11 +306,11 @@ shot: dirs $(DIST)/$(PROG).prg
 	@echo "wrote $(BUILD)/$(PROG).png"
 
 # Compare each program's screen against tests/golden/<name>.txt.
-test: all
+test: all d64
 	@tools/test.sh
 
 # Accept the current output as correct. Review the diff before doing this.
-bless: all
+bless: all d64
 	@tools/test.sh --bless
 
 # --- release ----------------------------------------------------------------
@@ -330,13 +318,15 @@ bless: all
 # What .github/workflows/release.yml publishes for a v* tag, and what a
 # player downloads instead of building:
 #
-#   q4k-<version>.prg   the game, for VICE or any loader
-#   q4k-<version>.d64   the same on a disk: LOAD"Q4K",8,1 then RUN
+#   q4k-<version>.d64   the game on its disk: LOAD"Q4K",8,1 then RUN. There
+#                       is no .prg on its own: the game loads its engines
+#                       from the disk, and saves to it
 #   q4k-<version>-offline.d64
 #                       the offline build (no modem, no host) on its disk,
 #                       with what everyone says; the same as `make d64-offline`
-#   q4k-<version>.zip   the game plus the dialogue host and what it reads,
-#                       laid out as in the repo, so tools/play.sh runs as is
+#   q4k-<version>.zip   the game's disk plus the dialogue host and what it
+#                       reads, laid out as in the repo, so tools/play.sh runs
+#                       as is
 
 VERSION_NUM := $(shell tr -d ' \n' < VERSION)
 REL_NAME    := q4k-$(VERSION_NUM)
@@ -346,14 +336,12 @@ REL_FILES   := README.md host/npcd.py tools/play.sh tools/run.sh \
                assets/canon.md assets/npcs.json assets/secrets.json \
                assets/hints.json assets/geography.json
 
-release: dirs $(DIST)/q4k.prg
+release: dirs d64
 	@rm -rf $(BUILD)/release $(REL_DIR)
 	@mkdir -p $(REL_DIR) $(REL_STAGE)/dist
-	cp $(DIST)/q4k.prg $(REL_DIR)/$(REL_NAME).prg
-	$(C1541) -format "q4k $(VERSION_NUM),01" d64 $(REL_DIR)/$(REL_NAME).d64 >/dev/null
-	$(C1541) -attach $(REL_DIR)/$(REL_NAME).d64 -write $(DIST)/q4k.prg q4k >/dev/null
+	cp $(DIST)/q4k.d64 $(REL_DIR)/$(REL_NAME).d64
 	tar -cf - $(REL_FILES) | tar -xf - -C $(REL_STAGE)
-	cp $(DIST)/q4k.prg $(REL_STAGE)/dist/q4k.prg
+	cp $(DIST)/q4k.d64 $(REL_STAGE)/dist/q4k.d64
 	cd $(BUILD)/release && python3 -m zipfile -c $(CURDIR)/$(REL_DIR)/$(REL_NAME).zip $(REL_NAME)
 	$(MAKE) OFFLINE=1 assets d64
 	cp dist/offline/q4k.d64 $(REL_DIR)/$(REL_NAME)-offline.d64
@@ -368,13 +356,15 @@ D64PROG = $(if $(filter command line,$(origin PROG)),$(PROG),q4k)
 
 d64: dirs $(DIST)/$(D64PROG).prg $(TALK_STAMP)
 	@rm -f $(DIST)/$(D64PROG).d64
-	$(C1541) -format "q4k,01" d64 $(DIST)/$(D64PROG).d64 >/dev/null
+	$(C1541) -format "q4k $(VERSION_NUM),01" d64 $(DIST)/$(D64PROG).d64 >/dev/null
 	$(C1541) -attach $(DIST)/$(D64PROG).d64 -write $(DIST)/$(D64PROG).prg $(D64PROG) >/dev/null
+ifeq ($(D64PROG),q4k)
+	$(C1541) -attach $(DIST)/$(D64PROG).d64 \
+	    $$(for f in $(ENGFILES); do printf ' -write %s %s' $(DIST)/$$f $$f; done) >/dev/null
+endif
 ifeq ($(OFFLINE),1)
 	$(C1541) -attach $(DIST)/$(D64PROG).d64 \
 	    $$(for f in $(BUILD)/talk/[0-9]*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
-	$(C1541) -attach $(DIST)/$(D64PROG).d64 \
-	    $$(for f in $(ENGFILES); do printf ' -write %s %s' $(DIST)/$$f $$f; done) >/dev/null
 endif
 	@echo "wrote $(DIST)/$(D64PROG).d64   (LOAD\"$(D64PROG)\",8,1 then RUN; saves go to the same disk)"
 

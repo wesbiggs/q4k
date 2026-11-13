@@ -2,9 +2,7 @@
 
 #include <q4k/town_data.h>
 
-#ifndef Q4K_OFFLINE   /* offline, the Makefile puts it with an engine */
-#pragma rodata-name (push, "HIDATA")
-#endif
+/* The Makefile puts this with the map's engine, bar the ids. */
 
 /* Millford */
 static const unsigned char map_0[141] = {
@@ -64,17 +62,36 @@ const char *const town_names[NUM_TOWNS] = {
     "Ashcombe",
 };
 
+#pragma rodata-name (push, "TALKDATA")
+static const char id_smith[] = "smith";
+static const char id_coyle[] = "coyle";
+static const char id_tam[] = "tam";
+static const char id_princess[] = "princess";
+static const char id_king[] = "king";
+static const char id_steward[] = "steward";
+static const char id_brann[] = "brann";
+static const char id_vane[] = "vane";
+static const char id_ash[] = "ash";
+static const char id_plough[] = "plough";
+static const char id_lantern[] = "lantern";
+
 const char *const npc_ids[9] = {
-    "smith",
-    "coyle",
-    "tam",
-    "princess",
-    "king",
-    "steward",
-    "brann",
-    "vane",
-    "ash",
+    id_smith,
+    id_coyle,
+    id_tam,
+    id_princess,
+    id_king,
+    id_steward,
+    id_brann,
+    id_vane,
+    id_ash,
 };
+
+const char *const inn_ids[NUM_INNS] = {
+    id_plough,
+    id_lantern,
+};
+#pragma rodata-name (pop)
 
 const char *const npc_names[9] = {
     "Garrett the Smith",
@@ -86,11 +103,6 @@ const char *const npc_names[9] = {
     "Old Brann",
     "Loremaster Vane",
     "Mother Ash",
-};
-
-const char *const inn_ids[NUM_INNS] = {
-    "plough",
-    "lantern",
 };
 
 const char *const inn_names[NUM_INNS] = {
@@ -120,7 +132,3 @@ const TownEnt town_ents[NUM_TOWN_ENTS] = {
 const unsigned char town_ent_first[NUM_TOWNS + 1] = {
     0, 5, 11, 14, 16
 };
-
-#ifndef Q4K_OFFLINE
-#pragma rodata-name (pop)
-#endif

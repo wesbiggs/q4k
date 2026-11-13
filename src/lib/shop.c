@@ -5,9 +5,7 @@
 
 #include <q4k/actor.h>
 #include <q4k/battle.h>
-#ifdef Q4K_OFFLINE
 #include <q4k/engine.h>
-#endif
 #include <q4k/game.h>
 #include <q4k/isle.h>
 #include <q4k/shop.h>
@@ -36,8 +34,8 @@ static void note(const char *literal, unsigned char color)
 }
 
 /* The prices, by tier as battle.c names them; nothing sells Dragonbane.
-   Here rather than with the names because this module's constants are in
-   MAIN (HICODEMODS in the Makefile), and HIGH is the one that is full. */
+   Here rather than with the names, which every engine reads (arms.c), because
+   only the shop needs them. */
 static const unsigned int weapon_cost[NUM_WEAPONS] = {
     0, 25, 80, 200, 420, 700, 1000, 0,
 };
@@ -112,7 +110,6 @@ static unsigned char better(unsigned char pick)
     return 1;
 }
 
-#ifdef Q4K_OFFLINE
 /* One beaten monster in this many that carries anything leaves a blade, mail
    or a bow of what this land's shops sell. Not constant, so that a test can
    pin it with --poke gear_odds=1. */
@@ -149,7 +146,6 @@ unsigned char shop_entry(void)
     }
     return 0;
 }
-#endif
 
 static void draw(void)
 {

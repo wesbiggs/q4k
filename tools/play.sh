@@ -24,15 +24,31 @@ else
     echo "play.sh: reusing the daemon already on port $PORT"
 fi
 
-# Saves go to a disk in unit 8. Made once and kept.
+# The game loads its engines from its own disk, and saves to it too. Play
+# from a copy, dist/saves.d64, so that rebuilding the game disk does not lose
+# a save: when dist/q4k.d64 is newer, the copy is made afresh from it and the
+# save (Q4K.SAV) carried over.
+GAME="dist/q4k.d64"
 SAVES="dist/saves.d64"
-if [ ! -f "$SAVES" ]; then
-    c1541 -format "q4k saves,01" d64 "$SAVES" >/dev/null
-    echo "play.sh: created $SAVES for saved games"
+if [ ! -f "$SAVES" ] || [ "$GAME" -nt "$SAVES" ]; then
+    kept=$(mktemp "${TMPDIR:-/tmp}/q4ksav.XXXXXX")
+    have=
+    if [ -f "$SAVES" ] \
+       && c1541 -attach "$SAVES" -read q4k.sav "$kept" >/dev/null 2>&1 \
+       && [ -s "$kept" ]; then
+        have=1
+    fi
+    cp "$GAME" "$SAVES"
+    if [ -n "$have" ]; then
+        c1541 -attach "$SAVES" -write "$kept" q4k.sav >/dev/null
+        echo "play.sh: $SAVES has the new game, and your save"
+    else
+        echo "play.sh: created $SAVES to play from; saves go to it"
+    fi
+    rm -f "$kept"
 fi
 
-tools/run.sh dist/q4k.prg \
-    -8 "$SAVES" \
+tools/run.sh "$SAVES" \
     -userportdevice 2 \
     -rsuserdev 0 \
     -rsuserbaud "$BAUD" \

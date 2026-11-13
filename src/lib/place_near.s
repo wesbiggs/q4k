@@ -21,11 +21,7 @@ _near_y:  .res 1
 _near_fx: .res 1
 _near_fy: .res 1
 
-        .ifdef Q4K_OFFLINE
         .segment "MAPCODE"           ; an engine of its own: engine.h
-        .else
-        .segment "HICODE"
-        .endif
 
 ; |A - m|
 .macro absdiff m

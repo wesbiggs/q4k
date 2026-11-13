@@ -29,7 +29,8 @@ MODES = {
                local font_data tiles_names view game isle arms engine boot""",
     "map": """q4k world fov town_data town_gen place_near loot loot_data scene
               draw fightcall""",
-    "service": """shop inn help talk savegame sail isle_gen tgen dungeon gift""",
+    "service": """shop inn help talk talkbuf dialog line modem savegame sail
+                  isle_gen tgen dungeon gift""",
     "fight": """battle arena_data open9 overlay""",
     "startup": """title charset_define tiles_data""",
 }

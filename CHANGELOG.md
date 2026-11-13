@@ -13,6 +13,12 @@ workflow reads the one headed with the tag's version.
   the title screen, and it asks for the disk back if a load fails. Meant for
   a fast drive (TeensyROM's vdrive); a stock 1541 would take most of a minute
   for every fight. See ENGINES.md.
+- So does the networked build, which now has everything the offline one has:
+  each continent's own monsters, the arms monsters drop, lightning, and the
+  joystick in port 2. The two differ only in who talks: the host over the
+  modem, or the lines on the disk. The game is released as a `.d64` only,
+  since it needs its disk; `tools/play.sh` plays from a copy of it,
+  `dist/saves.d64`, and carries your save over when the game is rebuilt.
 
 ## 0.11.0 — 2026-11-06
 

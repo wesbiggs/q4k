@@ -18,8 +18,7 @@ void shop_open(unsigned char kind);
    leaves a blade, mail or a bow, of the tiers this land's shops sell, and
    the hero takes it up if it is better than what they have. Says which.
    One in gear_odds does: the roll is made by fightcall.c, which loads the
-   shop's engine (shop_entry() with SHOP_GEAR: engine.h) when it comes up.
-   Offline only. */
+   shop's engine (shop_entry() with SHOP_GEAR: engine.h) when it comes up. */
 extern unsigned char gear_odds;
 
 #endif /* Q4K_SHOP_H */

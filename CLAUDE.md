@@ -16,10 +16,13 @@ the story and how to play.
 
 ## Memory
 
-Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
+Set up in `cfg/c64-q4k.cfg`, which **both builds** link with: the networked
+one and the offline one have the same layout and the same engines, and differ
+only in who talks (see "The two builds" below). A core stays in memory and one
+slot holds one engine at a time, loaded from the disk.
 
-- `$0801-$37FF` **MAIN** -- code and rodata. Twelve kilobytes, and the game
-  does not fit in it.
+- `$0801-$37FF` **MAIN** -- the core's code and rodata, with the C stack at
+  its top.
 - `$3800-$3FFF` **charset**, built at runtime. Must be in VIC bank 0 and not
   at `$1000`/`$1800`, where the VIC sees character ROM whatever RAM holds.
   Its reverse-video half is mostly glyphs the game never draws, and
@@ -29,86 +32,74 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   module puts its rodata there with `#pragma rodata-name ("CHDATA3")` after
   its includes (inn, sprite and the lot are there, and so are a few strings of `q4k.c` and
   `help.c` that did not fit anywhere else, as `static const char[]` between
-  two pragmas; they leave 9 bytes free in `CHDATA1`, 2 in `CHDATA2` and 8 in
-  `CHDATA3`; the land and town
-  generators' tables are in `CHDATA1`). `$A0` is the input cursor, `$C0-$C7`
+  two pragmas; the land and town generators' tables are in `CHDATA1`). They
+  are the core's, so they are there whatever the slot holds; 9 bytes are free
+  in `CHDATA1`, 125 in `CHDATA2` (91 offline) and 114 in `CHDATA3`.
+  `$A0` is the input cursor, `$C0-$C7`
   the bow shot's sprite block, and `$80-$91` the actors: leave those alone,
   and check `assets/tiles.txt` before using any glyph above `$91` on screen.
-- `$4000-$49EB` **OVL**, the overlay: 2540 bytes at the bottom of HIGH that
-  are two things in turn. What runs once at start-up lives in it -- the
-  title screen (`title.o`), `charset_define.o` and the glyph table with
-  `tiles_install()` in `tiles_data.c` (marked by `tools/mktiles.py`), all in
-  the linker segments `TITLECODE`/`TITLEDATA`, which the Makefile gives them
-  (`cfg/c64-tool.cfg` has the same two so the small tools still link) -- and
-  afterwards the same bytes are scratch: the fight's arrays (`field`, `wall`,
-  `roomy`, `seen` and the two queues in `battle.c`) and the dialogue's `reply`
-  buffer, which `src/lib/overlay.s` names. None of them holds anything from
-  one fight, or one turn of talk, to the next, so each may be used freely, but
-  **nothing may start a fight or a conversation before start-up is done (the
-  title screen and `view_init()` have returned), and none of the start-up code
-  may run twice.** `__OVLSIZE__` in the cfg is the arrays' total and BSS
-  starts that much higher; it must be at least what start-up needs (the
-  linker says if not), and any excess is wasted, so when you move more
-  start-up code in, alias more scratch to match, and change the sums in
-  `overlay.s`. Padding after the start-up code is in the PRG. Moving it out
-  freed about 2K of HIGH and 500 bytes of MAIN.
-- `$49EC-$C1EB` **HIGH** -- `HIDATA` for bulk tables (the towns) and `HICODE`
-  for module code that will not fit below. Modules listed in the Makefile's
-  `HIMODS` are compiled with `--code-name HICODE`; add to that list when MAIN
-  overflows. When HIGH is the one that overflows and MAIN has room, add the
-  module to `HICODEMODS` as well: its code stays in HIGH but its rodata goes
-  back to MAIN (the shop and the ships are there already). Changing either
-  list needs the objects rebuilt, because a target-specific `CFLAGS` will not
-  invalidate them on its own. About 57 bytes are free in HIGH, 159 in MAIN (plus
-  the dead ONCE) and 7 in BSS, and the title screen has 24 to spare in OVL. The Makefile's `SMALLMODS` (loot, shop, inn, help, battle,
-  dialog and dungeon) are
-  built with `-Or`, not `-Osir`: without `-Os` cc65 stops inlining shifts and
-  the like, which is about a tenth smaller but pulled some runtime helpers
-  into MAIN (the figures above are after that). The fight is in it on the
-  grounds that a turn-based flood fill can afford to be slower; nothing
-  whose timing was measured is. Changing `cfg/` relinks everything.
-- **The offline build** (`make offline`, `-DQ4K_OFFLINE`, in `build/offline/`)
-  has no `dialog.o` or `modem.o`, and **loads its engines from the disk**:
-  `cfg/c64-offline.cfg`, not `c64-q4k.cfg`, and none of the OVL arrangement
-  above applies to it. A core stays in memory, and one slot at `$4000-$83FF`
-  holds the map's engine (`e.map`), the fight's, the talk's (people and inns)
-  or the shop's, loaded by `engine_call()` (`src/lib/engine.c`,
-  `include/q4k/engine.h`; ENGINES.md has the design and its choices). The
-  Makefile's `ENG_*` lists say which modules are in which engine: only their
-  code and constants move, while their BSS and DATA stay in the core. **An
-  engine may call the core and itself, nothing else**; the core and other
-  engines reach it only through its `*_entry`. `tools/mkengines.py` checks
-  that after every link and fails the build otherwise. Assembly modules pick
-  their segment with `.ifdef Q4K_OFFLINE` (passed by `--asm-define`). About
-  8.7K of HIGH, 6K of MAIN (less the stack) and 179 bytes of BSS are free
-  there. What only this build has: the continents' own monsters, the arms
-  monsters drop (`gear_give()` in `shop.c`, rolled in `fightcall.c`) and
-  lightning (`SHOT_BOLT`), all under `#ifdef Q4K_OFFLINE` because the online
-  build had no room. Each scene's music is a file too (`m.map`, ...: every
-  score is the same fixed size, see `tools/mkmusic.py`). The game needs its
-  disk, and asks for it back if a load fails. Measure both builds after a
+- `$4000-$83FF` **the slot**: one engine at a time -- the map's (`e.map`),
+  the fight's, the talk's (people and inns) or the shop's -- loaded by
+  `engine_call()` (`src/lib/engine.c`, `include/q4k/engine.h`; ENGINES.md has
+  the design and its choices). At the start it holds the title screen, which
+  the PRG brings: `title.o`, `charset_define.o` and the glyph table with
+  `tiles_install()` in `tiles_data.c` (marked by `tools/mktiles.py`), in the
+  segments `TITLECODE`/`TITLEDATA`; `boot.c`'s `main()` runs it, then loads
+  the map's engine over it for good. The Makefile's `ENG_*` lists say which
+  modules are in which engine: only their code and constants move, while their
+  BSS and DATA stay in the core. **An engine may call the core and itself,
+  nothing else**; the core and other engines reach it only through its
+  `*_entry`. `tools/mkengines.py` checks that after every link and fails the
+  build otherwise. Scratch that lasts only while its engine runs follows its
+  code: the fight's arrays (`overlay.s`, `FIGHTBSS`) and the offline talk's
+  buffer (`talkbuf.s`, `TALKBSS`). Each scene's music is a file too (`m.map`,
+  ...: every score is the same fixed size, see `tools/mkmusic.py`). The game
+  needs its disk, and asks for it back if a load fails. The map's engine is
+  the biggest, 17089 bytes of the slot's 17408.
+- `$8400-$C0FF` **HIGH** -- the rest of the core: `HIDATA` for bulk tables
+  and `HICODE` for code that will not fit below. Core modules listed in the
+  Makefile's `HIMODS` are compiled with `--code-name HICODE --rodata-name
+  HIDATA`; an engine's modules go to their engine whatever that list says.
+  Changing either needs the objects rebuilt, because a target-specific
+  `CFLAGS` will not invalidate them on its own. About 7.2K are free in HIGH
+  (8K offline), 6K in MAIN (less the stack) and 197 bytes in BSS (434
+  offline). The Makefile's `SMALLMODS` (loot, shop, inn, help, battle, arms,
+  dialog, dungeon, talk and gift) are built with `-Or`, not `-Osir`: without
+  `-Os` cc65 stops inlining shifts and the like, which is about a tenth
+  smaller. The fight is in it on the grounds that a turn-based flood fill can
+  afford to be slower; nothing whose timing was measured is. Changing `cfg/`
+  relinks everything.
+- **The two builds.** `make offline` (`-DQ4K_OFFLINE`, in `build/offline/`)
+  links `talk.c` and `talkbuf.s` where the networked build links `dialog.c`
+  (in the talk's engine) and `modem.c` and `line.c` (in the core, because the
+  title screen asks for the host before any engine is loaded). Both are
+  called the same way (`include/q4k/dialog.h`), and `Q4K_OFFLINE` is tested
+  only there and in `title.c`; keep it that way. Measure both builds after a
   change to either; `tools/screendump.py` finds `build/offline/q4k.lbl` for
   `dist/offline/q4k.prg`, and `tools/modes.py` groups either map by mode.
+- **The test programs** that link the game's modules (dungeontest, arena,
+  isletest) use the same objects, engine segments and all, and link with
+  `cfg/c64-flat.cfg`, which puts every engine's segments in HIGH in one load.
+  `cfg/c64-tool.cfg` is for the small tools.
 - **The C stack is at the top of MAIN, not where the cfg used to say.** cc65's
   startup points `sp` at `__MAIN_START__ + __MAIN_SIZE__`, `$3800`, and it
-  grows down through MAIN's spare bytes (about 159 now) and then the dead ONCE
+  grows down through MAIN's spare bytes and then the dead ONCE
   segment. Painting `$3700-$37FF` and running a save and a long walk found
   the stack no deeper than 31 bytes, so what is left is plenty, but measure
-  again before spending more of it. The 2K the cfg
-  reserved at `$C700-$CEFF` was never touched, and is now BSS and the RS-232
-  buffers: the buffers are at `$CD00`, `MEMSIZ` is `$CF00`.
+  again before spending more of it.
 - `$CF14-$CFFF` **BSS2**, 236 bytes of the probe page the probe does not use
   (it keeps `$CF00-$CF13`; `screendump.py` reads that much). Above the RS-232
   buffers, so it is not contiguous with BSS, and ld65 does not clear it: put
   something there with `#pragma bss-name (push, "BSS2")` only if it is always
-  written before it is read. `fov_lit` (192 bytes) is there, and `__HIGHTOP__`
-  in the cfg is raised by the same amount, which is where HIGH's extra room
-  came from; 44 bytes of BSS2 are left (29 offline, where the fight's
-  copy of a continent's monster, `native`, is there too). Anything that needs the probe page
-  longer must move the bound in both the cfg and `screendump.py`.
-- `$B800-$CCFF` **BSS**, then the RS-232 buffers and the probe page at
-  `$CF00`. HIGH's top 4K is RAM under BASIC ROM (banked out at startup),
-  taken from BSS.
+  written before it is read. `fov_lit` (192 bytes) and the fight's copy of a
+  continent's monster, `native`, are there; 29 bytes of BSS2 are left.
+  Anything that needs the probe page longer must move the bound in both the
+  cfg and `screendump.py`.
+- `$C100-$CCFF` **BSS**, then the RS-232 buffers at `$CD00-$CEFF`
+  (`modem_open()` raises `MEMSIZ` to `$CF00`, and the KERNAL takes them from
+  just below it; the offline build keeps them free too, so that the layout is
+  one file) and the probe page at `$CF00`. HIGH's top 4K is RAM under BASIC
+  ROM (banked out at startup).
 - **The RAM under the ROMs** (`src/lib/vault.s`). `$D000-$DFFF`, under the I/O
   area, holds the home continent for the whole game, 64 by 64 bytes of tiles;
   `$E000-$FFF9`, under the KERNAL, holds a continent put away while a town or
@@ -171,7 +162,7 @@ non-PETSCII data uses numeric constants.** `modem_put_literal()` exists to
 convert literals deliberately; `modem_puts()` sends ASCII buffers untouched.
 
 **`$CF00-$CFFF` is reserved** for the probe page by `cfg/c64-q4k.cfg`. Don't
-place game data there. The C stack (2K) lives directly below it.
+place game data there (bar BSS2, above).
 
 **Colour RAM is write-only-ish nybbles at `$D800`** and is *not* covered by the
 VIC bank switch — it stays at `$D800` regardless of where the screen matrix is.
@@ -326,7 +317,7 @@ else running: see Memory.
 
 ## The joystick
 
-Offline only for now (the online build has no room). `src/lib/stick.s`
+Both builds. `src/lib/stick.s`
 waits for a key or port 2, reading the stick once a jiffy (the debounce) and
 repeating a held direction; directions come back as the cursor keys and the
 button as `STICK_FIRE` (`$FE`, which no key types). `wait_key()` in `q4k.c`
@@ -507,8 +498,16 @@ file ld65 emits next to the binary. Prefer it over adding debug
 hooks to the game: the quest, the inventory and the party struct are all
 reachable from a test this way, and none of it ships.
 
+**The game needs its disk in every test past the title screen**, since it
+loads its engines from it: the `.cmd` files pass `--disk dist/q4k.d64` (the
+offline cases swap in `dist/offline/`), and the save tests start from a copy
+of that disk, not a blank one. Without it the game stops after the title
+screen with "Put the game disk back".
+
 **The modem.** `tools/screendump.py --rs232 PORT` wires the user port to a TCP
-socket and drops warp mode. `host/npcd.py --mock` serves deterministic canned
+socket and drops warp mode. Without warp an emulated 1541 would take a minute
+for each engine, so with `--disk` it also turns the drive emulation off and
+lets VICE serve the KERNAL's LOAD from the image (`-trapdevice8`). `host/npcd.py --mock` serves deterministic canned
 lines from `assets/npcs.json`, which is what the dialogue golden test uses —
 never point a golden test at a live model.
 

@@ -3,7 +3,7 @@
 
     tools/mkengines.py BUILD_DIR PRG
 
-ld65 writes each engine beside the PRG (cfg/c64-offline.cfg) as PRG.map,
+ld65 writes each engine beside the PRG (cfg/c64-q4k.cfg) as PRG.map,
 PRG.fight and so on. This
 
   1. checks that nothing calls into an engine that may not be in the slot: an

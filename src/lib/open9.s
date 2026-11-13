@@ -10,11 +10,7 @@
 
 RIM_W = 23
 
-        .ifdef Q4K_OFFLINE
         .segment "FIGHTCODE"           ; an engine of its own: engine.h
-        .else
-        .segment "HICODE"
-        .endif
 
 _open9:
         sta     ptr1

@@ -125,8 +125,8 @@ def main():
         c.write("};\n\n")
 
         # The glyphs and the code that copies them in are wanted once, at
-        # start-up, so they go in the overlay with the title screen (see
-        # cfg/c64-q4k.cfg), not in MAIN.
+        # start-up, so they go in the engines' slot with the title screen
+        # (see cfg/c64-q4k.cfg), not in MAIN.
         c.write('#pragma rodata-name (push, "TITLEDATA")\n'
                 '#pragma code-name (push, "TITLECODE")\n\n')
         c.write("static const unsigned char glyphs[%d][8] = {\n" % len(tiles))

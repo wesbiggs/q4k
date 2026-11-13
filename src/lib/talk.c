@@ -5,7 +5,8 @@
  * everyone can say is on the disk, one file per person and one per inn, made
  * by tools/mktalk.py, and loaded into talk[] when it is wanted. The
  * player picks a topic from a menu instead of typing. Only the offline build
- * archives this module, and only the networked one dialog.c and modem.c.
+ * archives this module, and only the networked one dialog.c, line.c and
+ * modem.c.
  */
 
 #include <cbm.h>
@@ -55,7 +56,7 @@
 /* Top of BASIC memory: see savegame.c, which raises it for the same reason. */
 #define MEMSIZ (*(unsigned int *)0x0283)
 
-extern unsigned char talk[];        /* overlay.s: the end of this engine */
+extern unsigned char talk[];        /* talkbuf.s: the end of this engine */
 
 static unsigned char held = NONE;   /* the file talk[] holds */
 static unsigned char found;         /* how many find() passed */
@@ -238,26 +239,4 @@ unsigned char dialog_hint(unsigned char inn)
 void dialog_forget(void)
 {
     held = NONE;
-}
-
-/* The talk's engine (engine.h): a person, or an inn. A person with nothing
-   on the disk still hands over what they would have, on the map: the line
-   saying so goes back in eng_text. */
-unsigned char talk_entry(void)
-{
-    const char *note;
-
-    if (eng_a == TALK_INN) {
-        inn_open(eng_b);
-        return 0;
-    }
-    if (dialog_talk(eng_b, eng_text, quest_after_talk) == DIALOG_OK) {
-        return 0;
-    }
-    note = quest_after_talk(GRANT_OPEN);
-    if (!note) {
-        return 0;
-    }
-    strcpy(eng_text, note);
-    return 1;
 }

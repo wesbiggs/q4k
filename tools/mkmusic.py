@@ -151,7 +151,7 @@ def main():
             hi.append(f >> 8)
 
     def pad(n):
-        return "        .ifdef Q4K_OFFLINE\n        .res %d\n        .endif\n" % n if n else ""
+        return "        .res %d\n" % n if n else ""
 
     def bytes_(name, vals):
         return "%s:\n    .byte %s\n" % (name, ", ".join("$%02X" % v for v in vals))
@@ -182,14 +182,12 @@ def main():
         bytes_("music_harm", hflat),
         pad(MAX_NOTES - len(hflat)),
         "",
-        "; The offline build loads another scene's score over this one (engine.c),",
+        "; The game loads another scene's score over this one (engine.c),",
         "; so every table is at the same place in every score, and every score is",
         "; the same size: tools/mkengines.py cuts it out of the PRG to make each",
         "; scene's file.",
-        "        .ifdef Q4K_OFFLINE",
         "        .export music_score_end",
         "music_score_end:",
-        "        .endif",
     ]
     open(OUT, "w").write("\n".join(out))
     print("music: %d notes, %d pitches, %d bytes" % (len(notes), len(pitches), len(flat) + len(hflat) + 2 * len(lo) + 4))
