@@ -84,9 +84,10 @@ jobs:
       - name: Build
         run: make
 
-      # The offline build and its disk, for tools/test.sh's offline cases.
-      - name: Build offline
-        run: make d64-offline
+      # The experimental networked build and its disk, for tools/test.sh's
+      # online cases.
+      - name: Build online
+        run: make d64-online
 
       - name: Test
         run: make test

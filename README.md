@@ -8,43 +8,39 @@ Keldmarch for three winters and two armies have not come back. The blade that
 can banish him was broken, and its three binding stones are sealed in three
 deep places. Take a dagger from the smith, find the king, and start asking people questions.
 
-The plot is deliberately the oldest one there is. What is not old is who you
-talk to: every NPC answers in their own voice, from the world's canon and
-from how far you have got, through a model running on the host at the other
-end of the C64's modem port.
+The plot is deliberately the oldest one there is. Everyone you meet has
+something to say about it, picked from a menu of what you can ask. An
+experimental build goes further: every NPC answers in their own voice, from
+the world's canon and from how far you have got, through a model running on
+the host at the other end of the C64's modem port.
 
 ## Getting it
 
 Download the files from the
-[latest release](https://github.com/wesbiggs/q4k/releases/latest). There are
-three, and you only need one:
+[latest release](https://github.com/wesbiggs/q4k/releases/latest):
 
 | file | |
 |---|---|
-| `q4k-<version>.zip` | the game and everything people need to talk -- start here |
-| `q4k-<version>.d64` | the game on a disk image, for a real C64 or any emulator |
-| `q4k-<version>-offline.d64` | the offline build: no modem or host, everyone's lines on the disk |
+| `q4k-<version>.d64` | the game on a disk image, for a real C64 or any emulator -- start here |
+| `q4k-<version>-online.zip` | experimental: the game with people who answer through a language model, and everything that needs |
+| `q4k-<version>-online.d64` | experimental: that build's disk alone |
 
 All of them run in [VICE](https://vice-emu.sourceforge.io), the Commodore
 emulator (`brew install vice` on a Mac).
 
-**The zip** (macOS or Linux, with Python 3). Unzip it and start the game
-from inside the folder; this brings up the program that lets people talk,
-connects the emulator's modem port to it, and gives you a disk to save on:
-
-```bash
-cd q4k-0.11.0
-tools/play.sh
-```
-
 **The .d64** is the game on its disk: open it in VICE, or drop it on the
 window; on a real machine with an SD card drive, `LOAD"Q4K",8` and `RUN`.
-With nothing on the other end of the modem there are no conversations (see
-[Talking to people](#talking-to-people)), but the game can still be
-finished.
+What everyone says is on the disk, and you pick what to ask from a menu.
 
-**The offline disk** (`q4k-<version>-offline.d64`) needs no modem and no host: what
-everyone says is on the disk, and you pick what to ask from a menu.
+**The online zip** (experimental; macOS or Linux, with Python 3). Unzip it
+and start the game from inside the folder; this brings up the program that
+lets people talk, connects the emulator's modem port to it, and gives you a
+disk to save on (see [Talking to people](#talking-to-people)):
+
+```bash
+cd q4k-0.11.0-online
+tools/play.sh
+```
 
 Either way, **keep the disk in the drive**. The game loads the map, the
 fights, conversations and the shops from it as they are wanted, and saves to
@@ -93,9 +89,9 @@ A healing draught restores a share of your full health, so it is worth a
 turn late in the game as well as early, and its price climbs to match: five
 marks, plus five for each level you have.
 
-Saved games go to the game's disk, in drive 8. `tools/play.sh` plays from a
-copy of it, `dist/saves.d64`, and keeps your save when a new game disk
-replaces it.
+Saved games go to the game's disk, in drive 8. The online zip's
+`tools/play.sh` plays from a copy of it, `dist/online/saves.d64`, and keeps
+your save when a new game disk replaces it.
 
 ### Fighting
 
@@ -187,8 +183,15 @@ sixth and the arbalest on the last.
 
 ## Talking to people
 
-Every person you meet answers in their own voice, from the world's canon and
-from how far you have got. The answers come from a language model running on
+Walk into someone, or stand beside them and press **T**, and they greet
+you; then a number asks about one of the things they know, which changes as
+the story moves on, and RUN/STOP leaves. Some of them hand over what the
+quest needs once you ask about the right thing.
+
+### Online (experimental)
+
+In the online build, every person you meet answers in their own voice, from
+the world's canon and from how far you have got. The answers come from a language model running on
 the machine the emulator is on, reached over the C64's modem port at 300
 baud, so a reply arrives at reading pace -- which is what a 1983 modem did
 anyway.
@@ -203,7 +206,7 @@ The model is whatever [Ollama](https://ollama.com) is serving, by default
 ollama serve &                 # if it is not already running
 ollama pull llama3.2:3b
 
-tools/play.sh                  # from inside the unzipped folder
+tools/play.sh                  # from inside the unzipped online folder
 Q4K_MOCK=1 tools/play.sh       # canned replies, no model needed
 Q4K_MODEL=llama3.2:1b tools/play.sh
 ```

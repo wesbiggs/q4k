@@ -6,18 +6,17 @@
 #                   pulls in only what each program actually references
 #
 # Usage:
-#   make            build every program
+#   make            build every program; the game is the offline build
 #   make run        launch PROG in VICE  (make run PROG=hello)
-#   make play       launch the game with the NPC dialogue daemon attached
 #   make check      headless run, dump the C64 screen as text
 #   make test       headless run, diff every program against its golden
 #   make bless      accept current output as the new goldens
 #   make assets     regenerate the C and JSON built from assets/
 #   make shot       headless run, save a PNG screenshot
-#   make d64        build a bootable disk image
-#   make offline    the game without the modem, in dist/offline/
-#   make d64-offline   ... on a disk with what everyone says
-#   make run-offline   ... and play it in VICE
+#   make d64        build a bootable disk image (the game's, by default)
+#   make online     the experimental networked game, in dist/online/
+#   make d64-online    ... on its disk
+#   make play          ... and play it with the NPC dialogue daemon attached
 #   make release    the files a release publishes, in dist/release/
 #   make clean
 
@@ -27,15 +26,19 @@ PROG     ?= hello
 BUILD    := build
 DIST     := dist
 
-# The offline build: no modem and no host. What people say is on the disk
-# instead, a file each, which src/lib/talk.c loads into the talk's buffer
+# The game is the offline build: no modem and no host. What people say is on
+# the disk, a file each, which src/lib/talk.c loads into the talk's buffer
 # (tools/mktalk.py makes them from assets/talk.txt, and the inns' rumours from
-# assets/hints.json). Everything goes in a directory of its own, so the two
-# builds' objects never mix; use the targets at the end, which set OFFLINE.
-OFFLINE  ?= 0
-ifeq ($(OFFLINE),1)
-BUILD    := build/offline
-DIST     := dist/offline
+# assets/hints.json).
+#
+# The networked build, experimental, talks to a host over the modem instead
+# (ONLINE=1, -DQ4K_ONLINE). Everything of it goes in a directory of its own,
+# so the two builds' objects never mix; use the targets at the end, which set
+# ONLINE.
+ONLINE   ?= 0
+ifeq ($(ONLINE),1)
+BUILD    := build/online
+DIST     := dist/online
 endif
 
 # The talk's buffer, at the end of its engine (src/lib/talkbuf.s): offline,
@@ -52,7 +55,7 @@ C1541    := c1541
 # frame juggling) at the cost of no recursion. Right trade for a tile RPG.
 OPT      := -Osir
 CFLAGS    = -t $(TARGET) $(OPT) --static-locals -I include \
-            $(if $(filter 1,$(OFFLINE)),-DQ4K_OFFLINE)
+            $(if $(filter 1,$(ONLINE)),-DQ4K_ONLINE)
 ASFLAGS  := -t $(TARGET) -I include --asm-include-dir include \
             --asm-define TALK_SIZE=$(TALK_SIZE)
 # The game gets the full memory map; the demos and tools get a lean one that
@@ -101,15 +104,17 @@ LIBSRC   := $(wildcard src/lib/*.c) $(wildcard src/lib/*.s)
 LIBOBJ   := $(patsubst src/lib/%.c,$(BUILD)/lib/%.o,$(wildcard src/lib/*.c)) \
             $(patsubst src/lib/%.s,$(BUILD)/lib/%.o,$(wildcard src/lib/*.s))
 
-# What talks is the only difference between the two builds: the networked one
-# over the modem (dialog, with modem and line in the core), the offline one
-# from the disk (talk, and its buffer). Never both.
+# What talks is the only difference between the two builds: the offline one
+# from the disk (talk, and its buffer), the networked one over the modem
+# (dialog, with modem and line in the core). Never both. The modem driver
+# stays in the offline build's library, for serialtest: the game never calls
+# it, so it never links it.
 OFFONLY    := talk talkbuf
-ONLINEONLY := dialog modem line
-ifeq ($(OFFLINE),1)
-LIBOBJ   := $(filter-out $(patsubst %,$(BUILD)/lib/%.o,$(ONLINEONLY)),$(LIBOBJ))
-else
+ONLINEONLY := dialog line
+ifeq ($(ONLINE),1)
 LIBOBJ   := $(filter-out $(patsubst %,$(BUILD)/lib/%.o,$(OFFONLY)),$(LIBOBJ))
+else
+LIBOBJ   := $(filter-out $(patsubst %,$(BUILD)/lib/%.o,$(ONLINEONLY)),$(LIBOBJ))
 endif
 
 # The engines (include/q4k/engine.h, cfg/c64-q4k.cfg): what is loaded into the
@@ -139,7 +144,7 @@ LIB      := $(BUILD)/q4k.lib
 endif
 
 .PHONY: all run play check shot test bless d64 release clean dirs assets \
-        offline d64-offline run-offline
+        online d64-online run-online
 .SECONDARY: $(BUILD)/$(PROG).o $(BUILD)/q4k.o
 
 all: dirs assets $(PRGS)
@@ -277,7 +282,7 @@ $(DIST)/q4k.prg: $(BUILD)/q4k.o $(LIB) $(wildcard cfg/*.cfg) tools/mkengines.py
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 	tools/mkengines.py $(BUILD) $@
 
-ifeq ($(OFFLINE),1)
+ifneq ($(ONLINE),1)
 TALK_STAMP := $(BUILD)/talk/.stamp
 
 $(TALK_STAMP): assets/talk.txt assets/hints.json tools/mktalk.py \
@@ -293,9 +298,10 @@ endif
 run: dirs $(DIST)/$(PROG).prg $(if $(filter q4k,$(PROG)),d64)
 	tools/run.sh $(DIST)/$(PROG).$(if $(filter q4k,$(PROG)),d64,prg)
 
-# Play with NPC dialogue: starts host/npcd.py and wires it to the modem port.
-# Q4K_MOCK=1 make play  uses canned replies instead of calling the model.
-play: dirs d64
+# Play the networked build with NPC dialogue: starts host/npcd.py and wires
+# it to the modem port. Q4K_MOCK=1 make play  uses canned replies instead of
+# calling the model.
+play: d64-online
 	tools/play.sh
 
 check: dirs $(DIST)/$(PROG).prg
@@ -306,11 +312,11 @@ shot: dirs $(DIST)/$(PROG).prg
 	@echo "wrote $(BUILD)/$(PROG).png"
 
 # Compare each program's screen against tests/golden/<name>.txt.
-test: all d64
+test: all d64 d64-online
 	@tools/test.sh
 
 # Accept the current output as correct. Review the diff before doing this.
-bless: all d64
+bless: all d64 d64-online
 	@tools/test.sh --bless
 
 # --- release ----------------------------------------------------------------
@@ -318,33 +324,33 @@ bless: all d64
 # What .github/workflows/release.yml publishes for a v* tag, and what a
 # player downloads instead of building:
 #
-#   q4k-<version>.d64   the game on its disk: LOAD"Q4K",8,1 then RUN. There
+#   q4k-<version>.d64   the game on its disk, with what everyone says:
+#                       LOAD"Q4K",8,1 then RUN; the same as `make d64`. There
 #                       is no .prg on its own: the game loads its engines
 #                       from the disk, and saves to it
-#   q4k-<version>-offline.d64
-#                       the offline build (no modem, no host) on its disk,
-#                       with what everyone says; the same as `make d64-offline`
-#   q4k-<version>.zip   the game's disk plus the dialogue host and what it
-#                       reads, laid out as in the repo, so tools/play.sh runs
-#                       as is
+#   q4k-<version>-online.d64
+#                       the experimental networked build on its disk, which
+#                       talks to a host over the modem; `make d64-online`
+#   q4k-<version>-online.zip
+#                       that disk plus the dialogue host and what it reads,
+#                       laid out as in the repo, so tools/play.sh runs as is
 
 VERSION_NUM := $(shell tr -d ' \n' < VERSION)
 REL_NAME    := q4k-$(VERSION_NUM)
 REL_DIR     := $(DIST)/release
-REL_STAGE   := $(BUILD)/release/$(REL_NAME)
+REL_STAGE   := $(BUILD)/release/$(REL_NAME)-online
 REL_FILES   := README.md host/npcd.py tools/play.sh tools/run.sh \
                assets/canon.md assets/npcs.json assets/secrets.json \
                assets/hints.json assets/geography.json
 
-release: dirs d64
+release: dirs d64 d64-online
 	@rm -rf $(BUILD)/release $(REL_DIR)
-	@mkdir -p $(REL_DIR) $(REL_STAGE)/dist
+	@mkdir -p $(REL_DIR) $(REL_STAGE)/dist/online
 	cp $(DIST)/q4k.d64 $(REL_DIR)/$(REL_NAME).d64
+	cp dist/online/q4k.d64 $(REL_DIR)/$(REL_NAME)-online.d64
 	tar -cf - $(REL_FILES) | tar -xf - -C $(REL_STAGE)
-	cp $(DIST)/q4k.d64 $(REL_STAGE)/dist/q4k.d64
-	cd $(BUILD)/release && python3 -m zipfile -c $(CURDIR)/$(REL_DIR)/$(REL_NAME).zip $(REL_NAME)
-	$(MAKE) OFFLINE=1 assets d64
-	cp dist/offline/q4k.d64 $(REL_DIR)/$(REL_NAME)-offline.d64
+	cp dist/online/q4k.d64 $(REL_STAGE)/dist/online/q4k.d64
+	cd $(BUILD)/release && python3 -m zipfile -c $(CURDIR)/$(REL_DIR)/$(REL_NAME)-online.zip $(REL_NAME)-online
 	@ls -l $(REL_DIR)
 
 # --- disk image -------------------------------------------------------------
@@ -362,25 +368,27 @@ ifeq ($(D64PROG),q4k)
 	$(C1541) -attach $(DIST)/$(D64PROG).d64 \
 	    $$(for f in $(ENGFILES); do printf ' -write %s %s' $(DIST)/$$f $$f; done) >/dev/null
 endif
-ifeq ($(OFFLINE),1)
+ifeq ($(D64PROG)$(ONLINE),q4k0)
 	$(C1541) -attach $(DIST)/$(D64PROG).d64 \
 	    $$(for f in $(BUILD)/talk/[0-9]*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
 endif
 	@echo "wrote $(DIST)/$(D64PROG).d64   (LOAD\"$(D64PROG)\",8,1 then RUN; saves go to the same disk)"
 
-# --- offline ----------------------------------------------------------------
+# --- online -----------------------------------------------------------------
 #
-# The same game with no modem, and its lines on the disk. Only the game is
-# built: the small tools are the same either way.
+# The experimental networked game: the same game, talking to a host over the
+# modem instead of reading its lines from the disk. Only the game is built:
+# the small tools are the same either way.
 
-offline:
-	$(MAKE) OFFLINE=1 dirs assets dist/offline/q4k.prg
+online:
+	$(MAKE) ONLINE=1 dirs assets dist/online/q4k.prg
 
-d64-offline:
-	$(MAKE) OFFLINE=1 assets d64
+d64-online:
+	$(MAKE) ONLINE=1 assets d64
 
-run-offline: d64-offline
-	tools/run.sh dist/offline/q4k.d64
+# With no host on the line: `make play` starts one.
+run-online: d64-online
+	tools/run.sh dist/online/q4k.d64
 
 clean:
 	rm -rf $(BUILD) $(DIST)

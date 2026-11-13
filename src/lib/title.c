@@ -118,7 +118,7 @@ unsigned char title_screen(char *name, unsigned char max)
     /* Right-aligned, a column in from the edge: sizeof counts the NUL. */
     cputsxy(SCR_W - sizeof("v" Q4K_VERSION), SCR_H - 1, "v" Q4K_VERSION);
 
-#ifndef Q4K_OFFLINE
+#ifdef Q4K_ONLINE
     /* Whether anyone will talk, asked once for the whole game. Anything
        short of a host with a model and the game plays without
        conversations, so say which it is here rather than at every door.

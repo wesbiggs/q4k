@@ -49,7 +49,7 @@ on a clean runner as well as building path 1's release.
 ```
 make                  build every program into dist/
 make run PROG=name    launch dist/name.prg in VICE (default: hello; the game runs from its d64)
-make play             the game, with the dialogue daemon on the modem port
+make play             the online game, with the dialogue daemon on the modem port
 make check PROG=name  headless run, dump the screen as text
 make shot PROG=name   headless run, save a PNG screenshot
 make test             every screen test against its golden, plus checkmap
@@ -57,17 +57,18 @@ make bless            accept current output as the new goldens
 make assets           regenerate the C and JSON built from assets/
 make d64              dist/q4k.d64: the game, its engines, and its save disk (PROG=name for another)
 make release          the release's .d64s and zip, in dist/release/
-make offline          dist/offline/q4k.prg and its engines: the game with no modem
-make d64-offline      dist/offline/q4k.d64: that, with what everyone says
-make run-offline      ... and play it in VICE
+make online           dist/online/q4k.prg and its engines: the experimental networked game
+make d64-online       dist/online/q4k.d64: that, on its disk
+make run-online       ... and play it in VICE, with no host (make play starts one)
 make clean
 ```
 
 `make bless` is for after you have read the diff, never instead of it.
 
 Players get the game from a release and never need any of this; to play
-from a checkout instead, `make play` is the same thing as the release zip's
-`tools/play.sh`, with the game built from the tree.
+from a checkout instead, `make run PROG=q4k` runs the game's disk, and
+`make play` is the same thing as the online zip's `tools/play.sh`, with the
+game built from the tree.
 
 ## Testing
 
@@ -97,10 +98,10 @@ Releases are tagged `v<version>`, and a tag push runs
 `.github/workflows/release.yml`, which publishes:
 
 - `q4k-<version>.d64`, the game on its disk;
-- `q4k-<version>.zip`, that disk plus the dialogue host and the assets it
-  reads, laid out as in the repo so `tools/play.sh` runs from inside it;
-- `q4k-<version>-offline.d64`, the offline build (no modem, no host) on its
-  disk with everyone's lines, as `make d64-offline` makes it.
+- `q4k-<version>-online.d64`, the experimental networked build on its disk,
+  as `make d64-online` makes it;
+- `q4k-<version>-online.zip`, that disk plus the dialogue host and the assets
+  it reads, laid out as in the repo so `tools/play.sh` runs from inside it.
 
 There is no `.prg` on its own any more: both builds load their engines from
 their disk ([ENGINES.md](ENGINES.md)), so the PRG alone goes no further than
@@ -415,15 +416,16 @@ answered with an authored hint from [assets/hints.json](assets/hints.json)
 that fits the inn and the stage; no model is involved. With no host on the
 line at all, nothing is gated, so the game stays winnable without the modem.
 
-### Offline
+### The two builds
 
-`make offline` builds the game without the modem: `dialog.c`, `line.c` and
-`modem.c` are left out of the library, `talk.c` goes in instead, `-DQ4K_OFFLINE`
-is on, and everything goes to `build/offline/` and `dist/offline/` so the two
-builds never share an object. That is the only difference between them: both
-have the same engines, the same memory layout and the same game, and
-`Q4K_OFFLINE` is tested in two places, the title screen's call to the host and
-the networked half of `dialog.h`. Instead of a host, [src/lib/talk.c](src/lib/talk.c) loads what each
+The game, as `make` builds it, has no modem: [src/lib/talk.c](src/lib/talk.c)
+is in its library, not `dialog.c` and `line.c`. The experimental networked
+build (`make online`, `ONLINE=1`) swaps them, with `-DQ4K_ONLINE` on, and
+everything of it goes to `build/online/` and `dist/online/` so the two builds
+never share an object. That is the only difference between them: both have
+the same engines, the same memory layout and the same game, and `Q4K_ONLINE`
+is tested in two places, the title screen's call to the host and the
+networked half of `dialog.h`. Instead of a host, [src/lib/talk.c](src/lib/talk.c) loads what each
 person can say from the disk when you walk up to them, and the player picks a
 topic from a menu. The lines are [assets/talk.txt](assets/talk.txt), by quest
 stage; a line marked `give` is the one that hands over what the quest needs,
@@ -431,7 +433,7 @@ and leaving without hearing it gets you nothing. The inns' rumours are the same
 `assets/hints.json` the host draws from, loaded when you buy an ale.
 [tools/mktalk.py](tools/mktalk.py) packs one file per person (`0` to `8`, by
 `NPC_*`) and per inn (`9` to `11`) onto the d64, so it only works from
-`make d64-offline`'s disk, and it checks that each file fits the talk's
+`make d64`'s disk, and it checks that each file fits the talk's
 buffer at the end of its engine (`TALK_SIZE` in the Makefile, 3052 bytes).
 Whoever has no file on the disk falls back to the networked
 build's no-host behaviour. Vane's dry hour is always the bone tide here.

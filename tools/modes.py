@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """How much of the game each mode needs, from ld65's map file.
 
-    tools/modes.py [build/offline/q4k.map]
+    tools/modes.py [build/q4k.map]
 
 Groups every module the game links into the mode that needs it -- what has to
 be in memory all the time (core), only while walking a map, only on a
@@ -83,7 +83,7 @@ def mode_of(module):
 
 
 def main():
-    path = sys.argv[1] if len(sys.argv) > 1 else "build/offline/q4k.map"
+    path = sys.argv[1] if len(sys.argv) > 1 else "build/q4k.map"
     sizes = parse(path)
     groups = defaultdict(lambda: defaultdict(int))
     per_mod = defaultdict(dict)

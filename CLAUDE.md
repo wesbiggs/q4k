@@ -16,8 +16,8 @@ the story and how to play.
 
 ## Memory
 
-Set up in `cfg/c64-q4k.cfg`, which **both builds** link with: the networked
-one and the offline one have the same layout and the same engines, and differ
+Set up in `cfg/c64-q4k.cfg`, which **both builds** link with: the game
+(offline) and the experimental networked one have the same layout and the same engines, and differ
 only in who talks (see "The two builds" below). A core stays in memory and one
 slot holds one engine at a time, loaded from the disk.
 
@@ -34,7 +34,7 @@ slot holds one engine at a time, loaded from the disk.
   `help.c` that did not fit anywhere else, as `static const char[]` between
   two pragmas; the land and town generators' tables are in `CHDATA1`). They
   are the core's, so they are there whatever the slot holds; 9 bytes are free
-  in `CHDATA1`, 125 in `CHDATA2` (91 offline) and 114 in `CHDATA3`.
+  in `CHDATA1`, 91 in `CHDATA2` (125 online) and 114 in `CHDATA3`.
   `$A0` is the input cursor, `$C0-$C7`
   the bow shot's sprite block, and `$80-$91` the actors: leave those alone,
   and check `assets/tiles.txt` before using any glyph above `$91` on screen.
@@ -61,22 +61,24 @@ slot holds one engine at a time, loaded from the disk.
   Makefile's `HIMODS` are compiled with `--code-name HICODE --rodata-name
   HIDATA`; an engine's modules go to their engine whatever that list says.
   Changing either needs the objects rebuilt, because a target-specific
-  `CFLAGS` will not invalidate them on its own. About 7.2K are free in HIGH
-  (8K offline), 6K in MAIN (less the stack) and 197 bytes in BSS (434
-  offline). The Makefile's `SMALLMODS` (loot, shop, inn, help, battle, arms,
+  `CFLAGS` will not invalidate them on its own. About 8K are free in HIGH
+  (7.2K online), 6K in MAIN (less the stack) and 434 bytes in BSS (197
+  online). The Makefile's `SMALLMODS` (loot, shop, inn, help, battle, arms,
   dialog, dungeon, talk and gift) are built with `-Or`, not `-Osir`: without
   `-Os` cc65 stops inlining shifts and the like, which is about a tenth
   smaller. The fight is in it on the grounds that a turn-based flood fill can
   afford to be slower; nothing whose timing was measured is. Changing `cfg/`
   relinks everything.
-- **The two builds.** `make offline` (`-DQ4K_OFFLINE`, in `build/offline/`)
-  links `talk.c` and `talkbuf.s` where the networked build links `dialog.c`
-  (in the talk's engine) and `modem.c` and `line.c` (in the core, because the
-  title screen asks for the host before any engine is loaded). Both are
-  called the same way (`include/q4k/dialog.h`), and `Q4K_OFFLINE` is tested
-  only there and in `title.c`; keep it that way. Measure both builds after a
-  change to either; `tools/screendump.py` finds `build/offline/q4k.lbl` for
-  `dist/offline/q4k.prg`, and `tools/modes.py` groups either map by mode.
+- **The two builds.** The game is the offline build: `make`, in `build/`
+  and `dist/`, links `talk.c` and `talkbuf.s`. The networked build, which is
+  experimental (`make online`, `ONLINE=1`, `-DQ4K_ONLINE`, in `build/online/`
+  and `dist/online/`), links `dialog.c` (in the talk's engine) and `line.c`
+  and `modem.c` (in the core, because the title screen asks for the host
+  before any engine is loaded) instead. Both are called the same way
+  (`include/q4k/dialog.h`), and `Q4K_ONLINE` is tested only there and in
+  `title.c`; keep it that way. Measure both builds after a change to either;
+  `tools/screendump.py` finds `build/online/q4k.lbl` for
+  `dist/online/q4k.prg`, and `tools/modes.py` groups either map by mode.
 - **The test programs** that link the game's modules (dungeontest, arena,
   isletest) use the same objects, engine segments and all, and link with
   `cfg/c64-flat.cfg`, which puts every engine's segments in HIGH in one load.
@@ -500,7 +502,7 @@ reachable from a test this way, and none of it ships.
 
 **The game needs its disk in every test past the title screen**, since it
 loads its engines from it: the `.cmd` files pass `--disk dist/q4k.d64` (the
-offline cases swap in `dist/offline/`), and the save tests start from a copy
+online cases swap in `dist/online/`), and the save tests start from a copy
 of that disk, not a blank one. Without it the game stops after the title
 screen with "Put the game disk back".
 

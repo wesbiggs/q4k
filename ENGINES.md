@@ -9,6 +9,12 @@ the offline build as of 0.11.0 (`make offline`, then `tools/modes.py`).
 
 ## Checkpoint 2: both builds
 
+(Since this was written, the offline build has become the game: `make` builds
+it into `build/` and `dist/`, and the networked one is experimental, `make
+online` into `build/online/` and `dist/online/`, with `Q4K_ONLINE` in place of
+`Q4K_OFFLINE`. Releases ship `q4k-<version>.d64`, the offline game, and the
+online build as `-online.d64` and `-online.zip`.)
+
 The networked build now works the same way: the same engines, the same
 memory layout (`cfg/c64-q4k.cfg`, which both link), the same disk files. The
 two builds differ only in who talks:

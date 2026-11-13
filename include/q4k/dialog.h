@@ -2,10 +2,11 @@
  * q4k -- talking to people.
  *
  * Takes over the screen and runs a conversation; the caller redraws the map
- * afterwards. The two builds differ here and nowhere else: the networked one
- * (dialog.c) dials the host over the modem port, and the player types while
- * the NPC answers; the offline one (Q4K_OFFLINE, make offline: talk.c) loads
- * what each person can say from the disk, and the player picks from a menu.
+ * afterwards. The two builds differ here and nowhere else: the game, offline
+ * (talk.c), loads what each person can say from the disk, and the player picks
+ * from a menu; the experimental networked one (Q4K_ONLINE, make online:
+ * dialog.c) dials the host over the modem port, and the player types while the
+ * NPC answers.
  * Both are in the talk's engine (engine.h), and both are called the same way.
  */
 
@@ -57,7 +58,7 @@ unsigned char dialog_hint(unsigned char inn);
    after). Does nothing over the modem. */
 void dialog_forget(void);
 
-#ifndef Q4K_OFFLINE
+#ifdef Q4K_ONLINE
 
 /* The line to the host, which is in the core (line.c), since the title
    screen asks it before any engine is loaded. */
@@ -81,6 +82,6 @@ unsigned char dialog_probe(void);
 extern char reply[REPLY_MAX];
 char *line_answer(unsigned int ticks);
 
-#endif /* !Q4K_OFFLINE */
+#endif /* Q4K_ONLINE */
 
 #endif /* Q4K_DIALOG_H */

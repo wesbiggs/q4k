@@ -1,6 +1,7 @@
 #!/bin/sh
-# Start the dialogue daemon (if it isn't already up) and launch the game with
-# its modem port wired to it.
+# Start the dialogue daemon (if it isn't already up) and launch the
+# experimental networked build of the game (make d64-online) with its modem
+# port wired to it.
 #
 #   tools/play.sh              live dialogue, needs ollama running
 #   Q4K_MOCK=1 tools/play.sh   canned replies, no model needed
@@ -25,11 +26,11 @@ else
 fi
 
 # The game loads its engines from its own disk, and saves to it too. Play
-# from a copy, dist/saves.d64, so that rebuilding the game disk does not lose
-# a save: when dist/q4k.d64 is newer, the copy is made afresh from it and the
-# save (Q4K.SAV) carried over.
-GAME="dist/q4k.d64"
-SAVES="dist/saves.d64"
+# from a copy, dist/online/saves.d64, so that rebuilding the game disk does
+# not lose a save: when dist/online/q4k.d64 is newer, the copy is made afresh
+# from it and the save (Q4K.SAV) carried over.
+GAME="dist/online/q4k.d64"
+SAVES="dist/online/saves.d64"
 if [ ! -f "$SAVES" ] || [ "$GAME" -nt "$SAVES" ]; then
     kept=$(mktemp "${TMPDIR:-/tmp}/q4ksav.XXXXXX")
     have=

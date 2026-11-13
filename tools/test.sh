@@ -87,8 +87,11 @@ done
 
 # The game loads its engines from its disk (include/q4k/engine.h), so every
 # case that goes past the title screen has it in unit 8: the .cmd files say
-# --disk dist/q4k.d64, and the offline cases use dist/offline/q4k.d64.
+# --disk dist/q4k.d64, and the experimental networked build's cases use
+# dist/online/q4k.d64.
 DISK=dist/q4k.d64
+ON=dist/online/q4k.prg
+ONDISK=dist/online/q4k.d64
 
 # Saving and restoring writes to that disk. A fresh copy each run, so the
 # case does not depend on what a previous run left lying about: walk two
@@ -150,17 +153,18 @@ fi
 SEED=0x5a
 keys() { python3 tools/homepath.py "$SEED" "$@"; }
 
-# The dialogue case needs a daemon on the other end of the modem line, in
-# --mock mode so the replies are the same every run. With the modem the
+# The networked build (make d64-online), experimental: the dialogue cases
+# need a daemon on the other end of the modem line, in --mock mode so the
+# replies are the same every run. With the modem the
 # machine runs at its real speed, and screendump.py serves the disk without
 # emulating the drive, or every conversation would wait a minute for its
 # engine.
-if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ] && [ -f "$DISK" ]; then
+if [ -f tests/golden-online-dialog.txt ] && [ -f "$ON" ] && [ -f "$ONDISK" ]; then
     python3 host/npcd.py --mock --port 25299 --quiet >/dev/null 2>&1 &
     daemon=$!
     sleep 1
-    compare dialog tests/golden-dialog.txt \
-        tools/screendump.py dist/q4k.prg --disk "$DISK" --rs232 25299 \
+    compare online-dialog tests/golden-online-dialog.txt \
+        tools/screendump.py "$ON" --disk "$ONDISK" --rs232 25299 \
         --keys 'Alaric\rwwwwwwwwwwwwaaaawaaawhat of the blade\rcould I have a dagger\r' --settle 40
     # Brann -> Vane: sail to Wardlow (the south continent, for seed $5A)
     # holding the Emberstone, with the run's secrets pinned (that seed makes
@@ -169,9 +173,9 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ] && [ -f "$DISK" ]; then
     # the transcript. Saying goodbye then has Vane end the conversation
     # (mock mode's BYE), which waits for a key. Stepping onto a town square
     # never rolls for a monster, so this is not a walk in the open.
-    if [ -f tests/golden-tidal.txt ]; then
-        compare tidal tests/golden-tidal.txt \
-            tools/screendump.py dist/q4k.prg --disk "$DISK" --rs232 25299 \
+    if [ -f tests/golden-online-tidal.txt ]; then
+        compare online-tidal tests/golden-online-tidal.txt \
+            tools/screendump.py "$ON" --disk "$ONDISK" --rs232 25299 \
             --poke quest_stage=3 --poke items=8 --poke lore_seed=$SEED \
             --poke no_encounters=1 \
             --keys 'Alaric\rs<'"$(keys millford port2)$(keys dock story --land 2)"'>wwwwwwwaaaawwwmay I have the key\rdead low\rgoodbye\r' \
@@ -180,18 +184,18 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ] && [ -f "$DISK" ]; then
     # The king, from a new game that walks to the castle: neither his
     # greeting nor a "hello" hands over the Sigil; asking about the quest
     # has him say so, and it arrives in the transcript.
-    if [ -f tests/golden-sigil.txt ]; then
-        compare sigil tests/golden-sigil.txt \
-            tools/screendump.py dist/q4k.prg --disk "$DISK" --rs232 25299 \
+    if [ -f tests/golden-online-sigil.txt ]; then
+        compare online-sigil tests/golden-online-sigil.txt \
+            tools/screendump.py "$ON" --disk "$ONDISK" --rs232 25299 \
             --poke quest_stage=1 --poke lore_seed=$SEED --poke no_encounters=1 \
             --keys 'Alaric\rs<'"$(keys millford castle)"'>wwwwwwwwwwwhello\rwhat is my quest\r' \
             --settle 100
     fi
     # The king after Maldrath is banished (stage 9): the first word pays the
     # 1,000 gold and moves the quest to Q_REWARDED, the next only praises.
-    if [ -f tests/golden-reward.txt ]; then
-        compare reward tests/golden-reward.txt \
-            tools/screendump.py dist/q4k.prg --disk "$DISK" --rs232 25299 \
+    if [ -f tests/golden-online-reward.txt ]; then
+        compare online-reward tests/golden-online-reward.txt \
+            tools/screendump.py "$ON" --disk "$ONDISK" --rs232 25299 \
             --poke quest_stage=9 --poke lore_seed=$SEED --poke no_encounters=1 \
             --keys 'Alaric\rs<'"$(keys millford castle)"'>wwwwwwwwwwwhello\rthank you\r' \
             --settle 100
@@ -199,9 +203,9 @@ if [ -f tests/golden-dialog.txt ] && [ -f dist/q4k.prg ] && [ -f "$DISK" ]; then
     # The inn in Millford, wounded: an ale brings a hint from the daemon's
     # deck (mock mode shuffles it the same way every run), and a bed puts
     # the hero back to full health for 20 marks.
-    if [ -f tests/golden-inn.txt ]; then
-        compare inn tests/golden-inn.txt \
-            tools/screendump.py dist/q4k.prg --disk "$DISK" --rs232 25299 \
+    if [ -f tests/golden-online-inn.txt ]; then
+        compare online-inn tests/golden-online-inn.txt \
+            tools/screendump.py "$ON" --disk "$ONDISK" --rs232 25299 \
             --poke party+4=5 --poke gold=60 --poke lore_seed=$SEED --keys 'Alaric\rwwddddd12' --settle 24
     fi
     kill "$daemon" 2>/dev/null || true
@@ -230,72 +234,71 @@ fight() {
         fail=1
     fi
 }
+
+# The game: no modem, and what people say comes off the disk.
 if [ -f dist/q4k.prg ] && [ -f "$DISK" ]; then
     fight fight dist/q4k.prg "$DISK"
-fi
-
-# The offline build (make d64-offline): no modem, and what people say comes
-# off the disk. The title screen has no host to call.
-OFF=dist/offline/q4k.prg
-OFFDISK=dist/offline/q4k.d64
-if [ -f "$OFF" ] && [ -f "$OFFDISK" ]; then
-    if [ -f tests/golden-offline-title.txt ]; then
-        compare offline-title tests/golden-offline-title.txt \
-            tools/screendump.py "$OFF"
-    fi
     # Garrett at stage 0 has one greeting. Asking for the dagger hands it
     # over in the transcript and takes the topic off the renumbered menu, so
     # 3 is then Maldrath.
-    if [ -f tests/golden-offline-talk.txt ]; then
-        compare offline-talk tests/golden-offline-talk.txt \
-            tools/screendump.py "$OFF" --disk "$OFFDISK" \
+    if [ -f tests/golden-talk.txt ]; then
+        compare talk tests/golden-talk.txt \
+            tools/screendump.py dist/q4k.prg --disk "$DISK" \
             --keys 'Alaric\rwwwwwwwwwwwwaaaawaaa13' --settle 30
     fi
     # With no disk there is no map's engine to load after the title screen
     # (engine.h), so the game asks for the disk back, and keeps asking.
-    out=$(tools/screendump.py "$OFF" --keys 'Alaric\rw' --settle 8 \
+    out=$(tools/screendump.py dist/q4k.prg --keys 'Alaric\rw' --settle 8 \
         2>/dev/null) || out=
     if printf '%s\n' "$out" | grep -q 'Put the game disk back'; then
-        echo "PASS  offline-nodisk"
+        echo "PASS  nodisk"
     else
-        echo "FAIL  offline-nodisk"
+        echo "FAIL  nodisk"
         printf '%s\n' "$out"
         fail=1
     fi
-    # The networked build's screen tests, played offline: everything but the
-    # title screen is the same. A golden of its own,
-    # tests/golden-offline-<name>.txt, wins where the two builds differ.
-    for name in q4k fov loot sail sailhome captain treasure treasuremap; do
-        golden=tests/golden-offline-$name.txt
-        [ -f "$golden" ] || golden=tests/golden/$name.txt
-        # shellcheck disable=SC2046
-        set -- $(sed "s|dist/q4k\.|dist/offline/q4k.|g" \
-            "tests/golden/$name.cmd")
-        compare "offline-$name" "$golden" tools/screendump.py "$@"
-    done
-    fight offline-fight "$OFF" "$OFFDISK"
     # The king at stage 9: his greeting is the line that gives, so the
     # reward comes before anything is asked, and the menu is stage 10's.
-    if [ -f tests/golden-offline-reward.txt ]; then
-        compare offline-reward tests/golden-offline-reward.txt \
-            tools/screendump.py "$OFF" --disk "$OFFDISK" \
+    if [ -f tests/golden-reward.txt ]; then
+        compare reward tests/golden-reward.txt \
+            tools/screendump.py dist/q4k.prg --disk "$DISK" \
             --poke quest_stage=9 --poke lore_seed=$SEED --poke no_encounters=1 \
             --keys 'Alaric\rs<'"$(keys millford castle)"'>wwwwwwwwwww1' \
             --settle 90
     fi
     # Two ales in Millford's inn. Which rumours is random, so this checks
     # only that two were told and the keeper was never "busy" (no file).
-    out=$(tools/screendump.py "$OFF" --disk "$OFFDISK" --poke gold=60 \
+    out=$(tools/screendump.py dist/q4k.prg --disk "$DISK" --poke gold=60 \
         --keys 'Alaric\rwwddddd11' --settle 30 2>/dev/null) || out=
     drinks=$(printf '%s\n' "$out" | grep -c 'You drink\.') || true
     if [ "$drinks" = 2 ] && ! printf '%s\n' "$out" | grep -q 'keeper is busy' \
             && printf '%s\n' "$out" | grep -q 'You have 50 marks'; then
-        echo "PASS  offline-inn"
+        echo "PASS  inn"
     else
-        echo "FAIL  offline-inn"
+        echo "FAIL  inn"
         printf '%s\n' "$out"
         fail=1
     fi
+fi
+
+# The networked build's own title screen (it calls the host, and says that
+# nobody answered), and the game's screen tests played in it: everything else
+# is the same. A golden of its own, tests/golden-online-<name>.txt, wins where
+# the two builds differ.
+if [ -f "$ON" ] && [ -f "$ONDISK" ]; then
+    if [ -f tests/golden-online-title.txt ]; then
+        compare online-title tests/golden-online-title.txt \
+            tools/screendump.py "$ON"
+    fi
+    for name in q4k fov loot sail sailhome captain treasure treasuremap; do
+        golden=tests/golden-online-$name.txt
+        [ -f "$golden" ] || golden=tests/golden/$name.txt
+        # shellcheck disable=SC2046
+        set -- $(sed "s|dist/q4k\.|dist/online/q4k.|g" \
+            "tests/golden/$name.cmd")
+        compare "online-$name" "$golden" tools/screendump.py "$@"
+    done
+    fight online-fight "$ON" "$ONDISK"
 fi
 
 exit $fail
