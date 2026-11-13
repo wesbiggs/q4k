@@ -3,7 +3,7 @@
   1 |········································|
   2 |                                        |
   3 |  1  A mug of ale         5 marks       |
-  4 |  2  Beds for the night 20 marks       |
+  4 |  2  Beds for the night 20 marks        |
   5 |                                        |
   6 |You have 35 marks.                      |
   7 |                                        |
