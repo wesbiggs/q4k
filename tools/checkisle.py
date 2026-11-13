@@ -123,7 +123,8 @@ def town_checksum(tiles, ents):
 
 
 BLOCKS = {townref.T_WALL, townref.T_TREE, townref.T_BOULDER, townref.T_POTION,
-          townref.T_SWORD, townref.T_BED, townref.T_SHIELD, townref.T_BOW}
+          townref.T_SWORD, townref.T_BED, townref.T_SHIELD, townref.T_BOW,
+          townref.T_BOOK}
 
 
 def check_towns(seeds):
@@ -162,7 +163,7 @@ def check_towns(seeds):
                                for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0))):
                         problems.append("person at %d,%d cannot be reached" % (x, y))
                 if len(doors) != 1 + len(ents) - (
-                        1 if any(k == townref.ENT_SHOP and p == townref.SHOP_ITEM
+                        1 if any(k == townref.ENT_SHOP and p in (townref.SHOP_ITEM, townref.SHOP_MAGIC)
                                  for _, _, k, p in ents) else 0) \
                         and len(doors) < 4:
                     problems.append("%d doors" % len(doors))

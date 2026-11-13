@@ -2,13 +2,13 @@
   0 |Garrett the Smith                       |
   1 |········································|
   2 |                                        |
-  3 |So the king's letter found you. Nobody  |
-  4 |leaves Millford without steel, so       |
-  5 |before you go anywhere, ask me for some.|
-  6 |> A dagger                              |
-  7 |Take it. Nobody walks out of Millford   |
-  8 |with bare hands. Keep it oiled and it   |
-  9 |will see you home.                      |
+  3 |leaves Millford without steel, so       |
+  4 |before you go anywhere, ask me for some.|
+  5 |> Arms                                  |
+  6 |A dagger for a fighter, a hunting bow   |
+  7 |for an archer, a staff for one who      |
+  8 |reads. Nobody walks out of Millford     |
+  9 |with bare hands.                        |
  10 |Garrett gives you a dagger.             |
  11 |> Maldrath                              |
  12 |Steel does not mark him. Two armies     |

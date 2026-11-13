@@ -23,7 +23,7 @@
 greet 0     | So the king's letter found you. Nobody leaves Millford without
               steel, so before you go anywhere, ask me for some.
 greet 1     | Still here? The castle will not come to you, and it is a long
-              walk. Mind that dagger's edge; it is the only one you have.
+              walk. Mind that steel's edge; it is all you have.
 greet 2     | The king gave you his Sigil, then. Good. A tool is only as good as
               the hand that carries it.
 greet 3-6   | You have the look of someone who has been down a hole. Bring me the
@@ -33,14 +33,15 @@ greet 8     | Dragonbane is the best work this anvil ever did, and I did not do
               most of it. Go and use it.
 greet 9-10  | Maldrath banished, with a blade off my anvil. They will drink to
               that for a hundred years. I will drink to it tonight.
-topic 0 give | A dagger   | Take it. Nobody walks out of Millford with bare
-              hands. Keep it oiled and it will see you home.
+topic 0 give | Arms       | A dagger for a fighter, a hunting bow for an
+              archer, a staff for one who reads. Nobody walks out of Millford
+              with bare hands.
 topic 7 give | Reforge it | Hold the bellows. Steady. There: Emberstone,
               Silver Tear, Dragon's Heart, and the old steel between them. It
               is done. That is Dragonbane.
-topic 0-1   | The letter  | Sealed with the king's own seal, asking for
-              someone from Millford. A king does not write to farmers for
-              nothing. Go and see what he wants.
+topic 0-1   | The letter  | Sealed with the king's own seal. He wrote to
+              strangers all over Keldmarch and told them to meet here. A king
+              does not write to farmers for nothing. Go and see what he wants.
 topic 2-6   | Dragonbane  | The blade that can banish Maldrath, broken long
               ago. Three binding stones held it together. Bring me all three
               and this anvil will do the rest.

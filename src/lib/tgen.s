@@ -22,6 +22,8 @@ ENT_INN      = 2
 ENT_VILLAGER = 3
 SHOP_ITEM    = 2
 SHOP_BOW     = 3
+SHOP_MAGIC   = 4
+ISLE_HOME    = 4
 INN_PROC     = 255
 
         .segment "BSS"
@@ -244,6 +246,12 @@ _town_tiles:
         ldx #3
         jsr modn
         sta third
+        lda _land               ; home's: always the magic shop, in its place
+        cmp #ISLE_HOME
+        bne @nomag
+        lda #0
+        sta third
+@nomag:
         jsr isle_rnd
         ldx #3
         jsr modn
@@ -353,10 +361,19 @@ _town_tiles:
         bne @house
         lda third
         bne @decor
+        lda _land
+        cmp #ISLE_HOME
+        beq @magic
         lda #T_POTION
         sta dectile
         lda #ENT_SHOP
         ldx #SHOP_ITEM
+        jsr ent
+        jmp @decor
+@magic: lda #T_BOOK
+        sta dectile
+        lda #ENT_SHOP
+        ldx #SHOP_MAGIC
         jsr ent
         jmp @decor
 @house: lda #ENT_VILLAGER

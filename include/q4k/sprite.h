@@ -6,7 +6,7 @@
  * the eight pixels between squares rather than jump them.
  *
  * Three sprites make one figure, front to back: sprite 0 is the tunic, in
- * a colour picked from the hero's name; sprite 1 is the hero in hero.color;
+ * a colour picked from the member's name (tunic_of()); sprite 1 is the hero in hero.color;
  * sprite 2 is the same shape grown by a pixel in black. The outline is what
  * keeps a white figure readable on grass and snow.
  *
@@ -33,6 +33,11 @@ void sprite_init(void);
 
 /* Put the hero on screen cell (col,row) and make sure it is showing. */
 void sprite_show(unsigned char col, unsigned char row);
+
+/* Whose figure the sprite is (party[]): the leader on the map, whoever's
+   turn it is in a fight. Each class has a figure of its own. */
+extern unsigned char sprite_who;
+void sprite_as(unsigned char who);
 
 /* Hide the hero, for screens that are not the map. */
 void sprite_hide(void);

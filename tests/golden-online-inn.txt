@@ -3,9 +3,9 @@
   1 |········································|
   2 |                                        |
   3 |  1  A mug of ale         5 marks       |
-  4 |  2  A bed for the night 20 marks       |
+  4 |  2  Beds for the night 20 marks        |
   5 |                                        |
-  6 |You have 35 marks. Health 20 of 20.     |
+  6 |You have 35 marks.                      |
   7 |                                        |
   8 |You drink.                              |
   9 |Old Tam will tell you about the second  |

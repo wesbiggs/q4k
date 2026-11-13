@@ -34,11 +34,7 @@ static void purse(void)
 
     p = str_lit(line, "You have ");
     p = str_num(p, gold);
-    p = str_lit(p, " marks. Health ");
-    p = str_num(p, hero.hp);
-    p = str_lit(p, " of ");
-    p = str_num(p, hero.hp_max);
-    p = str_lit(p, ".");
+    p = str_lit(p, " marks.");
     text_clear(0, PURSE_Y, SCR_W);
     text_put(0, PURSE_Y, line, COLOR_YELLOW);
 }
@@ -69,15 +65,23 @@ static void ale(unsigned char inn)
     }
 }
 
+/* A bed for the whole party: everyone mended, and a wizard's magic back. */
 static void room(void)
 {
-    /* Checked before the price, so a rested hero is never charged. */
-    if (hero.hp == hero.hp_max) {
+    unsigned char i;
+
+    /* Checked before the price, so a rested party is never charged. */
+    for (i = 0; i < party_count; ++i) {
+        if (party[i].hp < party[i].hp_max || party[i].mp < party[i].mp_max) {
+            break;
+        }
+    }
+    if (i == party_count) {
         panel_lit("You are not weary.", COLOR_GRAY2);
         return;
     }
     if (pay(ROOM_PRICE)) {
-        heal_full();
+        party_rest();
         panel_lit("You sleep, and wake mended.", COLOR_LIGHTGREEN);
     }
 }
@@ -97,7 +101,7 @@ void inn_open(unsigned char inn)
 
     textcolor(COLOR_WHITE);
     cputsxy(0, LIST_Y,     "  1  A mug of ale         5 marks");
-    cputsxy(0, LIST_Y + 1, "  2  A bed for the night 20 marks");
+    cputsxy(0, LIST_Y + 1, "  2  Beds for the night 20 marks");
     textcolor(COLOR_GRAY2);
     cputsxy(0, HINT_Y, "Number to buy, RUN/STOP leaves");
 

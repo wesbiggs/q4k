@@ -22,8 +22,11 @@ int main(void)
 
     save_init();                    /* $BA is where the game came from */
     tiles_install();                /* before anything writes local[] */
-    game_init();                    /* seeds hero.name with the default */
-    restored = title_screen(hero.name, NAME_LEN);
+    game_init();                    /* a party of one, until the title's */
+    restored = title_screen();
+    if (!restored) {
+        potions = party_count;      /* a draught for each who answered */
+    }
 
     /* The title screen and what installed the charset are gone after this:
        the slot is the map's from here on, bar a fight or a conversation. */

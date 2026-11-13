@@ -4,8 +4,8 @@
 
 /* Terrain properties are indexed by screen code - TILE_BASE. */
 #define TILE_BASE   0x60
-#define TILE_COUNT  31   /* terrain only, contiguous */
-#define TILE_TOTAL  49   /* terrain + actors          */
+#define TILE_COUNT  32   /* terrain only, contiguous */
+#define TILE_TOTAL  53   /* terrain + actors          */
 
 #define TF_PASS     0  /* walk onto it freely        */
 #define TF_BLOCK    1  /* impassable                 */
@@ -43,6 +43,7 @@
 #define T_SECRETDOOR 0x7C
 #define T_CROWN     0x7D
 #define T_PORT      0x7E
+#define T_BOOK      0x7F
 #define T_PLAYER    0x8C
 #define T_VILLAGER  0x8D
 #define T_MONSTER   0x8E
@@ -61,6 +62,9 @@
 #define T_DRAGONBR  0x8B
 #define T_WASP      0x90
 #define T_SHIP      0x91
+#define T_WARRIOR   0xC8
+#define T_ARCHER    0xC9
+#define T_WIZARD    0xCA
 
 #define TC_GRASS    5
 #define TC_FOREST   13
@@ -93,6 +97,7 @@
 #define TC_SECRETDOOR 12
 #define TC_CROWN    7
 #define TC_PORT     8
+#define TC_BOOK     3
 #define TC_PLAYER   1
 #define TC_VILLAGER 3
 #define TC_MONSTER  10
@@ -111,6 +116,9 @@
 #define TC_DRAGONBR 2
 #define TC_WASP     7
 #define TC_SHIP     1
+#define TC_WARRIOR  1
+#define TC_ARCHER   1
+#define TC_WIZARD   1
 
 extern const unsigned char tile_flags[TILE_COUNT];
 extern const unsigned char tile_colors[TILE_COUNT];

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <q4k/actor.h>
 #include <q4k/battle.h>
 #include <q4k/charset.h>
 #include <q4k/dialog.h>
@@ -16,6 +17,7 @@
 #include <q4k/view.h>
 
 #define STORY_Y   5
+#define ROSTER_Y 13   /* who has answered so far */
 #define ASK_Y    17
 #define ENTRY_Y  18
 #define HINT_Y   21
@@ -35,12 +37,9 @@ static const char *const story[] = {
     "not left. Two armies went against him.",
     "Neither came back.",
     "",
-    "A letter comes, under the king's seal.",
-    "Matheson summons you to the castle.",
-    "",
-    "The blade that can banish him was",
-    "broken, and its three binding stones",
-    "lie sealed in three deep places.",
+    "Letters go out under the king's seal",
+    "to strangers who have never met: meet",
+    "in Millford, then come to the castle.",
 };
 #define STORY_LINES (sizeof(story) / sizeof(story[0]))
 
@@ -70,18 +69,120 @@ static void ask(const char *s)
     cputsxy(1, ASK_Y, s);
 }
 
-unsigned char title_screen(char *name, unsigned char max)
-{
-    /* Typed into a buffer of its own. Terminating `name` as it is drawn
-       would erase the caller's default before the player touched a key. */
-    static char entry[17];
-    unsigned char i, n = 0, key, seeding = 0;
-    unsigned int v;
-    unsigned int spins;
+static const char *const ordinal[MAX_MADE] = {
+    "Who answers the letter?", "And who else?", "And the third?",
+};
 
-    if (max > sizeof(entry)) {
-        max = sizeof(entry);
+/* Typed into a buffer of its own. */
+static char entry[NAME_LEN];
+static unsigned char seeding;
+
+/* A key, timed: how long the player takes is what makes the random name
+   random, as it is in the game's own key loop. */
+static unsigned char timed_key(void)
+{
+    unsigned int spins = 0;
+
+    while (!kbhit()) {
+        ++spins;
     }
+    rng_stir(spins);
+    return cgetc();
+}
+
+/* Read a name into entry[]. Returns 0 when one is typed or picked, 1 when F3
+   restored the saved game. F5 asks for the world's seed in between. */
+static unsigned char read_name(unsigned char made)
+{
+    unsigned char i, n = 0, key;
+    unsigned int v;
+
+    ask(ordinal[made]);
+    for (;;) {
+        textcolor(COLOR_WHITE);
+        cclearxy(1, ENTRY_Y, SCR_W - 2);
+        entry[n] = '\0';
+        cputsxy(1, ENTRY_Y, entry);
+        /* Block cursor, written as a raw screen code: cputc would treat
+           $A0 as PETSCII and convert it to something else. */
+        SCREEN_RAM[(unsigned int)ENTRY_Y * SCR_W + 1 + n] = 0xA0;
+        COLOR_RAM[(unsigned int)ENTRY_Y * SCR_W + 1 + n]  = COLOR_GRAY2;
+
+        key = timed_key();
+
+        if (key == KEY_RETURN && seeding) {
+            /* The world's seed, 1 to 255: what was typed, as a number. */
+            for (v = i = 0; i < n; ++i) {
+                v = (v + v) + (v << 3) + entry[i] - 0x30;
+            }
+            lore_seed = v > 255 ? 255 : (unsigned char)v;
+            seeding = n = 0;
+            ask(ordinal[made]);
+            continue;
+        }
+        if (key == KEY_F5 && !seeding) {
+            seeding = 1;
+            n = 0;
+            ask("World seed, 1-255?");
+            continue;
+        }
+        if (key == KEY_RETURN) {
+            if (!n) {
+                /* Somebody nobody else in the party is called. */
+                reseed();
+                i = (unsigned char)(rand() % NUM_NAMES);
+                for (n = 0; n < made; ) {
+                    if (strcmp(party[n].name, names[i])) {
+                        ++n;
+                    } else {
+                        i = (i + 1) % NUM_NAMES;
+                        n = 0;
+                    }
+                }
+                strcpy(entry, names[i]);
+            }
+            return 0;
+        }
+        if (key == KEY_F3) {
+            say(ERROR_Y, COLOR_GRAY2, "Loading...");
+            switch (load_game()) {
+                case SAVE_OK:
+                    return 1;
+                case SAVE_EFORMAT:
+                    say(ERROR_Y, COLOR_LIGHTRED, "That is not a saved game.");
+                    break;
+                default:
+                    say(ERROR_Y, COLOR_LIGHTRED, "No saved game found.");
+                    break;
+            }
+            continue;
+        }
+        if (key == KEY_DEL) {
+            if (n) {
+                --n;
+            }
+            continue;
+        }
+
+        /* PETSCII as typed: unshifted letters arrive as $41-$5A (lower
+           case in this character set), shifted ones as $C1-$DA. */
+        if (seeding && (key < 0x30 || key > 0x39)) {
+            continue;
+        }
+        if (key < 0x20 || (key > 0x3F && key < 0x41)
+            || (key > 0x5A && key < 0xC1) || key > 0xDA) {
+            continue;               /* not something a name is made of */
+        }
+
+        if (n < NAME_LEN - 1) {
+            entry[n++] = (char)key;
+        }
+    }
+}
+
+unsigned char title_screen(void)
+{
+    unsigned char i, made, key;
 
     /* The game's own character set, even though this screen is all text:
        it is the ROM font with tiles patched over codes the text never uses,
@@ -110,7 +211,6 @@ unsigned char title_screen(char *name, unsigned char max)
 
     textcolor(COLOR_GRAY1);
     chlinexy(0, ASK_Y - 1, SCR_W);
-    ask("And who are you, traveller?");
     textcolor(COLOR_GRAY2);
     cputsxy(1, HINT_Y, "RETURN alone for a random name");
     cputsxy(1, LOAD_Y, "F3 to load a game, F5 to set the seed");
@@ -147,84 +247,31 @@ unsigned char title_screen(char *name, unsigned char max)
        it here instead of hanging on a screen that never reports in. */
     probe_stage(1);
 
-    for (;;) {
-        textcolor(COLOR_WHITE);
+    /* Up to three, each a name and a class. */
+    for (made = 0; made < MAX_MADE; ) {
+        if (read_name(made)) {
+            return 1;
+        }
         cclearxy(1, ENTRY_Y, SCR_W - 2);
-        entry[n] = '\0';
-        cputsxy(1, ENTRY_Y, entry);
-        /* Block cursor, written as a raw screen code: cputc would treat
-           $A0 as PETSCII and convert it to something else. */
-        SCREEN_RAM[(unsigned int)ENTRY_Y * SCR_W + 1 + n] = 0xA0;
-        COLOR_RAM[(unsigned int)ENTRY_Y * SCR_W + 1 + n]  = COLOR_GRAY2;
+        ask("1 Warrior, 2 Archer or 3 Wizard?");
+        do {
+            key = timed_key() - 0x31;
+        } while (key >= NUM_CLASSES);
+        party_make(made, entry, key);
 
-        /* Time the wait, as the game's own key loop does: how long the
-           player takes is what makes the random name random. */
-        spins = 0;
-        while (!kbhit()) {
-            ++spins;
-        }
-        rng_stir(spins);
-        key = cgetc();
+        textcolor(COLOR_WHITE);
+        cputsxy(1, ROSTER_Y + made, entry);
+        textcolor(COLOR_GRAY3);
+        cputsxy(11, ROSTER_Y + made, class_names[key]);
+        ++made;
 
-        if (key == KEY_RETURN && seeding) {
-            /* The world's seed, 1 to 255: what was typed, as a number. */
-            for (v = i = 0; i < n; ++i) {
-                v = (v + v) + (v << 3) + entry[i] - 0x30;
+        if (made < MAX_MADE) {
+            ask("Will another answer? (Y/N)");
+            key = timed_key();
+            if (key != 0x59 && key != 0xD9) {      /* Y, either case */
+                break;
             }
-            lore_seed = v > 255 ? 255 : (unsigned char)v;
-            seeding = n = 0;
-            ask("And who are you, traveller?");
-            continue;
-        }
-        if (key == KEY_F5 && !seeding) {
-            seeding = 1;
-            n = 0;
-            ask("World seed, 1-255?");
-            continue;
-        }
-        if (key == KEY_RETURN) {
-            if (n) {
-                entry[n] = '\0';
-                strcpy(name, entry);
-            } else {
-                reseed();
-                strcpy(name, names[rand() % NUM_NAMES]);
-            }
-            return 0;
-        }
-        if (key == KEY_F3) {
-            say(ERROR_Y, COLOR_GRAY2, "Loading...");
-            switch (load_game()) {
-                case SAVE_OK:
-                    return 1;
-                case SAVE_EFORMAT:
-                    say(ERROR_Y, COLOR_LIGHTRED, "That is not a saved game.");
-                    break;
-                default:
-                    say(ERROR_Y, COLOR_LIGHTRED, "No saved game found.");
-                    break;
-            }
-            continue;
-        }
-        if (key == KEY_DEL) {
-            if (n) {
-                --n;
-            }
-            continue;
-        }
-
-        /* PETSCII as typed: unshifted letters arrive as $41-$5A (lower
-           case in this character set), shifted ones as $C1-$DA. */
-        if (seeding && (key < 0x30 || key > 0x39)) {
-            continue;
-        }
-        if (key < 0x20 || (key > 0x3F && key < 0x41)
-            || (key > 0x5A && key < 0xC1) || key > 0xDA) {
-            continue;               /* not something a name is made of */
-        }
-
-        if (n < max - 1) {
-            entry[n++] = (char)key;
         }
     }
+    return 0;
 }

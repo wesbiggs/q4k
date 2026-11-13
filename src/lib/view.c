@@ -87,20 +87,65 @@ static void put_label(unsigned char y, const char *label)
     cputsxy(PANEL_X, y, label);
 }
 
-/* "20/20" as one field, so the slash tracks the digit count. */
-static void put_hp(unsigned char y)
+/* A number on a row already cleared. */
+static void put_num(unsigned char x, unsigned char y, unsigned int value)
+{
+    char buf[6];
+
+    utoa(value, buf, 10);
+    cputsxy(x, y, buf);
+}
+
+/* "20/20" as one field at (x,y), so the slash tracks the digit count, and
+   blanks to the edge of the panel after it. */
+static void put_pair(unsigned char x, unsigned char y,
+                     unsigned char have, unsigned char of)
 {
     char buf[12], num[6];
 
-    utoa(hero.hp, buf, 10);
+    utoa(have, buf, 10);
     strcat(buf, "/");
-    utoa(hero.hp_max, num, 10);
+    utoa(of, num, 10);
     strcat(buf, num);
 
     /* To the screen edge and no further: one more and conio wraps onto the
        next row, blanking the map square at its left end every turn. */
-    cclearxy(VAL_X, y, SCR_W - VAL_X);
-    cputsxy(VAL_X, y, buf);
+    cclearxy(x, y, SCR_W - x);
+    cputsxy(x, y, buf);
+}
+
+/* Two rows a member: the name and class, then health and a wizard's
+   magic. In a fight, whoever's turn it is has a mark. */
+static const char class_tag[NUM_CLASSES][4] = { "War", "Arc", "Wiz" };
+
+static void put_member(unsigned char i)
+{
+    const Actor *a = &party[i];
+    unsigned char y = i << 1;
+    char buf[4];
+
+    cclearxy(PANEL_X, y, PANEL_W);
+    textcolor(COLOR_WHITE);
+    if (party_turn == i) {
+        cputcxy(PANEL_X, y, 0x3E);          /* > */
+    }
+    textcolor(party_turn == i ? COLOR_WHITE : COLOR_YELLOW);
+    cputsxy(PANEL_X + 1, y, a->name);
+    textcolor(COLOR_GRAY2);
+    cputsxy(PANEL_X + 11, y, class_tag[a->cls]);
+
+    textcolor(COLOR_GRAY1);
+    cclearxy(PANEL_X, y + 1, PANEL_W);
+    cputsxy(PANEL_X + 1, y + 1, "HP");
+    textcolor(a->hp ? COLOR_WHITE : COLOR_LIGHTRED);
+    put_pair(PANEL_X + 4, y + 1, a->hp, a->hp_max);
+    if (a->mp_max) {
+        textcolor(COLOR_GRAY1);
+        cputsxy(PANEL_X + 12, y + 1, "MP");
+        textcolor(COLOR_LIGHTBLUE);
+        utoa(a->mp, buf, 10);
+        cputsxy(PANEL_X + 15, y + 1, buf);
+    }
 }
 
 /* Key items, packed so they read as a list of what you have rather than a
@@ -141,35 +186,42 @@ void (*view_place_fn)(void);
 
 void view_draw_panel(void)
 {
-    textcolor(COLOR_YELLOW);
-    cputsxy(PANEL_X, 0, hero.name);
+    unsigned char i, y;
 
-    textcolor(COLOR_GRAY1);
-    put_label(1, "HP");
-    put_label(2, "Level");
-    put_label(3, "Exp");
-    put_label(4, "Gold");
-    put_label(5, "Draughts");
-
-    textcolor(COLOR_WHITE);
-    put_hp(1);
-    view_num(VAL_X, 2, hero.level);
-    view_num(VAL_X, 3, hero.xp);
-    view_num(VAL_X, 4, gold);
-    view_num(VAL_X, 5, potions);
-
-    /* What you are actually carrying, which the shop screen otherwise
-       keeps to itself. */
-    textcolor(COLOR_CYAN);
-    cclearxy(PANEL_X, 7, PANEL_W);
-    cputsxy(PANEL_X, 7, weapon_names[weapon_lv]);
-    cclearxy(PANEL_X, 8, PANEL_W);
-    cputsxy(PANEL_X, 8, armour_names[armour_lv]);
-    cclearxy(PANEL_X, 9, PANEL_W);
-    if (bow_lv) {
-        cputsxy(PANEL_X, 9, bow_names[bow_lv]);
-        view_num(PANEL_X + 10, 9, arrows);
+    for (i = 0; i < party_count; ++i) {
+        put_member(i);
     }
+
+    /* The party's: its level and experience, its purse, its draughts and
+       its quiver. */
+    y = party_count << 1;
+    cclearxy(PANEL_X, y, PANEL_W);
+    textcolor(COLOR_GRAY1);
+    put_label(y, "Level");
+    cputsxy(PANEL_X + 9, y, "Exp");
+    textcolor(COLOR_WHITE);
+    put_num(PANEL_X + 6, y, party_level);
+    put_num(PANEL_X + 13, y, party_xp);
+
+    ++y;
+    cclearxy(PANEL_X, y, PANEL_W);
+    textcolor(COLOR_GRAY1);
+    put_label(y, "Gold");
+    textcolor(COLOR_WHITE);
+    put_num(PANEL_X + 6, y, gold);
+    if (party_has_bow()) {
+        textcolor(COLOR_GRAY1);
+        cputsxy(PANEL_X + 12, y, "Arr");
+        textcolor(COLOR_WHITE);
+        put_num(PANEL_X + 16, y, arrows);
+    }
+
+    ++y;
+    cclearxy(PANEL_X, y, PANEL_W);
+    textcolor(COLOR_GRAY1);
+    put_label(y, "Draughts");
+    textcolor(COLOR_WHITE);
+    put_num(VAL_X, y, potions);
 
     if (!view_fighting && view_place_fn) {
         view_place_fn();

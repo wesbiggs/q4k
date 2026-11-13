@@ -48,26 +48,67 @@
 #define GLIDE_STEPS 4
 #define GLIDE_PX    2
 
-/* Two frames a direction, alternated step by step so the feet change over.
-   Top row first, MSB leftmost, the same as a charset glyph. */
-static const unsigned char frames[4][2][8] = {
-    {   /* down: the face is the gap in the head */
-        { 0x18, 0x24, 0x18, 0x7E, 0xBD, 0x3C, 0x24, 0x64 },
-        { 0x18, 0x24, 0x18, 0x7E, 0xBD, 0x3C, 0x24, 0x26 },
+/* Two frames a direction, alternated step by step so the feet change over,
+   for each class. Top row first, MSB leftmost, the same as a charset glyph.
+   In HIGH: three classes of them do not fit in the charset's spare glyphs. */
+#pragma rodata-name (push, "HIDATA")
+static const unsigned char frames[NUM_CLASSES][4][2][8] = {
+  { /* warrior */
+    { /* down */
+      { 0x18, 0x24, 0x18, 0x7E, 0xBD, 0x3C, 0x24, 0x64 },
+      { 0x18, 0x24, 0x18, 0x7E, 0xBD, 0x3C, 0x24, 0x26 },
     },
-    {   /* up: the back of the head is solid */
-        { 0x18, 0x3C, 0x18, 0x7E, 0xBD, 0x3C, 0x24, 0x64 },
-        { 0x18, 0x3C, 0x18, 0x7E, 0xBD, 0x3C, 0x24, 0x26 },
+    { /* up */
+      { 0x18, 0x3C, 0x18, 0x7E, 0xBD, 0x3C, 0x24, 0x64 },
+      { 0x18, 0x3C, 0x18, 0x7E, 0xBD, 0x3C, 0x24, 0x26 },
     },
-    {   /* left: full stride with the arms swinging, then half */
-        { 0x18, 0x38, 0x18, 0x3C, 0x5A, 0x18, 0x24, 0x42 },
-        { 0x18, 0x38, 0x18, 0x1C, 0x3C, 0x18, 0x28, 0x24 },
+    { /* left */
+      { 0x18, 0x38, 0x18, 0x3C, 0x5A, 0x18, 0x24, 0x42 },
+      { 0x18, 0x38, 0x18, 0x1C, 0x3C, 0x18, 0x28, 0x24 },
     },
-    {   /* right: the left frames mirrored */
-        { 0x18, 0x1C, 0x18, 0x3C, 0x5A, 0x18, 0x24, 0x42 },
-        { 0x18, 0x1C, 0x18, 0x38, 0x3C, 0x18, 0x14, 0x24 },
+    { /* right */
+      { 0x18, 0x1C, 0x18, 0x3C, 0x5A, 0x18, 0x24, 0x42 },
+      { 0x18, 0x1C, 0x18, 0x38, 0x3C, 0x18, 0x14, 0x24 },
     },
+  },
+  { /* archer: a hood, and the bow */
+    { /* down */
+      { 0x18, 0x3E, 0x19, 0x7F, 0xBD, 0x3D, 0x25, 0x66 },
+      { 0x18, 0x3E, 0x19, 0x7F, 0xBD, 0x3D, 0x25, 0x26 },
+    },
+    { /* up */
+      { 0x18, 0x7C, 0x98, 0xFE, 0xBD, 0xBC, 0xA4, 0x64 },
+      { 0x18, 0x7C, 0x98, 0xFE, 0xBD, 0xBC, 0xA4, 0x66 },
+    },
+    { /* left */
+      { 0x18, 0x78, 0x98, 0xBC, 0xDA, 0x98, 0xA4, 0x42 },
+      { 0x18, 0x78, 0x98, 0x9C, 0xBC, 0x98, 0xA8, 0x64 },
+    },
+    { /* right */
+      { 0x18, 0x1E, 0x19, 0x3D, 0x5B, 0x19, 0x25, 0x42 },
+      { 0x18, 0x1E, 0x19, 0x39, 0x3D, 0x19, 0x15, 0x26 },
+    },
+  },
+  { /* wizard: a hat, a robe and a staff */
+    { /* down */
+      { 0x08, 0x3D, 0x19, 0x7F, 0xBD, 0x3D, 0x3D, 0x7F },
+      { 0x08, 0x3D, 0x19, 0x7F, 0xBD, 0x3D, 0x7D, 0x7F },
+    },
+    { /* up */
+      { 0x08, 0x3D, 0x19, 0x7F, 0xBD, 0x3D, 0x3D, 0x7F },
+      { 0x08, 0x3D, 0x19, 0x7F, 0xBD, 0x3D, 0x7D, 0x7F },
+    },
+    { /* left */
+      { 0x08, 0xBC, 0x98, 0xBC, 0xDA, 0x98, 0xBC, 0xFE },
+      { 0x08, 0xBC, 0x98, 0x9C, 0xBC, 0x98, 0xBE, 0xFE },
+    },
+    { /* right */
+      { 0x10, 0x3D, 0x19, 0x3D, 0x5B, 0x19, 0x3D, 0x7F },
+      { 0x10, 0x3D, 0x19, 0x39, 0x3D, 0x19, 0x7D, 0x7F },
+    },
+  },
 };
+#pragma rodata-name (pop)
 
 /* The shots, by SHOT_* kind, pointing each way: down, up, left, right as
    DIR_* numbers them. The front is always the heavy end: an arrow's head
@@ -110,6 +151,7 @@ static const unsigned char shot_colors[SHOT_KINDS] = {
 #pragma rodata-name (pop)
 
 static unsigned char facing, stride;
+unsigned char sprite_who;      /* whose figure it is: party[] */
 static unsigned char spr_x, spr_y;
 
 /* Wait for the raster to reach line 251, just below the last text row.
@@ -133,7 +175,7 @@ static void wait_frame(void)
 static void build(void)
 {
     static unsigned int grown[10];
-    const unsigned char *f = frames[facing][stride];
+    const unsigned char *f = frames[party[sprite_who].cls][facing][stride];
     unsigned char r;
     unsigned int  w;
 
@@ -170,21 +212,29 @@ static void place(void)
     VIC.spr2_y = spr_y;
 }
 
-/* The hero's colours, from their name: the same name always gets the same
+/* A member's colours, from their name: the same name always gets the same
    tunic, and the fourteen colours that are neither black nor white are all
    possible. Black would vanish into the outline and white into the figure.
 
    Each character is folded in with a rotate, so the order of the letters
    counts as well as which ones they are. */
-static unsigned char tunic_color(void)
+unsigned char tunic_of(const Actor *a)
 {
-    const unsigned char *c = (const unsigned char *)hero.name;
+    const unsigned char *c = (const unsigned char *)a->name;
     unsigned char h = 0;
 
     while (*c) {
         h = (unsigned char)((h << 1) | (h >> 7)) ^ *c++;
     }
     return (unsigned char)(2 + h % 14);
+}
+
+void sprite_as(unsigned char who)
+{
+    if (who != sprite_who) {
+        sprite_who = who;
+        build();
+    }
 }
 
 void sprite_init(void)
@@ -210,6 +260,7 @@ void sprite_init(void)
 
     facing = DIR_DOWN;
     stride = 0;
+    sprite_who = 0;
     build();
 }
 
@@ -225,8 +276,8 @@ void sprite_show(unsigned char col, unsigned char row)
     spr_y = ORIGIN_Y + (row << 3);
     place();
     /* Worked out afresh each time: a restored game can change the name. */
-    VIC.spr0_color = tunic_color();
-    VIC.spr1_color = hero.color;
+    VIC.spr0_color = tunic_of(&party[sprite_who]);
+    VIC.spr1_color = COLOR_WHITE;
     VIC.spr_ena   |= SPR_MASK;
 }
 

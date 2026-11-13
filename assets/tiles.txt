@@ -333,7 +333,18 @@ tile port P 0x7E enter orange
 .#.##.#.
 ..####..
 
-# $7F is free for more terrain. Terrain must stay contiguous from $60,
+# A spellbook, on the shelves of the magic shop.
+tile book j 0x7F block cyan
+........
+.######.
+.#....#.
+.#.##.#.
+.#....#.
+.######.
+.#.....#
+........
+
+# Terrain is full at $7F. It must stay contiguous from $60,
 # so the actors below sit clear of it, after the monsters in the reverse
 # half; nothing stores them in an RLE map, which could not hold them.
 #
@@ -536,3 +547,36 @@ tile ship h 0x91 actor white
 .######.
 ..####..
 ........
+
+# The party's classes, in a fight: everyone but whoever's turn it is stands
+# on the field as one of these, in their tunic's colour. In the charset's
+# reverse half, at $C8-$CA, where CHDATA3 used to begin (cfg/c64-q4k.cfg).
+tile warrior K 0xC8 actor white
+...##..#
+...##..#
+.######.
+##.##.#.
+##.##...
+...##...
+..#..#..
+.##..##.
+
+tile archer A 0xC9 actor white
+.#.##...
+#..##...
+#.####..
+#.###.#.
+#..##...
+.#.##...
+..#..#..
+.##..##.
+
+tile wizard M 0xCA actor white
+...#...#
+..###..#
+...##..#
+..####.#
+.######.
+..####.#
+.######.
+########

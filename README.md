@@ -3,10 +3,12 @@
 A grid-based RPG roguelike for the Commodore 64, in the spirit of Ultima III.
 Written in C (cc65) with assembly where it pays, run and tested under VICE.
 
-A letter comes from King Matheson. The dragon Maldrath has been burning
+Letters go out from King Matheson to strangers all over the land: meet in
+Millford, then come to the castle. The dragon Maldrath has been burning
 Keldmarch for three winters and two armies have not come back. The blade that
 can banish him was broken, and its three binding stones are sealed in three
-deep places. Take a dagger from the smith, find the king, and start asking people questions.
+deep places. Take arms from the smith, find the king, and start asking people
+questions.
 
 The plot is deliberately the oldest one there is. Everyone you meet has
 something to say about it, picked from a menu of what you can ask. An
@@ -52,23 +54,27 @@ To build it yourself instead, see [DEVELOPERS.md](DEVELOPERS.md).
 
 ## Playing
 
-The title screen sets the scene and asks your name; RETURN alone picks a
-random one, `F3` loads a saved game instead, and `F5` lets you choose the
+The title screen sets the scene and makes your party: up to three who
+answered the king's letter, each a name (RETURN alone picks a random one) and
+a class -- `1` warrior, `2` archer, `3` wizard -- and then `Y` for another or
+`N` to set out. `F3` loads a saved game instead, and `F5` lets you choose the
 world's seed (1 to 255; the same seed makes the same lands and towns). The `?`
 screen shows the seed in play. Then `WASD` or the cursor
 keys move. A joystick in port 2 does too, and its
 button is `F` in a fight (push it again, or press a key, to answer "Shoot
 which way?") and elsewhere whichever of `>` and `<` makes sense where you
-stand. The panel shows what you are carrying and wearing, alongside your
-stats and any quest items. Walk into someone to talk to them, open their
-shop, or take a seat at their inn.
+stand. On the map the party travels as one figure, its leader's. The panel
+shows each member's health (and a wizard's magic), the party's level,
+experience, gold, draughts and arrows, and any quest items; `I` shows what
+each of them carries. Walk into someone to talk to them, open their shop, or
+take a seat at their inn.
 
 | key | |
 |---|---|
 | `>` / `<` | go in at a town or dungeon, or down a stair / out of a town, or up a stair |
 | `L` | look where you stand, and take anything hidden there |
-| `I` | read your treasure maps |
-| `P` | drink a healing draught |
+| `I` | the party and what each carries; a wizard's number to prepare spells; `T` for your treasure maps |
+| `P` | the worst hurt of the party drinks a healing draught |
 | `F1` / `F3` | save / restore (each asks `Y` first) |
 | `SPACE` | guard, in a fight |
 | `?` | keys, and what you are supposed to be doing next |
@@ -78,12 +84,42 @@ shop, or take a seat at their inn.
 Treasure is hidden in the castle and in dungeon chests, and
 a square need not look like anything: stand on it and press `L`. Innkeepers
 sell a mug of ale for five marks, and with it -- when the dialogue host is
-on the line -- a hint at where to look or what to do next; a bed for twenty
-puts you back to full health.
+on the line -- a hint at where to look or what to do next; beds for twenty
+put the whole party back to full health, and the wizards' magic with it.
 
 Now and then a beaten monster drops a treasure map. It gives the land and how
 many leagues east or west and north or south of a town the treasure is buried,
 a league being one step. Walk there, press `L`, and dig. You can hold four.
+
+### The party
+
+Each of the party has their own health and arms; the gold, the draughts (one
+each to start), the arrows, the experience and the level are shared. Garrett
+the smith arms each by class: a dagger for a warrior, a hunting bow and a
+quiver for an archer, a staff for a wizard.
+
+- **Warriors** hit hardest and last longest, and only a warrior can wield
+  anything better than a short sword.
+- **Archers** are the only ones who can draw anything better than a
+  shortbow.
+- **Wizards** have the least health and wear nothing heavier than robes
+  (between travel clothes and leather), but they cast spells, for magic (MP).
+  Magic comes back slowly as you travel, fully in an inn's beds, and whenever
+  the party rises a level.
+
+Whatever is bought, or dropped by a monster, goes to whoever it would be
+better for and may use it; when that is more than one of you, you are asked
+who takes it.
+
+Every wizard knows **Spark**, a bolt of fire. The rest are learned from books
+sold at the magic shop in Keldmarch's own town (the one that is not
+Millford), each once the party has reached its level: **Heal** mends one of
+the party, **Ward** has everyone take less for the rest of the fight,
+**Sleep** keeps the foes still for two rounds, **Bolt** is lightning that
+flies far and hits hard, and **Blaze** burns every foe at once. A wizard
+prepares two spells to begin with and one more every third level, up to
+five: on the `I` screen, press their number, then the spells' numbers to
+change which.
 
 A healing draught restores a share of your full health, so it is worth a
 turn late in the game as well as early, and its price climbs to match: five
@@ -96,16 +132,26 @@ your save when a new game disk replaces it.
 ### Fighting
 
 A fight happens on a field of the ground you were crossing, a dungeon room,
-or Maldrath's lair. The monster starts somewhere in the top third of it and
-comes for you; you walk into it to strike.
+or Maldrath's lair. The whole party stands on it, near the bottom; the
+monster starts somewhere in the top third of it and comes for whichever of
+you it can reach soonest. Each of you takes a turn in order -- the one whose
+turn it is is the moving figure, marked `>` on the panel, and the rest stand
+as their class's mark -- and then the monsters move. You walk into it to
+strike.
 
 | key | |
 |---|---|
 | move | step, or strike if it is in the way |
-| `F` then a direction | shoot your bow, if you have one (one arrow a shot) |
+| `F` then a direction | shoot this one's bow, if they have one (one arrow a shot) |
+| `C` | a wizard casts a prepared spell: its number, then a direction or whom |
 | `SPACE` | stand your ground: take less from the next blow |
-| `P` | drink a healing draught |
-| walk off the side | the gap in the middle of the left or right edge is the only way to flee, and it always works if you reach it -- but not from a keeper or Maldrath |
+| `P` | give a draught to any of the party (their number) |
+| walk off the side | the gap in the middle of the left or right edge is the only way to flee, and it always works for the whole party if one of you reaches it -- but not from a keeper or Maldrath |
+
+One of the party who falls is out of the fight, and gets up again after it
+with a little health, if it is won or fled; it is lost only when all of you
+fall. A monster that comes alone has half as much health again for each of
+the party past the first, and groups come a little larger.
 
 Some things shoot back. Bandits and bone archers carry bows, the
 Drowned King throws water and Maldrath breathes fire, each whenever you are
@@ -126,8 +172,8 @@ sand wyrms and efreets in the desert, rock trolls and storm giants in the
 mountains -- one of each pair shooting arrows, fire, water or lightning, and
 each tougher on every continent the story opens after the first. And anything
 that goes armed (goblins, bandits, skeletons, ogres and their like) now and
-then leaves a blade, mail or a bow of the grades that land's shops sell; you
-take it up if it is better than yours.
+then leaves a blade, mail or a bow of the grades that land's shops sell,
+for whichever of you it would be better for.
 
 ## The world
 

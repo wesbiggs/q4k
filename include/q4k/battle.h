@@ -14,10 +14,16 @@
 
 /* What the shops sell runs from tier 1 to tier 6, each land a few tiers of
    it (gear_range() in shop.c). Dragonbane is a weapon past the last tier,
-   which nothing sells. */
-#define NUM_WEAPONS 8
-#define DRAGONBANE  (NUM_WEAPONS - 1)
-#define NUM_ARMOUR  7
+   which nothing sells, and the staff a wizard is given comes after it, so
+   that the tiers stay where they were. Which is better is by attack (or
+   defence), not by place in the list. */
+#define NUM_WEAPONS 9
+#define WPN_DAGGER  1
+#define WPN_SHORT   2   /* the best anyone but a warrior can wield */
+#define DRAGONBANE  7
+#define WPN_STAFF   8
+#define NUM_ARMOUR  8
+#define ARM_ROBES   1   /* the best a wizard can wear */
 
 extern const char *const   weapon_names[NUM_WEAPONS];
 extern const unsigned char weapon_atk[NUM_WEAPONS];
@@ -28,14 +34,50 @@ extern const unsigned char armour_slow[NUM_ARMOUR];  /* tenths of speed */
 
 /* Bows are a second slot: you carry one as well as your weapon, and F in
    a fight shoots it. Index 0 is having none. Range is in squares, and a
-   shot flies straight up, down, left or right. */
-#define NUM_BOWS 5
+   shot flies straight up, down, left or right. The hunting bow is what the
+   smith gives an archer; nobody sells it. */
+#define NUM_BOWS    6
+#define BOW_HUNTING 1
+#define BOW_SHORT   2   /* the best anyone but an archer can draw */
 
 /* bow_names has one more entry than the bows: the bowyer's ten arrows,
    which the shop lists after them. The prices are the shop's (shop.c). */
 extern const char *const   bow_names[NUM_BOWS + 1];
 extern const unsigned char bow_atk[NUM_BOWS];
 extern const unsigned char bow_range[NUM_BOWS];
+
+/* The three kinds of gear a member carries. */
+#define GEAR_WEAPON 0
+#define GEAR_ARMOUR 1
+#define GEAR_BOW    2
+
+/* Whether member `who` may carry tier `idx` of `kind`, by their class; how
+   good it is (attack or defence); and whether it would be better than what
+   they have. */
+unsigned char gear_allowed(unsigned char who, unsigned char kind,
+                           unsigned char idx);
+unsigned char gear_value(unsigned char kind, unsigned char idx);
+unsigned char gear_better(unsigned char who, unsigned char kind,
+                          unsigned char idx);
+unsigned char *gear_slot(unsigned char who, unsigned char kind);
+/* Whether anyone in the party has a bow, for the arrows. */
+unsigned char party_has_bow(void);
+
+/* The spells a wizard can learn, from books bought at the magic shop. Each
+   costs magic (MP) to cast, and only the ones prepared can be: a wizard has
+   spell_slots() of those, more as the party rises. */
+#define SP_SPARK   0    /* a bolt of fire at one foe         */
+#define SP_HEAL    1    /* mend one of the party             */
+#define SP_WARD    2    /* everyone takes less, for the fight */
+#define SP_SLEEP   3    /* the foes lose their next turns    */
+#define SP_BOLT    4    /* lightning at one foe, far and hard */
+#define SP_BLAZE   5    /* fire on every foe                 */
+#define NUM_SPELLS 6
+extern const char *const   spell_names[NUM_SPELLS];
+extern const unsigned char spell_cost[NUM_SPELLS];
+unsigned char spell_slots(void);
+/* How many spells member `who` has prepared. */
+unsigned char spells_ready(unsigned char who);
 
 #define BATTLE_WON   0
 #define BATTLE_FLED  1
@@ -93,20 +135,21 @@ unsigned char battle_wander(void);
 unsigned char battle_boss(unsigned char dungeon);
 unsigned char battle_dragon(void);
 
-/* What one draught restores.
+/* What one draught restores to member `who`.
  *
- * A share of your full health, not a fixed number. Twelve points was most of
+ * A share of their full health, not a fixed number. Twelve points was most of
  * a health bar at level one and nothing at level ten -- Maldrath hits for
  * about that much through plate, so drinking cost you a turn to stand still.
  * Damage scales with the game; the cure has to as well. */
-unsigned char potion_heal(void);
+unsigned char potion_heal(unsigned char who);
 
-/* Drink one if there is one and it would do any good. Returns how much it
-   healed, or zero if nothing happened. Shared so the in-fight and
-   on-the-map versions cannot drift apart. */
-unsigned char drink_potion(void);
+/* Member `who` drinks one, if the party has one and it would do them any
+   good. Returns how much it healed, or zero if nothing happened. Shared so
+   the in-fight and on-the-map versions cannot drift apart. */
+unsigned char drink_potion(unsigned char who);
 
-void          heal_full(void);
+/* The living member who is worst hurt, by what they lack; 0xFF if nobody. */
+unsigned char most_hurt(void);
 
 /* Where the randomness comes from.
  *

@@ -85,11 +85,10 @@ extern unsigned char local[LOCAL_STRIDE * LOCAL_ROWS];
 extern unsigned char local_w, local_h;   /* the current place's size */
 
 extern unsigned int  game_turn;
+/* The party's, shared: any of them can spend or drink them. Each member's
+   arms are their own (actor.h). */
 extern unsigned int  gold;
 extern unsigned char potions;
-extern unsigned char weapon_lv;
-extern unsigned char armour_lv;
-extern unsigned char bow_lv;      /* 0: none */
 extern unsigned char quest_stage;
 /* Rolled once per game (never 0, which means "not rolled yet") and saved;
    the dialogue host draws this run's secrets from it. Non-static and
@@ -112,8 +111,9 @@ extern unsigned char looted[LOOTED_BYTES];
 #define TM_SIZE  (6 * MAPS)
 extern unsigned char tmap[TM_SIZE];
 
-/* What the bow shoots: one a shot, found after fights and sold ten at a time
-   by the bowyer, who throws twelve in with a bow. */
+/* What the bows shoot, from the party's one quiver: one a shot, found after
+   fights and sold ten at a time by the bowyer, who throws twelve in with a
+   first bow (and the smith with an archer's hunting bow). */
 extern unsigned char arrows;
 #define ARROW_PACK   10
 #define ARROW_PRICE  12
