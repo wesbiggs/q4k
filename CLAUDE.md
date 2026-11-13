@@ -340,6 +340,14 @@ The tests never touch `$DC00`, so a stick-only path has no golden.
 the GitHub Actions workflow (`.github/workflows/test.yml`, which runs on every
 push to any branch) run it, and watch that result instead.
 
+**A cloud session can run single tests itself.** `sudo tools/cloud-setup.sh`
+first: with a GitHub token it installs CI's headless VICE 3.10; without one,
+Ubuntu's VICE 3.7.1 with the ROMs taken from VICE 3.10's source tarball and an
+`x64sc` wrapper that runs it on Xvfb (DEVELOPERS.md has the details). Then
+`tools/screendump.py ... | diff -u tests/golden/NAME.txt -` checks one screen
+in seconds instead of a CI round. On 3.7.1, CI's result is still the one that
+counts.
+
 Call `probe_stage(n)` at points worth asserting on, then
 `make check` / `make test`. Goldens live in `tests/golden/<prog>.txt` and cover
 the whole 40x25 screen, so any layout change shows up as a diff. Re-bless

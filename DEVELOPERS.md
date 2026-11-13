@@ -14,10 +14,35 @@ That is the whole toolchain: `cc65`/`ca65`/`ld65`/`ar65` build, `x64sc` runs,
 `c1541` and `petcat` handle disk images.
 
 On Linux -- a Claude Code cloud session, or anything else on Ubuntu 24.04 --
-[tools/cloud-setup.sh](tools/cloud-setup.sh) installs the same: cc65 from
-the distribution, and a headless VICE 3.10 either downloaded from the
-`toolchain-vice3.10` release (given a token that can read this repo) or built
-from source. The `toolchain` workflow builds and publishes that release.
+run `sudo tools/cloud-setup.sh` (or paste it into the environment's setup
+script). It installs cc65 from the distribution, and VICE one of three ways:
+
+1. **With a GitHub token** that can read this repo (`Q4K_TOOLCHAIN_TOKEN`,
+   `GH_TOKEN` or `GITHUB_TOKEN`): the headless VICE 3.10 from the
+   `toolchain-vice3.10` release, into `/opt/vice`. This is exactly what CI
+   runs. The `toolchain` workflow builds and publishes that release.
+2. **Without one:** Ubuntu's `vice` package (3.7.1) and the ROMs from VICE's
+   own source. The package leaves out the C64 and drive ROMs as non-free, so
+   the script takes `data/C64/*.bin` and `data/DRIVES/*.bin` from the VICE
+   3.10 release tarball on SourceForge (the same tarball CI builds from),
+   checks the KERNAL, BASIC, character and 1541 ROMs against their SHA-256s,
+   and puts them in `/usr/share/vice/C64` and `/usr/share/vice/DRIVES`, where
+   the package's `x64sc -default` looks. If SourceForge is blocked, it takes
+   those four from VICE's GitHub mirror (`raw.githubusercontent.com`,
+   `VICE-Team/svn-mirror`) instead: the same bytes. The package's `x64sc` is
+   the GTK build and needs a display, so `/usr/local/bin/x64sc` becomes a
+   wrapper that starts `Xvfb :99` when `$DISPLAY` is unset; `screendump.py`
+   and `make check` then work unchanged, and `mkfont.py` finds the character
+   ROM in `/usr/share/vice/C64`. The network needs
+   `sourceforge.net` and its download mirrors (or `raw.githubusercontent.com`)
+   besides the Ubuntu archive. The screen tests checked by hand (`hello`,
+   `q4k`, and `q4k` offline from its disk) match their goldens on 3.7.1, but
+   CI's 3.10 is the reference: if the two ever disagree, CI is right.
+3. **`Q4K_FROM_SOURCE=1`:** builds the headless 3.10 from the tarball
+   (a few minutes); the `toolchain` workflow uses this.
+
+The `toolchain` workflow runs whenever the script changes, and checks path 2
+on a clean runner as well as building path 1's release.
 
 ## Make targets
 
