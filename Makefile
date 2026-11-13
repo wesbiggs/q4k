@@ -269,6 +269,23 @@ $(DIST)/%.prg: $(BUILD)/%.o $(LIB) $(wildcard cfg/*.cfg)
 	    -Wl -Ln,$(BUILD)/$*.lbl -o $@ $< $(LIB)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
+# The arena plays itself (src/arena.c): battle.c again, with the fight's
+# autoplayer compiled in (FIGHT_BOT), linked ahead of the library so that its
+# fight is the one the arena gets. Nothing else links it. After battle.o, never
+# beside it: cl65 writes src/lib/battle.s on the way to either, and two at
+# once tread on it.
+$(BUILD)/lib/battle_bot.o: OPT := -Or
+$(BUILD)/lib/battle_bot.o: src/lib/battle.c | $(BUILD)/lib/battle.o
+	@mkdir -p $(dir $@)
+	$(CL65) $(CFLAGS) -DFIGHT_BOT --code-name FIGHTCODE --rodata-name FIGHTDATA \
+	    $(DEPFLAGS) -c -o $@ $<
+
+$(DIST)/arena.prg: $(BUILD)/arena.o $(BUILD)/lib/battle_bot.o $(LIB) $(wildcard cfg/*.cfg)
+	@mkdir -p $(DIST)
+	$(CL65) $(LDFLAGS) -C cfg/c64-flat.cfg -m $(BUILD)/arena.map \
+	    -Wl -Ln,$(BUILD)/arena.lbl -o $@ $< $(BUILD)/lib/battle_bot.o $(LIB)
+	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
+
 # The game. The engines come out of the same link, as files beside the PRG,
 # and the scenes' music is cut out of it: tools/mkengines.py, which also
 # checks that no engine reaches into another. The disk gets them all (d64,

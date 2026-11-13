@@ -103,7 +103,10 @@ const Monster natives[BIOMES * 2] = {
    mail at about level 4, the Drowned King for the War axe and Platemail at
    about 6, the Pit Warden for the Runeblade and Runed plate at about 8.
    Played out in the arena (src/arena.c), each took two or three draughts,
-   drinking whenever one more round could have killed. */
+   drinking whenever one more round could have killed. Against a party they
+   are made a match by LONE_HP, LONE_ATK and their turns between the party's
+   (fight()); tools/balance.py has the arena fight them out with its
+   autoplayer and counts the draughts. */
 const Monster keepers[NUM_DUNGEONS] = {
     { "The Gaoler",       45,  8, 5,  60,  80, T_MONSTER, TC_MONSTER, 10, 1 },
     { "The Drowned King", 85, 15, 6,  90, 120, T_MONSTER, TC_MONSTER, 10, 1,
@@ -126,6 +129,18 @@ static const unsigned int level_at[] = {
 #define MAX_LEVEL (sizeof(level_at) / sizeof(level_at[0]))
 
 #define NONE 0xFF
+
+/* What a class adds, found by having the arena fight it out
+   (tools/balance.py): an archer's arrows hit harder as the party rises, and
+   a wizard's spells grow with it, or three of either could not carry a
+   keeper the way three warriors can. */
+#define ARCHER_EYE  (3 + (party_level >> 1))
+#define LONE_HP     3
+#define LONE_ATK    2
+#define WARD        4
+/* A wizard can wear nothing heavier than robes, so their own wards stand in
+   for armour, more as the party rises. */
+#define WIZ_GUARD   ((party_level << 1) / 3)
 
 static char msg[SCR_W + 1];    /* PETSCII, for the message log */
 
@@ -216,12 +231,30 @@ static const Monster *foe;
 static unsigned char mem_x[MAX_PARTY], mem_y[MAX_PARTY], guard[MAX_PARTY];
 #pragma bss-name (pop)
 static unsigned char act, ward, sleep;
+/* The monsters' speed against the party's (fight()), and whether one came
+   alone (their_turn()). */
+static unsigned char rel, lone, lone_bank;
+/* ...and how much harder one that came alone hits, for a party: LONE_ATK for
+   each of them past the first. */
+static unsigned char fury;
+
+#ifdef FIGHT_BOT
+/* The arena's autoplayer (below): on, and what it counted. */
+unsigned char bot_on;
+unsigned int  bot_rounds, bot_falls;
+#endif
 
 /* The group: where each one stands, the health it has left (0 once it has
    fallen) and its banked moves. */
 static unsigned char foes, alive, cur;
 static unsigned char foe_x[MAX_FOES], foe_y[MAX_FOES];
-static unsigned char foe_hp[MAX_FOES], foe_pace[MAX_FOES];
+static unsigned char foe_pace[MAX_FOES];
+/* Health is more than a byte holds: a keeper or Maldrath met by a party has
+   more for each of them (fight()). Set up afresh in every fight, so it can go
+   where nothing is cleared. */
+#pragma bss-name (push, "BSS2")
+static unsigned int  foe_hp[MAX_FOES];
+#pragma bss-name (pop)
 
 /* Is (x,y) part of the monster whose turn it is, at (mx,my)? Unsigned, so
    a square above or to the left of it wraps round to a large number and
@@ -342,7 +375,7 @@ static void show_foe(void)
 /* The exchange of blows. Each returns the damage done and says so;
    strike()'s line begins with `how`, "Alaric strikes for " or a shot's,
    built in msg. */
-static unsigned char strike(unsigned char m_hp, unsigned char atk)
+static unsigned char strike(unsigned int m_hp, unsigned char atk)
 {
     unsigned char hit;
 
@@ -352,7 +385,7 @@ static unsigned char strike(unsigned char m_hp, unsigned char atk)
     cat_num(hit);
     strcat(msg, ".");
     view_message(msg);
-    return hit >= m_hp ? m_hp : hit;
+    return hit >= m_hp ? (unsigned char)m_hp : hit;
 }
 
 /* msg = the active member's name and `rest`. */
@@ -369,7 +402,8 @@ static unsigned char bitten(unsigned char who, unsigned char atk)
     Actor *a = &party[who];
     unsigned char hit, def;
 
-    def = armour_def[a->armour] + guard[who] + ward;
+    def = armour_def[a->armour] + guard[who] + ward
+        + (a->cls == CL_WIZARD ? WIZ_GUARD : 0);
     hit = atk + (unsigned char)(rand() % 3);
     hit = hit > def ? hit - def : 1;
 
@@ -382,6 +416,9 @@ static unsigned char bitten(unsigned char who, unsigned char atk)
         return 0;
     }
     a->hp = 0;                /* fallen: nobody with no health stands */
+#ifdef FIGHT_BOT
+    ++bot_falls;
+#endif
     paint(mem_x[who], mem_y[who]);
     if (who == act) {
         sprite_hide();
@@ -503,6 +540,11 @@ static unsigned char won(const Monster *m, unsigned char n)
 static unsigned char lost(void)
 {
     view_message("The party has fallen.");
+#ifdef FIGHT_BOT
+    if (bot_on) {
+        return BATTLE_DEAD;
+    }
+#endif
     view_message("Press a key.");
     cgetc();
     return BATTLE_DEAD;
@@ -747,9 +789,255 @@ static unsigned char key_dir(unsigned char key)
 
 /* The next key, with SHIFTed letters folded onto unshifted ones; and the
    joystick too, its button as F. */
+#ifdef FIGHT_BOT
+/* --- the arena's autoplayer ----------------------------------------------
+ *
+ * Only in the arena (src/arena.c), which links this file compiled a second
+ * time with FIGHT_BOT: it plays the party, so that a fight can be fought a
+ * few hundred times and the outcome counted, the way the keepers were once
+ * tuned by hand. It feeds next_key() the keys a careful player would press,
+ * and knows nothing the player could not see. Nothing of it is in the game.
+ *
+ * Each turn: a draught for whoever is worst hurt, if they are badly hurt; a
+ * wizard heals, wards against something big, burns a crowd, or bolts what
+ * is in line; whoever has a bow shoots what is in line; whoever is beside
+ * it strikes; otherwise each closes in -- the ranged ones to get in line,
+ * the rest to get beside it. */
+static unsigned char bot_q[4], bot_n, bot_i;
+
+static const unsigned char dir_key[4] = { K_S, K_W, K_A, K_D };
+
+static void bot_push(unsigned char k)
+{
+    bot_q[bot_n++] = k;
+}
+
+/* Is a foe in line `dir` of the active member, within `range`, with nothing
+   solid between? (The shot flies over the party.) */
+static unsigned char bot_line(unsigned char dir, unsigned char range)
+{
+    unsigned char x = hx, y = hy, n;
+
+    for (n = 0; n < range; ++n) {
+        switch (dir) {
+            case DIR_UP:   --y; break;
+            case DIR_DOWN: ++y; break;
+            case DIR_LEFT: --x; break;
+            default:       ++x; break;
+        }
+        if (x >= LOCAL_W || y >= LOCAL_H) {
+            return 0;
+        }
+        if (foe_at(x, y) != NONE) {
+            return 1;
+        }
+        if (tile_flags[field[(unsigned int)y * LOCAL_W + x] - TILE_BASE]
+            == TF_BLOCK) {
+            return 0;
+        }
+    }
+    return 0;
+}
+
+static unsigned char bot_aim(unsigned char range)
+{
+    unsigned char d;
+
+    for (d = 0; d < 4; ++d) {
+        if (bot_line(d, range)) {
+            return d;
+        }
+    }
+    return NONE;
+}
+
+static unsigned char bot_open(unsigned char x, unsigned char y)
+{
+    return x < LOCAL_W && y < LOCAL_H
+        && !wall[(unsigned int)(y + 1) * RIM_W + x + 1]
+        && member_at(x, y) == NONE && foe_at(x, y) == NONE;
+}
+
+static unsigned char bot_near(unsigned char x, unsigned char y)
+{
+    return foe_at(x, y) != NONE;
+}
+
+static unsigned char bot_alive(void)
+{
+    unsigned char i, n = 0;
+
+    for (i = 0; i < party_count; ++i) {
+        n += party[i].hp != 0;
+    }
+    return n;
+}
+
+/* Cast spell `s` (its key) at `arg`: a direction, a member, or nothing. */
+static void bot_cast(unsigned char s, unsigned char arg, unsigned char kind)
+{
+    bot_push(K_C);
+    bot_push(0x31 + s);
+    if (kind == 1) {
+        bot_push(dir_key[arg]);
+    } else if (kind == 2 && bot_alive() > 1) {
+        bot_push(0x31 + arg);
+    }
+}
+
+static void bot_plan(void)
+{
+    Actor *a = &party[act];
+    unsigned char i, low = NONE, d, nx, ny, best = 255, dist, tx = 0, ty = 0;
+    unsigned char ranged, dx, dy, adx, ady, first, second, danger;
+
+    for (i = 0; i < party_count; ++i) {
+        if (party[i].hp && (low == NONE
+            || (unsigned int)party[i].hp * party[low].hp_max
+               < (unsigned int)party[low].hp * party[i].hp_max)) {
+            low = i;
+        }
+    }
+    /* In danger: the hardest blow it has could fell them, or they are under
+       a third of their health. */
+    i = (foe->shot > foe->atk ? foe->shot : foe->atk) + 2;
+    d = armour_def[party[low].armour] + ward
+      + (party[low].cls == CL_WIZARD ? WIZ_GUARD : 0);
+    danger = party[low].hp <= (i > d ? i - d : 1)
+          || party[low].hp * 3 < party[low].hp_max;
+
+    if (a->cls == CL_WIZARD) {
+        if ((a->ready & (1 << SP_HEAL)) && a->mp >= spell_cost[SP_HEAL]
+            && danger) {
+            bot_cast(SP_HEAL, low, 2);
+            return;
+        }
+    }
+    if (potions && danger && party[low].hp < party[low].hp_max) {
+        bot_push(K_POTION);
+        if (bot_alive() > 1) {
+            bot_push(0x31 + low);
+        }
+        return;
+    }
+    if (a->cls == CL_WIZARD) {
+        if ((a->ready & (1 << SP_WARD)) && !ward && foe->hp >= 40
+            && a->mp >= spell_cost[SP_WARD]) {
+            bot_cast(SP_WARD, 0, 0);
+            return;
+        }
+        if ((a->ready & (1 << SP_BLAZE)) && alive >= 3
+            && a->mp >= spell_cost[SP_BLAZE]) {
+            bot_cast(SP_BLAZE, 0, 0);
+            return;
+        }
+        if ((a->ready & (1 << SP_SLEEP)) && !sleep && alive >= 3
+            && a->mp >= spell_cost[SP_SLEEP]) {
+            bot_cast(SP_SLEEP, 0, 0);
+            return;
+        }
+        if ((a->ready & (1 << SP_BOLT)) && a->mp >= spell_cost[SP_BOLT]
+            && (d = bot_aim(14)) != NONE) {
+            bot_cast(SP_BOLT, d, 1);
+            return;
+        }
+        if ((a->ready & (1 << SP_SPARK)) && a->mp >= spell_cost[SP_SPARK]
+            && (d = bot_aim(8)) != NONE) {
+            bot_cast(SP_SPARK, d, 1);
+            return;
+        }
+    }
+    if (a->bow && arrows && (d = bot_aim(bow_range[a->bow])) != NONE) {
+        bot_push(K_F);
+        bot_push(dir_key[d]);
+        return;
+    }
+    for (d = 0; d < 4; ++d) {
+        nx = hx; ny = hy;
+        switch (d) {
+            case DIR_UP:   --ny; break;
+            case DIR_DOWN: ++ny; break;
+            case DIR_LEFT: --nx; break;
+            default:       ++nx; break;
+        }
+        if (foe_at(nx, ny) != NONE) {
+            bot_push(dir_key[d]);
+            return;
+        }
+    }
+
+    /* Close in on the nearest. */
+    for (i = 0; i < foes; ++i) {
+        if (!foe_hp[i]) {
+            continue;
+        }
+        nx = foe_x[i] + (hx > foe_x[i] ? (hx - foe_x[i] < size ? hx - foe_x[i]
+                                                                : size - 1) : 0);
+        ny = foe_y[i] + (hy > foe_y[i] ? (hy - foe_y[i] < size ? hy - foe_y[i]
+                                                                : size - 1) : 0);
+        dist = (nx > hx ? nx - hx : hx - nx) + (ny > hy ? ny - hy : hy - ny);
+        if (dist < best) {
+            best = dist;
+            tx = nx;
+            ty = ny;
+        }
+    }
+    ranged = (a->bow && arrows)
+          || (a->cls == CL_WIZARD && a->mp >= spell_cost[SP_SPARK]
+              && (a->ready & (1 << SP_SPARK)));
+    adx = tx > hx ? tx - hx : hx - tx;
+    ady = ty > hy ? ty - hy : hy - ty;
+    dx = tx > hx ? DIR_RIGHT : DIR_LEFT;
+    dy = ty > hy ? DIR_DOWN : DIR_UP;
+    /* The ranged line up (close the smaller gap); the rest close the
+       larger. */
+    if (ranged ? (adx && (adx <= ady || !ady)) : adx >= ady) {
+        first = dx; second = dy;
+    } else {
+        first = dy; second = dx;
+    }
+    if (!adx) { first = dy; second = dy; }
+    if (!ady) { first = dx; second = dx; }
+    for (i = 0; i < 2; ++i) {
+        d = i ? second : first;
+        nx = hx; ny = hy;
+        switch (d) {
+            case DIR_UP:   --ny; break;
+            case DIR_DOWN: ++ny; break;
+            case DIR_LEFT: --nx; break;
+            default:       ++nx; break;
+        }
+        /* The ranged keep a square between them and it. */
+        if (bot_open(nx, ny)
+            && !(ranged && (bot_near(nx, ny - 1) || bot_near(nx, ny + 1)
+                            || bot_near(nx - 1, ny) || bot_near(nx + 1, ny)))) {
+            bot_push(dir_key[d]);
+            return;
+        }
+    }
+    bot_push(K_SPACE);
+}
+
+static unsigned char bot_key(void)
+{
+    if (bot_i == bot_n) {
+        bot_i = bot_n = 0;
+        bot_plan();
+    }
+    return bot_q[bot_i++];
+}
+#endif
+
 static unsigned char next_key(void)
 {
-    unsigned char key = stick_key();
+    unsigned char key;
+
+#ifdef FIGHT_BOT
+    if (bot_on) {
+        return bot_key();
+    }
+#endif
+    key = stick_key();
 
     if (key == STICK_FIRE) {
         return K_F;
@@ -984,9 +1272,10 @@ static unsigned char cast(unsigned char *spent)
     *spent = 1;
     switch (s) {
         case SP_SPARK:
-            return loose(dir, 8, 5, SHOT_FIRE, "The spark");
+            return loose(dir, 8, 4 + party_level, SHOT_FIRE, "The spark");
         case SP_BOLT:
-            return loose(dir, 14, 13, SHOT_BOLT, "The bolt");
+            return loose(dir, 14, 8 + party_level + (party_level >> 1), SHOT_BOLT,
+                         "The bolt");
         case SP_HEAL:
             amount = 8 + 2 * party_level;
             a = &party[who];
@@ -1000,18 +1289,20 @@ static unsigned char cast(unsigned char *spent)
             view_message(msg);
             return 0;
         case SP_WARD:
-            ward = 3;
+            ward = WARD;
             view_message("A ward settles on the party.");
             return 0;
         case SP_SLEEP:
-            sleep = 2;
+            /* Two rounds: a lone one's turns come one for each of the
+               party. */
+            sleep = lone ? party_count << 1 : 2;
             view_message("A drowse falls on them.");
             return 0;
         default:                             /* SP_BLAZE */
             hurt_all = 1;
             sfx_play(SFX_BOW);
             strcpy(msg, "Fire takes them all for ");
-            return strike(255, 9);
+            return strike(0xFFFF, 4 + party_level);
     }
 }
 
@@ -1051,11 +1342,74 @@ static unsigned char wound(unsigned char t, unsigned char dmg)
     return 0;
 }
 
+/* Their turn, one after another: as many moves each as it has banked whole
+   ones. Beside one of the party it strikes; in line and in reach it shoots
+   (or breathes), and that is the rest of its turn -- a fast archer nocks one
+   arrow at a time. Asleep, they only stir. Returns 1 if that was the last of
+   the party standing.
+ *
+ * A group takes its turn once a round, when the whole party has had theirs;
+ * a monster that comes alone, a keeper or Maldrath or a lone wanderer, takes
+ * one after each of the party's, so that three of them do not get three
+ * blows to its one. */
+
+static unsigned char their_turn(void)
+{
+    unsigned char i, dir, pace;
+
+    if (sleep) {
+        --sleep;
+        view_message(sleep ? "They sleep." : "They stir.");
+        return 0;
+    }
+    for (cur = 0; cur < foes; ++cur) {
+        if (!foe_hp[cur]) {
+            continue;
+        }
+        mx = foe_x[cur];
+        my = foe_y[cur];
+        pace = foe_pace[cur] + rel;
+        for (; pace >= 10; pace -= 10) {
+            if ((i = next_to()) != NONE) {
+                /* Alone it is "it"; in a group, say which. */
+                strcpy(msg, foes > 1 ? foe->name : (const char *)"It");
+                strcat(msg, " hits ");
+                strcat(msg, party[i].name);
+                strcat(msg, " for ");
+                sfx_delay();         /* let the blow before it finish */
+                sfx_play(SFX_MELEE);
+                if (bitten(i, foe->atk + fury)) {
+                    view_draw_panel();
+                    return 1;
+                }
+            } else if ((dir = aim()) != 0xFF) {
+                sprite_shot(sx, sy, dir, flew, foe->kind);
+                sfx_delay();
+                sfx_play(SFX_BOW);
+                strcpy(msg, shot_hits[foe->kind]);
+                strcat(msg, party[victim].name);
+                strcat(msg, " for ");
+                if (bitten(victim, foe->shot + fury)) {
+                    view_draw_panel();
+                    return 1;
+                }
+                pace %= 10;
+                break;
+            } else {
+                foe_step();
+            }
+        }
+        foe_pace[cur] = pace;
+    }
+    return 0;
+}
+
 static unsigned char fight(const Monster *m, unsigned char ground,
                            unsigned char can_flee, unsigned char count)
 {
     unsigned char a, key, dir, nx, ny, dmg, spent;
-    unsigned char rel, pace, i, hp;
+    unsigned char i;
+    unsigned int  hp;
     unsigned char *edge;
     unsigned int  n;
 
@@ -1093,11 +1447,11 @@ static unsigned char fight(const Monster *m, unsigned char ground,
     party_start(a);
 
     /* One that comes alone is the tougher for every one of the party past
-       the first: half as much again each, as far as a byte goes. */
+       the first: three quarters as much again each (LONE_HP, in quarters),
+       found by having the arena fight it out (tools/balance.py). */
     hp = m->hp;
     if (count == 1) {
-        n = hp + ((unsigned int)hp * (party_count - 1) >> 1);
-        hp = n > 250 ? 250 : (unsigned char)n;
+        hp += (hp * LONE_HP * (party_count - 1)) >> 2;
     }
 
     /* Placed one at a time, each clear of the ones before it. */
@@ -1110,6 +1464,9 @@ static unsigned char fight(const Monster *m, unsigned char ground,
         foe_hp[cur] = hp;
     }
     foes = alive = cur;
+    lone = foes == 1;
+    lone_bank = 0;
+    fury = lone ? LONE_ATK * (party_count - 1) : 0;
 
     /* Speed is relative: the party's is 1.0, less what its armour costs on
        the average (armour_slow: 0.6 in plate), and whatever it loses the
@@ -1138,6 +1495,12 @@ static unsigned char fight(const Monster *m, unsigned char ground,
                           : "Walk into it to strike.");
 
     for (;;) {
+#ifdef FIGHT_BOT
+        /* A fight the bot cannot finish (shut out of reach) is called off. */
+        if (bot_on && ++bot_rounds > 300) {
+            return BATTLE_FLED;
+        }
+#endif
         /* The party's turns, one after another. */
         for (i = 0; i < party_count; ++i) {
             if (!party[i].hp) {
@@ -1145,6 +1508,11 @@ static unsigned char fight(const Monster *m, unsigned char ground,
             }
             turn_to(i);
             guard[i] = 0;
+            /* A wizard draws a little magic back each round of a fight,
+               or a long one would leave them with only a short sword. */
+            if (party[i].mp < party[i].mp_max) {
+                ++party[i].mp;
+            }
             for (;;) {
                 view_draw_panel();
                 show_foe();
@@ -1170,8 +1538,12 @@ static unsigned char fight(const Monster *m, unsigned char ground,
                             continue;                /* no turn spent */
                         }
                         --arrows;
+                        /* An archer's eye is worth more as the party
+                           rises: ARCHER_EYE on top of the bow. */
                         dmg = loose(dir, bow_range[party[act].bow],
-                                    bow_atk[party[act].bow], SHOT_ARROW,
+                                    bow_atk[party[act].bow]
+                                    + (party[act].cls == CL_ARCHER
+                                       ? ARCHER_EYE : 0), SHOT_ARROW,
                                     party[act].bow == NUM_BOWS - 1
                                         ? "The bolt" : "The arrow");
                         dir = 0xFF;                  /* shooting is not walking */
@@ -1268,56 +1640,25 @@ static unsigned char fight(const Monster *m, unsigned char ground,
                     return won(m, foes);
                 }
             }
-        }
-
-        /* Their turn, one after another: as many moves each as it has
-           banked whole ones. Beside one of the party it strikes; in line and
-           in reach it shoots (or breathes), and that is the rest of its
-           turn -- a fast archer nocks one arrow at a time. Asleep, they
-           only stir. */
-        if (sleep) {
-            --sleep;
-            view_message(sleep ? "They sleep." : "They stir.");
-            continue;
-        }
-        for (cur = 0; cur < foes; ++cur) {
-            if (!foe_hp[cur]) {
-                continue;
-            }
-            mx = foe_x[cur];
-            my = foe_y[cur];
-            pace = foe_pace[cur] + rel;
-            for (; pace >= 10; pace -= 10) {
-                if ((i = next_to()) != NONE) {
-                    /* Alone it is "it"; in a group, say which. */
-                    strcpy(msg, foes > 1 ? m->name : (const char *)"It");
-                    strcat(msg, " hits ");
-                    strcat(msg, party[i].name);
-                    strcat(msg, " for ");
-                    sfx_delay();         /* let the blow before it finish */
-                    sfx_play(SFX_MELEE);
-                    if (bitten(i, m->atk)) {
-                        view_draw_panel();
+            /* Alone, it has (n + 1) / 2 turns a round for a party of n --
+               one against one hero, two against three -- spread between
+               theirs: banked in halves of a turn, a member's worth at a
+               time. */
+            if (lone) {
+                lone_bank += party_count + 1;
+                if (lone_bank >= party_count << 1) {
+                    lone_bank -= party_count << 1;
+                    if (their_turn()) {
                         return lost();
                     }
-                } else if ((dir = aim()) != 0xFF) {
-                    sprite_shot(sx, sy, dir, flew, m->kind);
-                    sfx_delay();
-                    sfx_play(SFX_BOW);
-                    strcpy(msg, shot_hits[m->kind]);
-                    strcat(msg, party[victim].name);
-                    strcat(msg, " for ");
-                    if (bitten(victim, m->shot)) {
-                        view_draw_panel();
-                        return lost();
-                    }
-                    pace %= 10;
-                    break;
-                } else {
-                    foe_step();
                 }
             }
-            foe_pace[cur] = pace;
+        }
+
+        /* A group moves once the whole party has; one that comes alone
+           has moved after each of them already. */
+        if (!lone && their_turn()) {
+            return lost();
         }
     }
 }

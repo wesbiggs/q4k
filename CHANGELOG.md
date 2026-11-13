@@ -31,6 +31,14 @@ workflow reads the one headed with the tag's version.
 - `I` shows the party and what each carries, and `T` from there the treasure
   maps. The panel shows each member's health, and a wizard's magic.
 - Saves are a new format (`Q4K9`): an earlier save will not load.
+- The fights are balanced for a party, measured by having the arena play
+  itself hundreds of times (`tools/balance.py`). A keeper, Maldrath or any
+  monster that comes alone has more health and hits harder for each of the
+  party past the first, and moves between their turns; a mixed party now
+  spends about what one hero did on each keeper. Archers' arrows and wizards'
+  spells grow stronger with the party's level, wizards turn some of every
+  blow with their own wards and regain a point of magic each round of a
+  fight, and Ward is a little stronger. A party of one fights as before.
 
 - The offline build loads its engines from the disk: the map, the fights,
   conversations and the inns, and the shops each come in when they are wanted,
