@@ -17,10 +17,10 @@ const unsigned char class_glyph[NUM_CLASSES] = {
 };
 
 /* Health at level 1 and what each level adds, by class; a wizard's magic. */
-static const unsigned char hp_base[NUM_CLASSES] = { 22, 18, 14 };
-static const unsigned char hp_step[NUM_CLASSES] = {  7,  5,  4 };
+static const unsigned char hp_base[NUM_CLASSES] = { 22, 18, 16 };
+static const unsigned char hp_step[NUM_CLASSES] = {  7,  5,  5 };
 #define MP_BASE  6
-#define MP_STEP  2
+#define MP_STEP  3
 
 unsigned char hp_for(unsigned char cls, unsigned char level)
 {

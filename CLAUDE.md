@@ -103,8 +103,8 @@ slot holds one engine at a time, loaded from the disk.
   buffers, so it is not contiguous with BSS, and ld65 does not clear it: put
   something there with `#pragma bss-name (push, "BSS2")` only if it is always
   written before it is read. `fov_lit` (192 bytes), the fight's copy of a
-  continent's monster, `native`, and where each of the party stands in a
-  fight are there; 17 bytes of BSS2 are left.
+  continent's monster, `native`, where each of the party stands in a fight
+  and the foes' health are there; 5 bytes of BSS2 are left.
   Anything that needs the probe page longer must move the bound in both the
   cfg and `screendump.py`.
 - `$C100-$CCFF` **BSS**, then the RS-232 buffers at `$CD00-$CEFF`
@@ -348,7 +348,24 @@ In a fight each living member takes a turn, then the monsters: the flood
 fill starts from every member at once, so a monster goes for whoever it can
 reach soonest, and `aim()` hits the first member in its line. A member at 0
 health has fallen; `get_up()` stands them up on 1 after a fight won or fled.
-A lone monster gets half again its health for each member past the first.
+**The balance** comes from the arena playing itself: `make` builds
+`dist/arena.prg` with a second copy of the fight, `battle_bot.o`
+(`-DFIGHT_BOT`), whose autoplayer plays the party; `tools/balance.py` pokes it
+with a keeper or a group of wanderers, a party, its level and the arms of
+that point in the story, runs dozens of fights four VICEs at a time, and
+prints wins and losses, draughts and rounds. A lone warrior was the original
+tuning (two or three draughts a keeper, five or six for Maldrath) and still
+is; a party should be near it. What makes it so, all at the top of
+`battle.c`: a monster that comes alone gets `LONE_HP` quarters more health
+and `LONE_ATK` more attack for each member past the first (its health is
+16-bit, in BSS2, so Maldrath's 250 can grow), and takes (n + 1) / 2 turns a
+round, banked between the members' turns (`lone_bank`); an archer's arrows
+get `ARCHER_EYE`; a wizard's wards turn `WIZ_GUARD` of each blow, their
+spells grow with the level, and they get a point of magic back each round.
+Measure again (`tools/balance.py`, about two minutes a fight at 40 runs)
+after touching any of it, or a monster, or the arms. Three wizards and
+three archers come out harder than a mixed party, by design: they are
+the extremes.
 
 ## The joystick
 

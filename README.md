@@ -101,11 +101,14 @@ quiver for an archer, a staff for a wizard.
 - **Warriors** hit hardest and last longest, and only a warrior can wield
   anything better than a short sword.
 - **Archers** are the only ones who can draw anything better than a
-  shortbow.
+  shortbow, and their arrows hit harder than anyone else's, more as the party
+  rises.
 - **Wizards** have the least health and wear nothing heavier than robes
-  (between travel clothes and leather), but they cast spells, for magic (MP).
-  Magic comes back slowly as you travel, fully in an inn's beds, and whenever
-  the party rises a level.
+  (between travel clothes and leather), but their own wards turn some of
+  every blow, more as the party rises, and they cast spells for magic (MP).
+  Magic comes back slowly as you travel, a point a round in a fight, fully in
+  an inn's beds, and whenever the party rises a level. Their spells grow
+  stronger with the party's level too.
 
 Whatever is bought, or dropped by a monster, goes to whoever it would be
 better for and may use it; when that is more than one of you, you are asked
@@ -150,8 +153,11 @@ strike.
 
 One of the party who falls is out of the fight, and gets up again after it
 with a little health, if it is won or fled; it is lost only when all of you
-fall. A monster that comes alone has half as much health again for each of
-the party past the first, and groups come a little larger.
+fall. A monster that comes alone -- a keeper, Maldrath, a lone wanderer --
+is a match for a party: it has three quarters as much health again and hits
+two points harder for each of you past the first, and it moves between your
+turns, half a turn more for each of you (two turns a round against three).
+Groups come a little larger instead.
 
 Some things shoot back. Bandits and bone archers carry bows, the
 Drowned King throws water and Maldrath breathes fire, each whenever you are
