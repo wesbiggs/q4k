@@ -142,7 +142,7 @@ static void back_to_map(void)
 static void died(void)
 {
     gold /= 2;
-    heal_full();
+    party_rest();
     respawn();
     view_restore();
     view_message("You wake in Millford, lighter of purse.");
@@ -472,22 +472,27 @@ static void use_stairs(unsigned char down)
     view_message("Nothing here.");
 }
 
-/* Talk to whoever is next to you. */
-/* A draught is worth drinking before a fight as well as during one. */
+/* A draught is worth drinking before a fight as well as during one: the
+   worst hurt of the party has it. */
 static void quaff(void)
 {
+    unsigned char who = most_hurt();
+
     if (!potions) {
         view_message("You have no draughts.");
         return;
     }
-    if (!drink_potion()) {
-        view_message("You are unhurt.");
+    if (who == 0xFF || !drink_potion(who)) {
+        view_message("Nobody is hurt.");
         return;
     }
-    view_message("You drink a draught.");
+    strcpy(eng_text, party[who].name);
+    strcat(eng_text, " drinks a draught.");
+    view_message(eng_text);
     ++game_turn;
 }
 
+/* Talk to whoever is next to you. */
 static void try_talk(void)
 {
     signed char e;
@@ -511,6 +516,7 @@ void map_entry(unsigned char restored)
     unsigned char key;
     unsigned char seeded = 0;
     unsigned char told;
+    unsigned int  ticked;
     /* PETSCII throughout: hero.name and the literals are both what conio
        expects, so they concatenate straight together. */
     static char greeting[SCR_W + 1];
@@ -528,15 +534,32 @@ void map_entry(unsigned char restored)
         strcat(greeting, ".");
         view_message(greeting);
     } else {
+        /* Everyone the letter brought, by name. */
         strcpy(greeting, "Hail, ");
-        strcat(greeting, hero.name);
-        strcat(greeting, "! Press ? for help.");
-        view_message(greeting);
+        for (key = 0; key < party_count; ++key) {
+            if (key) {
+                strcat(greeting, key + 1 == party_count ? " and " : ", ");
+            }
+            strcat(greeting, party[key].name);
+        }
+        if (party_count > 1) {
+            strcat(greeting, "!");
+            view_message(greeting);
+            view_message("Press ? for help.");
+        } else {
+            strcat(greeting, "! Press ? for help.");
+            view_message(greeting);
+        }
         quest_hint();
     }
 
     told = quest_stage;
+    ticked = game_turn;
     for (;;) {
+        if (game_turn != ticked) {
+            ticked = game_turn;
+            party_tick();
+        }
         if (quest_stage != told) {
             told = quest_stage;
             quest_hint();
@@ -592,7 +615,13 @@ void map_entry(unsigned char restored)
                 break;
 
             case K_I:
-                treasure_maps();
+                /* The party and what they carry (the shop's engine), and
+                   then the treasure maps, if they asked for them. */
+                eng_a = SHOP_PARTY;
+                if (engine_call(ENG_SHOP, shop_entry)) {
+                    treasure_maps();
+                }
+                back_to_map();
                 break;
 
             case K_M:

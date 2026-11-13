@@ -9,6 +9,7 @@
 
 #include <string.h>
 
+#include <q4k/actor.h>
 #include <q4k/battle.h>
 #include <q4k/dialog.h>
 #include <q4k/engine.h>
@@ -25,6 +26,43 @@ static const char msg_praise[]   = "The king praises your valour.";
 
 /* Who the player is talking to, for quest_after_talk. */
 unsigned char talking_to;
+
+/* What the smith hands each of the party who answered the letter: a dagger
+   for a warrior, a hunting bow (and a quiver's worth) for an archer, a
+   staff for a wizard. With one of them, he says which. */
+static const char *const armed[NUM_CLASSES + 1] = {
+    "Garrett gives you a dagger.",
+    "Garrett gives you a hunting bow.",
+    "Garrett gives you a staff.",
+    "Garrett arms each of you.",
+};
+
+static const char *arm_party(void)
+{
+    unsigned char i;
+    Actor *a;
+
+    for (i = 0; i < party_count; ++i) {
+        a = &party[i];
+        switch (a->cls) {
+            case CL_WARRIOR: a->weapon = WPN_DAGGER;  break;
+            case CL_ARCHER:  a->bow    = BOW_HUNTING; arrows = ARROW_FREE; break;
+            default:         a->weapon = WPN_STAFF;   break;
+        }
+    }
+    return armed[party_count > 1 ? NUM_CLASSES : hero.cls];
+}
+
+/* Dragonbane is a warrior's blade: the first of them takes it, or, with no
+   warrior in the party, whoever leads. */
+static void bear_dragonbane(void)
+{
+    unsigned char i;
+
+    for (i = 0; i < party_count && party[i].cls != CL_WARRIOR; ++i) {
+    }
+    party[i < party_count ? i : 0].weapon = DRAGONBANE;
+}
 
 /* Hand over quest items the conversation has earned. `granted` is what the
    host has decided so far, or GRANT_OPEN when there was no host to ask --
@@ -71,8 +109,7 @@ const char *quest_after_talk(unsigned char granted)
             if (quest_stage == Q_START) {
                 if (granted == GRANT_DAGGER || granted == GRANT_OPEN) {
                     quest_stage = Q_SUMMONED;
-                    weapon_lv   = 1;
-                    return "Garrett gives you a dagger.";
+                    return arm_party();
                 }
                 break;
             }
@@ -81,7 +118,7 @@ const char *quest_after_talk(unsigned char granted)
                 && (granted == GRANT_FORGE || granted == GRANT_OPEN)) {
                 quest_stage = Q_FORGED;
                 give(IT_BLADE);
-                weapon_lv = DRAGONBANE;
+                bear_dragonbane();
                 return "Garrett reforges Dragonbane.";
             }
             break;

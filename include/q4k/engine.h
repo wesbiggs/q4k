@@ -67,9 +67,12 @@ unsigned char talk_entry(void);
 
 /* The shop: eng_a is the kind (SHOP_*), or SHOP_GEAR to take up what a
    beaten monster dropped. The same engine holds the screens the map opens
-   that are not a place: the help screen (SHOP_HELP). */
-#define SHOP_GEAR 0xFF
-#define SHOP_HELP 0xFE
+   that are not a place: the help screen (SHOP_HELP) and the party's
+   (SHOP_PARTY, which returns 1 if the player asked for the treasure maps,
+   which the map's engine shows). */
+#define SHOP_GEAR  0xFF
+#define SHOP_HELP  0xFE
+#define SHOP_PARTY 0xFD
 unsigned char shop_entry(void);
 
 #endif /* Q4K_ENGINE_H */

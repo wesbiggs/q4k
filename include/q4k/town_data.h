@@ -17,6 +17,7 @@
 #define SHOP_ARMOUR 1
 #define SHOP_ITEM   2
 #define SHOP_BOW    3
+#define SHOP_MAGIC  4
 
 typedef struct {
     unsigned char x, y;

@@ -1,24 +1,96 @@
 #include <string.h>
 
 #include <q4k/actor.h>
+#include <q4k/battle.h>
+#include <q4k/game.h>
 #include <q4k/tiles.h>
 
 Actor         party[MAX_PARTY];
 unsigned char party_count;
+unsigned char party_turn = 0xFF;
+unsigned char party_level;
+unsigned int  party_xp;
+
+const char *const class_names[NUM_CLASSES] = { "Warrior", "Archer", "Wizard" };
+const unsigned char class_glyph[NUM_CLASSES] = {
+    T_WARRIOR, T_ARCHER, T_WIZARD,
+};
+
+/* Health at level 1 and what each level adds, by class; a wizard's magic. */
+static const unsigned char hp_base[NUM_CLASSES] = { 22, 18, 14 };
+static const unsigned char hp_step[NUM_CLASSES] = {  7,  5,  4 };
+#define MP_BASE  6
+#define MP_STEP  2
+
+unsigned char hp_for(unsigned char cls, unsigned char level)
+{
+    return hp_base[cls] + hp_step[cls] * (level - 1);
+}
+
+void party_make(unsigned char i, const char *name, unsigned char cls)
+{
+    Actor *a = &party[i];
+
+    memset(a, 0, sizeof(*a));
+    strcpy(a->name, name);
+    a->cls    = cls;
+    a->x      = hero.x;
+    a->y      = hero.y;
+    if (cls == CL_WIZARD) {
+        a->known = a->ready = 1 << SP_SPARK;   /* what the letter taught */
+    }
+    if (party_count <= i) {
+        party_count = i + 1;
+    }
+    party_grow();
+}
 
 void party_init(void)
 {
     memset(party, 0, sizeof(party));
-    party_count = 1;
+    party_count = 0;
+    party_level = 1;
+    party_xp    = 0;
+    party_make(0, "Alaric", CL_WARRIOR);
+}
 
-    strcpy(hero.name, "Alaric");
-    hero.x      = 0;
-    hero.y      = 0;
-    hero.glyph  = T_PLAYER;
-    hero.color  = 1;           /* white */
-    hero.hp     = 20;
-    hero.hp_max = 20;
-    hero.level  = 1;
-    hero.xp     = 0;
-    hero.alive  = 1;
+void party_grow(void)
+{
+    unsigned char i;
+    Actor *a;
+
+    for (i = 0; i < party_count; ++i) {
+        a = &party[i];
+        a->hp_max = hp_for(a->cls, party_level);
+        a->mp_max = a->cls == CL_WIZARD ? MP_BASE + MP_STEP * (party_level - 1)
+                                        : 0;
+    }
+    party_rest();
+}
+
+void party_rest(void)
+{
+    unsigned char i;
+    Actor *a;
+
+    for (i = 0; i < party_count; ++i) {
+        a = &party[i];
+        a->hp    = a->hp_max;
+        a->mp    = a->mp_max;
+    }
+}
+
+/* A point of magic every eight turns. */
+void party_tick(void)
+{
+    unsigned char i;
+
+    if (game_turn & 7) {
+        return;
+    }
+    for (i = 0; i < party_count; ++i) {
+        if (party[i].mp < party[i].mp_max) {
+            ++party[i].mp;
+        }
+    }
 }

@@ -36,6 +36,7 @@ static unsigned char fight_dragon(void);
 #define K_D          0x44
 #define K_POTION     0x50
 #define K_F          0x46
+#define K_C          0x43
 #define K_M          0x4D
 #define K_X          0x58
 #define K_SPACE      0x20
@@ -47,10 +48,10 @@ static unsigned char fight_dragon(void);
 
 /* How each SHOT_* kind lands, by the same index. */
 static const char *const shot_hits[] = {
-    "An arrow hits you for ",
-    "Flame sears you for ",
-    "A wave hits you for ",
-    "Lightning strikes you for ",
+    "An arrow hits ",
+    "Flame sears ",
+    "A wave hits ",
+    "Lightning strikes ",
 };
 
 /* Kept in order of `from`: a fight picks evenly from the ones you have
@@ -118,11 +119,13 @@ const Monster maldrath = {
     18, 4, SHOT_FIRE
 };
 
-/* Experience needed for each level, from level 1. */
+/* Experience the party needs for each level, from level 1. */
 static const unsigned int level_at[] = {
     0, 20, 50, 100, 200, 400, 700, 1200, 1800, 2500,
 };
 #define MAX_LEVEL (sizeof(level_at) / sizeof(level_at[0]))
+
+#define NONE 0xFF
 
 static char msg[SCR_W + 1];    /* PETSCII, for the message log */
 
@@ -131,12 +134,14 @@ static void cat_num(unsigned int value)
     utoa(value, msg + strlen(msg), 10);
 }
 
-/* For `n` of them: a group pays for every one it had. */
+/* For `n` of them: a group pays for every one it had. The experience is the
+   party's, and so is a level: everyone grows with it, mended, and a wizard's
+   magic comes back. */
 static void award(const Monster *m, unsigned char n)
 {
     unsigned int xp = m->xp * n, pay = m->gold * n;
 
-    hero.xp += xp;
+    party_xp += xp;
     gold += pay;
 
     strcpy(msg, "You gain ");
@@ -146,129 +151,27 @@ static void award(const Monster *m, unsigned char n)
     strcat(msg, " marks.");
     view_message(msg);
 
-    while (hero.level < MAX_LEVEL && hero.xp >= level_at[hero.level]) {
-        ++hero.level;
-        hero.hp_max += 6;
-        hero.hp = hero.hp_max;
+    while (party_level < MAX_LEVEL && party_xp >= level_at[party_level]) {
+        ++party_level;
+        party_grow();
 
-        strcpy(msg, "You reach level ");
-        cat_num(hero.level);
+        strcpy(msg, "The party reaches level ");
+        cat_num(party_level);
         strcat(msg, ".");
         view_message(msg);
     }
 }
 
-/* The exchange of blows. Each returns the damage done and says so;
-   strike()'s line begins with `how`, "You strike for " or a shot's. */
-static unsigned char strike(const Monster *m, unsigned char m_hp,
-                            unsigned char atk, const char *how)
-{
-    unsigned char hit;
-
-    hit = atk + hero.level + (unsigned char)(rand() % 3);
-    hit = (hit > m->def) ? hit - m->def : 1;
-
-    if (how != msg) {
-        strcpy(msg, how);            /* a shot builds its own in msg */
-    }
-    cat_num(hit);
-    strcat(msg, ".");
-    view_message(msg);
-    return hit >= m_hp ? m_hp : hit;
-}
-
-/* Returns 1 if that was the end of you. `how` begins the line, as it does
-   for strike(): "It hits you for ", a group's "A rat hits you for " built
-   in msg, or a shot's. */
-static unsigned char bitten(unsigned char atk, unsigned char guard,
-                            const char *how)
-{
-    unsigned char hit;
-
-    hit = atk + (unsigned char)(rand() % 3);
-    hit = hit > (armour_def[armour_lv] + guard)
-          ? hit - armour_def[armour_lv] - guard : 1;
-
-    if (how != msg) {
-        strcpy(msg, how);
-    }
-    cat_num(hit);
-    strcat(msg, ".");
-    view_message(msg);
-
-    if (hit >= hero.hp) {
-        hero.hp = 0;
-        return 1;
-    }
-    hero.hp -= hit;
-    return 0;
-}
-
-/* P during a fight. Returns 0 if nothing happened, so no turn is spent. */
-static unsigned char quaff(void)
-{
-    unsigned char healed;
-
-    if (!potions) {
-        view_message("You have no draughts.");
-        return 0;
-    }
-    healed = drink_potion();
-    if (!healed) {
-        view_message("You are unhurt.");
-        return 0;
-    }
-    strcpy(msg, "You drink. ");
-    cat_num(healed);
-    strcat(msg, " restored.");
-    view_message(msg);
-    return 1;
-}
-
-/* The log carries on into the map afterwards, so a win needs no pause --
-   and a "Press a key." would stay in it. Dying moves you, so it does. */
-static unsigned char won(const Monster *m, unsigned char n)
-{
-    unsigned char got;
-
-    view_message("It falls.");
-    award(m, n);
-    if (bow_lv && arrows < ARROW_MAX && !(rand() & 3)) {
-        got = 1 + (unsigned char)(rand() % 4);
-        arrows += got;
-        if (arrows > ARROW_MAX) {
-            arrows = ARROW_MAX;
-        }
-        strcpy(msg, "You gather ");
-        cat_num(got);
-        strcat(msg, " arrows.");
-        view_message(msg);
-    }
-    /* The map shares these out once it is back (fightcall.c): a treasure
-       map, and what goes armed -- goblins, bandits, skeletons and ogres,
-       and whatever of the continents' own is drawn as one -- may drop arms. */
-    fight_spoils = SPOIL_WON;
-    if (m->glyph == T_GOBLIN
-        || (unsigned char)(m->glyph - T_BANDIT) <= T_OGRE - T_BANDIT) {
-        fight_spoils |= SPOIL_ARMED;
-    }
-    return BATTLE_WON;
-}
-
-static unsigned char lost(void)
-{
-    view_message("You fall.");
-    view_message("Press a key.");
-    cgetc();
-    return BATTLE_DEAD;
-}
-
 /* --- the field ----------------------------------------------------------
  *
  * Every fight happens on a map: the ground you were crossing, a dungeon
- * room, or Maldrath's lair. You start near the bottom, it starts near the
- * top, and each turn you move and then it moves towards you. Walking into
+ * room, or Maldrath's lair. The party starts near the bottom, it starts near
+ * the top, and each round every one of the party takes a turn, in order, and
+ * then it moves towards whichever of them it can reach soonest. Walking into
  * it is how you hit it; it hits you by walking into you.
+ *
+ * Whoever's turn it is is the sprite (sprite_as()); the rest of the party
+ * stand on the field as their class's glyph, in their tunic's colour.
  *
  * A monster can be bigger than one square -- Maldrath is two by two. Its
  * position is its top-left square, and everything below asks "is this
@@ -303,6 +206,17 @@ static unsigned char hx, hy, mx, my;
 static unsigned char size;      /* the monster's, squares a side */
 static const Monster *foe;
 
+/* The party on the field: where each stands, and how hard each is braced
+   (SPACE) until their next turn. `act` is whose turn it is, standing at
+   (hx,hy); `ward` is the Ward spell's, for everyone, for the fight; `sleep`
+   how many rounds the foes have yet to sleep. */
+/* Set up afresh in every fight, so they can go where nothing is cleared
+   (BSS2). */
+#pragma bss-name (push, "BSS2")
+static unsigned char mem_x[MAX_PARTY], mem_y[MAX_PARTY], guard[MAX_PARTY];
+#pragma bss-name (pop)
+static unsigned char act, ward, sleep;
+
 /* The group: where each one stands, the health it has left (0 once it has
    fallen) and its banked moves. */
 static unsigned char foes, alive, cur;
@@ -317,7 +231,7 @@ static unsigned char on_foe(unsigned char x, unsigned char y)
     return (unsigned char)(x - mx) < size && (unsigned char)(y - my) < size;
 }
 
-/* Which of the group has any part of it on (x,y), or 0xFF. */
+/* Which of the group has any part of it on (x,y), or NONE. */
 static unsigned char foe_at(unsigned char x, unsigned char y)
 {
     unsigned char i;
@@ -328,21 +242,38 @@ static unsigned char foe_at(unsigned char x, unsigned char y)
             return i;
         }
     }
-    return 0xFF;
+    return NONE;
 }
 
-/* Draw the ground at (x,y), or the part of a monster standing there. */
+/* Which of the party still standing is on (x,y), or NONE. */
+static unsigned char member_at(unsigned char x, unsigned char y)
+{
+    unsigned char i;
+
+    for (i = 0; i < party_count; ++i) {
+        if (party[i].hp && mem_x[i] == x && mem_y[i] == y) {
+            return i;
+        }
+    }
+    return NONE;
+}
+
+/* Draw the ground at (x,y), or the part of a monster or the one of the
+   party standing there -- bar whoever's turn it is, who is the sprite. */
 static void paint(unsigned char x, unsigned char y)
 {
     unsigned int  at = (unsigned int)y * SCR_W + x;
     unsigned char code = field[(unsigned int)y * LOCAL_W + x];
     unsigned char i = foe_at(x, y);
 
-    if (i != 0xFF) {
+    if (i != NONE) {
         SCREEN_RAM[at] = foe->glyph
                        + (unsigned char)((y - foe_y[i]) * size)
                        + (unsigned char)(x - foe_x[i]);
         COLOR_RAM[at]  = foe->color;
+    } else if ((i = member_at(x, y)) != NONE && i != act) {
+        SCREEN_RAM[at] = class_glyph[party[i].cls];
+        COLOR_RAM[at]  = tunic_of(&party[i]);
     } else {
         SCREEN_RAM[at] = code;
         COLOR_RAM[at]  = tile_colors[code - TILE_BASE];
@@ -408,12 +339,193 @@ static void show_foe(void)
     }
 }
 
-/* Is the hero beside the monster whose turn it is -- up, down, left or
-   right of any part of it? */
+/* The exchange of blows. Each returns the damage done and says so;
+   strike()'s line begins with `how`, "Alaric strikes for " or a shot's,
+   built in msg. */
+static unsigned char strike(unsigned char m_hp, unsigned char atk)
+{
+    unsigned char hit;
+
+    hit = atk + party_level + (unsigned char)(rand() % 3);
+    hit = (hit > foe->def) ? hit - foe->def : 1;
+
+    cat_num(hit);
+    strcat(msg, ".");
+    view_message(msg);
+    return hit >= m_hp ? m_hp : hit;
+}
+
+/* msg = the active member's name and `rest`. */
+static void say_who(unsigned char who, const char *rest)
+{
+    strcpy(msg, party[who].name);
+    strcat(msg, rest);
+}
+
+/* Member `who` takes a blow of `atk`; msg already holds the line up to the
+   number. Returns 1 if that was the last of the party standing. */
+static unsigned char bitten(unsigned char who, unsigned char atk)
+{
+    Actor *a = &party[who];
+    unsigned char hit, def;
+
+    def = armour_def[a->armour] + guard[who] + ward;
+    hit = atk + (unsigned char)(rand() % 3);
+    hit = hit > def ? hit - def : 1;
+
+    cat_num(hit);
+    strcat(msg, ".");
+    view_message(msg);
+
+    if (hit < a->hp) {
+        a->hp -= hit;
+        return 0;
+    }
+    a->hp = 0;                /* fallen: nobody with no health stands */
+    paint(mem_x[who], mem_y[who]);
+    if (who == act) {
+        sprite_hide();
+    }
+    say_who(who, " falls!");
+    view_message(msg);
+    for (hit = 0; hit < party_count; ++hit) {
+        if (party[hit].hp) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* Who, of the party still standing? Asked only when there is a choice:
+   returns NONE if the player thought better of it. */
+static unsigned char next_key(void);
+
+static unsigned char pick_member(const char *question)
+{
+    unsigned char i, n = 0, one = 0;
+
+    for (i = 0; i < party_count; ++i) {
+        if (party[i].hp) {
+            ++n;
+            one = i;
+        }
+    }
+    if (n == 1) {
+        return one;
+    }
+    strcpy(msg, question);
+    strcat(msg, " (1-");
+    cat_num(party_count);
+    strcat(msg, ")");
+    view_message(msg);
+    i = next_key() - 0x31;
+    if (i < party_count && party[i].hp) {
+        return i;
+    }
+    view_message("Never mind.");
+    return NONE;
+}
+
+/* P during a fight: whoever's turn it is gives a draught to one of the
+   party, themselves or another. Returns 0 if nothing happened, so no turn
+   is spent. */
+static unsigned char quaff(void)
+{
+    unsigned char healed, who;
+
+    if (!potions) {
+        view_message("You have no draughts.");
+        return 0;
+    }
+    who = pick_member("Who drinks?");
+    if (who == NONE) {
+        return 0;
+    }
+    healed = drink_potion(who);
+    if (!healed) {
+        say_who(who, " is unhurt.");
+        view_message(msg);
+        return 0;
+    }
+    say_who(who, " drinks. ");
+    cat_num(healed);
+    strcat(msg, " restored.");
+    view_message(msg);
+    return 1;
+}
+
+/* Whoever fell gets up again when it is over, won or fled, with a little
+   health: only if every one of the party falls is the fight lost. */
+static void get_up(void)
+{
+    unsigned char i;
+
+    for (i = 0; i < party_count; ++i) {
+        if (!party[i].hp) {
+            party[i].hp = 1;
+            say_who(i, " gets up again.");
+            view_message(msg);
+        }
+    }
+}
+
+/* The log carries on into the map afterwards, so a win needs no pause --
+   and a "Press a key." would stay in it. Dying moves you, so it does. */
+static unsigned char won(const Monster *m, unsigned char n)
+{
+    unsigned char got;
+
+    view_message("It falls.");
+    award(m, n);
+    get_up();
+    if (party_has_bow() && arrows < ARROW_MAX && !(rand() & 3)) {
+        got = 1 + (unsigned char)(rand() % 4);
+        arrows += got;
+        if (arrows > ARROW_MAX) {
+            arrows = ARROW_MAX;
+        }
+        strcpy(msg, "You gather ");
+        cat_num(got);
+        strcat(msg, " arrows.");
+        view_message(msg);
+    }
+    /* The map shares these out once it is back (fightcall.c): a treasure
+       map, and what goes armed -- goblins, bandits, skeletons and ogres,
+       and whatever of the continents' own is drawn as one -- may drop arms. */
+    fight_spoils = SPOIL_WON;
+    if (m->glyph == T_GOBLIN
+        || (unsigned char)(m->glyph - T_BANDIT) <= T_OGRE - T_BANDIT) {
+        fight_spoils |= SPOIL_ARMED;
+    }
+    return BATTLE_WON;
+}
+
+static unsigned char lost(void)
+{
+    view_message("The party has fallen.");
+    view_message("Press a key.");
+    cgetc();
+    return BATTLE_DEAD;
+}
+
+/* Is any of the party standing beside the monster whose turn it is -- up,
+   down, left or right of any part of it? Which, or NONE. */
 static unsigned char next_to(void)
 {
-    return on_foe(hx, hy - 1) || on_foe(hx, hy + 1)
-        || on_foe(hx - 1, hy) || on_foe(hx + 1, hy);
+    unsigned char i, x, y;
+
+    for (i = 0; i < party_count; ++i) {
+        if (!party[i].hp) {
+            continue;
+        }
+        x = mem_x[i];
+        y = mem_y[i];
+        if (on_foe(x, y - 1) || on_foe(x, y + 1)
+            || on_foe(x - 1, y) || on_foe(x + 1, y)) {
+            return i;
+        }
+    }
+    return NONE;
 }
 
 /* Start the flood from (x,y), in rim coordinates, if it is open there. */
@@ -429,18 +541,19 @@ static void seed(unsigned char x, unsigned char y)
     }
 }
 
-/* Find the monster's way to the hero, the shortest way round whatever is
+/* Find the monster's way to the party, the shortest way round whatever is
    in the way. Returns 1 if there is one, and leaves the first step of it
-   in (step_x, step_y), in rim coordinates; 0 if the hero cannot be reached
-   from where it stands.
+   in (step_x, step_y), in rim coordinates; 0 if none of the party can be
+   reached from where it stands.
  *
- * A breadth-first flood out from the hero: the square the flood reaches
- * the monster from is one step nearer than where it stands.
+ * A breadth-first flood out from every one of the party standing at once:
+ * the square the flood reaches the monster from is one step nearer to
+ * whichever of them is nearest than where it stands.
  *
  * A two-by-two monster is flooded as its top-left square, over `roomy`
  * (where its whole body fits) instead of `wall`. The flood starts from the
- * eight places that would put it beside the hero, with the four that would
- * put it on top of the hero ruled out first.
+ * eight places that would put it beside each of the party, with the four
+ * that would put it on top of any of them ruled out first.
  *
  * This runs every turn, and written the obvious way -- 16-bit indices into
  * the field, a bounds test per neighbour -- a flood of the whole grass
@@ -469,8 +582,6 @@ static unsigned char flood(void)
     tail = 0;
     tx = mx + 1;
     ty = my + 1;
-    x = hx + 1;
-    y = hy + 1;
     if (size == 1) {
         memcpy(seen, wall, sizeof(seen));
         for (i = 0; i < foes; ++i) {
@@ -478,15 +589,31 @@ static unsigned char flood(void)
                 seen_row[foe_y[i] + 1][foe_x[i] + 1] = 1;
             }
         }
-        seed(x, y);
+        for (i = 0; i < party_count; ++i) {
+            if (party[i].hp) {
+                seed(mem_x[i] + 1, mem_y[i] + 1);
+            }
+        }
     } else {
         memcpy(seen, roomy, sizeof(seen));
-        seen_row[y - 1][x - 1] = seen_row[y - 1][x] = 1;
-        seen_row[y][x - 1]     = seen_row[y][x]     = 1;
-        seed(x - 1, y + 1); seed(x, y + 1);
-        seed(x - 1, y - 2); seed(x, y - 2);
-        seed(x + 1, y - 1); seed(x + 1, y);
-        seed(x - 2, y - 1); seed(x - 2, y);
+        for (i = 0; i < party_count; ++i) {
+            if (party[i].hp) {
+                x = mem_x[i] + 1;
+                y = mem_y[i] + 1;
+                seen_row[y - 1][x - 1] = seen_row[y - 1][x] = 1;
+                seen_row[y][x - 1]     = seen_row[y][x]     = 1;
+            }
+        }
+        for (i = 0; i < party_count; ++i) {
+            if (party[i].hp) {
+                x = mem_x[i] + 1;
+                y = mem_y[i] + 1;
+                seed(x - 1, y + 1); seed(x, y + 1);
+                seed(x - 1, y - 2); seed(x, y - 2);
+                seed(x + 1, y - 1); seed(x + 1, y);
+                seed(x - 2, y - 1); seed(x - 2, y);
+            }
+        }
     }
     if (!tail) {
         return 0;
@@ -530,12 +657,14 @@ found:
 }
 
 /* Move the monster one square nearer. If there is no way through, it
-   waits where it is. */
+   waits where it is. The flood's first step can be one of the party's own
+   squares only when the monster is already beside them, and then it
+   strikes instead of stepping; a 2x2 body is kept off them by the flood. */
 static void foe_step(void)
 {
     unsigned char ox = mx, oy = my;
 
-    if (flood()) {
+    if (flood() && member_at(step_x - 1, step_y - 1) == NONE) {
         mx = foe_x[cur] = step_x - 1;
         my = foe_y[cur] = step_y - 1;
         paint_body(ox, oy);
@@ -545,7 +674,7 @@ static void foe_step(void)
 
 /* Where monster `cur` starts: anywhere in the top third of the field that
    its whole body can stand on, that the rest of the group has left free,
-   and that has a way through to the hero, so no fight begins with it shut
+   and that has a way through to the party, so no fight begins with it shut
    in a pocket of trees. The field's own spot from assets/arenas.txt is
    kept for when a few tries find nowhere for the first; for any after it,
    returns 0 and the group is smaller. */
@@ -561,7 +690,8 @@ static unsigned char foe_start(unsigned char a)
         mx = (unsigned char)(rand() % (LOCAL_W - size + 1));
         my = (unsigned char)(rand() % (START_ROWS - size + 1));
         if (!stand[(unsigned int)(my + 1) * RIM_W + mx + 1]
-            && foe_at(mx, my) == 0xFF && flood()) {
+            && foe_at(mx, my) == NONE && member_at(mx, my) == NONE
+            && flood()) {
             return 1;
         }
     }
@@ -571,6 +701,36 @@ static unsigned char foe_start(unsigned char a)
     mx = arena_mx[a];
     my = arena_my[a];
     return 1;
+}
+
+/* The party's places: the leader on the field's own spot, the rest beside
+   and behind, wherever is open. */
+static const signed char beside_x[] = { -1, 1,  0, -1, 1, -2, 2, 0 };
+static const signed char beside_y[] = {  0, 0,  1,  1, 1,  0, 0, -1 };
+
+static void party_start(unsigned char a)
+{
+    unsigned char i, k = 0, x, y;
+
+    for (i = 0; i < party_count; ++i) {
+        mem_x[i] = mem_y[i] = NONE;
+        guard[i] = 0;
+    }
+    mem_x[0] = arena_hx[a];
+    mem_y[0] = arena_hy[a];
+    for (i = 1; i < party_count; ++i) {
+        for (; k < sizeof(beside_x); ++k) {
+            x = arena_hx[a] + beside_x[k];
+            y = arena_hy[a] + beside_y[k];
+            if (x < LOCAL_W && y < LOCAL_H
+                && !wall[(unsigned int)(y + 1) * RIM_W + x + 1]) {
+                break;
+            }
+        }
+        mem_x[i] = x;
+        mem_y[i] = y;
+        ++k;
+    }
 }
 
 /* A movement key as a direction, or 0xFF. */
@@ -597,20 +757,22 @@ static unsigned char next_key(void)
     return (key >= 0xC1 && key <= 0xDA) ? key - 0x80 : key;
 }
 
-/* Shoot the bow `dir`. The shot flies straight until it meets a monster,
-   something solid, the edge of the field or the end of its range. Water
-   does not stop it; trees, boulders and walls do. Returns the damage, and
-   leaves which one it hit in `target`. */
+/* Something flies from (hx,hy) `dir`: an arrow, or a spell. It flies
+   straight until it meets a monster, something solid, the edge of the field
+   or the end of its `range`. Water does not stop it, nor do the party
+   (it flies over them); trees, boulders and walls do. Returns the damage,
+   at `atk`, and leaves which one it hit in `target`; `what` begins the
+   line ("Your arrow"). */
 static unsigned char target;
 
-static unsigned char loose(unsigned char dir)
+static unsigned char loose(unsigned char dir, unsigned char range,
+                           unsigned char atk, unsigned char kind,
+                           const char *what)
 {
     unsigned char x = hx, y = hy, flew = 0, hit = 0;
-    const char *what = bow_lv == NUM_BOWS - 1 ? "Your bolt" : "Your arrow";
 
-    --arrows;
     sprite_face(dir);
-    while (flew < bow_range[bow_lv]) {
+    while (flew < range) {
         switch (dir) {
             case DIR_UP:   --y; break;
             case DIR_DOWN: ++y; break;
@@ -621,7 +783,7 @@ static unsigned char loose(unsigned char dir)
             break;                           /* off the field */
         }
         ++flew;
-        if ((target = foe_at(x, y)) != 0xFF) {
+        if ((target = foe_at(x, y)) != NONE) {
             hit = 1;
             break;
         }
@@ -631,47 +793,57 @@ static unsigned char loose(unsigned char dir)
         }
     }
 
-    sprite_shot(hx, hy, dir, flew, SHOT_ARROW);
+    sprite_shot(hx, hy, dir, flew, kind);
+    strcpy(msg, what);
     if (hit) {
         sfx_play(SFX_BOW);
-        strcpy(msg, what);
         strcat(msg, " hits for ");
-        return strike(foe, foe_hp[target], bow_atk[bow_lv], msg);
+        return strike(foe_hp[target], atk);
     }
-    strcpy(msg, what);
     strcat(msg, " goes wide.");
     view_message(msg);
     return 0;
 }
 
-/* Can the monster shoot the hero from where it stands? The same rules as
-   the hero's bow, turned round: straight up, down, left or right, within
-   its reach, and nothing solid in between -- the rest of its group
-   included. Returns the direction, or 0xFF,
-   and leaves where the shot sets off from in (sx,sy) and how far it flies
-   in `flew`. A body bigger than a square shoots from whichever part of it
-   lines up. */
-static unsigned char sx, sy, flew;
+/* Ask for a direction to shoot or cast; 0xFF if the player thought better
+   of it. */
+static unsigned char which_way(const char *put_down)
+{
+    unsigned char dir;
 
-static unsigned char aim(void)
+    view_message("Which way?");
+    dir = key_dir(next_key());
+    if (dir == 0xFF) {
+        view_message(put_down);
+    }
+    return dir;
+}
+
+/* Can the monster shoot one of the party from where it stands? The same
+   rules as the party's bows, turned round: straight up, down, left or
+   right, within its reach, and nothing solid in between -- the rest of its
+   group included, and the first of the party in the way takes it. Returns
+   the direction, or 0xFF, and leaves where the shot sets off from in
+   (sx,sy), how far it flies in `flew` and who it hits in `victim`. A body
+   bigger than a square shoots from whichever part of it lines up. */
+static unsigned char sx, sy, flew, victim;
+
+static unsigned char aim_at(unsigned char tx, unsigned char ty)
 {
     unsigned char dir, x, y;
 
-    if (!foe->reach) {
-        return 0xFF;
-    }
-    if ((unsigned char)(hx - mx) < size) {
-        sx = hx;
-        if (hy < my) {
+    if ((unsigned char)(tx - mx) < size) {
+        sx = tx;
+        if (ty < my) {
             sy = my;
             dir = DIR_UP;
         } else {
             sy = my + size - 1;
             dir = DIR_DOWN;
         }
-    } else if ((unsigned char)(hy - my) < size) {
-        sy = hy;
-        if (hx < mx) {
+    } else if ((unsigned char)(ty - my) < size) {
+        sy = ty;
+        if (tx < mx) {
             sx = mx;
             dir = DIR_LEFT;
         } else {
@@ -691,24 +863,35 @@ static unsigned char aim(void)
             case DIR_LEFT: --x; break;
             default:       ++x; break;
         }
-        if (x == hx && y == hy) {
+        if ((victim = member_at(x, y)) != NONE) {
             return dir;
         }
         if (tile_flags[field[(unsigned int)y * LOCAL_W + x] - TILE_BASE]
-            == TF_BLOCK || foe_at(x, y) != 0xFF) {
+            == TF_BLOCK || foe_at(x, y) != NONE) {
             break;
         }
     }
     return 0xFF;                             /* out of reach, or blocked */
 }
 
-/* No two fights are fought on the same ground: some ten boulders go down where
-   the field is open all round, so that whatever they are, nothing is cut off
-   from anything, and none beside either start or in the lanes to the sides'
-   gaps. */
+static unsigned char aim(void)
+{
+    unsigned char i, dir;
+
+    if (!foe->reach) {
+        return 0xFF;
+    }
+    for (i = 0; i < party_count; ++i) {
+        if (party[i].hp && (dir = aim_at(mem_x[i], mem_y[i])) != 0xFF) {
+            return dir;
+        }
+    }
+    return 0xFF;
+}
+
 /* No two fights are fought on the same ground: some ten boulders go down where
    the ground is open all round (so nothing is cut off from anything), never
-   on the hero's own square. Run once the walls are marked. */
+   on the leader's own square. Run once the walls are marked. */
 unsigned char open9(const unsigned char *w);     /* open9.s */
 
 static void scatter(unsigned char a)
@@ -731,13 +914,150 @@ static void scatter(unsigned char a)
     }
 }
 
+/* --- spells --------------------------------------------------------------- */
+
+/* Damage dealt to target `t`, or to them all: 0 if nothing was hit. The
+   caller takes it off and sees who falls. */
+static unsigned char hurt_all;
+
+/* C: the wizard whose turn it is casts one of their prepared spells. Returns
+   the damage done to `target` (or, with hurt_all, to every foe) and sets
+   *spent if a turn was spent. */
+static unsigned char cast(unsigned char *spent)
+{
+    Actor *a = &party[act];
+    unsigned char s, dir, who, amount;
+
+    *spent = 0;
+    hurt_all = 0;
+    if (a->cls != CL_WIZARD) {
+        view_message("Only a wizard can cast.");
+        return 0;
+    }
+    if (!a->ready) {
+        view_message("No spell is prepared.");
+        return 0;
+    }
+    strcpy(msg, "Cast");
+    for (s = 0; s < NUM_SPELLS; ++s) {
+        if (a->ready & (1 << s)) {
+            strcat(msg, " ");
+            cat_num(s + 1);
+            strcat(msg, " ");
+            strcat(msg, spell_names[s]);
+        }
+    }
+    view_message(msg);
+    s = next_key() - 0x31;
+    if (s >= NUM_SPELLS || !(a->ready & (1 << s))) {
+        view_message("Never mind.");
+        return 0;
+    }
+    if (a->mp < spell_cost[s]) {
+        view_message("Not enough magic.");
+        return 0;
+    }
+
+    switch (s) {
+        case SP_SPARK:
+        case SP_BOLT:
+            dir = which_way("The spell fades.");
+            if (dir == 0xFF) {
+                return 0;
+            }
+            break;
+        case SP_HEAL:
+            who = pick_member("Heal whom?");
+            if (who == NONE) {
+                return 0;
+            }
+            break;
+        case SP_WARD:
+            if (ward) {
+                view_message("The ward already holds.");
+                return 0;
+            }
+            break;
+    }
+
+    a->mp -= spell_cost[s];
+    *spent = 1;
+    switch (s) {
+        case SP_SPARK:
+            return loose(dir, 8, 5, SHOT_FIRE, "The spark");
+        case SP_BOLT:
+            return loose(dir, 14, 13, SHOT_BOLT, "The bolt");
+        case SP_HEAL:
+            amount = 8 + 2 * party_level;
+            a = &party[who];
+            if (a->hp_max - a->hp < amount) {
+                amount = a->hp_max - a->hp;
+            }
+            a->hp += amount;
+            say_who(who, " is mended: ");
+            cat_num(amount);
+            strcat(msg, ".");
+            view_message(msg);
+            return 0;
+        case SP_WARD:
+            ward = 3;
+            view_message("A ward settles on the party.");
+            return 0;
+        case SP_SLEEP:
+            sleep = 2;
+            view_message("A drowse falls on them.");
+            return 0;
+        default:                             /* SP_BLAZE */
+            hurt_all = 1;
+            sfx_play(SFX_BOW);
+            strcpy(msg, "Fire takes them all for ");
+            return strike(255, 9);
+    }
+}
+
+/* --- the fight ------------------------------------------------------------ */
+
+/* Whose turn it is: the sprite goes to them, and the one before is drawn
+   back as a glyph. */
+static void turn_to(unsigned char i)
+{
+    unsigned char was = act;
+
+    act = i;
+    party_turn = i;
+    if (was != NONE && party[was].hp) {
+        paint(mem_x[was], mem_y[was]);
+    }
+    hx = mem_x[i];
+    hy = mem_y[i];
+    paint(hx, hy);
+    sprite_as(i);
+    sprite_show(hx, hy);
+}
+
+/* Take `dmg` off foe `t`; returns 1 if that was the last of them. */
+static unsigned char wound(unsigned char t, unsigned char dmg)
+{
+    if (dmg >= foe_hp[t]) {
+        foe_hp[t] = 0;
+        paint_body(foe_x[t], foe_y[t]);      /* ground now */
+        if (!--alive) {
+            return 1;
+        }
+        view_message("It falls.");
+        return 0;
+    }
+    foe_hp[t] -= dmg;
+    return 0;
+}
+
 static unsigned char fight(const Monster *m, unsigned char ground,
                            unsigned char can_flee, unsigned char count)
 {
-    unsigned char a, key, guard, dir, nx, ny, dmg;
-    unsigned char rel, pace;
+    unsigned char a, key, dir, nx, ny, dmg, spent;
+    unsigned char rel, pace, i, hp;
     unsigned char *edge;
-    unsigned int  i;
+    unsigned int  n;
 
     /* The field for this kind of ground, or the first one if there is
        none. */
@@ -745,15 +1065,15 @@ static unsigned char fight(const Monster *m, unsigned char ground,
     }
     rle_unpack(field, arena_map[a], FIELD_SIZE);
     memset(wall, 1, sizeof(wall));
-    i = 0;
+    n = 0;
     for (ny = 0; ny < RIM_H; ++ny) {
         seen_row[ny] = seen + (unsigned int)ny * RIM_W;
         if (ny == 0 || ny > LOCAL_H) {
             continue;                        /* the rim stays wall */
         }
         edge = wall + (unsigned int)ny * RIM_W + 1;
-        for (nx = 0; nx < LOCAL_W; ++nx, ++i) {
-            edge[nx] = tile_flags[field[i] - TILE_BASE] != TF_PASS;
+        for (nx = 0; nx < LOCAL_W; ++nx, ++n) {
+            edge[nx] = tile_flags[field[n] - TILE_BASE] != TF_PASS;
         }
     }
     if (m->size == 1) {
@@ -762,14 +1082,23 @@ static unsigned char fight(const Monster *m, unsigned char ground,
     size = m->size;
     if (size == 2) {
         memset(roomy, 1, sizeof(roomy));
-        for (i = 0; i < sizeof(roomy) - RIM_W - 1; ++i) {
-            roomy[i] = wall[i] | wall[i + 1]
-                     | wall[i + RIM_W] | wall[i + RIM_W + 1];
+        for (n = 0; n < sizeof(roomy) - RIM_W - 1; ++n) {
+            roomy[n] = wall[n] | wall[n + 1]
+                     | wall[n + RIM_W] | wall[n + RIM_W + 1];
         }
     }
-    hx = arena_hx[a];
-    hy = arena_hy[a];
     foe = m;
+    act = NONE;
+    ward = sleep = 0;
+    party_start(a);
+
+    /* One that comes alone is the tougher for every one of the party past
+       the first: half as much again each, as far as a byte goes. */
+    hp = m->hp;
+    if (count == 1) {
+        n = hp + ((unsigned int)hp * (party_count - 1) >> 1);
+        hp = n > 250 ? 250 : (unsigned char)n;
+    }
 
     /* Placed one at a time, each clear of the ones before it. */
     memset(foe_hp, 0, sizeof(foe_hp));
@@ -778,23 +1107,26 @@ static unsigned char fight(const Monster *m, unsigned char ground,
     for (cur = 0; cur < count && foe_start(a); ++cur) {
         foe_x[cur] = mx;
         foe_y[cur] = my;
-        foe_hp[cur] = m->hp;
+        foe_hp[cur] = hp;
     }
     foes = alive = cur;
 
-    /* Speed is relative: the hero's is 1.0, less what the armour costs
-       (armour_slow: 0.6 in plate), and whatever you lose it gains. Its
-       moves are banked in tenths, so a relative 1.5 moves once, then
-       twice, then once. */
-    rel = m->speed + armour_slow[armour_lv];
+    /* Speed is relative: the party's is 1.0, less what its armour costs on
+       the average (armour_slow: 0.6 in plate), and whatever it loses the
+       monster gains. Its moves are banked in tenths, so a relative 1.5 moves
+       once, then twice, then once. */
+    n = 0;
+    for (i = 0; i < party_count; ++i) {
+        n += armour_slow[party[i].armour];
+    }
+    rel = m->speed + (unsigned char)(n / party_count);
 
     view_restore();
     draw_field();
     sprite_face(DIR_UP);
-    sprite_show(hx, hy);
 
     strcpy(msg, m->name);
-    strcat(msg, " comes at you!");
+    strcat(msg, party_count > 1 ? " comes at the party!" : " comes at you!");
     view_message(msg);
     if (foes > 1) {
         strcpy(msg, "And ");
@@ -806,110 +1138,148 @@ static unsigned char fight(const Monster *m, unsigned char ground,
                           : "Walk into it to strike.");
 
     for (;;) {
-        view_draw_panel();
-        show_foe();
-
-        guard = 0;
-        dmg = 0;
-        key = next_key();
-        dir = key_dir(key);
-
-        switch (key) {
-            case K_F:
-                if (!bow_lv) {
-                    view_message("You have no bow.");
-                    continue;
-                }
-                if (!arrows) {
-                    view_message("You have no arrows.");
-                    continue;
-                }
-                view_message("Shoot which way?");
-                dir = key_dir(next_key());
-                if (dir == 0xFF) {
-                    view_message("You lower the bow.");
-                    continue;                /* no turn spent */
-                }
-                dmg = loose(dir);
-                dir = 0xFF;                  /* shooting is not walking */
-                break;
-
-            case K_SPACE:
-                guard = 4;
-                view_message("You stand your ground.");
-                break;
-
-            case K_POTION:
-                if (!quaff()) {
-                    continue;
-                }
-                break;
-
-            case K_M:
-                view_message(music_toggle() ? "Music on." : "Music off.");
-                continue;                    /* no turn spent */
-
-            case K_X:
-                view_message(sfx_toggle() ? "Effects on." : "Effects off.");
+        /* The party's turns, one after another. */
+        for (i = 0; i < party_count; ++i) {
+            if (!party[i].hp) {
                 continue;
+            }
+            turn_to(i);
+            guard[i] = 0;
+            for (;;) {
+                view_draw_panel();
+                show_foe();
 
-            default:
-                if (dir == 0xFF) {
-                    continue;
+                dmg = 0;
+                hurt_all = 0;
+                key = next_key();
+                dir = key_dir(key);
+
+                switch (key) {
+                    case K_F:
+                        if (!party[act].bow) {
+                            say_who(act, " has no bow.");
+                            view_message(msg);
+                            continue;
+                        }
+                        if (!arrows) {
+                            view_message("You have no arrows.");
+                            continue;
+                        }
+                        dir = which_way("You lower the bow.");
+                        if (dir == 0xFF) {
+                            continue;                /* no turn spent */
+                        }
+                        --arrows;
+                        dmg = loose(dir, bow_range[party[act].bow],
+                                    bow_atk[party[act].bow], SHOT_ARROW,
+                                    party[act].bow == NUM_BOWS - 1
+                                        ? "The bolt" : "The arrow");
+                        dir = 0xFF;                  /* shooting is not walking */
+                        break;
+
+                    case K_C:
+                        dmg = cast(&spent);
+                        if (!spent) {
+                            continue;
+                        }
+                        dir = 0xFF;
+                        break;
+
+                    case K_SPACE:
+                        guard[act] = 4;
+                        say_who(act, " stands firm.");
+                        view_message(msg);
+                        break;
+
+                    case K_POTION:
+                        if (!quaff()) {
+                            continue;
+                        }
+                        break;
+
+                    case K_M:
+                        view_message(music_toggle() ? "Music on."
+                                                    : "Music off.");
+                        continue;                    /* no turn spent */
+
+                    case K_X:
+                        view_message(sfx_toggle() ? "Effects on."
+                                                  : "Effects off.");
+                        continue;
+
+                    default:
+                        if (dir == 0xFF) {
+                            continue;
+                        }
+                        break;
+                }
+
+                if (dir != 0xFF) {
+                    nx = hx;
+                    ny = hy;
+                    switch (dir) {
+                        case DIR_UP:   --ny; break;
+                        case DIR_DOWN: ++ny; break;
+                        case DIR_LEFT: --nx; break;
+                        default:       ++nx; break;
+                    }
+                    sprite_face(dir);
+
+                    if ((target = foe_at(nx, ny)) != NONE) {
+                        sfx_play(SFX_MELEE);
+                        say_who(act, " strikes for ");
+                        dmg = strike(foe_hp[target],
+                                     weapon_atk[party[act].weapon]);
+                    } else if (nx >= LOCAL_W || ny >= LOCAL_H
+                               || wall[(unsigned int)(ny + 1) * RIM_W
+                                       + nx + 1]
+                               || member_at(nx, ny) != NONE) {
+                        /* Unsigned: stepping off the top or left wraps to
+                           255. The gaps in the middle of the sides are the
+                           way out, for the whole party. */
+                        if (can_flee && ny == LOCAL_H / 2 && nx >= LOCAL_W) {
+                            view_message("You get away.");
+                            get_up();
+                            return BATTLE_FLED;
+                        }
+                        continue;                    /* bumping costs no turn */
+                    } else {
+                        sprite_walk(dir);
+                        hx = mem_x[act] = nx;
+                        hy = mem_y[act] = ny;
+                        sprite_show(hx, hy);
+                    }
                 }
                 break;
-        }
-
-        if (dir != 0xFF) {
-            nx = hx;
-            ny = hy;
-            switch (dir) {
-                case DIR_UP:   --ny; break;
-                case DIR_DOWN: ++ny; break;
-                case DIR_LEFT: --nx; break;
-                default:       ++nx; break;
             }
-            sprite_face(dir);
 
-            if ((target = foe_at(nx, ny)) != 0xFF) {
-                sfx_play(SFX_MELEE);
-                dmg = strike(m, foe_hp[target], weapon_atk[weapon_lv],
-                             "You strike for ");
-            } else if (nx >= LOCAL_W || ny >= LOCAL_H
-                       || wall[(unsigned int)(ny + 1) * RIM_W + nx + 1]) {
-                /* Unsigned: stepping off the top or left wraps to 255. The
-                   gaps in the middle of the sides are the way out. */
-                if (can_flee && ny == LOCAL_H / 2 && nx >= LOCAL_W) {
-                    view_message("You get away.");
-                    return BATTLE_FLED;
-                }
-                continue;                    /* bumping costs no turn */
-            } else {
-                sprite_walk(dir);
-                hx = nx;
-                hy = ny;
-                sprite_show(hx, hy);
-            }
-        }
-
-        /* strike() never does less than 1, so a blow that landed is
-           never 0; a shot that went wide is. */
-        if (dmg) {
-            foe_hp[target] -= dmg;
-            if (!foe_hp[target]) {
-                paint_body(foe_x[target], foe_y[target]);   /* ground now */
-                if (!--alive) {
+            /* strike() never does less than 1, so a blow that landed is
+               never 0; a shot that went wide is. */
+            if (dmg) {
+                if (hurt_all) {
+                    for (target = 0; target < foes; ++target) {
+                        if (foe_hp[target] && wound(target, dmg)) {
+                            show_foe();
+                            return won(m, foes);
+                        }
+                    }
+                } else if (wound(target, dmg)) {
                     show_foe();
                     return won(m, foes);
                 }
-                view_message("It falls.");
             }
         }
 
         /* Their turn, one after another: as many moves each as it has
-           banked whole ones. Beside you it strikes; in line and in reach it
-           shoots (or breathes), and that is the rest of its turn -- a fast
-           archer nocks one arrow at a time. */
+           banked whole ones. Beside one of the party it strikes; in line and
+           in reach it shoots (or breathes), and that is the rest of its
+           turn -- a fast archer nocks one arrow at a time. Asleep, they
+           only stir. */
+        if (sleep) {
+            --sleep;
+            view_message(sleep ? "They sleep." : "They stir.");
+            continue;
+        }
         for (cur = 0; cur < foes; ++cur) {
             if (!foe_hp[cur]) {
                 continue;
@@ -918,16 +1288,15 @@ static unsigned char fight(const Monster *m, unsigned char ground,
             my = foe_y[cur];
             pace = foe_pace[cur] + rel;
             for (; pace >= 10; pace -= 10) {
-                if (next_to()) {
+                if ((i = next_to()) != NONE) {
                     /* Alone it is "it"; in a group, say which. */
-                    if (foes > 1) {
-                        strcpy(msg, m->name);
-                        strcat(msg, " hits you for ");
-                    }
+                    strcpy(msg, foes > 1 ? m->name : (const char *)"It");
+                    strcat(msg, " hits ");
+                    strcat(msg, party[i].name);
+                    strcat(msg, " for ");
                     sfx_delay();         /* let the blow before it finish */
                     sfx_play(SFX_MELEE);
-                    if (bitten(m->atk, guard,
-                               foes > 1 ? msg : "It hits you for ")) {
+                    if (bitten(i, m->atk)) {
                         view_draw_panel();
                         return lost();
                     }
@@ -935,7 +1304,10 @@ static unsigned char fight(const Monster *m, unsigned char ground,
                     sprite_shot(sx, sy, dir, flew, m->kind);
                     sfx_delay();
                     sfx_play(SFX_BOW);
-                    if (bitten(m->shot, guard, shot_hits[m->kind])) {
+                    strcpy(msg, shot_hits[m->kind]);
+                    strcat(msg, party[victim].name);
+                    strcat(msg, " for ");
+                    if (bitten(victim, m->shot)) {
                         view_draw_panel();
                         return lost();
                     }
@@ -960,6 +1332,8 @@ unsigned char battle_fight(const Monster *m, unsigned char ground,
     view_fighting = 1;
     r = fight(m, ground, can_flee, count);
     view_fighting = 0;
+    party_turn = NONE;
+    sprite_as(0);
     return r;
 }
 
@@ -1012,7 +1386,7 @@ unsigned char battle_wander(void)
         return native_fight();
     }
 
-    lvl = hero.level + (scene == SCENE_DUNGEON ? depth - 1 : 0);
+    lvl = party_level + (scene == SCENE_DUNGEON ? depth - 1 : 0);
 
     /* The rat and the goblin are there from level 1, so `top` is never 0. */
     for (top = 0; top < NUM_WANDERERS && wanderers[top].from <= lvl;
@@ -1020,9 +1394,10 @@ unsigned char battle_wander(void)
     }
     i = (unsigned char)(rand() % top);
 
-    /* As many as the hero has levels for each one's worth: a level-6 hero
-       can meet up to six rats (from level 1) or three wasps (from 2). */
-    most = lvl / wanderers[i].from;
+    /* As many as the party has levels for each one's worth, and one more
+       for each of them past the first: a level-6 party of one can meet up
+       to six rats (from level 1) or three wasps (from 2). */
+    most = (lvl + party_count - 1) / wanderers[i].from;
     if (most > MAX_FOES) {
         most = MAX_FOES;
     }
@@ -1033,7 +1408,7 @@ unsigned char battle_wander(void)
    and the wraith are fixed places in wanderers[]. */
 unsigned char battle_undead(void)
 {
-    if (hero.level >= 6) {
+    if (party_level >= 6) {
         return wander_fight(9, 1);
     }
     return wander_fight(6, (unsigned char)(1 + rand() % 2));

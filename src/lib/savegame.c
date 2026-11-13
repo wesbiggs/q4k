@@ -29,7 +29,7 @@
 unsigned char save_device = 8;
 #define SAVE_DEVICE save_device
 #define CMD_CHANNEL 15
-#define MAGIC       "Q4K8"   /* 8: arrows; 7: maps name a place; 6: treasure maps; 5: bigger dungeons, seen as bits */
+#define MAGIC       "Q4K9"   /* 9: a party; 8: arrows; 7: maps name a place; 6: treasure maps; 5: bigger dungeons, seen as bits */
 
 /* Everything the drive reads is spelled in numeric bytes: cc65 would
    re-encode a string literal, and "S0:..." came out with a shifted $D3 for
@@ -47,16 +47,15 @@ static const char scratch_cmd[] = {
 
 typedef struct {
     char          magic[4];
-    /* Not called "hero": that is a macro for party[0], and it would expand
-       here. cc65 also declines to assign structs this large, so the copies
-       below go through memcpy. */
-    Actor         who;
+    /* cc65 declines to assign structs this large, so the copies below go
+       through memcpy. */
+    Actor         who[MAX_PARTY];
+    unsigned char count;
+    unsigned char level;
+    unsigned int  xp;
     unsigned int  turn;
     unsigned int  gold;
     unsigned char potions;
-    unsigned char weapon_lv;
-    unsigned char armour_lv;
-    unsigned char bow_lv;
     unsigned char arrows;
     unsigned char quest_stage;
     unsigned char items;
@@ -97,13 +96,13 @@ static unsigned char drive_ok(void)
 static void gather(void)
 {
     memcpy(blob.magic, MAGIC, 4);
-    memcpy(&blob.who, &hero, sizeof(blob.who));
+    memcpy(blob.who, party, sizeof(blob.who));
+    blob.count       = party_count;
+    blob.level       = party_level;
+    blob.xp          = party_xp;
     blob.turn        = game_turn;
     blob.gold        = gold;
     blob.potions     = potions;
-    blob.weapon_lv   = weapon_lv;
-    blob.armour_lv   = armour_lv;
-    blob.bow_lv      = bow_lv;
     blob.arrows      = arrows;
     blob.quest_stage = quest_stage;
     blob.items       = items;
@@ -155,13 +154,13 @@ static unsigned char do_load(void)
         return SAVE_EFORMAT;
     }
 
-    memcpy(&hero, &blob.who, sizeof(blob.who));
+    memcpy(party, blob.who, sizeof(blob.who));
+    party_count = blob.count;
+    party_level = blob.level;
+    party_xp    = blob.xp;
     game_turn   = blob.turn;
     gold        = blob.gold;
     potions     = blob.potions;
-    weapon_lv   = blob.weapon_lv;
-    armour_lv   = blob.armour_lv;
-    bow_lv      = blob.bow_lv;
     arrows      = blob.arrows;
     quest_stage = blob.quest_stage;
     items       = blob.items;

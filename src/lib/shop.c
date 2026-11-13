@@ -1,3 +1,15 @@
+/*
+ * q4k -- the shop's engine: buying things, and the screens the map opens
+ * that are not a place (engine.h).
+ *
+ * The forge, the armoury and the bowyer each sell one line of goods, a few
+ * tiers of it by land; the apothecary sells draughts and the magic shop
+ * robes and spellbooks. What is bought goes to whoever in the party it would
+ * be better for -- asked, when that is more than one of them -- and so does
+ * what a beaten monster drops. The party screen (I) is here too, and the
+ * help screen (help.c).
+ */
+
 #include <conio.h>
 #include <c64.h>
 #include <stdlib.h>
@@ -16,78 +28,95 @@
 
 #define TITLE_Y   0
 #define LIST_Y    3
-#define PURSE_Y  16
-#define NOTE_Y   18
+#define PURSE_Y  14
+#define NOTE_Y   16     /* two rows: what happened, or who takes it */
 #define HINT_Y   20
+
+#define K_STOP    0x03
+#define K_T       0x54
+#define NONE      0xFF
 
 static char line[SCR_W + 1];
 
 unsigned int potion_price(void)
 {
-    return 5u + 5u * hero.level;
+    return 5u + 5u * party_level;
 }
 
 static void note(const char *literal, unsigned char color)
 {
     text_clear(0, NOTE_Y, SCR_W);
+    text_clear(0, NOTE_Y + 1, SCR_W);
     str_lit(line, literal);
     text_put(0, NOTE_Y, line, color);
 }
 
-/* The prices, by tier as battle.c names them; nothing sells Dragonbane.
-   Here rather than with the names, which every engine reads (arms.c), because
-   only the shop needs them. */
+/* The prices, by tier as arms.c names them; nothing sells Dragonbane, the
+   staff or the hunting bow. Here rather than with the names, which every
+   engine reads, because only the shop needs them. */
 static const unsigned int weapon_cost[NUM_WEAPONS] = {
-    0, 25, 80, 200, 420, 700, 1000, 0,
+    0, 25, 80, 200, 420, 700, 1000, 0, 0,
 };
 static const unsigned int armour_cost[NUM_ARMOUR] = {
-    0, 30, 110, 260, 500, 800, 1100,
+    0, 40, 30, 110, 260, 500, 800, 1100,
 };
 static const unsigned int bow_cost[NUM_BOWS + 1] = {
-    0, 80, 150, 350, 650, ARROW_PRICE,
+    0, 0, 80, 150, 350, 650, ARROW_PRICE,
 };
 
 /* What each land's shops sell, and its monsters drop: home first, then the
    continents in the order the story opens them (slot_of()). Blades and mail
-   go by the same tiers; bows have fewer. */
+   go by the same tiers (mail one further on, past the robes); bows have
+   fewer, and start past the hunting bow. */
 static const unsigned char tier_lo[5] = { 1, 1, 2, 3, 4 };
 static const unsigned char tier_hi[5] = { 2, 3, 4, 5, 6 };
-static const unsigned char bow_lo[5]  = { 1, 1, 2, 2, 3 };
-static const unsigned char bow_hi[5]  = { 1, 2, 3, 3, 4 };
+static const unsigned char bow_lo[5]  = { 2, 2, 3, 3, 4 };
+static const unsigned char bow_hi[5]  = { 2, 3, 4, 4, 5 };
 
-/* What the shop in front of you sells: the forge, the armoury and the
-   bowyer each sell one line of goods, tiers `lo` to `hi` of it (0 is what you
-   have before you buy anything), and remember the best you own in `level`.
-   The bowyer lists the arrows after the bows. The village shop sells
-   draughts, and has no `level`. `rows` is how many lines the list has. */
+/* The magic shop: robes, then a book of each spell but the Spark, which
+   every wizard already knows. A book wants the party to have reached a
+   level before its wizard can follow it. */
+#define BOOKS 5
+static const unsigned int  book_cost[BOOKS]  = { 80, 120, 200, 400, 700 };
+static const unsigned char book_level[BOOKS] = {  1,   2,   3,   5,   7 };
+#define ROBES_COST 40
+
+/* What the shop in front of you sells: GEAR_* of tiers `lo` to `hi` (the
+   bowyer lists the arrows after the bows), the magic shop's list, or the
+   apothecary's draughts (gear NONE). `rows` is how many lines the list
+   has. */
 static const char *const *names;
 static const unsigned int *costs;
-static unsigned char      *level;
-static unsigned char       lo, hi, rows, bow;
+static unsigned char       gear, lo, hi, rows, bow, magic;
 
 static void stock(unsigned char kind)
 {
     unsigned char t = land == ISLE_HOME ? 0 : 1 + slot_of(land);
 
     bow   = kind == SHOP_BOW;
+    magic = kind == SHOP_MAGIC;
     lo    = tier_lo[t];
     hi    = tier_hi[t];
-    level = 0;
+    gear  = NONE;
     rows  = 1;
     if (kind == SHOP_WEAPON) {
         names = weapon_names; costs = weapon_cost;
-        level = &weapon_lv;
+        gear  = GEAR_WEAPON;
     } else if (kind == SHOP_ARMOUR) {
         names = armour_names; costs = armour_cost;
-        level = &armour_lv;
+        gear  = GEAR_ARMOUR;
+        ++lo;
+        ++hi;
     } else if (bow) {
         names = bow_names;    costs = bow_cost;
-        level = &bow_lv;
+        gear  = GEAR_BOW;
         lo = bow_lo[t];
         hi = bow_hi[t];
     }
-    if (level) {
+    if (gear != NONE) {
         rows = hi - lo + 1 + bow;
+    } else if (magic) {
+        rows = 1 + BOOKS;
     }
 }
 
@@ -97,18 +126,88 @@ static unsigned char item(unsigned char row)
     return bow && row == rows ? NUM_BOWS : lo + row - 1;
 }
 
-/* Take up tier `pick` of what stock() chose, if it is better than what you
-   have; a first bow comes strung. */
-static unsigned char better(unsigned char pick)
+/* --- who takes it -------------------------------------------------------
+ *
+ * A thing is offered to the party: whoever it would be of use to. With one
+ * such, they take it; with more, the player is asked, on the shop's note
+ * rows or, on the map, in the log. */
+
+static unsigned char on_map;      /* asking in the log, not the note rows */
+static unsigned char can[MAX_PARTY];
+
+static void ask_line(unsigned char row, const char *petscii)
 {
-    if (pick <= *level) {
-        return 0;
+    if (on_map) {
+        view_message(petscii);
+    } else {
+        cclearxy(0, NOTE_Y + row, SCR_W);
+        textcolor(COLOR_YELLOW);
+        cputsxy(0, NOTE_Y + row, petscii);
     }
-    if (bow && !*level) {
-        arrows += ARROW_FREE;
+}
+
+/* Of those can[] marks, which takes `what`: their index, or NONE if there
+   is nobody, or if the player thought better of it (RUN/STOP). */
+static unsigned char choose(const char *what)
+{
+    unsigned char i, n = 0, one = NONE, key;
+    char num[2];
+
+    for (i = 0; i < party_count; ++i) {
+        if (can[i]) {
+            ++n;
+            one = i;
+        }
     }
-    *level = pick;
-    return 1;
+    if (n < 2) {
+        return one;
+    }
+
+    strcpy(eng_text, "Who takes the ");
+    strcat(eng_text, what);
+    strcat(eng_text, "?");
+    ask_line(0, eng_text);
+    eng_text[0] = '\0';
+    num[1] = '\0';
+    for (i = 0; i < party_count; ++i) {
+        if (can[i]) {
+            num[0] = 0x31 + i;
+            strcat(eng_text, num);
+            strcat(eng_text, " ");
+            strcat(eng_text, party[i].name);
+            strcat(eng_text, "  ");
+        }
+    }
+    ask_line(1, eng_text);
+    for (;;) {
+        key = cgetc();
+        if (key == K_STOP) {
+            return NONE;
+        }
+        i = key - 0x31;
+        if (i < party_count && can[i]) {
+            return i;
+        }
+    }
+}
+
+/* Offer tier `idx` of `gear` to whoever it is better for. Returns who took
+   it, or NONE. A first bow in the party comes strung, with arrows. */
+static unsigned char offer(unsigned char idx)
+{
+    unsigned char i, had = party_has_bow();
+
+    for (i = 0; i < party_count; ++i) {
+        can[i] = gear_better(i, gear, idx);
+    }
+    i = choose(names[idx]);
+    if (i != NONE) {
+        *gear_slot(i, gear) = idx;
+        if (gear == GEAR_BOW && !had) {
+            arrows += ARROW_FREE;
+        }
+    }
+    return i;
 }
 
 /* One beaten monster in this many that carries anything leaves a blade, mail
@@ -120,13 +219,17 @@ unsigned char gear_odds = 12;
    makes before loading this engine (fightcall.c). */
 static void gear_give(void)
 {
-    unsigned char k, pick;
+    unsigned char k, pick, who;
 
     k = (unsigned char)(rand() % 3);
     stock(k == 2 ? SHOP_BOW : k);
     pick = lo + (unsigned char)(rand() % (hi - lo + 1));
-    if (better(pick)) {
-        strcpy(line, "You take up its ");
+    on_map = 1;
+    who = offer(pick);
+    on_map = 0;
+    if (who != NONE) {
+        strcpy(line, party[who].name);
+        strcat(line, " takes up its ");
         strcat(line, names[pick]);
         strcat(line, "!");
     } else {
@@ -137,17 +240,53 @@ static void gear_give(void)
     view_message(line);
 }
 
-/* The shop's engine: engine.h. */
-unsigned char shop_entry(void)
+/* --- the shop ------------------------------------------------------------ */
+
+/* Is tier `k` of what is sold in anyone's hands? */
+static unsigned char owned(unsigned char k)
 {
-    if (eng_a == SHOP_GEAR) {
-        gear_give();
-    } else if (eng_a == SHOP_HELP) {
-        help_screen();
-    } else {
-        shop_open(eng_a);
+    unsigned char i;
+
+    for (i = 0; i < party_count; ++i) {
+        if (*gear_slot(i, gear) == k) {
+            return 1;
+        }
     }
     return 0;
+}
+
+/* Does any wizard know spell `s`? */
+static unsigned char known(unsigned char s)
+{
+    unsigned char i;
+
+    for (i = 0; i < party_count; ++i) {
+        if (party[i].known & (1 << s)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void row_out(unsigned char i, unsigned char color)
+{
+    text_clear(0, LIST_Y + i - 1, SCR_W);
+    text_put(0, LIST_Y + i - 1, line, color);
+}
+
+static char *row_start(unsigned char i)
+{
+    char *p = str_lit(line, "  ");
+
+    p = str_num(p, i);
+    return str_lit(p, "  ");
+}
+
+static char *row_price(char *p, unsigned int cost)
+{
+    p = str_pad(p, 26, line);
+    p = str_num(p, cost);
+    return str_lit(p, " marks");
 }
 
 static void draw(void)
@@ -155,34 +294,41 @@ static void draw(void)
     unsigned char i, k;
     char *p;
 
-    if (level) {
+    if (gear != NONE) {
         for (i = 1; i <= rows; ++i) {
             k = item(i);
-            p = str_lit(line, "  ");
-            p = str_num(p, i);
-            p = str_lit(p, "  ");
+            p = row_start(i);
             p = str_lit(p, names[k]);
-            p = str_pad(p, 26, line);
-            p = str_num(p, costs[k]);
-            p = str_lit(p, " marks");
-
-            text_clear(0, LIST_Y + i - 1, SCR_W);
-            text_put(0, LIST_Y + i - 1, line,
-                     k == *level ? COLOR_LIGHTGREEN : COLOR_WHITE);
+            row_price(p, costs[k]);
+            row_out(i, k != NUM_BOWS && owned(k) ? COLOR_LIGHTGREEN
+                                                  : COLOR_WHITE);
+        }
+    } else if (magic) {
+        p = row_start(1);
+        p = str_lit(p, armour_names[ARM_ROBES]);
+        row_price(p, ROBES_COST);
+        gear = GEAR_ARMOUR;
+        row_out(1, owned(ARM_ROBES) ? COLOR_LIGHTGREEN : COLOR_WHITE);
+        gear = NONE;
+        for (i = 0; i < BOOKS; ++i) {
+            p = row_start(i + 2);
+            p = str_lit(p, "Book of ");
+            p = str_lit(p, spell_names[SP_HEAL + i]);
+            row_price(p, book_cost[i]);
+            row_out(i + 2, known(SP_HEAL + i) ? COLOR_LIGHTGREEN
+                                              : COLOR_WHITE);
         }
     } else {
-        p = str_lit(line, "  1  Healing draught");
-        p = str_pad(p, 26, line);
-        p = str_num(p, potion_price());
-        p = str_lit(p, " marks");
-        text_clear(0, LIST_Y, SCR_W);
-        text_put(0, LIST_Y, line, COLOR_WHITE);
+        p = row_start(1);
+        p = str_lit(p, "Healing draught");
+        row_price(p, potion_price());
+        row_out(1, COLOR_WHITE);
     }
 
     p = str_lit(line, "You have ");
     p = str_num(p, gold);
     p = str_lit(p, " marks");
-    if (!level) {
+    if (gear == NONE && !magic) {
         p = str_lit(p, ", ");
         p = str_num(p, potions);
         p = str_lit(p, " draughts");
@@ -190,6 +336,55 @@ static void draw(void)
     p = str_lit(p, ".");
     text_clear(0, PURSE_Y, SCR_W);
     text_put(0, PURSE_Y, line, COLOR_YELLOW);
+}
+
+/* The magic shop's line `pick` (from 1): robes, or a book. Returns 1 if it
+   was taken, having said why not otherwise. */
+static unsigned char magic_buy(unsigned char pick)
+{
+    unsigned char i, s, wiz = 0;
+
+    if (pick == 1) {
+        gear  = GEAR_ARMOUR;
+        names = armour_names;
+        i = offer(ARM_ROBES);
+        gear  = NONE;
+        if (i == NONE) {
+            note("Nobody has need of robes.", COLOR_GRAY2);
+            return 0;
+        }
+        return 1;
+    }
+    s = SP_HEAL + pick - 2;
+    for (i = 0; i < party_count; ++i) {
+        can[i] = 0;
+        if (party[i].cls == CL_WIZARD) {
+            wiz = 1;
+            can[i] = !(party[i].known & (1 << s));
+        }
+    }
+    if (!wiz) {
+        note("None of you can read it.", COLOR_GRAY2);
+        return 0;
+    }
+    if (party_level < book_level[pick - 2]) {
+        note("It is past you yet. Come back wiser.", COLOR_GRAY2);
+        return 0;
+    }
+    strcpy(eng_text, "Book of ");
+    strcat(eng_text, spell_names[s]);
+    i = choose(eng_text);
+    if (i == NONE) {
+        note("You know that spell already.", COLOR_GRAY2);
+        return 0;
+    }
+    party[i].known |= 1 << s;
+    /* Prepared at once, while there is a slot for it: the party screen
+       changes which are. */
+    if (spells_ready(i) < spell_slots()) {
+        party[i].ready |= 1 << s;
+    }
+    return 1;
 }
 
 void shop_open(unsigned char kind)
@@ -204,6 +399,7 @@ void shop_open(unsigned char kind)
     cputsxy(0, TITLE_Y, kind == SHOP_WEAPON ? "The Smithy"
                       : kind == SHOP_ARMOUR ? "The Armourer"
                       : kind == SHOP_BOW    ? "The Bowyer"
+                      : magic               ? "The Magic Shop"
                                             : "The Apothecary");
     textcolor(COLOR_GRAY1);
     chlinexy(0, TITLE_Y + 1, SCR_W);
@@ -216,7 +412,7 @@ void shop_open(unsigned char kind)
         draw();
 
         key = cgetc();
-        if (key == 0x03) {
+        if (key == K_STOP) {
             return;
         }
         if (key < 0x31 || key > 0x30 + rows) {
@@ -224,15 +420,18 @@ void shop_open(unsigned char kind)
         }
         pick = item(key - 0x30);
 
-        cost = level ? costs[pick] : potion_price();
+        cost = gear != NONE ? costs[pick]
+             : !magic       ? potion_price()
+             : pick == 1    ? ROBES_COST : book_cost[pick - 2];
 
         if (gold < cost) {
             note("You cannot afford that.", COLOR_LIGHTRED);
             continue;
         }
         if (pick == NUM_BOWS) {
-            if (!bow_lv || arrows > ARROW_MAX - ARROW_PACK) {
-                note(bow_lv ? "Your quiver is full." : "You have no bow.",
+            if (!party_has_bow() || arrows > ARROW_MAX - ARROW_PACK) {
+                note(party_has_bow() ? "Your quiver is full."
+                                     : "None of you has a bow.",
                      COLOR_GRAY2);
             } else {
                 gold -= cost;
@@ -241,9 +440,13 @@ void shop_open(unsigned char kind)
             }
             continue;
         }
-        if (level) {
-            if (!better(pick)) {
-                note("You have better already.", COLOR_GRAY2);
+        if (magic) {
+            if (!magic_buy(pick)) {
+                continue;
+            }
+        } else if (gear != NONE) {
+            if (offer(pick) == NONE) {
+                note("None of you would be better for it.", COLOR_GRAY2);
                 continue;
             }
         } else {
@@ -252,4 +455,184 @@ void shop_open(unsigned char kind)
         gold -= cost;
         note("A fair trade.", COLOR_LIGHTGREEN);
     }
+}
+
+/* --- the party screen (I) ------------------------------------------------ */
+
+/* Each member: name, class, health and magic; their weapon and bow; their
+   armour; and a wizard's spells, the prepared ones in white. */
+static unsigned char member_rows(unsigned char i, unsigned char y)
+{
+    const Actor *a = &party[i];
+    unsigned char x;
+    char *p;
+
+    p = str_num(line, i + 1);
+    p = str_lit(p, " ");
+    str_lit(p, a->name);           /* PETSCII, as the title typed it */
+    text_put(0, y, line, COLOR_YELLOW);
+    p = str_lit(line, class_names[a->cls]);
+    p = str_lit(p, "  HP ");
+    p = str_num(p, a->hp);
+    p = str_lit(p, "/");
+    p = str_num(p, a->hp_max);
+    if (a->mp_max) {
+        p = str_lit(p, "  MP ");
+        p = str_num(p, a->mp);
+        p = str_lit(p, "/");
+        p = str_num(p, a->mp_max);
+    }
+    text_put(11, y, line, COLOR_GRAY3);
+
+    p = str_lit(line, weapon_names[a->weapon]);
+    if (a->bow) {
+        p = str_lit(p, ", ");
+        p = str_lit(p, bow_names[a->bow]);
+    }
+    text_put(2, ++y, line, COLOR_CYAN);
+    str_lit(line, armour_names[a->armour]);
+    text_put(2, ++y, line, COLOR_CYAN);
+
+    if (a->cls == CL_WIZARD) {
+        ++y;
+        x = 2;
+        for (i = 0; i < NUM_SPELLS; ++i) {
+            if (a->known & (1 << i)) {
+                str_lit(line, spell_names[i]);
+                x += text_put(x, y, line, a->ready & (1 << i)
+                              ? COLOR_WHITE : COLOR_GRAY1) + 1;
+            }
+        }
+    }
+    return y + 2;
+}
+
+static void party_draw(void)
+{
+    unsigned char i, y = 2, maps = 0;
+    char *p;
+
+    clrscr();
+    textcolor(COLOR_YELLOW);
+    cputsxy(0, 0, "The party");
+    textcolor(COLOR_GRAY1);
+    chlinexy(0, 1, SCR_W);
+
+    for (i = 0; i < party_count; ++i) {
+        y = member_rows(i, y);
+    }
+
+    p = str_lit(line, "Level ");
+    p = str_num(p, party_level);
+    p = str_lit(p, "  Exp ");
+    p = str_num(p, party_xp);
+    p = str_lit(p, "  Gold ");
+    p = str_num(p, gold);
+    text_put(0, y, line, COLOR_WHITE);
+    p = str_lit(line, "Draughts ");
+    p = str_num(p, potions);
+    p = str_lit(p, "  Arrows ");
+    p = str_num(p, arrows);
+    text_put(0, y + 1, line, COLOR_WHITE);
+
+    for (i = 0; i < MAPS; ++i) {
+        maps += tmap[TM_LAND + i] != 0;
+    }
+    p = str_lit(line, "T  treasure maps (");
+    p = str_num(p, maps);
+    str_lit(p, ")");
+    text_put(0, 21, line, COLOR_GRAY2);
+    for (i = 0; i < party_count && party[i].cls != CL_WIZARD; ++i) {
+    }
+    if (i < party_count) {
+        str_lit(line, "1-3  a wizard's prepared spells");
+        text_put(0, 22, line, COLOR_GRAY2);
+    }
+    str_lit(line, "Any other key goes back");
+    text_put(0, 24, line, COLOR_GRAY2);
+}
+
+/* Change which of wizard `who`'s spells are prepared: a number toggles one,
+   while there is a slot for it; RETURN or RUN/STOP is done. */
+static void prepare(unsigned char who)
+{
+    Actor *a = &party[who];
+    unsigned char i, key, bit, n;
+    char *p;
+
+    for (;;) {
+        party_draw();
+        for (i = 20; i < 25; ++i) {
+            text_clear(0, i, SCR_W);
+        }
+        p = str_lit(line, "Prepare ");
+        p = str_num(p, spell_slots());
+        p = str_lit(p, " of ");
+        str_lit(p, a->name);
+        text_put(0, 20, line, COLOR_YELLOW);
+        n = 0;
+        for (i = 0; i < NUM_SPELLS; ++i) {
+            if (a->known & (1 << i)) {
+                p = str_num(line, i + 1);
+                p = str_lit(p, " ");
+                str_lit(p, spell_names[i]);
+                text_put((n % 3) * 13, 21 + n / 3, line,
+                         a->ready & (1 << i) ? COLOR_WHITE : COLOR_GRAY1);
+                ++n;
+            }
+        }
+        str_lit(line, "RETURN when done");
+        text_put(0, 23, line, COLOR_GRAY2);
+
+        key = cgetc();
+        if (key == 0x0D || key == K_STOP) {
+            return;
+        }
+        i = key - 0x31;
+        if (i >= NUM_SPELLS) {
+            continue;
+        }
+        bit = 1 << i;
+        if (!(a->known & bit)) {
+            continue;
+        }
+        if (a->ready & bit) {
+            a->ready &= ~bit;
+        } else if (spells_ready(who) < spell_slots()) {
+            a->ready |= bit;
+        }
+    }
+}
+
+/* Returns 1 if the player asked for the treasure maps. */
+static unsigned char party_screen(void)
+{
+    unsigned char key, i;
+
+    sprite_hide();
+    for (;;) {
+        party_draw();
+        key = cgetc();
+        if (key == K_T || key == K_T + 0x80) {
+            return 1;
+        }
+        i = key - 0x31;
+        if (i < party_count && party[i].cls == CL_WIZARD) {
+            prepare(i);
+            continue;
+        }
+        return 0;
+    }
+}
+
+/* The shop's engine: engine.h. */
+unsigned char shop_entry(void)
+{
+    switch (eng_a) {
+        case SHOP_GEAR:  gear_give();          break;
+        case SHOP_HELP:  help_screen();        break;
+        case SHOP_PARTY: return party_screen();
+        default:         shop_open(eng_a);     break;
+    }
+    return 0;
 }

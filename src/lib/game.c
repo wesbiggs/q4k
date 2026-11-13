@@ -21,9 +21,6 @@ unsigned char local_w, local_h;     /* local[] itself is in local.s */
 unsigned int  game_turn;
 unsigned int  gold;
 unsigned char potions;
-unsigned char weapon_lv;
-unsigned char armour_lv;
-unsigned char bow_lv;
 unsigned char arrows;
 unsigned char quest_stage;
 unsigned char items;
@@ -66,10 +63,7 @@ void game_init(void)
     land        = ISLE_HOME;
     game_turn   = 0;
     gold        = 9;
-    potions     = 1;
-    weapon_lv   = 0;
-    armour_lv   = 0;
-    bow_lv      = 0;
+    potions     = 1;            /* one a member: boot.c, once they are made */
     arrows      = 0;
     quest_stage = Q_START;
     items       = 0;

@@ -97,10 +97,9 @@ static void draw_menu(void)
    spoils from the last fight. */
 static void kit_out(void)
 {
-    hero.level  = level;
-    hero.hp_max = 20 + 6 * (level - 1);   /* as award() grows it */
-    hero.xp     = 0;
-    heal_full();
+    party_level  = level;
+    party_xp     = 0;
+    party_grow();                         /* as award() grows them */
     potions = 3;
     gold    = 0;
 }
@@ -166,11 +165,11 @@ int main(void)
         } else if (k == K_F1) {
             level = level % MAX_LEVEL + 1;
         } else if (k == K_F3) {
-            weapon_lv = (weapon_lv + 1) % NUM_WEAPONS;
+            hero.weapon = (hero.weapon + 1) % NUM_WEAPONS;
         } else if (k == K_F5) {
-            armour_lv = (armour_lv + 1) % NUM_ARMOUR;
+            hero.armour = (hero.armour + 1) % NUM_ARMOUR;
         } else if (k == K_F7) {
-            bow_lv = (bow_lv + 1) % NUM_BOWS;
+            hero.bow = (hero.bow + 1) % NUM_BOWS;
             arrows = ARROW_MAX;
         }
     }

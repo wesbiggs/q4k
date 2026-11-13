@@ -34,6 +34,7 @@ const char *const tile_names[TILE_TOTAL] = {
     "SECRETDOOR",
     "CROWN",
     "PORT",
+    "BOOK",
     "PLAYER",
     "VILLAGER",
     "MONSTER",
@@ -52,6 +53,9 @@ const char *const tile_names[TILE_TOTAL] = {
     "DRAGONBR",
     "WASP",
     "SHIP",
+    "WARRIOR",
+    "ARCHER",
+    "WIZARD",
 };
 
 const unsigned char tile_codes[TILE_TOTAL] = {
@@ -86,6 +90,7 @@ const unsigned char tile_codes[TILE_TOTAL] = {
     0x7C,
     0x7D,
     0x7E,
+    0x7F,
     0x8C,
     0x8D,
     0x8E,
@@ -104,6 +109,9 @@ const unsigned char tile_codes[TILE_TOTAL] = {
     0x8B,
     0x90,
     0x91,
+    0xC8,
+    0xC9,
+    0xCA,
 };
 
 const unsigned char tile_all_colors[TILE_TOTAL] = {
@@ -138,6 +146,7 @@ const unsigned char tile_all_colors[TILE_TOTAL] = {
     12,
     7,
     8,
+    3,
     1,
     3,
     10,
@@ -155,5 +164,8 @@ const unsigned char tile_all_colors[TILE_TOTAL] = {
     2,
     2,
     7,
+    1,
+    1,
+    1,
     1,
 };
