@@ -5,7 +5,8 @@
 # It runs cloud-setup.sh itself with the build forced, so what is published
 # is exactly what the script would have built, and then builds q4k and
 # checks one screen with it before uploading anything. Runs by hand, and
-# whenever the script or this file changes.
+# whenever the script or this file changes. A second job checks the path
+# taken without a token: Ubuntu's VICE plus the ROMs from VICE's source.
 
 name: toolchain
 
@@ -58,3 +59,24 @@ jobs:
                  --notes "Headless VICE for tools/cloud-setup.sh, built on ubuntu-24.04 into /opt/vice. Not a game release."
           gh release edit "$tag" --prerelease
           gh release upload "$tag" "vice-$VICE_VERSION-headless.tgz" --clobber
+
+  # The path a cloud session without a token takes: Ubuntu's VICE, the ROMs
+  # out of the VICE source tarball, and the Xvfb wrapper. No token reaches
+  # the script here, so it cannot take the prebuilt release instead.
+  ubuntu-vice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up the toolchain with Ubuntu's VICE
+        run: sudo tools/cloud-setup.sh
+
+      - name: Check it builds and runs q4k
+        run: |
+          make
+          make d64-offline
+          tools/screendump.py dist/hello.prg | diff -u tests/golden/hello.txt -
+          tools/screendump.py dist/q4k.prg --keys 'Alaric\rwwwwwwwwwwwwaaaaw' \
+              --settle 3 | diff -u tests/golden/q4k.txt -
