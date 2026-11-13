@@ -1,17 +1,11 @@
-; Start-up code's home, and scratch arrays once it is done.
+; Scratch at the end of two engines: the fight's arrays here, and the talk's
+; buffer in talkbuf.s (apart, so that a program with a fight and no talk
+; links no buffer).
 ;
-; The title screen, and what draws the game's character set, are code that
-; runs once, before any fight or conversation; the fight's arrays hold nothing
-; from one fight to the next and the dialogue's reply nothing from one turn to
-; the next. So they can all be the same bytes: the OVL memory area at the
-; bottom of HIGH (cfg/c64-q4k.cfg), loaded with the start-up code and then
-; used as scratch. Otherwise it would cost two and a half kilobytes of HIGH
-; and MAIN that nothing could use afterwards.
-;
-; Segments for it: TITLECODE and TITLEDATA (the Makefile puts title.o and
-; charset_define.o in them; tools/mktiles.py marks the glyphs in tiles_data.c).
-; Their total is 2524 bytes, and the arrays below add to 2540. The sizes are
-; battle.c's and dialog.c's, and OVL's is their sum (__OVLSIZE__ in the cfg):
+; Each engine is loaded into the slot (include/q4k/engine.h,
+; cfg/c64-q4k.cfg), and while it runs nothing else is there, so whatever it
+; needs only while it runs can follow its code: FIGHTBSS and TALKBSS. None of
+; it holds anything from one fight, or one conversation, to the next.
 ;
 ;       field    21 * 19 =  399
 ;       wall     23 * 21 =  483
@@ -19,28 +13,9 @@
 ;       seen     23 * 21 =  483
 ;       queue_x             256
 ;       queue_y             256
-;       reply               180
-;                         -----
-;                          2540 = $09EC
 ;
-; The offline build (make offline) has no reply, and no modem: it links OVL
-; 512 bytes longer, taking the RS-232 buffers' room (OFFLINE_OVL in the
-; Makefile), and loads one person's lines, or one inn's rumours, from disk into
-; the whole of it as talk (src/lib/talk.c).
-;
-; The rule that goes with it: nothing here may be touched until the start-up
-; (main() up to the map's first draw) is done, and none of it may run again.
-; The cfg will not link if start-up grows past the arrays: then grow one.
 
-        .ifdef Q4K_OFFLINE
-
-; The offline build has no OVL: start-up is what the engines' slot holds when
-; the game starts, and the fight's arrays and the talk's file are at the end of
-; their own engines, after their code, where nothing else is while they run
-; (engine.h, cfg/c64-offline.cfg). TALK_SIZE comes from the Makefile
-; (OFFLINE_OVL), which tools/mktalk.py checks every file against.
-
-        .export _field, _wall, _roomy, _seen, _queue_x, _queue_y, _talk
+        .export _field, _wall, _roomy, _seen, _queue_x, _queue_y
 
         .segment "FIGHTBSS"
 _field:   .res 399
@@ -49,23 +24,3 @@ _roomy:   .res 483
 _seen:    .res 483
 _queue_x: .res 256
 _queue_y: .res 256
-
-        .segment "TALKBSS"
-_talk:    .res TALK_SIZE
-
-        .else
-
-        .export _field, _wall, _roomy, _seen, _queue_x, _queue_y, _reply
-        .export _talk
-        .import __OVL_START__
-
-_field   = __OVL_START__
-_wall    = __OVL_START__ + 399
-_roomy   = __OVL_START__ + 399 + 483
-_seen    = __OVL_START__ + 399 + 483 + 483
-_queue_x = __OVL_START__ + 399 + 483 + 483 + 483
-_queue_y = __OVL_START__ + 399 + 483 + 483 + 483 + 256
-_reply   = __OVL_START__ + 2360
-_talk    = __OVL_START__
-
-        .endif

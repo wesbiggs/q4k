@@ -4,15 +4,12 @@
 #include <q4k/actor.h>
 #include <q4k/battle.h>
 #include <q4k/dialog.h>
-#ifdef Q4K_OFFLINE
 #include <q4k/engine.h>
-#endif
 #include <q4k/game.h>
 #include <q4k/inn.h>
 #include <q4k/panel.h>
 #include <q4k/sprite.h>
 #include <q4k/text.h>
-#include <q4k/town_gen.h>
 #include <q4k/view.h>
 
 /* Read-only data goes in the charset's spare glyphs: cfg/c64-q4k.cfg. */
@@ -30,11 +27,6 @@
 #define ROOM_PRICE  20
 
 static char line[SCR_W + 1];
-
-#ifndef Q4K_OFFLINE
-/* What the host knows the inns the generator makes by. */
-static const char proc_inn_id[] = "wayside";
-#endif
 
 static void purse(void)
 {
@@ -63,23 +55,16 @@ static unsigned char pay(unsigned char price)
     return 1;
 }
 
-/* The hint comes from the dialogue daemon. Without one you still get the
-   ale -- it is only the talk that needs the line -- and the title screen
-   has already said there is nobody to talk to. */
+/* The hint comes from the dialogue daemon, or offline from the disk. Without
+   a daemon you still get the ale -- it is only the talk that needs the line
+   -- and the title screen has already said there is nobody to talk to. */
 static void ale(unsigned char inn)
 {
     if (!pay(ALE_PRICE)) {
         return;
     }
     panel_lit("You drink.", COLOR_GRAY2);
-#ifdef Q4K_OFFLINE
-    /* Offline, the rumours are on the disk: talk.c loads them now. */
     if (dialog_hint(inn) != DIALOG_OK) {
-#else
-    if (dialog_line == LINE_UP
-        && dialog_hint(inn < NUM_INNS ? inn_ids[inn] : proc_inn_id,
-                       quest_stage, lore_seed) != DIALOG_OK) {
-#endif
         panel_lit("The keeper is busy.", COLOR_GRAY2);
     }
 }
@@ -101,17 +86,11 @@ void inn_open(unsigned char inn)
 {
     unsigned char key;
 
-#ifdef Q4K_OFFLINE
     dialog_forget();     /* the buffer may have been something else since */
-#endif
     sprite_hide();
     clrscr();
     textcolor(COLOR_YELLOW);
-#ifdef Q4K_OFFLINE
     cputsxy(0, TITLE_Y, eng_text);      /* the map knows its name: engine.h */
-#else
-    cputsxy(0, TITLE_Y, inn < NUM_INNS ? inn_names[inn] : town_gen_inn());
-#endif
     textcolor(COLOR_GRAY1);
     chlinexy(0, TITLE_Y + 1, SCR_W);
     chlinexy(0, HINT_Y - 1, SCR_W);

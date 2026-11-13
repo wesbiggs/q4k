@@ -1,1 +1,1 @@
-dist/q4k.prg --poke lore_seed=0x5a --poke no_encounters=1 --timeout 90 --poke quest_stage=2 --poke items=1 --keys Alaric\rs<dsdddddddsssssddddddddddddsssssssssssssss> --settle 6
+dist/q4k.prg --disk dist/q4k.d64 --poke lore_seed=0x5a --poke no_encounters=1 --timeout 90 --poke quest_stage=2 --poke items=1 --keys Alaric\rs<dsdddddddsssssddddddddddddsssssssssssssss> --settle 6

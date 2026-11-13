@@ -1,15 +1,20 @@
 /*
- * q4k -- what people hand over when you talk to them.
+ * q4k -- what people hand over when you talk to them, and the talk's engine's
+ * entry.
  *
- * Moved out of src/q4k.c so that the offline build can keep it with the
- * conversations, in the talk's engine on the disk (engine.h), where the
- * conversation that calls it is; the networked build links it as before.
+ * Moved out of src/q4k.c so that it is with the conversations, in the talk's
+ * engine on the disk (engine.h), where the conversation that calls it is.
+ * Both builds' conversations call it the same way (dialog.h).
  */
+
+#include <string.h>
 
 #include <q4k/battle.h>
 #include <q4k/dialog.h>
+#include <q4k/engine.h>
 #include <q4k/game.h>
 #include <q4k/gift.h>
+#include <q4k/inn.h>
 #include <q4k/town_data.h>
 
 /* In CHDATA2 because MAIN is full; see CLAUDE.md. */
@@ -87,3 +92,30 @@ const char *quest_after_talk(unsigned char granted)
     return 0;
 }
 
+/* The talk's engine (engine.h): a person, or an inn. With nobody to talk to,
+   or a host gone silent, the person still hands over what they would have,
+   on the map: the line saying so goes back in eng_text, which came in with
+   their name. */
+unsigned char talk_entry(void)
+{
+    unsigned char r;
+    const char *note;
+
+    if (eng_a == TALK_INN) {
+        inn_open(eng_b);
+        return 0;
+    }
+    r = dialog_talk(eng_b, eng_text, quest_after_talk);
+    if (r == DIALOG_OK) {
+        return 0;
+    }
+    note = quest_after_talk(GRANT_OPEN);
+    if (note) {
+        strcpy(eng_text, note);
+    } else if (r == DIALOG_ENOLINE) {
+        strcat(eng_text, " has nothing for you.");
+    } else {
+        return 0;
+    }
+    return 1;
+}

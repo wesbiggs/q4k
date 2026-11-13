@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """How much of the game each mode needs, from ld65's map file.
 
-    tools/modes.py [build/offline/q4k.map]
+    tools/modes.py [build/q4k.map]
 
 Groups every module the game links into the mode that needs it -- what has to
 be in memory all the time (core), only while walking a map, only on a
@@ -29,7 +29,8 @@ MODES = {
                local font_data tiles_names view game isle arms engine boot""",
     "map": """q4k world fov town_data town_gen place_near loot loot_data scene
               draw fightcall""",
-    "service": """shop inn help talk savegame sail isle_gen tgen dungeon gift""",
+    "service": """shop inn help talk talkbuf dialog line modem savegame sail
+                  isle_gen tgen dungeon gift""",
     "fight": """battle arena_data open9 overlay""",
     "startup": """title charset_define tiles_data""",
 }
@@ -82,7 +83,7 @@ def mode_of(module):
 
 
 def main():
-    path = sys.argv[1] if len(sys.argv) > 1 else "build/offline/q4k.map"
+    path = sys.argv[1] if len(sys.argv) > 1 else "build/q4k.map"
     sizes = parse(path)
     groups = defaultdict(lambda: defaultdict(int))
     per_mod = defaultdict(dict)

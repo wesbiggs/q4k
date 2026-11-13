@@ -62,11 +62,7 @@ lotx:   .byte 2, 8, 14, 2, 8, 14        ; where each lot starts, and where the
 loty:   .byte 2, 2, 2, 9, 9, 9          ; bottom wall of a building in it goes
 lotb:   .byte 7, 7, 7, 14, 14, 14
 
-        .ifdef Q4K_OFFLINE
         .segment "MAPCODE"           ; an engine of its own: engine.h
-        .else
-        .segment "HICODE"
-        .endif
 
 ; ptr1 = &local[ty * 64 + tx]
 locate: lda ty

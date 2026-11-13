@@ -1,10 +1,10 @@
 /*
- * q4k -- the offline build's main(): start-up, then the map's engine.
+ * q4k -- the game's main(): start-up, then the map's engine.
  *
- * The networked build's main() is the map loop itself, in src/q4k.c. Offline,
- * that loop is map_entry(), in the map's engine on the disk, so main() is here
- * in the core: it runs the title screen (which the PRG brings in the slot),
- * loads the map's engine over it, and hands over for good. See engine.h.
+ * The map loop is map_entry(), in src/q4k.c, which is in the map's engine on
+ * the disk, so main() is here in the core: it runs the title screen (which the
+ * PRG brings in the slot), loads the map's engine over it, and hands over for
+ * good. See engine.h.
  */
 
 #include <q4k/actor.h>

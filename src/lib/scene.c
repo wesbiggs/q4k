@@ -2,9 +2,9 @@
  * q4k -- building the scene you are in: a town, home, the way back out.
  *
  * Split out of game.c, which keeps the state and the questions about the map
- * that the fight asks too (map_at() and the rest), so that the offline build
- * can keep this with the map's engine, on the disk (ENGINES.md). Both builds
- * link it; nothing here changed in the move but the two functions at the end,
+ * that the fight asks too (map_at() and the rest), so that this can be kept
+ * with the map's engine, on the disk (ENGINES.md). Nothing here changed in the
+ * move but the two functions at the end,
  * which were the start of game_init() and the end of savegame.c's do_load().
  */
 
@@ -143,13 +143,6 @@ void game_start(void)
     hero.y = town_sy[TOWN_MILLFORD];
 }
 
-/* In HIGH, where it was when it was part of savegame.c: MAIN has no room
-   for it in the networked build. (The offline build has the whole module
-   with the map's engine.) */
-#ifndef Q4K_OFFLINE
-#pragma code-name (push, "HICODE")
-#endif
-
 /* After load_game(): rebuild the maps rather than store them, all from
    lore_seed. items has to be restored first: whether the keeper is still
    down there depends on it. Home is only needed once you have left
@@ -193,6 +186,3 @@ void scene_restore(void)
     }
 }
 
-#ifndef Q4K_OFFLINE
-#pragma code-name (pop)
-#endif

@@ -67,7 +67,7 @@ typedef struct {
 
 extern const Wanderer      wanderers[];
 extern const unsigned char num_wanderers;
-extern const Monster       natives[];   /* two a biome, offline only */
+extern const Monster       natives[];   /* two a biome, a continent's own */
 extern const Monster       keepers[NUM_DUNGEONS];
 extern const Monster       maldrath;
 

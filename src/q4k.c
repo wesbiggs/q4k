@@ -17,9 +17,7 @@
 #include <q4k/charset.h>
 #include <q4k/dialog.h>
 #include <q4k/dungeon.h>
-#ifdef Q4K_OFFLINE
 #include <q4k/engine.h>
-#endif
 #include <q4k/fov.h>
 #include <q4k/game.h>
 #include <q4k/gift.h>
@@ -33,9 +31,7 @@
 #include <q4k/music.h>
 #include <q4k/sail.h>
 #include <q4k/sprite.h>
-#ifdef Q4K_OFFLINE
 #include <q4k/stick.h>
-#endif
 #include <q4k/tiles.h>
 #include <q4k/title.h>
 #include <q4k/town_gen.h>
@@ -118,20 +114,10 @@ static void publish(void)
  * unrepeatable thing the machine has to offer -- see rng_stir(). */
 static unsigned char wait_key(void)
 {
-#ifdef Q4K_OFFLINE
     unsigned char key = stick_key();    /* the joystick in port 2 as well */
 
     rng_stir(stick_spins);
     return key;
-#else
-    unsigned int spins = 0;
-
-    while (!kbhit()) {
-        ++spins;
-    }
-    rng_stir(spins);
-    return cgetc();
-#endif
 }
 
 /* Ask, and only Y (either case) says yes. */
@@ -188,49 +174,34 @@ static void interact(unsigned char index)
         return;
     }
     if (e->kind == ENT_SHOP) {
-#ifdef Q4K_OFFLINE
         eng_a = e->param;
         engine_call(ENG_SHOP, shop_entry);
-#else
-        shop_open(e->param);
-#endif
         back_to_map();
         return;
     }
     if (e->kind == ENT_INN) {
-#ifdef Q4K_OFFLINE
         /* The inns' names are the map's: the talk's engine is told. */
         strcpy(eng_text, e->param < NUM_INNS ? inn_names[e->param]
                                               : town_gen_inn());
         eng_a = TALK_INN;
         eng_b = e->param;
         engine_call(ENG_TALK, talk_entry);
-#else
-        inn_open(e->param);
-#endif
         back_to_map();
         return;
     }
 
-    /* Gifts are announced in the conversation. With a dead line or no
-       daemon there was none, so the gift is ungated and told on the map. */
+    /* Gifts are announced in the conversation. With nobody to talk to (no
+       host on the line, or no file on the disk) there was none, so the gift
+       is ungated and told on the map: the talk's engine (talk_entry()) hands
+       the line back in eng_text. */
     talking_to = e->param;
     note = 0;
-#ifdef Q4K_OFFLINE
-    /* The talk's engine does all of that (talk_entry()), and hands back the
-       line for the map, if there is one, in eng_text. */
     strcpy(eng_text, npc_names[e->param]);
     eng_a = TALK_NPC;
     eng_b = e->param;
     if (engine_call(ENG_TALK, talk_entry)) {
         note = eng_text;
     }
-#else
-    if (dialog_talk(npc_ids[e->param], npc_names[e->param],
-                    quest_stage, lore_seed, quest_after_talk) != DIALOG_OK) {
-        note = quest_after_talk(GRANT_OPEN);
-    }
-#endif
     back_to_map();
     if (note) {
         view_message(note);
@@ -533,9 +504,8 @@ static void try_talk(void)
     interact((unsigned char)e);
 }
 
-#ifdef Q4K_OFFLINE
-/* The offline build's main() is in boot.c, which runs the title screen and
-   then this, in the map's engine (engine.h), for good. */
+/* main() is in boot.c, which runs the title screen and then this, in the
+   map's engine (engine.h), for good. */
 void map_entry(unsigned char restored)
 {
     unsigned char key;
@@ -551,34 +521,6 @@ void map_entry(unsigned char restored)
     } else {
         game_start();
     }
-#else
-int main(void)
-{
-    unsigned char key;
-    unsigned char seeded = 0;
-    unsigned char restored;
-    unsigned char told;
-    /* PETSCII throughout: hero.name and the literals are both what conio
-       expects, so they concatenate straight together. */
-    static char greeting[SCR_W + 1];
-
-    /* First of all: game_init() unpacks Millford into local[], which is the
-       font image until the charset has been copied out of it. */
-    save_init();                       /* $BA is the load device only until the modem opens */
-    tiles_install();
-    game_init();                       /* seeds hero.name with the default */
-    game_start();
-    /* No keyboard drain here: the title screen already discarded the
-       launcher's RUN before it accepted a name, and draining again would
-       swallow whatever the player typed ahead. */
-    restored = title_screen(hero.name, NAME_LEN);
-    if (restored) {
-        scene_restore();
-    }
-    view_init();
-    music_start();
-#endif
-
     if (restored) {
         view_message("Press ? for help.");
         strcpy(greeting, "Welcome back, ");
@@ -630,7 +572,6 @@ int main(void)
 
             case K_GT: use_stairs(1); break;
             case K_LT: use_stairs(0); break;
-#ifdef Q4K_OFFLINE
             case STICK_FIRE:
                 /* The button is whichever of > and < means something
                    here: out of a town, up a stair going up, otherwise in
@@ -638,7 +579,6 @@ int main(void)
                 use_stairs(scene != SCENE_TOWN
                            && map_at(hero.x, hero.y) != T_STAIRUP);
                 break;
-#endif
 
             case K_P:
                 quaff();
@@ -711,11 +651,7 @@ int main(void)
                 clrscr();
                 asm("sei");
                 ((void (*)(void))0xFCE2)();     /* SYS 64738: the machine's reset */
-#ifdef Q4K_OFFLINE
                 return;
-#else
-                return 0;
-#endif
 
             default:
                 break;

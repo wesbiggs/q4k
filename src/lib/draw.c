@@ -2,9 +2,8 @@
  * q4k -- drawing the map you are on, and saying where that is.
  *
  * Split out of view.c, which keeps the message log, the chrome and the panel
- * that the fight draws too, so that the offline build can keep this with the
- * map's engine, on the disk (ENGINES.md). Both builds link it; nothing here
- * changed in the move but view_place(), which was the middle of
+ * that the fight draws too, so that this can be kept with the map's engine,
+ * on the disk (ENGINES.md). Nothing here changed in the move but view_place(), which was the middle of
  * view_draw_panel().
  */
 

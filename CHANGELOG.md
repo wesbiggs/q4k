@@ -13,6 +13,16 @@ workflow reads the one headed with the tag's version.
   the title screen, and it asks for the disk back if a load fails. Meant for
   a fast drive (TeensyROM's vdrive); a stock 1541 would take most of a minute
   for every fight. See ENGINES.md.
+- The offline build is now the game: `q4k-<version>.d64`, and what `make`
+  builds. The networked one, where people answer through a language model, is
+  experimental: `q4k-<version>-online.d64`, and `q4k-<version>-online.zip`
+  with the host (`make online`, `make play`). There is no `.prg` on its own,
+  since the game needs its disk.
+- The online build loads its engines from the disk too, and so has everything
+  the offline one has: each continent's own monsters, the arms monsters drop,
+  lightning, and the joystick in port 2. The two differ only in who talks.
+  `tools/play.sh` plays from a copy of its disk, `dist/online/saves.d64`, and
+  carries your save over when the game is rebuilt.
 
 ## 0.11.0 — 2026-11-06
 

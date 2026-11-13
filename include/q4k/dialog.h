@@ -1,20 +1,20 @@
 /*
  * q4k -- talking to people.
  *
- * Takes over the screen, dials the host over the modem port, and runs a
- * conversation: the player types, the NPC answers. The caller redraws the map
- * afterwards.
- *
- * The offline build (Q4K_OFFLINE, make offline) has no modem: src/lib/talk.c
- * loads what each person can say from the disk instead, and the player picks
- * from a menu. Its half of this header is at the end.
+ * Takes over the screen and runs a conversation; the caller redraws the map
+ * afterwards. The two builds differ here and nowhere else: the game, offline
+ * (talk.c), loads what each person can say from the disk, and the player picks
+ * from a menu; the experimental networked one (Q4K_ONLINE, make online:
+ * dialog.c) dials the host over the modem port, and the player types while the
+ * NPC answers.
+ * Both are in the talk's engine (engine.h), and both are called the same way.
  */
 
 #ifndef Q4K_DIALOG_H
 #define Q4K_DIALOG_H
 
 #define DIALOG_OK        0
-#define DIALOG_ENOLINE   1   /* the port would not open   */
+#define DIALOG_ENOLINE   1   /* nobody to ask: no host, or no file */
 #define DIALOG_ESILENT   2   /* nobody answered in time   */
 
 /* What the host can decide a conversation has earned, sent as "GIVE <g>".
@@ -26,10 +26,42 @@
 #define GRANT_ASHEN  4   /* Mother Ash gave up the Ashen Key for the Tear */
 #define GRANT_FORGE  5   /* Garrett agreed to reforge Dragonbane          */
 /* Nobody to ask, so nothing is gated: the game stays winnable without the
-   modem. Passed to dialog_talk()'s `given` when the line is not up. */
+   modem. Passed to dialog_talk()'s `given` when there is nobody to ask, and
+   offline for every line marked to give. */
 #define GRANT_OPEN   0xFF
 
-#ifndef Q4K_OFFLINE
+/* Talk to NPC number `npc` (NPC_* in town_data.h), headed `name`, until the
+   player leaves (RUN/STOP) or the NPC ends it.
+
+   `given` hands over whatever the conversation has earned and returns the
+   line announcing it (a C literal), or 0; the line goes into the transcript.
+   Over the modem it is called after every answer, with what the host has
+   granted so far; offline, with GRANT_OPEN after a line marked to give.
+
+   DIALOG_ENOLINE if there is nobody to talk to -- no host on the line (and
+   then nothing has been drawn), or no file on the disk -- and DIALOG_ESILENT
+   if the host has stopped answering, which takes the line down for the rest
+   of the game. Either way talk_entry() (gift.c) hands over what the quest
+   needs with GRANT_OPEN, and the map says so. */
+unsigned char dialog_talk(unsigned char npc, const char *name,
+                          const char *(*given)(unsigned char granted));
+
+/* One of inn `inn`'s rumours for the quest stage, appended to whatever panel
+   the caller has set up: over the modem, an authored hint the host draws from
+   assets/hints.json (no model is involved); offline, one from the inn's file
+   on the disk, which is loaded the first time and kept until dialog_forget().
+   DIALOG_OK if one was told -- or, over the modem, if there is no host at
+   all, which the title screen has already said. */
+unsigned char dialog_hint(unsigned char inn);
+
+/* Forget what is loaded (offline: the buffer is someone else's scratch
+   after). Does nothing over the modem. */
+void dialog_forget(void);
+
+#ifdef Q4K_ONLINE
+
+/* The line to the host, which is in the core (line.c), since the title
+   screen asks it before any engine is loaded. */
 
 /* What dialog_probe() found on the line when the game started. */
 #define LINE_UP       0   /* a host answered, and can talk               */
@@ -44,55 +76,12 @@ extern unsigned char dialog_line;
    without conversations -- see dialog_talk(). */
 unsigned char dialog_probe(void);
 
-/* Set by dialog_talk(): the last grant the host sent, or GRANT_NONE. It
-   sticks for the whole conversation, so talking on afterwards loses nothing. */
-extern unsigned char dialog_granted;
+/* The host's next line, from its verb on, in reply[]; 0 if `ticks` jiffies
+   pass in silence. */
+#define REPLY_MAX 180
+extern char reply[REPLY_MAX];
+char *line_answer(unsigned int ticks);
 
-/* `stage` is the quest stage; the daemon uses it to tell the NPC where the
-   story has got to. Stays a single digit -- see Q_* in game.h. `seed` is the
-   run's lore_seed, from which the host draws this game's secrets.
-
-   `given` is called after every answer with dialog_granted so far. It hands
-   over whatever the conversation has earned and returns the line announcing
-   it (a C literal), or 0; the line goes into the transcript, not the map.
-
-   The NPC may end the conversation (the host answers BYE): their last words
-   stay up until a key is pressed, and dialog_talk returns DIALOG_OK.
-
-   If the line is not up there is no conversation and no screen of its own:
-   `given` is asked with GRANT_OPEN, and what it hands over -- or that the
-   NPC has nothing for you -- goes in the map's log. That returns DIALOG_OK
-   too. A host that stops answering mid-game returns DIALOG_ESILENT, and
-   takes the line down for the rest of the game. */
-unsigned char dialog_talk(const char *npc_id, const char *place,
-                          unsigned char stage, unsigned char seed,
-                          const char *(*given)(unsigned char granted));
-
-/* What the keeper of inn `inn_id` lets slip over an ale: one authored hint,
-   drawn host-side from assets/hints.json, appended to whatever panel the
-   caller has set up. No model is involved. DIALOG_OK if one arrived. */
-unsigned char dialog_hint(const char *inn_id, unsigned char stage,
-                          unsigned char seed);
-
-#else /* Q4K_OFFLINE */
-
-/* Talk to NPC number `npc` (NPC_* in town_data.h), whose lines are the file
-   of that name on the disk (tools/mktalk.py, from assets/talk.txt), headed
-   `name`. The player picks topics until they leave. A line marked to give
-   calls `given` with GRANT_OPEN, and what it returns goes in the transcript;
-   nothing else calls it. DIALOG_ENOLINE if the file would not load. Either
-   way the caller redraws the map afterwards. */
-unsigned char dialog_talk(unsigned char npc, const char *name,
-                          const char *(*given)(unsigned char granted));
-
-/* One of inn `inn`'s rumours for the quest stage, at random, appended to
-   whatever panel the caller has set up. The file is loaded the first time
-   and kept until dialog_forget(). DIALOG_OK if one was told. */
-unsigned char dialog_hint(unsigned char inn);
-
-/* Forget what is loaded: the overlay is someone else's scratch after. */
-void dialog_forget(void);
-
-#endif /* Q4K_OFFLINE */
+#endif /* Q4K_ONLINE */
 
 #endif /* Q4K_DIALOG_H */

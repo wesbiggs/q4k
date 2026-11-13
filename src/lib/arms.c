@@ -2,7 +2,7 @@
  * q4k -- the arms, and the bits of chance and healing everyone shares.
  *
  * Split out of battle.c so that the fight can be loaded from the disk on its
- * own (the offline build's engines: ENGINES.md) while the map, the panel and
+ * own (the engines: ENGINES.md) while the map, the panel and
  * the shop, which all read the arms' names and roll the same dice, keep
  * these in memory. Nothing here changed in the move.
  */

@@ -1,16 +1,21 @@
+/*
+ * q4k -- talking to people over the modem (networked build only): see
+ * dialog.h. In the talk's engine; the line itself, and the reply, are in the
+ * core (line.c).
+ */
+
 #include <conio.h>
 #include <c64.h>
 #include <string.h>
 
 #include <q4k/dialog.h>
+#include <q4k/game.h>
 #include <q4k/modem.h>
 #include <q4k/panel.h>
 #include <q4k/sprite.h>
 #include <q4k/text.h>
+#include <q4k/town_data.h>
 #include <q4k/view.h>
-
-/* Read-only data goes in the charset's spare glyphs: cfg/c64-q4k.cfg. */
-#pragma rodata-name ("CHDATA2")
 
 #define TR_Y       3    /* transcript area */
 #define TR_H      16
@@ -20,15 +25,10 @@
 /* One screen row: "> ", the text, and the cursor after it. Anything longer
    ran onto the hint line, where the cursor was never cleared again. */
 #define INPUT_MAX (SCR_W - 2)
-#define REPLY_MAX 180
 
 /* Replies can take a few seconds: the host is talking to a model, and the
    line runs at 300 baud. Wait 40 seconds of silence before giving up. */
 #define REPLY_TICKS 2400
-
-/* The check at startup. A host answers PING at once, so three seconds of
-   silence means nobody is there. */
-#define PROBE_TICKS 180
 
 /* A hint is a table lookup on the host, so it answers at once or not at
    all. Five seconds of silence is plenty, and nobody should stand at the
@@ -52,12 +52,10 @@
 #define PULSE_STEPS   6
 
 static char input[INPUT_MAX];
-extern char reply[REPLY_MAX];   /* overlay.s: scratch that start-up uses first */
 static char seg[SCR_W + 1];
 
-static unsigned char line_open;
-
-unsigned char dialog_line = LINE_SILENT;
+/* What the host knows the inns the generator makes by. */
+static const char proc_inn_id[] = "wayside";
 
 /* Who is being asked, where the story stands, and how long to wait for
    silence to end, in jiffies. Statics rather than exchange()'s parameters:
@@ -76,7 +74,9 @@ static unsigned int  dots;        /* where the "..." sits in screen RAM */
 static unsigned char pulse_wait;
 static unsigned char pulse_step;
 
-unsigned char dialog_granted;
+/* The last grant the host sent, or GRANT_NONE. It sticks for the whole
+   conversation, so talking on afterwards loses nothing. */
+static unsigned char dialog_granted;
 
 static void frame(const char *place)
 {
@@ -174,31 +174,6 @@ static void put_nybble(unsigned char n)
     modem_put(n < 10 ? 0x30 + n : 0x57 + n);
 }
 
-/* The host's next line, from its verb on; 0 if `ticks` jiffies pass in
-   silence.
- *
- * The host prefixes every answer with a bare CR to absorb the first-byte
- * sync slip on the line, so an empty read just means "keep going". But the
- * slip lands on that CR itself, so step over any leading non-letters too. */
-static char *answer(unsigned int ticks)
-{
-    unsigned char err, i;
-    char *start;
-
-    err = modem_getline(reply, REPLY_MAX, ticks);
-    while (err == MODEM_OK && reply[0] == '\0') {
-        err = modem_getline(reply, REPLY_MAX, ticks);
-    }
-    if (err != MODEM_OK) {
-        return 0;
-    }
-    start = reply;
-    for (i = 0; i < 4 && *start && (*start < 0x41 || *start > 0x5A); ++i) {
-        ++start;
-    }
-    return start;
-}
-
 /* Send one request and show the answer. DIALOG_OK, DIALOG_ESILENT, or
    ENDED if the NPC has closed the conversation. */
 static unsigned char exchange(const char *verb, const char *said)
@@ -224,7 +199,7 @@ static unsigned char exchange(const char *verb, const char *said)
     pulse_wait = 0;
     pulse_step = 0;
     modem_idle = pulse_dots;
-    start = answer(patience);
+    start = line_answer(patience);
     modem_idle = 0;
     panel_undo();                /* drop the "..." placeholder */
 
@@ -270,62 +245,21 @@ static unsigned char turn(const char *verb, const char *said)
     return r;
 }
 
-/* Open the port the first time anyone needs it; it stays open after. */
-static unsigned char line_up(void)
-{
-    if (!line_open) {
-        if (modem_open(MODEM_300) != MODEM_OK) {
-            return 0;
-        }
-        line_open = 1;
-    }
-    return 1;
-}
-
-unsigned char dialog_probe(void)
-{
-    char *start;
-
-    dialog_line = LINE_SILENT;
-    if (line_up()) {
-        /* A spare CR first: whatever the line does to the first byte out
-           lands on an empty line, which the host skips. */
-        modem_put_cr();
-        modem_put_literal("PING");
-        modem_put_cr();
-        start = answer(PROBE_TICKS);
-        if (start) {
-            /* "OK <model>" or "ERR no model". Numeric: ASCII off the wire. */
-            dialog_line = start[0] == 0x45 ? LINE_NOMODEL : LINE_UP;
-        }
-    }
-    return dialog_line;
-}
-
-unsigned char dialog_talk(const char *npc_id, const char *place,
-                          unsigned char stage, unsigned char seed,
+unsigned char dialog_talk(unsigned char npc, const char *place,
                           const char *(*given)(unsigned char granted))
 {
     unsigned char n, r;
-    const char *note;
 
     /* Nobody to talk through -- the title screen said so -- so only what
-       the quest needs changes hands, and it is told on the map. */
+       the quest needs changes hands, and the map tells it. */
     if (dialog_line != LINE_UP) {
-        note = given(GRANT_OPEN);
-        if (!note) {
-            strcpy(seg, place);
-            strcat(seg, " has nothing for you.");
-            note = seg;
-        }
-        view_message(note);
-        return DIALOG_OK;
+        return DIALOG_ENOLINE;
     }
 
     dialog_granted = GRANT_NONE;
-    who = npc_id;
-    at_stage = stage;
-    lore = seed;
+    who = npc_ids[npc];
+    at_stage = quest_stage;
+    lore = lore_seed;
     patience = REPLY_TICKS;
     gift = given;
     frame(place);
@@ -363,15 +297,18 @@ unsigned char dialog_talk(const char *npc_id, const char *place,
     return DIALOG_OK;
 }
 
-unsigned char dialog_hint(const char *inn_id, unsigned char stage,
-                          unsigned char seed)
+unsigned char dialog_hint(unsigned char inn)
 {
     if (dialog_line != LINE_UP) {
-        return DIALOG_ENOLINE;
+        return DIALOG_OK;           /* not busy: there is nobody to ask */
     }
-    who = inn_id;
-    at_stage = stage;
-    lore = seed;
+    who = inn < NUM_INNS ? inn_ids[inn] : proc_inn_id;
+    at_stage = quest_stage;
+    lore = lore_seed;
     patience = HINT_TICKS;
     return exchange("ALE ", 0);
+}
+
+void dialog_forget(void)
+{
 }

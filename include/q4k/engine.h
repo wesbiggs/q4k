@@ -1,7 +1,7 @@
 /*
- * Quest for the King -- engines loaded from the disk (offline build only).
+ * Quest for the King -- engines loaded from the disk.
  *
- * The offline build keeps a core in memory -- the state, the screen, the
+ * The game keeps a core in memory -- the state, the screen, the
  * sprites, the music player, the disk -- and loads everything else into one
  * slot at $4000 when it is wanted: the map's engine (walking, towns,
  * dungeons, sailing, the shops' sums, help), the fight's, the talk's (people

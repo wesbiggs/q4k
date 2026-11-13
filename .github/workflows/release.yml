@@ -5,8 +5,9 @@
 #   2. Merge that to main, then tag it:  git tag v0.9.0 && git push origin v0.9.0
 #
 # The tag must match VERSION, or nothing is published. The release gets the
-# files `make release` builds -- the .prg, a .d64, the zip with the
-# dialogue host and the offline build's .d64 -- and CHANGELOG.md's section
+# files `make release` builds -- the game's .d64, and the experimental
+# networked build's .d64 and its zip with the dialogue host -- and
+# CHANGELOG.md's section
 # for that version as its notes.
 # A release already drafted by hand for the tag (from GitHub's own "Draft a
 # new release" page, say) keeps its text and gets the files added to it.
@@ -72,7 +73,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          files="dist/release/q4k-$VERSION_NUM.prg dist/release/q4k-$VERSION_NUM.d64 dist/release/q4k-$VERSION_NUM.zip dist/release/q4k-$VERSION_NUM-offline.d64"
+          files="dist/release/q4k-$VERSION_NUM.d64 dist/release/q4k-$VERSION_NUM-online.d64 dist/release/q4k-$VERSION_NUM-online.zip"
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             # shellcheck disable=SC2086
             gh release upload "$GITHUB_REF_NAME" $files --clobber

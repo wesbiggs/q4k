@@ -76,7 +76,8 @@ jobs:
       - name: Check it builds and runs q4k
         run: |
           make
-          make d64-offline
+          make d64 d64-online
           tools/screendump.py dist/hello.prg | diff -u tests/golden/hello.txt -
-          tools/screendump.py dist/q4k.prg --keys 'Alaric\rwwwwwwwwwwwwaaaaw' \
+          tools/screendump.py dist/q4k.prg --disk dist/q4k.d64 \
+              --keys 'Alaric\rwwwwwwwwwwwwaaaaw' \
               --settle 3 | diff -u tests/golden/q4k.txt -

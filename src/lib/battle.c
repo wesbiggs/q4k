@@ -13,14 +13,11 @@
 #include <q4k/rle.h>
 #include <q4k/shop.h>
 #include <q4k/sprite.h>
-#ifdef Q4K_OFFLINE
 #include <q4k/engine.h>
 #include <q4k/stick.h>
-#endif
 #include <q4k/tiles.h>
 #include <q4k/view.h>
 
-#ifdef Q4K_OFFLINE
 /* The fight is an engine of its own here (engine.h), and the map calls it
    through fightcall.c, which has these names; so do they, inside it. */
 #define battle_wander  fight_wander
@@ -31,7 +28,6 @@ static unsigned char fight_wander(void);
 static unsigned char fight_undead(void);
 static unsigned char fight_boss(unsigned char dungeon);
 static unsigned char fight_dragon(void);
-#endif
 
 /* The letters are for walking, as they are on the map. */
 #define K_W          0x57
@@ -54,9 +50,7 @@ static const char *const shot_hits[] = {
     "An arrow hits you for ",
     "Flame sears you for ",
     "A wave hits you for ",
-#ifdef Q4K_OFFLINE
     "Lightning strikes you for ",
-#endif
 };
 
 /* Kept in order of `from`: a fight picks evenly from the ones you have
@@ -80,10 +74,8 @@ const Wanderer wanderers[] = {
 #define NUM_WANDERERS (sizeof(wanderers) / sizeof(wanderers[0]))
 const unsigned char num_wanderers = NUM_WANDERERS;
 
-#ifdef Q4K_OFFLINE
 /* The continents' own, met nowhere else: two to a land, by what it is mostly
-   made of (BIOME_* order), one that closes in and one that shoots. Only in
-   the offline build, which has the room: so are the arms monsters drop. These are
+   made of (BIOME_* order), one that closes in and one that shoots. These are
    their strengths on the first continent the story opens; native_fight()
    makes them tougher on each one after. */
 const Monster natives[BIOMES * 2] = {
@@ -103,7 +95,6 @@ const Monster natives[BIOMES * 2] = {
     { "A storm giant", 18, 5, 3, 16, 20, T_MONSTER, COLOR_CYAN,       9, 1,
       7, 7, SHOT_BOLT },
 };
-#endif
 
 /* One keeper per deep place, in the order the quest opens them. Each is meant
    to be a near thing for a hero with the best their land sells and the level
@@ -253,7 +244,6 @@ static unsigned char won(const Monster *m, unsigned char n)
         strcat(msg, " arrows.");
         view_message(msg);
     }
-#ifdef Q4K_OFFLINE
     /* The map shares these out once it is back (fightcall.c): a treasure
        map, and what goes armed -- goblins, bandits, skeletons and ogres,
        and whatever of the continents' own is drawn as one -- may drop arms. */
@@ -262,9 +252,6 @@ static unsigned char won(const Monster *m, unsigned char n)
         || (unsigned char)(m->glyph - T_BANDIT) <= T_OGRE - T_BANDIT) {
         fight_spoils |= SPOIL_ARMED;
     }
-#else
-    treasure_drop();
-#endif
     return BATTLE_WON;
 }
 
@@ -302,10 +289,9 @@ static unsigned char lost(void)
 #define RIM_H      (LOCAL_H + 2)
 
 
-/* The fight's scratch is not BSS: it is the overlay, the same bytes the title
-   screen ran from before the first fight (overlay.s), or offline the end of
-   the fight's own engine. Nothing in it carries from one fight to the next;
-   each is set up in battle_fight(). */
+/* The fight's scratch is not BSS: it is the end of the fight's own engine
+   (overlay.s), where nothing else is while it runs. Nothing in it carries
+   from one fight to the next; each is set up in battle_fight(). */
 extern unsigned char field[FIELD_SIZE];
 extern unsigned char wall[RIM_W * RIM_H];    /* 1 where nothing can stand */
 extern unsigned char roomy[RIM_W * RIM_H];   /* 0 where a 2x2 body fits,
@@ -599,19 +585,15 @@ static unsigned char key_dir(unsigned char key)
     return 0xFF;
 }
 
-/* The next key, with SHIFTed letters folded onto unshifted ones; and in
-   the offline build the joystick too, its button as F. */
+/* The next key, with SHIFTed letters folded onto unshifted ones; and the
+   joystick too, its button as F. */
 static unsigned char next_key(void)
 {
-#ifdef Q4K_OFFLINE
     unsigned char key = stick_key();
 
     if (key == STICK_FIRE) {
         return K_F;
     }
-#else
-    unsigned char key = cgetc();
-#endif
     return (key >= 0xC1 && key <= 0xDA) ? key - 0x80 : key;
 }
 
@@ -991,7 +973,6 @@ static unsigned char wander_fight(unsigned char i, unsigned char n)
                        1, n);
 }
 
-#ifdef Q4K_OFFLINE
 /* One or two of the land's own, as strong as the story's order of the
    continents makes them. A copy, which only ever lives for the fight: written
    before it is read, so it can go where nothing is cleared (BSS2). */
@@ -1019,7 +1000,6 @@ static unsigned char native_fight(void)
                                                : T_FLOOR,
                         1, 1 + (rand() & 1));
 }
-#endif
 
 /* Each level down counts as one more of the hero's own: the pool of what
    turns up is drawn from further along the list, and in bigger groups. */
@@ -1027,12 +1007,10 @@ unsigned char battle_wander(void)
 {
     unsigned char top, i, most, lvl;
 
-#ifdef Q4K_OFFLINE
     /* Over the sea, a quarter of what turns up is the land's own. */
     if (land != ISLE_HOME && !(rand() & 3)) {
         return native_fight();
     }
-#endif
 
     lvl = hero.level + (scene == SCENE_DUNGEON ? depth - 1 : 0);
 
@@ -1071,7 +1049,6 @@ unsigned char battle_dragon(void)
     return battle_fight(&maldrath, T_LAIR, 0, 1);
 }
 
-#ifdef Q4K_OFFLINE
 /* The fight's engine: engine.h. */
 unsigned char fight_entry(void)
 {
@@ -1082,4 +1059,3 @@ unsigned char fight_entry(void)
         default:           return battle_wander();
     }
 }
-#endif

@@ -176,8 +176,8 @@ def load_symbols(prg):
     itself, which would otherwise have to carry a cheat channel it does not
     need.
     """
-    # dist/<sub>/x.prg was linked in build/<sub>/ (make offline's builds are
-    # dist/offline/ and build/offline/), and the plain build is just dist/.
+    # dist/<sub>/x.prg was linked in build/<sub>/ (make online's builds are
+    # dist/online/ and build/online/), and the plain build is just dist/.
     sub = os.path.relpath(os.path.dirname(os.path.abspath(prg)),
                           os.path.abspath("dist"))
     if sub.startswith(".."):
@@ -263,6 +263,12 @@ def launch(prg, port, rs232=None, disk=None):
     else:
         # User port RS-232 (the modem port), bridged to a TCP socket on the
         # host. VICE dials out to it the first time the C64 opens the port.
+        # Without warp the disk runs at a real drive's speed too, and the game
+        # loads an engine for every conversation and back: about a minute
+        # each way. So the drive is not emulated: VICE serves the KERNAL's
+        # LOAD from the image at once instead.
+        if disk:
+            argv += ["+drive8truedrive", "-trapdevice8"]
         argv += [
             "-userportdevice", "2",
             "-rsuserdev", "0",
