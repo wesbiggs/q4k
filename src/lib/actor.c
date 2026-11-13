@@ -27,6 +27,12 @@ unsigned char hp_for(unsigned char cls, unsigned char level)
     return hp_base[cls] + hp_step[cls] * (level - 1);
 }
 
+/* Nonzero and everyone the title screen makes starts on this much health:
+   --poke hp_start=1 lets a test lose a fight at the first blow, which a
+   poke of the health itself cannot, since the party is made after the
+   pokes. Nothing in the game sets it. */
+unsigned char hp_start;
+
 void party_make(unsigned char i, const char *name, unsigned char cls)
 {
     Actor *a = &party[i];
@@ -43,6 +49,9 @@ void party_make(unsigned char i, const char *name, unsigned char cls)
         party_count = i + 1;
     }
     party_grow();
+    if (hp_start) {
+        a->hp = hp_start;
+    }
 }
 
 void party_init(void)

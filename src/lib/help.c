@@ -8,8 +8,8 @@
 #include <q4k/view.h>
 
 /* In the shop's engine (engine.h): shop_entry() with SHOP_HELP. */
-static const char fight_strike[] = "Walk into foe to strike; SPACE guards";
-static const char fight_flee[]   = "Flee by a side gap (if you can)";
+static const char fight_strike[] = "Each in turn: walk into foe to strike";
+static const char fight_flee[]   = "SPACE guards; flee by a side gap";
 
 void help_screen(void)
 {
@@ -52,16 +52,16 @@ void help_screen(void)
     cputsxy(3, 6, "> <  enter/descend, exit/ascend");
 
     // Commands
-    cputsxy(3,  8, "P  Drink a healing potion");
+    cputsxy(3,  8, "P  The worst hurt drinks a draught");
     cputsxy(3,  9, "L  Loot a chest, dig for treasure");
-    cputsxy(3, 10, "I  Inventory and treasure maps");
+    cputsxy(3, 10, "I  The party, spells, treasure maps");
     cputsxy(3, 11, "F1 Save          F3 Restore");
     cputsxy(3, 12, "M  Music         X  Effects");
     cputsxy(3, 13, "?  This screen   Q  Quit");
 
     // In a fight
     cputsxy(3, 15, fight_strike);
-    cputsxy(3, 16, "F then a direction shoots your bow");
+    cputsxy(3, 16, "F+dir shoots a bow, C casts a spell");
     cputsxy(3, 17, fight_flee);
 
     // Your task

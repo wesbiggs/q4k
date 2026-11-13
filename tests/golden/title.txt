@@ -9,14 +9,14 @@
   7 | not left. Two armies went against him. |
   8 | Neither came back.                     |
   9 |                                        |
- 10 | A letter comes, under the king's seal. |
- 11 | Matheson summons you to the castle.    |
- 12 |                                        |
- 13 | The blade that can banish him was      |
- 14 | broken, and its three binding stones   |
- 15 | lie sealed in three deep places.       |
+ 10 | Letters go out under the king's seal   |
+ 11 | to strangers who have never met: meet  |
+ 12 | in Millford, then come to the castle.  |
+ 13 |                                        |
+ 14 |                                        |
+ 15 |                                        |
  16 |········································|
- 17 | And who are you, traveller?            |
+ 17 | Who answers the letter?                |
  18 | █                                      |
  19 |                                        |
  20 |                                        |

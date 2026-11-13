@@ -1,13 +1,13 @@
     +----------------------------------------+
-  0 |ARENA on GRASS       ·Alaric            |
-  1 |                     ·HP       20/20    |
-  2 |a A rat              ·Level    1        |
-  3 |b A goblin           ·Exp      0        |
-  4 |c A wolf             ·Gold     0        |
-  5 |d A giant wasp       ·Draughts 3        |
+  0 |ARENA on GRASS       · Alaric    War    |
+  1 |                     · HP 22/22         |
+  2 |a A rat              ·Level 1  Exp 0    |
+  3 |b A goblin           ·Gold  0           |
+  4 |c A wolf             ·Draughts 3        |
+  5 |d A giant wasp       ·                  |
   6 |e A cutthroat        ·                  |
-  7 |f A bandit           ·Bare hands        |
-  8 |g A skeleton         ·Travel clothes    |
+  7 |f A bandit           ·                  |
+  8 |g A skeleton         ·                  |
   9 |h A bone archer      ·                  |
  10 |i An ogre            ·                  |
  11 |j A wraith           ·                  |

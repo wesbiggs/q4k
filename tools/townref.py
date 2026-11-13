@@ -2,7 +2,7 @@
 """A bit-exact model of src/lib/town_gen.c, the town generator.
 
 Every land has a town of its own: an inn, a shop, a third building (a potion
-shop, or an empty house, small or large) and up to two more with a villager in.
+shop, or an empty house, small or large; home's is always the magic shop) and up to two more with a villager in.
 It is laid out on a grid of six lots, three across and two down, with a street
 between them and a plaza at the gate, each building bottom-aligned in its lot
 with its door in the bottom wall -- so no two overlap and every door opens
@@ -20,10 +20,12 @@ W, H = 21, 19
 T_GRASS, T_SHORE, T_SWAMP = 0x60, 0x65, 0x66
 T_WALL, T_FLOOR, T_DOOR, T_TREE, T_BOULDER = 0x6B, 0x6C, 0x6D, 0x72, 0x73
 T_POTION, T_SWORD, T_BED, T_SHIELD, T_BOW = 0x74, 0x75, 0x76, 0x77, 0x79
+T_BOOK = 0x7F
 
 ENT_NPC, ENT_SHOP, ENT_INN, ENT_VILLAGER = 0, 1, 2, 3
 INN_PROC = 255          # an inn the generator made: not one of the drawn ones
-SHOP_WEAPON, SHOP_ARMOUR, SHOP_ITEM, SHOP_BOW = 0, 1, 2, 3
+SHOP_WEAPON, SHOP_ARMOUR, SHOP_ITEM, SHOP_BOW, SHOP_MAGIC = 0, 1, 2, 3, 4
+ISLE_HOME = 4
 
 BIOME_GROUND = [T_GRASS, T_GRASS, T_SWAMP, T_SHORE, T_GRASS]
 # what a spare square of ground may be given, one time in four
@@ -95,6 +97,8 @@ def build(lore_seed, land, biome):
 
     shop = r.rnd() % 3
     third = r.rnd() % 3
+    if land == ISLE_HOME:
+        third = 0                               # home's is the magic shop
     houses = r.rnd() % 3
 
     ents = []
@@ -124,6 +128,9 @@ def build(lore_seed, land, biome):
             kind = SHOP_BOW if shop == 2 else shop
             ents.append((dx, yb - 2, ENT_SHOP, kind))
             t = SHOP_STOCK[kind]
+        elif n == 2 and third == 0 and land == ISLE_HOME:
+            ents.append((dx, yb - 2, ENT_SHOP, SHOP_MAGIC))
+            t = T_BOOK
         elif n == 2 and third == 0:
             ents.append((dx, yb - 2, ENT_SHOP, SHOP_ITEM))
             t = T_POTION
@@ -140,6 +147,7 @@ def build(lore_seed, land, biome):
 
 GLYPH = {T_GRASS: ".", T_SHORE: ",", T_SWAMP: "%", T_WALL: "#", T_FLOOR: "_",
          T_DOOR: "+", T_TREE: "t", T_BOULDER: "o", T_POTION: "!", T_SWORD: "/",
+         T_BOOK: "j",
          T_BED: "B", T_SHIELD: ")", T_BOW: "}"}
 
 

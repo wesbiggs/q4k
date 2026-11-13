@@ -114,7 +114,7 @@ if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ] && [ -f "$DISK" ]; then
     cp "$DISK" "$saves"
     compare save tests/golden-save.txt \
         tools/screendump.py dist/q4k.prg --disk "$saves" \
-        --keys 'Alaric\rww\x85yww' --settle 8
+        --keys 'Alaric\r1nww\x85yww' --settle 8
     # The same disk now holds a save: restore it from the title screen with
     # F3, and start back where it was made rather than in a new morning.
     if [ -f tests/golden-load.txt ]; then
@@ -134,7 +134,7 @@ if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ] && [ -f "$DISK" ]; then
     cp "$DISK" "$saves"
     turn() { sed -n 's/.*game_turn+0 @ .* = \([0-9]*\) .*/\1/p'; }
     saved=$(tools/screendump.py dist/q4k.prg --disk "$saves" \
-        --keys 'Alaric\rww\x85yww\x85y' --settle 12 --peek game_turn:2 \
+        --keys 'Alaric\r1nww\x85yww\x85y' --settle 12 --peek game_turn:2 \
         2>&1 >/dev/null | turn) || true
     restored=$(tools/screendump.py dist/q4k.prg --disk "$saves" \
         --keys '\x86' --settle 8 --peek game_turn:2 \
@@ -165,7 +165,7 @@ if [ -f tests/golden-online-dialog.txt ] && [ -f "$ON" ] && [ -f "$ONDISK" ]; th
     sleep 1
     compare online-dialog tests/golden-online-dialog.txt \
         tools/screendump.py "$ON" --disk "$ONDISK" --rs232 25299 \
-        --keys 'Alaric\rwwwwwwwwwwwwaaaawaaawhat of the blade\rcould I have a dagger\r' --settle 40
+        --keys 'Alaric\r1nwwwwwwwwwwwwaaaawaaawhat of the blade\rcould I have a dagger\r' --settle 40
     # Brann -> Vane: sail to Wardlow (the south continent, for seed $5A)
     # holding the Emberstone, with the run's secrets pinned (that seed makes
     # the fishers' word "dead low").
@@ -178,7 +178,7 @@ if [ -f tests/golden-online-dialog.txt ] && [ -f "$ON" ] && [ -f "$ONDISK" ]; th
             tools/screendump.py "$ON" --disk "$ONDISK" --rs232 25299 \
             --poke quest_stage=3 --poke items=8 --poke lore_seed=$SEED \
             --poke no_encounters=1 \
-            --keys 'Alaric\rs<'"$(keys millford port2)$(keys dock story --land 2)"'>wwwwwwwaaaawwwmay I have the key\rdead low\rgoodbye\r' \
+            --keys 'Alaric\r1ns<'"$(keys millford port2)$(keys dock story --land 2)"'>wwwwwwwaaaawwwmay I have the key\rdead low\rgoodbye\r' \
             --settle 100
     fi
     # The king, from a new game that walks to the castle: neither his
@@ -188,7 +188,7 @@ if [ -f tests/golden-online-dialog.txt ] && [ -f "$ON" ] && [ -f "$ONDISK" ]; th
         compare online-sigil tests/golden-online-sigil.txt \
             tools/screendump.py "$ON" --disk "$ONDISK" --rs232 25299 \
             --poke quest_stage=1 --poke lore_seed=$SEED --poke no_encounters=1 \
-            --keys 'Alaric\rs<'"$(keys millford castle)"'>wwwwwwwwwwwhello\rwhat is my quest\r' \
+            --keys 'Alaric\r1ns<'"$(keys millford castle)"'>wwwwwwwwwwwhello\rwhat is my quest\r' \
             --settle 100
     fi
     # The king after Maldrath is banished (stage 9): the first word pays the
@@ -197,7 +197,7 @@ if [ -f tests/golden-online-dialog.txt ] && [ -f "$ON" ] && [ -f "$ONDISK" ]; th
         compare online-reward tests/golden-online-reward.txt \
             tools/screendump.py "$ON" --disk "$ONDISK" --rs232 25299 \
             --poke quest_stage=9 --poke lore_seed=$SEED --poke no_encounters=1 \
-            --keys 'Alaric\rs<'"$(keys millford castle)"'>wwwwwwwwwwwhello\rthank you\r' \
+            --keys 'Alaric\r1ns<'"$(keys millford castle)"'>wwwwwwwwwwwhello\rthank you\r' \
             --settle 100
     fi
     # The inn in Millford, wounded: an ale brings a hint from the daemon's
@@ -206,7 +206,7 @@ if [ -f tests/golden-online-dialog.txt ] && [ -f "$ON" ] && [ -f "$ONDISK" ]; th
     if [ -f tests/golden-online-inn.txt ]; then
         compare online-inn tests/golden-online-inn.txt \
             tools/screendump.py "$ON" --disk "$ONDISK" --rs232 25299 \
-            --poke party+4=5 --poke gold=60 --poke lore_seed=$SEED --keys 'Alaric\rwwddddd12' --settle 24
+            --poke hp_start=5 --poke gold=60 --poke lore_seed=$SEED --keys 'Alaric\r1nwwddddd12' --settle 24
     fi
     kill "$daemon" 2>/dev/null || true
     wait "$daemon" 2>/dev/null || true   # reap quietly; no job-control noise
@@ -214,17 +214,17 @@ fi
 
 # A fight, there and back, in either build: the dead rise at the first L on
 # the road out of Millford (grave_odds=1), the hero has one point of health
-# and only guards (SPACE), so the first blow kills, and a key later they wake
+# (hp_start=1) and only guards (SPACE), so the first blow kills, and a key later they wake
 # in Millford. That loads the fight's engine over the map's, and the map's
 # back over it, with the map's own state (the scene, the log) intact.
 # fight <name> <prg> <disk>
 fight() {
     out=$(tools/screendump.py "$2" --disk "$3" \
         --poke quest_stage=1 --poke lore_seed=$SEED --poke grave_odds=1 \
-        --poke party+4=1 \
-        --keys 'Alaric\rs<l                                                            ' \
+        --poke hp_start=1 \
+        --keys 'Alaric\r1ns<l                                                            ' \
         --settle 40 2>/dev/null) || out=
-    if printf '%s\n' "$out" | grep -q 'You fall\.' \
+    if printf '%s\n' "$out" | grep -q 'The party has fallen\.' \
             && printf '%s\n' "$out" | grep -q 'You wake in Millford' \
             && ! printf '%s\n' "$out" | grep -q 'Put the game disk back'; then
         echo "PASS  $1"
@@ -244,11 +244,11 @@ if [ -f dist/q4k.prg ] && [ -f "$DISK" ]; then
     if [ -f tests/golden-talk.txt ]; then
         compare talk tests/golden-talk.txt \
             tools/screendump.py dist/q4k.prg --disk "$DISK" \
-            --keys 'Alaric\rwwwwwwwwwwwwaaaawaaa13' --settle 30
+            --keys 'Alaric\r1nwwwwwwwwwwwwaaaawaaa13' --settle 30
     fi
     # With no disk there is no map's engine to load after the title screen
     # (engine.h), so the game asks for the disk back, and keeps asking.
-    out=$(tools/screendump.py dist/q4k.prg --keys 'Alaric\rw' --settle 8 \
+    out=$(tools/screendump.py dist/q4k.prg --keys 'Alaric\r1nw' --settle 8 \
         2>/dev/null) || out=
     if printf '%s\n' "$out" | grep -q 'Put the game disk back'; then
         echo "PASS  nodisk"
@@ -263,13 +263,13 @@ if [ -f dist/q4k.prg ] && [ -f "$DISK" ]; then
         compare reward tests/golden-reward.txt \
             tools/screendump.py dist/q4k.prg --disk "$DISK" \
             --poke quest_stage=9 --poke lore_seed=$SEED --poke no_encounters=1 \
-            --keys 'Alaric\rs<'"$(keys millford castle)"'>wwwwwwwwwww1' \
+            --keys 'Alaric\r1ns<'"$(keys millford castle)"'>wwwwwwwwwww1' \
             --settle 90
     fi
     # Two ales in Millford's inn. Which rumours is random, so this checks
     # only that two were told and the keeper was never "busy" (no file).
     out=$(tools/screendump.py dist/q4k.prg --disk "$DISK" --poke gold=60 \
-        --keys 'Alaric\rwwddddd11' --settle 30 2>/dev/null) || out=
+        --keys 'Alaric\r1nwwddddd11' --settle 30 2>/dev/null) || out=
     drinks=$(printf '%s\n' "$out" | grep -c 'You drink\.') || true
     if [ "$drinks" = 2 ] && ! printf '%s\n' "$out" | grep -q 'keeper is busy' \
             && printf '%s\n' "$out" | grep -q 'You have 50 marks'; then

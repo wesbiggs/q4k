@@ -5,6 +5,33 @@ workflow reads the one headed with the tag's version.
 
 ## Unreleased
 
+- A party: the king's letter went to strangers, and up to three of them meet
+  in Millford. The title screen asks each one's name and class -- warrior,
+  archer or wizard -- and Garrett arms each by class: a dagger, a hunting bow
+  (and arrows), a staff. Gold, draughts (one each to start), arrows,
+  experience and the level are the party's; health, arms and a wizard's magic
+  are each member's own. A fourth place is kept for a companion who joins
+  later.
+- Only a warrior wields anything better than a short sword, only an archer
+  draws anything better than a shortbow, and a wizard wears nothing heavier
+  than robes, which now go between travel clothes and leather. Whatever is
+  bought or dropped goes to whoever it would be better for, and you are asked
+  who when that is more than one of you.
+- In a fight everyone stands on the field and takes a turn, the one whose turn
+  it is as the figure (each class has its own) and the rest as their class's
+  glyph; monsters go for whoever they can reach soonest. Anyone can give a
+  draught (`P`) to anyone. A member who falls gets up after a fight that is
+  won or fled; the fight is lost only when everyone falls. A monster that
+  comes alone is tougher for each of the party past the first.
+- Wizards cast (`C`) the spells they have prepared, for magic that comes back
+  slowly on the road, fully at an inn and with a level: Spark, Heal, Ward,
+  Sleep, Bolt and Blaze. Every wizard knows Spark; the others are books sold at
+  the magic shop in home's own town, each from a level. A wizard prepares two
+  spells at first and one more every third level (`I`, then their number).
+- `I` shows the party and what each carries, and `T` from there the treasure
+  maps. The panel shows each member's health, and a wizard's magic.
+- Saves are a new format (`Q4K9`): an earlier save will not load.
+
 - The offline build loads its engines from the disk: the map, the fights,
   conversations and the inns, and the shops each come in when they are wanted,
   which frees about 14K for what comes next. Each scene brings its own music

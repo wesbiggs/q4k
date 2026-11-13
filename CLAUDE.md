@@ -34,9 +34,11 @@ slot holds one engine at a time, loaded from the disk.
   `help.c` that did not fit anywhere else, as `static const char[]` between
   two pragmas; the land and town generators' tables are in `CHDATA1`). They
   are the core's, so they are there whatever the slot holds; 9 bytes are free
-  in `CHDATA1`, 91 in `CHDATA2` (125 online) and 114 in `CHDATA3`.
+  in `CHDATA1`, 123 in `CHDATA2` (157 online) and 206 in `CHDATA3`, which
+  starts at `$3E58`, past the party's three class glyphs (`$C8-$CA`).
   `$A0` is the input cursor, `$C0-$C7`
-  the bow shot's sprite block, and `$80-$91` the actors: leave those alone,
+  the bow shot's sprite block, `$C8-$CA` the warrior, archer and wizard, and
+  `$80-$91` the actors: leave those alone,
   and check `assets/tiles.txt` before using any glyph above `$91` on screen.
 - `$4000-$83FF` **the slot**: one engine at a time -- the map's (`e.map`),
   the fight's, the talk's (people and inns) or the shop's -- loaded by
@@ -55,15 +57,22 @@ slot holds one engine at a time, loaded from the disk.
   buffer (`talkbuf.s`, `TALKBSS`). Each scene's music is a file too (`m.map`,
   ...: every score is the same fixed size, see `tools/mkmusic.py`). The game
   needs its disk, and asks for it back if a load fails. The map's engine is
-  the biggest, 17089 bytes of the slot's 17408.
+  the biggest, 15638 bytes of the slot's 17408, then the fight's (14277). The
+  shop's engine also holds the screens the map opens that are not a place:
+  the help screen and the party screen (`I`), through `shop_entry()` with
+  `SHOP_HELP`/`SHOP_PARTY`; the quest's next-step table (`quest.c`) is in the
+  core, since both the map and the help screen print it.
 - `$8400-$C0FF` **HIGH** -- the rest of the core: `HIDATA` for bulk tables
   and `HICODE` for code that will not fit below. Core modules listed in the
   Makefile's `HIMODS` are compiled with `--code-name HICODE --rodata-name
   HIDATA`; an engine's modules go to their engine whatever that list says.
   Changing either needs the objects rebuilt, because a target-specific
-  `CFLAGS` will not invalidate them on its own. About 8K are free in HIGH
-  (7.2K online), 6K in MAIN (less the stack) and 434 bytes in BSS (197
-  online). The Makefile's `SMALLMODS` (loot, shop, inn, help, battle, arms,
+  `CFLAGS` will not invalidate them on its own. About 5.3K are free in HIGH
+  (4.6K online), 5.4K in MAIN (less the stack) and 247 bytes in BSS -- but
+  **only 10 online**, so anything new that lives in BSS has to be paid for
+  there first. The party is why: `Actor` is kept small (no level, glyph or
+  `alive`; a fallen member is one with no health) because four are in
+  memory and four more in the save's buffer. The Makefile's `SMALLMODS` (loot, shop, inn, help, battle, arms,
   dialog, dungeon, talk and gift) are built with `-Or`, not `-Osir`: without
   `-Os` cc65 stops inlining shifts and the like, which is about a tenth
   smaller. The fight is in it on the grounds that a turn-based flood fill can
@@ -93,8 +102,9 @@ slot holds one engine at a time, loaded from the disk.
   (it keeps `$CF00-$CF13`; `screendump.py` reads that much). Above the RS-232
   buffers, so it is not contiguous with BSS, and ld65 does not clear it: put
   something there with `#pragma bss-name (push, "BSS2")` only if it is always
-  written before it is read. `fov_lit` (192 bytes) and the fight's copy of a
-  continent's monster, `native`, are there; 29 bytes of BSS2 are left.
+  written before it is read. `fov_lit` (192 bytes), the fight's copy of a
+  continent's monster, `native`, and where each of the party stands in a
+  fight are there; 17 bytes of BSS2 are left.
   Anything that needs the probe page longer must move the bound in both the
   cfg and `screendump.py`.
 - `$C100-$CCFF` **BSS**, then the RS-232 buffers at `$CD00-$CEFF`
@@ -317,6 +327,29 @@ Home is built when the story first needs it (stepping out of Millford, or
 loading a game past it) and the first time takes a few seconds with nothing
 else running: see Memory.
 
+## The party
+
+`actor.h`. Up to three made on the title screen (`party_make()`), a fourth
+place kept for a computer-run companion (not written yet; the panel has room
+for its two rows only by pushing the level and gold rows down onto the
+place's, so that layout wants revisiting then). The gold, draughts, arrows,
+`party_level` and `party_xp` are shared; health, arms (`weapon`, `armour`,
+`bow`, indices into the lists in `arms.c`) and a wizard's magic and spells
+(`known`/`ready` bits) are each member's. What a class may carry is
+`gear_allowed()`, and "better" is by attack or defence, never by index: the
+staff is after Dragonbane in the weapon list and the robes and hunting bow
+were put in at index 1, so the shops' tier tables are offset for mail and
+bows. Whatever a shop sells or a monster drops is `offer()`ed in `shop.c`,
+which asks who takes it when more than one would be better for it. Home's
+generated town always has the magic shop as its third building (`tgen.s`,
+and `townref.py` with it), which sells robes and the spellbooks.
+
+In a fight each living member takes a turn, then the monsters: the flood
+fill starts from every member at once, so a monster goes for whoever it can
+reach soonest, and `aim()` hits the first member in its line. A member at 0
+health has fallen; `get_up()` stands them up on 1 after a fight won or fled.
+A lone monster gets half again its health for each member past the first.
+
 ## The joystick
 
 Both builds. `src/lib/stick.s`
@@ -426,6 +459,13 @@ the player's own timing, so the roll differs every run. Walk inside a town
 off anywhere. This is what turned the save test red one run in several,
 with a rat on the screen instead of the map.
 
+**Every test that gets past the title screen makes a party first.** The
+title asks a name, a class (`1`-`3`) and whether another will answer, so a
+lone warrior is `Alaric\r1n` and the q4k case's three are
+`Alaric\r1yMira\r2yZed\r3`. The party is made after the pokes, so a poke of
+a member's health is overwritten: `--poke hp_start=N` starts everyone the
+title makes on N health instead (the fight and inn checks use it).
+
 **A test that has to be somewhere on the overworld walks there.** Home is
 made from the seed when you step out of Millford, so there is no position to
 poke in advance: start in Millford with `--poke quest_stage=1` (nobody leaves
@@ -466,6 +506,9 @@ terrain under them. `screendump.py` puts `@` wherever an enabled sprite sits
 in its text dump, which is how the goldens still record where the hero is
 standing; `--raw` and `--hex` show plain screen RAM. `--shot` draws sprites
 too. Any screen that takes over from the map must call `sprite_hide()`.
+The sprite is one member of the party at a time (`sprite_as()`): the leader
+on the map, whoever's turn it is in a fight, where the rest are their class's
+glyph (`K`, `A`, `M` in a dump). Each class has its own frames, in HIDATA.
 
 **A `save` or `load` failure in `make test` is known flakiness: ignore it.**
 Unless your change touches `savegame.c`, the disk, or what those two screens

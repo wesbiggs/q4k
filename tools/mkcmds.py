@@ -82,25 +82,25 @@ def main():
 
     # out of Millford, down to the south port, and out to sea
     write("sail", POKES + ["--poke", "quest_stage=3",
-                           "--keys", "Alaric\\rs<" + to_port2,
+                           "--keys", "Alaric\\r1ns<" + to_port2,
                            "--stage", str(len(to_port2) + 3)])
     # ... and back again, by stepping off the landing and on to it
     write("sailhome", POKES + ["--poke", "quest_stage=3",
-                               "--keys", "Alaric\\rs<" + to_port2 + hop,
+                               "--keys", "Alaric\\r1ns<" + to_port2 + hop,
                                "--stage", str(len(to_port2) + 6)])
     # the castle's treasures: walk to it, in, and look about
     to_castle = keys("millford", "castle")
     inside = town_keys("castle", [(6, 7), (14, 7)])
-    write("loot", POKES + ["--poke", "quest_stage=1", "--keys", "Alaric\\rs<" + to_castle + ">" + inside,
+    write("loot", POKES + ["--poke", "quest_stage=1", "--keys", "Alaric\\r1ns<" + to_castle + ">" + inside,
                            "--stage", str(len(to_castle) + len(inside) + 2)])
     # the first dungeon, with the Sigil in hand: the lit room round the stairs
     to_crown = keys("millford", "crown")
     write("fov", POKES + ["--poke", "quest_stage=2", "--poke", "items=1",
-                          "--keys", "Alaric\\rs<" + to_crown + ">",
+                          "--keys", "Alaric\\r1ns<" + to_crown + ">",
                           "--settle", "6"])
     # the north port is not open until the story has got further
     write("captain", POKES + ["--poke", "quest_stage=3",
-                              "--keys", "Alaric\\rs<" + to_port0,
+                              "--keys", "Alaric\\r1ns<" + to_port0,
                               "--stage", str(len(to_port0) + 2)])
 
 
@@ -131,10 +131,10 @@ def main_treasure():
     walk = keys("millford", "%d,%d" % (x, y))
     # walk to where the map says, and dig
     write("treasure", POKES + ["--poke", "quest_stage=1"] + held
-          + ["--keys", "Alaric\\rs<" + walk + "l", "--stage", str(len(walk) + 3)])
+          + ["--keys", "Alaric\\r1ns<" + walk + "l", "--stage", str(len(walk) + 3)])
     # and the list of maps (a screen that waits for a key, so no stage)
     write("treasuremap", POKES + ["--poke", "quest_stage=1"] + held
-          + ["--keys", "Alaric\\ri", "--settle", "8"])
+          + ["--keys", "Alaric\\r1nit", "--settle", "8"])
 
 
 if __name__ == "__main__":
