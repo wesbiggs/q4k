@@ -81,7 +81,7 @@ PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 # in the HIGH region, rather than in MAIN. Both flags are needed: --code-name
 # alone leaves the string literals behind. (A module in an engine, below, goes
 # to its engine instead: being on this list as well would change nothing.)
-HIMODS   := arms panel savegame sprite world modem line actor
+HIMODS   := arms panel savegame sprite world modem line actor quest
 
 # These are compiled without -Os, which unrolls shifts and multiplies by
 # constants and costs about a tenth of their size: the screens lose nothing
@@ -127,11 +127,11 @@ endif
 # the people's ids, which only a conversation needs, with the talk.
 # tools/mkengines.py checks after every link that no engine calls another,
 # nor the core an engine.
-ENG_MAP   := scene draw fov town_data town_gen loot loot_data help sail \
+ENG_MAP   := scene draw fov town_data town_gen loot loot_data sail \
              dungeon fightcall
 ENG_FIGHT := battle arena_data
 ENG_TALK  := talk dialog inn gift
-ENG_SHOP  := shop
+ENG_SHOP  := shop help
 ENGMODS   := $(ENG_MAP) $(ENG_FIGHT) $(ENG_TALK) $(ENG_SHOP)
 
 $(foreach e,MAP FIGHT TALK SHOP,$(foreach m,$(ENG_$(e)),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name $(e)CODE --rodata-name $(e)DATA)))

@@ -26,7 +26,7 @@ from collections import defaultdict
 # ENGINES.md says what would have to move.
 MODES = {
     "core": """text panel sprite music music_data vault stick probe rle actor
-               local font_data tiles_names view game isle arms engine boot""",
+               local font_data tiles_names view game isle arms engine boot quest""",
     "map": """q4k world fov town_data town_gen place_near loot loot_data scene
               draw fightcall""",
     "service": """shop inn help talk talkbuf dialog line modem savegame sail

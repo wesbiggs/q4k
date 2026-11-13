@@ -7,6 +7,7 @@
 #include <q4k/battle.h>
 #include <q4k/engine.h>
 #include <q4k/game.h>
+#include <q4k/help.h>
 #include <q4k/isle.h>
 #include <q4k/shop.h>
 #include <q4k/sprite.h>
@@ -141,6 +142,8 @@ unsigned char shop_entry(void)
 {
     if (eng_a == SHOP_GEAR) {
         gear_give();
+    } else if (eng_a == SHOP_HELP) {
+        help_screen();
     } else {
         shop_open(eng_a);
     }

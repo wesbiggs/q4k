@@ -7,69 +7,9 @@
 #include <q4k/text.h>
 #include <q4k/view.h>
 
-/* Two of the fight lines live in the charset's spare glyph space because
-   HIGH is full; see CLAUDE.md. */
-#pragma rodata-name (push, "CHDATA3")
+/* In the shop's engine (engine.h): shop_entry() with SHOP_HELP. */
 static const char fight_strike[] = "Walk into foe to strike; SPACE guards";
-#pragma rodata-name (pop)
-#pragma rodata-name (push, "CHDATA2")
 static const char fight_flee[]   = "Flee by a side gap (if you can)";
-#pragma rodata-name (pop)
-
-/* What to do next, by quest stage. Two lines each, because the useful
-   version of this names the person and the place. */
-static const char *const task[10][2] = {
-  //  1234567890123456789012345678901234567890
-    {
-      "A letter has come from the king.",
-      "Garrett the smith will arm you."
-    },
-    {
-      "Go to Castle Matheson and",
-      "speak with the king."
-    },
-    {
-      "The Iron Sigil opens the Hollow",
-      "Crown. Seek the Emberstone."
-    },
-    {
-      "Take the Emberstone to Vane in",
-      "Wardlow, over the sea."
-    },
-    {
-      "Take the Tidal Key over the sea to the",
-      "Drowned Stair. Find the Silver Tear."
-    },
-    {
-      "Bring the Silver Tear to Mother Ash",
-      "in Ashcombe, over the sea."
-    },
-    {
-      "Take the Ashen Key over the sea, open",
-      "Blackpit, and seek the Dragon's Heart."
-    },
-    {
-      "Take all three stones to Garrett, the",
-      "smith in Millford, to forge Dragonbane."
-    },
-    {
-      "Dragonbane is yours. Maldrath's lair",
-      "lies high in a mountain hollow."
-    },
-    {
-      "Maldrath is banished! Keldmarch is",
-      "free. Bring news to the king!"
-    },
-};
-
-/* The next step, in the message window: called when the story moves on. */
-void quest_hint(void)
-{
-    if (quest_stage < 9) {
-        view_message(task[quest_stage][0]);
-        view_message(task[quest_stage][1]);
-    }
-}
 
 void help_screen(void)
 {
@@ -126,8 +66,8 @@ void help_screen(void)
 
     // Your task
     textcolor(COLOR_LIGHTGREEN);
-    cputsxy(3, 21, task[stage][0]);
-    cputsxy(3, 22, task[stage][1]);
+    cputsxy(3, 21, quest_task[stage][0]);
+    cputsxy(3, 22, quest_task[stage][1]);
 
     cgetc();
 }

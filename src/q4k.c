@@ -636,7 +636,8 @@ void map_entry(unsigned char restored)
                 break;
 
             case K_HELP:
-                help_screen();
+                eng_a = SHOP_HELP;
+                engine_call(ENG_SHOP, shop_entry);
                 back_to_map();
                 break;
 
