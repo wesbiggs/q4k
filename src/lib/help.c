@@ -9,11 +9,12 @@
 
 /* Two of the fight lines live in the charset's spare glyph space because
    HIGH is full; see CLAUDE.md. */
-#pragma rodata-name ("CHDATA3")
+#pragma rodata-name (push, "CHDATA3")
 static const char fight_strike[] = "Walk into foe to strike; SPACE guards";
-#pragma rodata-name ("CHDATA2")
+#pragma rodata-name (pop)
+#pragma rodata-name (push, "CHDATA2")
 static const char fight_flee[]   = "Flee by a side gap (if you can)";
-#pragma rodata-name ("HIDATA")
+#pragma rodata-name (pop)
 
 /* What to do next, by quest stage. Two lines each, because the useful
    version of this names the person and the place. */

@@ -126,12 +126,21 @@ def sid_freq(midi, clock):
     return round(hz * 2 ** 24 / clock)
 
 
+# The room a score has, which in the offline build is how big each one is,
+# whatever it holds. The player reads a note's two bytes with Y, so 128 notes
+# is all an index can reach.
+MAX_PITCHES = 32
+MAX_NOTES = 128
+
+
 def main():
     tempo, notes = parse()
     harm, hold, release = harmony(notes)
     pitches = sorted({n[0] for n in notes} | set(harm))
-    if len(pitches) > 32:
-        die("more than 32 distinct pitches")
+    if len(pitches) > MAX_PITCHES:
+        die("more than %d distinct pitches" % MAX_PITCHES)
+    if len(notes) > MAX_NOTES:
+        die("more than %d notes" % MAX_NOTES)
     # Frames in an eighth, per machine.
     fpe = [round(rate * 30 / tempo) for rate in (NTSC_RATE, PAL_RATE)]
     lo, hi = [], []
@@ -140,6 +149,9 @@ def main():
             f = sid_freq(p, clock)
             lo.append(f & 255)
             hi.append(f >> 8)
+
+    def pad(n):
+        return "        .ifdef Q4K_OFFLINE\n        .res %d\n        .endif\n" % n if n else ""
 
     def bytes_(name, vals):
         return "%s:\n    .byte %s\n" % (name, ", ".join("$%02X" % v for v in vals))
@@ -161,10 +173,23 @@ def main():
         "; frames to an eighth: NTSC, PAL",
         bytes_("music_tempo", fpe),
         bytes_("music_freq_lo", lo),
+        pad(2 * MAX_PITCHES - len(lo)),
         bytes_("music_freq_hi", hi),
+        pad(2 * MAX_PITCHES - len(hi)),
         bytes_("music_notes", flat),
+        pad(2 * MAX_NOTES - len(flat)),
         "; the second voice, indexed by note: pitch, hold at bit 7, rest before the next strike at 6",
         bytes_("music_harm", hflat),
+        pad(MAX_NOTES - len(hflat)),
+        "",
+        "; The offline build loads another scene's score over this one (engine.c),",
+        "; so every table is at the same place in every score, and every score is",
+        "; the same size: tools/mkengines.py cuts it out of the PRG to make each",
+        "; scene's file.",
+        "        .ifdef Q4K_OFFLINE",
+        "        .export music_score_end",
+        "music_score_end:",
+        "        .endif",
     ]
     open(OUT, "w").write("\n".join(out))
     print("music: %d notes, %d pitches, %d bytes" % (len(notes), len(pitches), len(flat) + len(hflat) + 2 * len(lo) + 4))

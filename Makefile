@@ -53,7 +53,8 @@ C1541    := c1541
 OPT      := -Osir
 CFLAGS    = -t $(TARGET) $(OPT) --static-locals -I include \
             $(if $(filter 1,$(OFFLINE)),-DQ4K_OFFLINE)
-ASFLAGS  := -t $(TARGET) -I include --asm-include-dir include
+ASFLAGS  := -t $(TARGET) -I include --asm-include-dir include \
+            $(if $(filter 1,$(OFFLINE)),--asm-define Q4K_OFFLINE=1 --asm-define TALK_SIZE=$(OFFLINE_OVL))
 # The game gets the full memory map; the demos and tools get a lean one that
 # skips the HIGH region and its contiguity padding.
 LDFLAGS  := -t $(TARGET)
@@ -67,6 +68,9 @@ DEPFLAGS  = -Wc --create-full-dep,$(@:.o=.d) -Wc --dep-target,$@
 # dungeontest links the maps and the font, and arena the fights, so both need
 # the game's map too.
 LDCFG     = cfg/c64-$(if $(filter q4k dungeontest arena isletest,$*),q4k,tool).cfg
+ifeq ($(OFFLINE),1)
+LDCFG     = cfg/c64-$(if $(filter q4k,$*),offline,$(if $(filter dungeontest arena isletest,$*),q4k,tool)).cfg
+endif
 
 MAINS    := $(wildcard src/*.c)
 PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
@@ -77,7 +81,7 @@ PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 # set-piece screens), so putting them out of the way costs nothing. Both
 # flags are needed: --code-name alone leaves the string literals behind, and
 # screens like the help text are mostly string literals.
-HIMODS   := dialog battle shop inn dungeon panel help savegame sprite \
+HIMODS   := dialog battle arms shop inn dungeon panel help savegame sprite \
             loot fov world sail modem actor town_gen talk
 
 # Code above the charset, constants below: for when HIGH is the one that is
@@ -92,7 +96,7 @@ HICODEMODS := shop sail
 # milliseconds slower goes unnoticed. Not the generators or the modem, whose
 # timing was measured with it. Changing this list needs the objects rebuilt,
 # as above.
-SMALLMODS  := loot shop inn help battle dialog dungeon talk
+SMALLMODS  := loot shop inn help battle arms dialog dungeon talk
 $(foreach m,$(SMALLMODS),$(eval $(BUILD)/lib/$(m).o: OPT := -Or))
 
 # The title screen is not in HIGH at all: it runs once, at the start, from the
@@ -109,14 +113,40 @@ LIBOBJ   := $(patsubst src/lib/%.c,$(BUILD)/lib/%.o,$(wildcard src/lib/*.c)) \
             $(patsubst src/lib/%.s,$(BUILD)/lib/%.o,$(wildcard src/lib/*.s))
 
 # One build talks over the modem and the other from the disk, never both.
+# Only the offline build has engines (boot, engine, fightcall: engine.h).
+OFFONLY  := talk boot engine fightcall
 ifeq ($(OFFLINE),1)
 LIBOBJ   := $(filter-out $(BUILD)/lib/dialog.o $(BUILD)/lib/modem.o,$(LIBOBJ))
 else
-LIBOBJ   := $(filter-out $(BUILD)/lib/talk.o,$(LIBOBJ))
+LIBOBJ   := $(filter-out $(patsubst %,$(BUILD)/lib/%.o,$(OFFONLY)),$(LIBOBJ))
 endif
 
+# The offline build's engines (include/q4k/engine.h, cfg/c64-offline.cfg):
+# what is loaded into the slot for each, and so not in memory otherwise. Their
+# code and constants go in the engine's segments, and their variables stay in
+# the core's BSS and DATA, so that nothing they keep is lost when another
+# engine takes the slot. Everything else is the core. The assembly modules
+# choose their own segments when Q4K_OFFLINE is defined: isle_gen, tgen and
+# place_near are the map's, open9 the fight's, and overlay has the fight's
+# arrays and the talk's buffer. tools/mkengines.py checks after every link
+# that no engine calls another, nor the core an engine.
+ENG_MAP   := scene draw fov town_data town_gen loot loot_data help sail \
+             dungeon fightcall
+ENG_FIGHT := battle arena_data
+ENG_TALK  := talk inn gift
+ENG_SHOP  := shop
+ENGMODS   := $(ENG_MAP) $(ENG_FIGHT) $(ENG_TALK) $(ENG_SHOP)
+
+ifeq ($(OFFLINE),1)
+$(foreach e,MAP FIGHT TALK SHOP,$(foreach m,$(ENG_$(e)),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name $(e)CODE --rodata-name $(e)DATA)))
+# The map loop itself, in src/q4k.c: its main() is boot.c's here.
+$(BUILD)/q4k.o: CFLAGS += --code-name MAPCODE --rodata-name MAPDATA
+$(foreach m,$(filter-out $(HICODEMODS) $(ENGMODS),$(HIMODS)),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE --rodata-name HIDATA))
+$(foreach m,$(filter-out $(ENGMODS),$(HICODEMODS)),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE))
+else
 $(foreach m,$(filter-out $(HICODEMODS),$(HIMODS)),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE --rodata-name HIDATA))
 $(foreach m,$(HICODEMODS),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE))
+endif
 
 ifneq ($(strip $(LIBOBJ)),)
 LIB      := $(BUILD)/q4k.lib
@@ -124,7 +154,7 @@ endif
 
 .PHONY: all run play check shot test bless d64 release clean dirs assets \
         offline d64-offline run-offline
-.SECONDARY: $(BUILD)/$(PROG).o
+.SECONDARY: $(BUILD)/$(PROG).o $(BUILD)/q4k.o
 
 all: dirs assets $(PRGS)
 
@@ -249,7 +279,17 @@ $(DIST)/%.prg: $(BUILD)/%.o $(LIB) $(wildcard cfg/*.cfg)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
 ifeq ($(OFFLINE),1)
-$(DIST)/q4k.prg: LDFLAGS += -Wl -D,__OVLSIZE__=$(OFFLINE_OVL) -Wl -D,__RSBUF__=0xCF00
+# The engines come out of the same link, as files beside the PRG, and the
+# scenes' music is cut out of it: tools/mkengines.py, which also checks that
+# no engine reaches into another. The disk gets them all (d64, below).
+ENGFILES := e.map e.fight e.talk e.shop m.map m.fight m.talk
+
+$(DIST)/q4k.prg: $(BUILD)/q4k.o $(LIB) $(wildcard cfg/*.cfg) tools/mkengines.py
+	@mkdir -p $(DIST)
+	$(CL65) $(LDFLAGS) -C cfg/c64-offline.cfg -m $(BUILD)/q4k.map \
+	    -Wl -Ln,$(BUILD)/q4k.lbl -o $@ $< $(BUILD)/lib/boot.o $(LIB)
+	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
+	tools/mkengines.py $(BUILD) $@
 
 TALK_STAMP := $(BUILD)/talk/.stamp
 
@@ -333,6 +373,8 @@ d64: dirs $(DIST)/$(D64PROG).prg $(TALK_STAMP)
 ifeq ($(OFFLINE),1)
 	$(C1541) -attach $(DIST)/$(D64PROG).d64 \
 	    $$(for f in $(BUILD)/talk/[0-9]*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
+	$(C1541) -attach $(DIST)/$(D64PROG).d64 \
+	    $$(for f in $(ENGFILES); do printf ' -write %s %s' $(DIST)/$$f $$f; done) >/dev/null
 endif
 	@echo "wrote $(DIST)/$(D64PROG).d64   (LOAD\"$(D64PROG)\",8,1 then RUN; saves go to the same disk)"
 

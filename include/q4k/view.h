@@ -53,4 +53,14 @@ extern unsigned char view_fighting;
 /* Append a line to the log, scrolling the oldest one off the top. */
 void view_message(const char *text);
 
+/* A number in a cleared six-column field, for the panel. */
+void view_num(unsigned char x, unsigned char y, unsigned int value);
+
+/* The panel's rows for where you are (draw.c). The offline build reaches it
+   through view_place_fn, which the map's engine sets: see view.c. */
+void view_place(void);
+#ifdef Q4K_OFFLINE
+extern void (*view_place_fn)(void);
+#endif
+
 #endif /* Q4K_VIEW_H */

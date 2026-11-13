@@ -3,7 +3,7 @@
  *
  * The offline build's dialog_talk() and dialog_hint() (see dialog.h): what
  * everyone can say is on the disk, one file per person and one per inn, made
- * by tools/mktalk.py, and loaded into the overlay when it is wanted. The
+ * by tools/mktalk.py, and loaded into talk[] when it is wanted. The
  * player picks a topic from a menu instead of typing. Only the offline build
  * archives this module, and only the networked one dialog.c and modem.c.
  */
@@ -15,9 +15,13 @@
 #include <string.h>
 
 #include <q4k/dialog.h>
+#include <q4k/engine.h>
+#include <q4k/gift.h>
+#include <q4k/inn.h>
 #include <q4k/game.h>
 #include <q4k/music.h>
 #include <q4k/panel.h>
+#include <q4k/savegame.h>
 #include <q4k/sprite.h>
 #include <q4k/text.h>
 #include <q4k/town_data.h>
@@ -51,8 +55,7 @@
 /* Top of BASIC memory: see savegame.c, which raises it for the same reason. */
 #define MEMSIZ (*(unsigned int *)0x0283)
 
-extern unsigned char talk[];        /* overlay.s */
-extern unsigned char save_device;   /* savegame.c: where the game came from */
+extern unsigned char talk[];        /* overlay.s: the end of this engine */
 
 static unsigned char held = NONE;   /* the file talk[] holds */
 static unsigned char found;         /* how many find() passed */
@@ -194,7 +197,7 @@ unsigned char dialog_talk(unsigned char npc, const char *name,
     cputsxy(0, HINT_Y, "Number to ask, RUN/STOP leaves");
     panel_begin(TR_Y, TR_H);
 
-    /* Always from the disk: a fight may have used the overlay since. */
+    /* Always from the disk: another engine may have had the slot since. */
     held = NONE;
     if (!load(npc)) {
         return DIALOG_ENOLINE;
@@ -235,4 +238,26 @@ unsigned char dialog_hint(unsigned char inn)
 void dialog_forget(void)
 {
     held = NONE;
+}
+
+/* The talk's engine (engine.h): a person, or an inn. A person with nothing
+   on the disk still hands over what they would have, on the map: the line
+   saying so goes back in eng_text. */
+unsigned char talk_entry(void)
+{
+    const char *note;
+
+    if (eng_a == TALK_INN) {
+        inn_open(eng_b);
+        return 0;
+    }
+    if (dialog_talk(eng_b, eng_text, quest_after_talk) == DIALOG_OK) {
+        return 0;
+    }
+    note = quest_after_talk(GRANT_OPEN);
+    if (!note) {
+        return 0;
+    }
+    strcpy(eng_text, note);
+    return 1;
 }

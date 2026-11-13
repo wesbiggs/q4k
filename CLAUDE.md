@@ -68,16 +68,27 @@ Three regions, set up in `cfg/c64-q4k.cfg`, and the split matters:
   grounds that a turn-based flood fill can afford to be slower; nothing
   whose timing was measured is. Changing `cfg/` relinks everything.
 - **The offline build** (`make offline`, `-DQ4K_OFFLINE`, in `build/offline/`)
-  has no `dialog.o` or `modem.o`, so nothing opens the RS-232 buffers: it
-  links with `__RSBUF__ = $CF00` and `__OVLSIZE__ = $0BEC` (`OFFLINE_OVL` in
-  the Makefile), and the extra 512 bytes of overlay hold the dialogue files
-  `talk.c` loads from disk. HIGH has about 400 bytes free there, after what
-  only this build has: the continents' own monsters, the arms monsters drop
-  (`gear_drop()` in `shop.c`) and lightning (`SHOT_BOLT`, whose shapes put
-  `sprite.c`'s shot table in HIDATA rather than `CHDATA3`), all under
-  `#ifdef Q4K_OFFLINE` because the online build had no room. Measure
-  both builds after a change to either; `tools/screendump.py` finds
-  `build/offline/q4k.lbl` for `dist/offline/q4k.prg`.
+  has no `dialog.o` or `modem.o`, and **loads its engines from the disk**:
+  `cfg/c64-offline.cfg`, not `c64-q4k.cfg`, and none of the OVL arrangement
+  above applies to it. A core stays in memory, and one slot at `$4000-$83FF`
+  holds the map's engine (`e.map`), the fight's, the talk's (people and inns)
+  or the shop's, loaded by `engine_call()` (`src/lib/engine.c`,
+  `include/q4k/engine.h`; ENGINES.md has the design and its choices). The
+  Makefile's `ENG_*` lists say which modules are in which engine: only their
+  code and constants move, while their BSS and DATA stay in the core. **An
+  engine may call the core and itself, nothing else**; the core and other
+  engines reach it only through its `*_entry`. `tools/mkengines.py` checks
+  that after every link and fails the build otherwise. Assembly modules pick
+  their segment with `.ifdef Q4K_OFFLINE` (passed by `--asm-define`). About
+  8.7K of HIGH, 6K of MAIN (less the stack) and 179 bytes of BSS are free
+  there. What only this build has: the continents' own monsters, the arms
+  monsters drop (`gear_give()` in `shop.c`, rolled in `fightcall.c`) and
+  lightning (`SHOT_BOLT`), all under `#ifdef Q4K_OFFLINE` because the online
+  build had no room. Each scene's music is a file too (`m.map`, ...: every
+  score is the same fixed size, see `tools/mkmusic.py`). The game needs its
+  disk, and asks for it back if a load fails. Measure both builds after a
+  change to either; `tools/screendump.py` finds `build/offline/q4k.lbl` for
+  `dist/offline/q4k.prg`, and `tools/modes.py` groups either map by mode.
 - **The C stack is at the top of MAIN, not where the cfg used to say.** cc65's
   startup points `sp` at `__MAIN_START__ + __MAIN_SIZE__`, `$3800`, and it
   grows down through MAIN's spare bytes (about 159 now) and then the dead ONCE

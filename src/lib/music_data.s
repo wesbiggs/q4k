@@ -17,12 +17,38 @@ music_tempo:
 music_freq_lo:
     .byte $30, $8F, $F0, $C4, $D1, $1F, $61, $1E, $32, $DF, $88, $9D, $0A, $81, $67, $89, $ED, $3B, $13, $45, $02, $CE
 
+        .ifdef Q4K_OFFLINE
+        .res 42
+        .endif
+
 music_freq_hi:
     .byte $0B, $0C, $0E, $10, $12, $15, $16, $19, $1C, $1D, $21, $0B, $0D, $0F, $11, $13, $15, $17, $1A, $1D, $1F, $22
+
+        .ifdef Q4K_OFFLINE
+        .res 42
+        .endif
 
 music_notes:
     .byte $43, $03, $44, $01, $05, $02, $0A, $02, $49, $03, $48, $01, $07, $04, $49, $03, $48, $01, $07, $02, $06, $02, $05, $01, $06, $01, $87, $06, $43, $03, $44, $01, $05, $02, $03, $02, $42, $03, $43, $01, $04, $04, $42, $03, $43, $01, $04, $02, $06, $02, $05, $01, $04, $01, $83, $06
 
+        .ifdef Q4K_OFFLINE
+        .res 200
+        .endif
+
 ; the second voice, indexed by note: pitch, hold at bit 7, rest before the next strike at 6
 music_harm:
     .byte $01, $81, $81, $C1, $04, $84, $C4, $04, $84, $84, $C4, $03, $83, $C3, $01, $81, $81, $C1, $00, $80, $C0, $00, $80, $80, $C0, $01, $81, $C1
+
+        .ifdef Q4K_OFFLINE
+        .res 100
+        .endif
+
+
+; The offline build loads another scene's score over this one (engine.c),
+; so every table is at the same place in every score, and every score is
+; the same size: tools/mkengines.py cuts it out of the PRG to make each
+; scene's file.
+        .ifdef Q4K_OFFLINE
+        .export music_score_end
+music_score_end:
+        .endif

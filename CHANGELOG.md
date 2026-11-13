@@ -3,6 +3,17 @@
 Each release's section here becomes its notes on GitHub; the release
 workflow reads the one headed with the tag's version.
 
+## Unreleased
+
+- The offline build loads its engines from the disk: the map, the fights,
+  conversations and the inns, and the shops each come in when they are wanted,
+  which frees about 14K for what comes next. Each scene brings its own music
+  (the same tune everywhere for now), which starts again at every fight and
+  conversation. Keep the disk in the drive: without it the game cannot leave
+  the title screen, and it asks for the disk back if a load fails. Meant for
+  a fast drive (TeensyROM's vdrive); a stock 1541 would take most of a minute
+  for every fight. See ENGINES.md.
+
 ## 0.11.0 — 2026-11-06
 
 - The offline build takes a joystick in port 2: it moves on the map and in a

@@ -17,8 +17,12 @@
 #include <q4k/charset.h>
 #include <q4k/dialog.h>
 #include <q4k/dungeon.h>
+#ifdef Q4K_OFFLINE
+#include <q4k/engine.h>
+#endif
 #include <q4k/fov.h>
 #include <q4k/game.h>
+#include <q4k/gift.h>
 #include <q4k/help.h>
 #include <q4k/inn.h>
 #include <q4k/isle.h>
@@ -34,6 +38,7 @@
 #endif
 #include <q4k/tiles.h>
 #include <q4k/title.h>
+#include <q4k/town_gen.h>
 #include <q4k/view.h>
 #include <q4k/world.h>
 
@@ -64,11 +69,9 @@
 #define K_F3          0x86   /* load */
 
 /* In CHDATA2 because MAIN is full; see CLAUDE.md. */
-#pragma rodata-name ("CHDATA2")
-static const char msg_reward[]   = "The king rewards you 1,000 gold!";
-static const char msg_praise[]   = "The king praises your valour.";
+#pragma rodata-name (push, "CHDATA2")
 static const char msg_villager[] = "The villager nods politely.";
-#pragma rodata-name ("RODATA")
+#pragma rodata-name (pop)
 
 /* Said on a square that has something to go through. */
 #define HINT_ENTER    "> to enter."
@@ -175,75 +178,6 @@ static void keeper_beaten(void)
     }
 }
 
-/* Who the player is talking to, for quest_after_talk. */
-static unsigned char talking_to;
-
-/* Hand over quest items the conversation has earned. `granted` is what the
-   host has decided so far, or GRANT_OPEN when there was no host to ask --
-   the game stays winnable without the modem. Called after every answer, so
-   each case must hand its item over once only. Returns the line announcing
-   the gift, or 0. */
-static const char *quest_after_talk(unsigned char granted)
-{
-    switch (talking_to) {
-        case NPC_KING:
-	  if (quest_stage == Q_VICTORY) {
-	    quest_stage = Q_REWARDED;
-	    gold += 1000;
-	    return msg_reward;
-	  } else if (quest_stage == Q_REWARDED) {
-	    return msg_praise;
-	  } else if (quest_stage < Q_QUESTED
-		     && (granted == GRANT_SIGIL || granted == GRANT_OPEN)) {
-	    quest_stage = Q_QUESTED;
-	    give(IT_SIGIL);
-	    return "The king gives you the Iron Sigil.";
-	  } 
-	  break;
-
-        case NPC_VANE:
-            if (has(IT_EMBER) && !has(IT_TIDAL)
-                && (granted == GRANT_TIDAL || granted == GRANT_OPEN)) {
-                quest_stage = Q_TIDAL;
-                give(IT_TIDAL);
-                return "Vane gives you the Tidal Key.";
-            }
-            break;
-
-        case NPC_ASH:
-            if (has(IT_TEAR) && !has(IT_ASHEN)
-                && (granted == GRANT_ASHEN || granted == GRANT_OPEN)) {
-                quest_stage = Q_ASHEN;
-                give(IT_ASHEN);
-                return "Mother Ash gives you the Ashen Key.";
-            }
-            break;
-
-        case NPC_SMITH:
-            if (quest_stage == Q_START) {
-                if (granted == GRANT_DAGGER || granted == GRANT_OPEN) {
-                    quest_stage = Q_SUMMONED;
-                    weapon_lv   = 1;
-                    return "Garrett gives you a dagger.";
-                }
-                break;
-            }
-            if (has(IT_EMBER) && has(IT_TEAR) && has(IT_HEART)
-                && !has(IT_BLADE)
-                && (granted == GRANT_FORGE || granted == GRANT_OPEN)) {
-                quest_stage = Q_FORGED;
-                give(IT_BLADE);
-                weapon_lv = DRAGONBANE;
-                return "Garrett reforges Dragonbane.";
-            }
-            break;
-
-        default:
-            break;
-    }
-    return 0;
-}
-
 static void interact(unsigned char index)
 {
     const TownEnt *e = &here_ents[index];
@@ -254,12 +188,26 @@ static void interact(unsigned char index)
         return;
     }
     if (e->kind == ENT_SHOP) {
+#ifdef Q4K_OFFLINE
+        eng_a = e->param;
+        engine_call(ENG_SHOP, shop_entry);
+#else
         shop_open(e->param);
+#endif
         back_to_map();
         return;
     }
     if (e->kind == ENT_INN) {
+#ifdef Q4K_OFFLINE
+        /* The inns' names are the map's: the talk's engine is told. */
+        strcpy(eng_text, e->param < NUM_INNS ? inn_names[e->param]
+                                              : town_gen_inn());
+        eng_a = TALK_INN;
+        eng_b = e->param;
+        engine_call(ENG_TALK, talk_entry);
+#else
         inn_open(e->param);
+#endif
         back_to_map();
         return;
     }
@@ -269,14 +217,20 @@ static void interact(unsigned char index)
     talking_to = e->param;
     note = 0;
 #ifdef Q4K_OFFLINE
-    if (dialog_talk(e->param, npc_names[e->param],
-                    quest_after_talk) != DIALOG_OK) {
+    /* The talk's engine does all of that (talk_entry()), and hands back the
+       line for the map, if there is one, in eng_text. */
+    strcpy(eng_text, npc_names[e->param]);
+    eng_a = TALK_NPC;
+    eng_b = e->param;
+    if (engine_call(ENG_TALK, talk_entry)) {
+        note = eng_text;
+    }
 #else
     if (dialog_talk(npc_ids[e->param], npc_names[e->param],
                     quest_stage, lore_seed, quest_after_talk) != DIALOG_OK) {
-#endif
         note = quest_after_talk(GRANT_OPEN);
     }
+#endif
     back_to_map();
     if (note) {
         view_message(note);
@@ -579,6 +533,25 @@ static void try_talk(void)
     interact((unsigned char)e);
 }
 
+#ifdef Q4K_OFFLINE
+/* The offline build's main() is in boot.c, which runs the title screen and
+   then this, in the map's engine (engine.h), for good. */
+void map_entry(unsigned char restored)
+{
+    unsigned char key;
+    unsigned char seeded = 0;
+    unsigned char told;
+    /* PETSCII throughout: hero.name and the literals are both what conio
+       expects, so they concatenate straight together. */
+    static char greeting[SCR_W + 1];
+
+    view_place_fn = view_place;     /* the panel's "where you are" is ours */
+    if (restored) {
+        scene_restore();
+    } else {
+        game_start();
+    }
+#else
 int main(void)
 {
     unsigned char key;
@@ -594,12 +567,17 @@ int main(void)
     save_init();                       /* $BA is the load device only until the modem opens */
     tiles_install();
     game_init();                       /* seeds hero.name with the default */
+    game_start();
     /* No keyboard drain here: the title screen already discarded the
        launcher's RUN before it accepted a name, and draining again would
        swallow whatever the player typed ahead. */
     restored = title_screen(hero.name, NAME_LEN);
+    if (restored) {
+        scene_restore();
+    }
     view_init();
     music_start();
+#endif
 
     if (restored) {
         view_message("Press ? for help.");
@@ -703,6 +681,7 @@ int main(void)
                 view_message("Loading...");
                 switch (load_game()) {
                     case SAVE_OK:
+                        scene_restore();
                         told = quest_stage;
                         back_to_map();
                         view_message("Restored.");
@@ -732,7 +711,11 @@ int main(void)
                 clrscr();
                 asm("sei");
                 ((void (*)(void))0xFCE2)();     /* SYS 64738: the machine's reset */
+#ifdef Q4K_OFFLINE
+                return;
+#else
                 return 0;
+#endif
 
             default:
                 break;

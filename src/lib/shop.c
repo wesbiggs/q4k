@@ -5,6 +5,9 @@
 
 #include <q4k/actor.h>
 #include <q4k/battle.h>
+#ifdef Q4K_OFFLINE
+#include <q4k/engine.h>
+#endif
 #include <q4k/game.h>
 #include <q4k/isle.h>
 #include <q4k/shop.h>
@@ -115,13 +118,12 @@ static unsigned char better(unsigned char pick)
    pin it with --poke gear_odds=1. */
 unsigned char gear_odds = 12;
 
-void gear_drop(void)
+/* What gear_drop() used to do once its roll had come up, which the map now
+   makes before loading this engine (fightcall.c). */
+static void gear_give(void)
 {
     unsigned char k, pick;
 
-    if (rand() % gear_odds) {
-        return;
-    }
     k = (unsigned char)(rand() % 3);
     stock(k == 2 ? SHOP_BOW : k);
     pick = lo + (unsigned char)(rand() % (hi - lo + 1));
@@ -135,6 +137,17 @@ void gear_drop(void)
         strcat(line, " is no use to you.");
     }
     view_message(line);
+}
+
+/* The shop's engine: engine.h. */
+unsigned char shop_entry(void)
+{
+    if (eng_a == SHOP_GEAR) {
+        gear_give();
+    } else {
+        shop_open(eng_a);
+    }
+    return 0;
 }
 #endif
 

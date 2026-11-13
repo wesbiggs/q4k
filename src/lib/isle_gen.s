@@ -136,7 +136,11 @@ final:  .byte T_WATER, T_GRASS, T_MOUNTAIN, T_FOREST, T_WATER, T_SWAMP
 hkind:  .byte G_TOWN, G_CASTLE, G_DUNGEON, G_LAIR, G_TOWN
 happart: .byte 0, 24, 12, 12, 10
 
+        .ifdef Q4K_OFFLINE
+        .segment "MAPCODE"           ; an engine of its own: engine.h
+        .else
         .segment "HICODE"
+        .endif
 
 ; A = a random byte: eight bits of a Galois LFSR, taps $B400, whose period is
 ; 65535. Clobbers X.

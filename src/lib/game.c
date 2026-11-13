@@ -39,7 +39,7 @@ unsigned char no_encounters;
 unsigned char home_fx[NUM_HOME_PLACES], home_fy[NUM_HOME_PLACES];
 unsigned char home_biome;
 unsigned char home_port_x[4], home_port_y[4];
-static unsigned char home_ok;
+unsigned char home_ok;    /* scene.c builds it */
 
 const TownEnt *here_ents;
 unsigned char  here_n;
@@ -76,10 +76,6 @@ void game_init(void)
     lore_seed   = 0;
     memset(looted, 0, sizeof(looted));
     home_forget();
-
-    town_build(TOWN_MILLFORD);
-    hero.x = town_sx[TOWN_MILLFORD];
-    hero.y = town_sy[TOWN_MILLFORD];
 }
 
 unsigned char map_at(unsigned char x, unsigned char y)
@@ -104,27 +100,6 @@ void map_set(unsigned char x, unsigned char y, unsigned char code)
 unsigned char map_flag(unsigned char x, unsigned char y)
 {
     return tile_flags[map_at(x, y) - TILE_BASE];
-}
-
-/* Home is made when the story first needs it, and kept: where isle.h says. */
-void home_ensure(void)
-{
-    if (home_ok) {
-        return;
-    }
-    /* A few seconds in which the machine is mostly in all-RAM mode with
-       interrupts off (vault.s): the SID would hold whatever note it was on
-       as a drone. Silence it first, and bring it back after if it was on. */
-    music_pause();
-    isle_build(ISLE_HOME);
-    music_resume();
-    memcpy(home_fx, isle_fx, NUM_HOME_PLACES);
-    memcpy(home_fy, isle_fy, NUM_HOME_PLACES);
-    memcpy(home_port_x, isle_port_x, 4);
-    memcpy(home_port_y, isle_port_y, 4);
-    home_biome = isle_biome;
-    home_ok = 1;
-    lair_clear();
 }
 
 unsigned char home_built(void)
@@ -171,94 +146,6 @@ unsigned char slot_of(unsigned char d)
         t = p[i]; p[i] = p[j]; p[j] = t;
     }
     return p[d];
-}
-
-/* The packed towns are LOCAL_W to a row. Unpack into the tail of the buffer
-   and spread the rows out to LOCAL_STRIDE: every row moves down in memory,
-   and never past a row still waiting to be moved. */
-void town_unpack(unsigned char index)
-{
-    unsigned char *src = local + sizeof(local) - LOCAL_W * LOCAL_H;
-    unsigned char y;
-
-    rle_unpack(src, town_map[index], LOCAL_W * LOCAL_H);
-    for (y = 0; y < LOCAL_H; ++y, src += LOCAL_W) {
-        memmove(local + LOCAL_AT(0, y), src, LOCAL_W);
-    }
-    local_w = LOCAL_W;
-    local_h = LOCAL_H;
-}
-
-const char *town_name(void)
-{
-    return place < NUM_TOWNS ? town_names[place] : town_gen_name();
-}
-
-void town_build(unsigned char index)
-{
-    scene = SCENE_TOWN;
-    place = index;
-    depth = 0;
-    if (index < NUM_TOWNS) {
-        town_unpack(index);
-        here_ents = town_ents + town_ent_first[index];
-        here_n    = town_ent_first[index + 1] - town_ent_first[index];
-        here_ex   = town_ex[index];
-        here_ey   = town_ey[index];
-        hero.x    = town_sx[index];
-        hero.y    = town_sy[index];
-    } else {
-        town_gen();             /* sets hero, ents and the way out, too */
-    }
-}
-
-/* Where you went in from: the overworld's square, kept to come out at. The
-   continent you are on is put away while the town or dungeon is in local[]. */
-void enter_local(void)
-{
-    ret_x = hero.x;
-    ret_y = hero.y;
-    if (scene == SCENE_ISLE) {
-        vault_park(0);
-    }
-}
-
-void enter_town(unsigned char index)
-{
-    enter_local();
-    town_build(index);
-}
-
-/* Step back out onto the overworld, where you went in. */
-void leave_local(void)
-{
-    if (land == ISLE_HOME) {
-        if (!home_ok) {
-            /* The first time out of Millford. */
-            home_ensure();
-            ret_x = home_fx[0];
-            ret_y = home_fy[0];
-        }
-        scene   = SCENE_WORLD;
-        local_w = local_h = WORLD_SIZE;
-    } else {
-        vault_unpark(0);
-        scene   = SCENE_ISLE;
-        local_w = ISLE_W;
-        local_h = ISLE_H;
-    }
-    hero.x = ret_x;
-    hero.y = ret_y;
-    depth  = 0;
-}
-
-void respawn(void)
-{
-    land = ISLE_HOME;
-    home_ensure();
-    ret_x = home_fx[0];
-    ret_y = home_fy[0];
-    town_build(TOWN_MILLFORD);
 }
 
 unsigned char has(unsigned char item)

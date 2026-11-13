@@ -24,7 +24,7 @@
 ; does not have.
 
         .export _music_start, _music_stop, _music_pause, _music_resume
-        .export _music_toggle, _music_state, _music_idx
+        .export _music_toggle, _music_state, _music_idx, _music_rewind
         .export _sfx_play, _sfx_step, _sfx_toggle, _sfx_delay
         .import music_notes, music_harm, music_count, music_npitch, music_tempo
         .import music_freq_lo, music_freq_hi
@@ -177,6 +177,14 @@ _music_resume:
         lda #$0F
         sta SID_VOL
 @no:    rts
+
+; void music_rewind(void): the next note is the first. For a new score,
+; loaded while the music is paused or stopped (engine.c): resuming then
+; starts it from the top.
+_music_rewind:
+        lda #0
+        sta _music_idx
+        rts
 
 ; void music_pause(void)
 _music_pause:
