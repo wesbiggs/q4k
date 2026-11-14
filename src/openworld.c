@@ -395,6 +395,7 @@ static void back_home(void)
 
     leave_area();
     area = AREA_HOME;
+    sm_npc_n = 0;               /* the town's people stay in the town */
     sm_tileset(ts_overworld);
     area_w = area_h = 64;
     if (kept) {

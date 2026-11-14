@@ -425,7 +425,11 @@ prototype defines the few of `game.c`'s and `actor.c`'s variables the
 generators use itself, so neither is linked (with them came the view, the
 sprite and the arms, 6K it has no room for). Going in takes about 0.75 s, the
 dungeon 1.6 s (its generator). The goldens `openworld-town` and
-`openworld-dungeon` (and their `-reu` twins) freeze mid-step inside.
+`openworld-dungeon` (and their `-reu` twins) freeze mid-step inside;
+`openworld-out` goes into Millford and out, and walks to where its people
+would be if they had come too (they once did: nothing emptied `sm_npc_n` on
+the way out). It is a text dump, not `--hex`, since only that shows sprites,
+as `@` -- which is also how character 0 prints, so compare, do not count.
 **A `.byte $2C` skip hides two bytes only**: one put in front of an absolute
 load (three) ran the load's last byte as an instruction and drew wrong edges
 in a few places without crashing; use a jump.
