@@ -63,39 +63,57 @@ a.a.....
 ........
 
 tile forest black
-.aa..aa.
-aaaaaaaa
-aaacaaac
-aaccaacc
-.cc..cc.
+.aa.....
+aaaa.aa.
+aaacaaaa
+aaccaaac
+.cc..acc
 ..c...c.
 ..c...c.
 ........
-a..aa..a
-aaaaaaaa
-acaaacaa
-ccaaccaa
-c..cc..c
-....c...
-....c...
+..aa.aa.
+.aaaaaaa
+.aacaaac
+.accaacc
+..c..cc.
+..c...c.
+......c.
 ........
 
 tile forest black
-a..aa..a
-aaaaaaaa
-acaaacaa
-ccaaccaa
-c..cc..c
-....c...
-....c...
+....aa..
+.aa.aaa.
+aaaaaac.
+aaacacc.
+.acc.c..
+..c..c..
+..c.....
 ........
-.aa..aa.
-aaaaaaaa
-aaacaaac
-aaccaacc
-.cc..cc.
+.aa...aa
+aaaa.aaa
+aaac.aac
+aacc.acc
+.cc...c.
 ..c...c.
-..c...c.
+..c.....
+........
+
+tile mountain white
+........
+...cc...
+..cccc..
+..ccbc..
+.cccbbb.
+.cbcbbb.
+.bbcbbb.
+cbbbcbbb
+bbbbcbbb
+bbbbbcbb
+bbbbbbcb
+bbbbbbbb
+.bbbbbb.
+.abbbba.
+..aaaa..
 ........
 
 tile mountain white
@@ -187,6 +205,42 @@ cccccccc
 cbcccccc
 cccccccc
 cccccccc
+
+tile shore yellow
+cccccccc
+ccccccac
+cccccccc
+c.cccccc
+cccccccc
+ccccbccc
+cccccccc
+cccccccc
+cccccccc
+ccaccccc
+cccccccc
+cccccc.c
+cccccccc
+cbcccccc
+cccccccc
+cccccccc
+
+tile swamp black
+........
+.bbb..a.
+bbbbb.c.
+.bbb..a.
+......a.
+..a.....
+..c.bbb.
+..a.bbbb
+...bbbb.
+.a......
+.c......
+.a..bbb.
+...bbbbb
+.a..bbb.
+.c....a.
+......c.
 
 tile swamp black
 ........
@@ -335,6 +389,65 @@ cccb bbbb ccbb bbbb ....
 ccbb bbbb ccbb bbbb ..a.
 cbbb bbbb ccbb bbbb .a.a
 ccbb bbbb ccbb bbbb ....
+
+# Where other ground meets open ground: these terrains fray at their edges
+# instead of ending in a straight line. The masks are the top left quarter
+# again, with open ground beside it, above it, both, or only on the diagonal;
+# an x is cut back to the background (the grass's green). They are applied to
+# each terrain's own art, every variant and every quarter, mirrored, so a new
+# terrain only needs naming on a fringe line. Open ground is grass, and the
+# places that stand on it. The same seams have to meet as the beaches'.
+open grass town castle dungeon lair pass
+
+# Where two of them meet, the lower frays toward the higher, which reads as
+# a strip of grass between them: sand against the rest, swamp against forest
+# and mountain, and a forest thins out at a mountain's foot.
+also shore forest mountain swamp
+also swamp forest mountain
+also forest mountain
+
+# Sand, mountains and swamp: a shallow, ragged edge (the forest's are
+# drawn, below). Each fringe has two
+# beside-and-above masks, one for each of the terrain's variants (which a
+# hash of the square picks), so that a long edge wanders in and out; the
+# two have the same ends, so they meet. A terrain drawn once is drawn twice
+# (the same art) to have a second variant.
+fringe shore mountain swamp
+x... xxxx xxxx x... x... xxxx
+xx.. x.xx xxxx x... x... xxxx
+x... .... xxx. .... xx.. .xx.
+.... .... xx.. .... xxx. ..x.
+x... .... xx.. .... xx.. ....
+xx.. .... x... .... x... ....
+x... .... xx.. .... .... ....
+.... .... .... .... .... ....
+
+# The forest is trees, one to a quarter, so cutting pixels off its edge
+# only nicks them and the next row stands in a straight line behind. Its
+# edges are drawn instead: beside, above (or below), both, diagonal, and
+# beside and above again for the second variant -- a tree drawn back from
+# the open side, a bush in a corner, or just grass. Trees have a top, so
+# these are not turned upside down: the first eight rows are the top left
+# quarter (open ground to the west or north), the next eight the bottom
+# left (west or south). Each is mirrored for the right-hand quarters, but
+# for above and below, which look the same from either side.
+edges forest
+..a. .... .... .aa. .... ....
+.aaa .... .... aaaa .... ....
+.aac .aa. .... aaac .... ..a.
+..cc aaaa ..a. .acc .... .aaa
+...c aaac .aaa ..c. .a.. .aac
+...c .acc .aac ..c. a.a. ..c.
+.... ..c. ..c. .... .... ....
+.... ..c. .... .... .... ....
+..a. .aa. ..a. .aa. .... ..a.
+.aaa aaaa .aaa aaaa .... .aaa
+.aac aaac .aac aaac .a.. .aac
+..cc .acc ..c. .acc a.a. ..c.
+...c ..c. .... ..c. .... ....
+...c .... .... ..c. .... ....
+.... .... .... .... .... ....
+.... .... .... .... .... ....
 
 # The hero, a warrior in a red tunic: down, up, left, right, two strides each.
 sprite down

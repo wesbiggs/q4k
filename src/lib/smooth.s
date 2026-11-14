@@ -15,17 +15,19 @@
 ; characters are biased by 64 -- the map's 128 characters sit at 64-191 --
 ; so that the sea around it is still a byte, and anything outside is sea.
 ;
-; Coastlines. SHORE, beside WORLD, has a byte for each water square: a bit
-; for each of its eight neighbours that is land (openworld.c works it out
-; when the land is built: bit 0 north, then clockwise); and for each grass
-; square, a bit for each that is sea, whose only use is a headland: a
-; quarter of grass with sea beside and above (or below) it rounds its
-; corner off with sand. Each quarter of a
+; Edges, where one terrain meets another. SHORE, beside WORLD, has a byte
+; for each square: a bit for each of its eight neighbours that gives it an
+; edge (sm_shores works it out when the land is built: bit 0 north, then
+; clockwise). Water's edges are beaches, where land is; grass's only a
+; headland, a quarter with sea beside and above (or below) it rounding its
+; corner off with sand; and sand, forest, mountain and swamp fray where they
+; meet open ground (assets/overworld.txt says which). Each quarter of a
 ; water square looks only at the three neighbours on its own corner -- the
 ; one beside it, the one above or below, and the diagonal -- and, through
-; ow_qvar, picks a beach edge: a strip, an inside corner where both sides are
-; land, or a small outside corner where only the diagonal is. So a coast is
-; drawn in sixteen characters whatever its shape, and costs a lookup more.
+; ow_qvar, picks an edge: a strip, an inside corner where both sides are
+; edges, or a small outside corner where only the diagonal is; ow_blend
+; has the character for each metatile, quarter and edge. So an edge of any
+; shape is a few characters, and costs a lookup more.
 ;
 ; How a scroll works. The VIC's fine scroll ($D016/$D011 bits 0-2) moves the
 ; picture up to seven pixels; past that, every character has to move one
@@ -63,7 +65,7 @@
         .export _sm_reu, _sm_reu_detect
 
         .import ow_chars, ow_nchars, ow_chcol, ow_mt0, ow_mt1, ow_chq
-        .import ow_qvar, ow_shore
+        .import ow_qvar, ow_blend, ow_nflag, ow_bsel, ow_binv
         .import ow_rnd, ow_water, ow_nwater, ow_sprites, ow_nsprites
         .import _ow_bg, _ow_mc1, _ow_mc2, _ow_spr1, _ow_spr2
         .importzp ptr1, ptr2, ptr3, ptr4
@@ -93,9 +95,6 @@ REU_SCREEN = $0000              ; where a front screen is stashed to shift
 REU_COLOUR = $0400              ; and its colour RAM
 REU_TEST   = $0800              ; and sm_reu_detect's test bytes
 T_WATER  = $64
-T_GRASS  = $60
-T_PORT   = $7E
-T_BRIDGE = $6A
 TBASE    = $60
 BIAS     = 64                   ; world characters: the map is 64-191
 
@@ -129,10 +128,12 @@ tx:         .res 1
 ty:         .res 1
 qofs:       .res 1
 vtmp:       .res 1
-tcode:      .res 1
+bmask:      .res 1
+mtv:        .res 1
 sy:         .res 1              ; sm_shores' workings
 dmask:      .res 1
 inv:        .res 1
+sel:        .res 1
 probe_buf:  .res 8              ; sm_reu_detect's test bytes
 above:      .res 66             ; sm_shores' rows of flags
 cur:        .res 66
@@ -165,6 +166,8 @@ char_at:
         asl     a
         sta     qofs            ; * 32, the quadrant's table in ow_chq
 
+        lda     #0
+        sta     bmask
         lda     ty
         sec
         sbc     #BIAS / 2
@@ -182,49 +185,17 @@ char_at:
         sta     ptr2+1
         ldy     #0
         lda     (ptr2),y
-        cmp     #T_WATER
-        beq     @coast
-        cmp     #T_GRASS
-        bne     @tile
-@coast: sta     tcode
-        lda     ptr2+1          ; is there a coast on this corner?
+        tax
+        lda     ptr2+1          ; and what is round it, from SHORE
         sec
         sbc     #>(WORLD - SHORE)
         sta     ptr2+1
-        lda     (ptr2),y        ; what is round it, a bit a compass point
-        beq     @same
-        tay
-        lda     qofs            ; the quadrant's own view of those bits,
-        lsr     a               ; from ow_qvar + quadrant * 256
-        lsr     a
-        lsr     a
-        lsr     a
-        lsr     a
-        clc
-        adc     #>ow_qvar
-        sta     ptr2+1
-        lda     #<ow_qvar
-        sta     ptr2
         lda     (ptr2),y
-        beq     @same           ; a coast, but not on this quarter's side
-        ldx     tcode
-        cpx     #T_WATER
-        beq     :+
-        cmp     #3              ; grass: only a headland, sea on both sides
-        bne     @same
-        lda     #7
-:       sta     vtmp
-        lda     qofs
-        lsr     a
-        lsr     a               ; quadrant * 8
-        ora     vtmp
-        tax
-        lda     ow_shore,x
-        rts
-@same:  lda     tcode
+        sta     bmask
+        txa
         .byte   $2C             ; bit abs: skip the next
 @sea:   lda     #T_WATER
-@tile:  sec
+        sec
         sbc     #TBASE
         and     #31
         tax
@@ -240,38 +211,75 @@ char_at:
         lda     ow_mt0,x
         bcc     @mt             ; always
 @v1:    lda     ow_mt1,x
-@mt:    ora     qofs
+@mt:    sta     mtv
+
+        ldy     bmask           ; an edge on this quarter's corner?
+        beq     @plain
+        lda     qofs
+        lsr     a
+        lsr     a
+        lsr     a
+        lsr     a
+        lsr     a
+        clc
+        adc     #>ow_qvar
+        sta     ptr2+1
+        lda     #<ow_qvar
+        sta     ptr2
+        lda     (ptr2),y        ; which edge, 1-4, from ow_qvar[q][mask]
+        beq     @plain
+        sec
+        sbc     #1
+        sta     vtmp
+        lda     qofs
+        lsr     a
+        lsr     a
+        lsr     a               ; quarter * 4
+        ora     vtmp
+        tay
+        lda     mtv             ; ow_blend + metatile * 16
+        lsr     a
+        lsr     a
+        lsr     a
+        lsr     a
+        sta     vtmp            ; (its high byte's part)
+        lda     mtv
+        asl     a
+        asl     a
+        asl     a
+        asl     a
+        clc
+        adc     #<ow_blend
+        sta     ptr2
+        lda     vtmp
+        adc     #>ow_blend
+        sta     ptr2+1
+        lda     (ptr2),y
+        rts
+
+@plain: lda     mtv
+        ora     qofs
         tax
         lda     ow_chq,x
         rts
 
 ; ---------------------------------------------------------------------------
-; void sm_shores(void) -- SHORE from WORLD (see the top): for each water
-; square a bit for each neighbour that is land, and for each grass square a
-; bit for each that is sea, north first and then clockwise. Off the map is
-; sea. Three rows of land-or-sea flags roll down the map, each with a square
-; of sea either side, so every neighbour is a load, a shift and a rotate,
-; with no edge to test. Built once a land.
+; void sm_shores(void) -- SHORE from WORLD (see the top): for each square
+; that takes edges (ow_bsel), a bit for each neighbour that makes one,
+; north first and then clockwise. Off the map is sea. Three rows of
+; neighbour flags (ow_nflag) roll down the map, each with a square of sea
+; either side, so every neighbour is a load, a mask and a rotate, with no
+; edge to test. Built once a land.
 
-; Carry set if the square in A is land: anything but water, a pier or a
-; bridge.
-isdry:  cmp     #T_WATER
-        beq     @no
-        cmp     #T_PORT
-        beq     @no
-        cmp     #T_BRIDGE
-        beq     @no
-        sec
-        rts
-@no:    clc
-        rts
-
-; The row at ptr3 as flags, into `below` (1 land, 0 sea; index x + 1).
+; The row at ptr3 as flags, into `below` (index x + 1): ow_nflag's, bit 0
+; land, bit 1 open ground.
 dryrow: ldy     #63
 @l:     lda     (ptr3),y
-        jsr     isdry
-        lda     #0
-        rol     a
+        sec
+        sbc     #TBASE
+        and     #31
+        tax
+        lda     ow_nflag,x
         sta     below+1,y
         dey
         bpl     @l
@@ -323,48 +331,59 @@ _sm_shores:
 :       jsr     dryrow
 
 @cols:  ldy     #63
-@col:   lda     (ptr1),y
-        ldx     #0              ; water: the land round it
-        cmp     #T_WATER
-        beq     @look
-        dex                     ; grass: the sea round it
-        cmp     #T_GRASS
-        beq     @look
-        lda     #0
-        beq     @store
-@look:  stx     inv
+@col:   lda     (ptr1),y        ; what makes an edge on this square
+        sec
+        sbc     #TBASE
+        and     #31
+        tax
+        lda     ow_bsel,x
+        bne     :+
+        jmp     @store          ; nothing does (A is 0)
+:       sta     sel             ; which of a neighbour's flags ...
+        lda     ow_binv,x
+        sta     inv             ; ... and whether set or clear
         tya
         tax
         inx                     ; the flags' index for this square
         lda     above,x         ; north
-        lsr     a
+        and     sel
+        cmp     #1
         ror     dmask
         lda     above+1,x       ; north east
-        lsr     a
+        and     sel
+        cmp     #1
         ror     dmask
         lda     cur+1,x         ; east
-        lsr     a
+        and     sel
+        cmp     #1
         ror     dmask
         lda     below+1,x       ; south east
-        lsr     a
+        and     sel
+        cmp     #1
         ror     dmask
         lda     below,x         ; south
-        lsr     a
+        and     sel
+        cmp     #1
         ror     dmask
         lda     below-1,x       ; south west
-        lsr     a
+        and     sel
+        cmp     #1
         ror     dmask
         lda     cur-1,x         ; west
-        lsr     a
+        and     sel
+        cmp     #1
         ror     dmask
         lda     above-1,x       ; north west
-        lsr     a
+        and     sel
+        cmp     #1
         ror     dmask
         lda     dmask
         eor     inv
 @store: sta     (ptr2),y
         dey
-        bpl     @col
+        bmi     :+
+        jmp     @col
+:
 
         lda     ptr1
         clc

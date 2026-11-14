@@ -3,7 +3,7 @@
         .export _ow_bg, _ow_mc1, _ow_mc2, _ow_spr1, _ow_spr2
         .export ow_chars, ow_nchars, ow_chcol, ow_mt0, ow_mt1, ow_chq
         .export ow_rnd, ow_water, ow_nwater, ow_sprites, ow_nsprites
-        .export ow_shore, ow_qvar
+        .export ow_blend, ow_qvar, ow_nflag, ow_bsel, ow_binv
 
 ; All of it is only read, so it goes in HIGH (cfg/c64-openworld.cfg).
         .segment "HIDATA"
@@ -13,21 +13,21 @@ _ow_mc1:     .byte 13
 _ow_mc2:     .byte 6
 _ow_spr1:    .byte 0
 _ow_spr2:    .byte 10
-ow_nchars:   .byte 76
+ow_nchars:   .byte 154
 ow_nwater:   .byte 4
 ow_nsprites: .byte 8
 
 ; Each character's colour RAM value: its own colour, multicolour on.
 ow_chcol:
-        .byte $0F,$0F,$0F,$0F,$0F,$0F,$0F,$08,$08,$08,$09,$09,$09,$09,$0F,$0F
-        .byte $0F,$0F,$0B,$0B,$0B,$0B,$0B,$0B,$0B,$0B,$0F,$0F,$0F,$0F,$08,$08
-        .byte $08,$08,$0A,$0A,$09,$09,$09,$09,$09,$09,$08,$08,$08,$08,$0A,$0A
-        .byte $0A,$0A,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F
-        .byte $0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$08,$08,$08,$08
-        .byte $08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08
-        .byte $08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08
-        .byte $08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08
-        .byte $08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08
+        .byte $0F,$0F,$0F,$0F,$0F,$0F,$0F,$08,$08,$08,$08,$09,$09,$09,$09,$0F
+        .byte $0F,$0F,$0F,$0B,$0B,$0B,$0B,$0B,$0B,$0B,$0B,$0F,$0F,$0F,$0F,$08
+        .byte $08,$08,$08,$0A,$0A,$09,$09,$09,$09,$09,$09,$08,$08,$08,$08,$0A
+        .byte $0A,$0A,$0A,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F
+        .byte $0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$08,$08,$08
+        .byte $08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$09,$09,$09,$09
+        .byte $09,$09,$09,$09,$09,$09,$09,$09,$09,$09,$09,$09,$09,$09,$09,$09
+        .byte $0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F
+        .byte $0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$08,$08,$08,$08,$08,$08,$08,$08
         .byte $08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08
         .byte $08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08
         .byte $08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08
@@ -37,23 +37,50 @@ ow_chcol:
         .byte $08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08
 
 ; The metatile of each tile code ($60 + index), and of its variant.
-ow_mt0: .byte 0,2,4,5,6,8,9,10,11,12,15,0,0,0,0,0,0,13,0,0,0,0,0,0,0,0,0,0,0,0,14,0
-ow_mt1: .byte 1,3,4,5,7,8,9,10,11,12,15,1,1,1,1,1,1,13,1,1,1,1,1,1,1,1,1,1,1,1,14,1
+ow_mt0: .byte 0,2,4,6,7,9,11,13,14,15,18,0,0,0,0,0,0,16,0,0,0,0,0,0,0,0,0,0,0,0,17,0
+ow_mt1: .byte 1,3,5,6,8,10,12,13,14,15,18,1,1,1,1,1,1,16,1,1,1,1,1,1,1,1,1,1,1,1,17,1
 
 ; The character of each quadrant of each metatile: 32 to a quadrant,
 ; top left, top right, bottom left, bottom right.
 ow_chq:
-        .byte 0,4,7,8,10,14,18,22,26,30,34,38,42,46,50,54,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        .byte 1,5,7,9,11,15,19,23,27,31,35,39,43,47,51,55,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        .byte 2,6,8,7,12,16,20,24,28,32,36,40,44,48,52,54,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        .byte 3,1,9,7,13,17,21,25,29,33,37,41,45,49,53,55,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        .byte 0,4,7,8,11,11,15,19,23,27,27,31,31,35,39,43,47,51,55,0,0,0,0,0,0,0,0,0,0,0,0,0
+        .byte 1,5,8,10,12,12,16,20,24,28,28,32,32,36,40,44,48,52,56,0,0,0,0,0,0,0,0,0,0,0,0,0
+        .byte 2,6,9,7,13,13,17,21,25,29,29,33,33,37,41,45,49,53,55,0,0,0,0,0,0,0,0,0,0,0,0,0
+        .byte 3,1,7,9,14,14,18,22,26,30,30,34,34,38,42,46,50,54,56,0,0,0,0,0,0,0,0,0,0,0,0,0
 
-; The beaches: quarter * 8 + which (1 beside, 2 above or below, 3 both,
-; 4 the diagonal only; 7 a quarter of grass with sea on both sides).
-ow_shore: .byte 0,56,57,58,59,0,0,60,0,61,62,63,64,0,0,65,0,66,67,68,69,0,0,70,0,71,72,73,74,0,0,75
+; The edges: metatile * 16 + quarter * 4 + which - 1 (1 beside, 2 above
+; or below, 3 both, 4 the diagonal only), the character to draw.
+ow_blend:
+        .byte 0,0,61,0,1,1,66,1,2,2,71,2,3,3,76,3   ; grass
+        .byte 4,4,61,4,5,5,66,5,6,6,71,6,1,1,76,1   ; grass
+        .byte 77,78,79,80,81,78,82,83,77,84,85,80,81,84,86,83   ; forest
+        .byte 87,88,79,80,89,88,82,83,90,85,85,80,91,85,86,83   ; forest
+        .byte 92,93,94,11,95,96,97,12,98,99,100,13,101,102,103,14   ; mountain
+        .byte 104,105,94,11,106,107,97,12,108,109,100,13,110,111,103,14   ; mountain
+        .byte 15,15,15,15,16,16,16,16,17,17,17,17,18,18,18,18   ; pass
+        .byte 57,58,59,60,62,63,64,65,67,68,69,70,72,73,74,75   ; water
+        .byte 57,58,59,60,62,63,64,65,67,68,69,70,72,73,74,75   ; water
+        .byte 112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127   ; shore
+        .byte 128,129,114,115,130,131,118,119,132,133,122,123,134,135,126,127   ; shore
+        .byte 136,137,138,31,139,32,140,32,141,33,142,33,143,144,145,34   ; swamp
+        .byte 146,147,138,31,148,149,140,32,150,151,142,33,152,153,145,34   ; swamp
+        .byte 35,35,35,35,36,36,36,36,37,37,37,37,38,38,38,38   ; town
+        .byte 39,39,39,39,40,40,40,40,41,41,41,41,42,42,42,42   ; castle
+        .byte 43,43,43,43,44,44,44,44,45,45,45,45,46,46,46,46   ; dungeon
+        .byte 47,47,47,47,48,48,48,48,49,49,49,49,50,50,50,50   ; lair
+        .byte 51,51,51,51,52,52,52,52,53,53,53,53,54,54,54,54   ; port
+        .byte 55,55,55,55,56,56,56,56,55,55,55,55,56,56,56,56   ; bridge
 
-; Which (0 none) for each quarter and each byte of land round the
-; square: 256 a quarter.
+; Per tile code ($60 + index): bit 0 land, bit 1 open ground, then
+; bit 2 forest, bit 3 mountain, bit 4 swamp.
+ow_nflag:  .byte 3,5,9,3,0,1,17,3,3,3,0,1,1,1,1,1,1,3,1,1,1,1,1,1,1,1,1,1,1,1,0,1
+; Per tile code: which of a neighbour's bits make an edge (0 none) ...
+ow_bsel:   .byte 1,10,2,0,1,30,14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+; ... and whether when set (0) or when clear ($FF).
+ow_binv:   .byte 255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+; Which edge (0 none) for each quarter and each byte of what is round
+; the square: 256 a quarter.
 ow_qvar:
         .byte 0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2
         .byte 0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2
@@ -108,7 +135,7 @@ ow_rnd:
         .byte $B7,$FD,$62,$A6,$ED,$3D,$39,$55,$8F,$15,$59,$4E,$1E,$EB,$8E,$7A
 
 ; Water's characters, left and right, a row of the metatile each.
-ow_water: .byte 18,19,20,21,22,23,24,25
+ow_water: .byte 19,20,21,22,23,24,25,26
 
 ow_chars:
         .byte $00,$04,$11,$00,$00,$00,$03,$00   ; 0
@@ -119,74 +146,152 @@ ow_chars:
         .byte $00,$04,$11,$00,$00,$00,$00,$C0   ; 5
         .byte $00,$04,$11,$00,$00,$00,$30,$00   ; 6
         .byte $14,$55,$57,$5F,$3C,$0C,$0C,$00   ; 7
-        .byte $41,$55,$75,$F5,$C3,$00,$00,$00   ; 8
-        .byte $41,$55,$75,$F5,$C3,$C0,$C0,$00   ; 9
-        .byte $00,$03,$0F,$0F,$3F,$3B,$2B,$EA   ; 10
-        .byte $00,$C0,$F0,$B0,$A8,$A8,$A8,$EA   ; 11
-        .byte $AA,$AA,$AA,$AA,$2A,$1A,$05,$00   ; 12
-        .byte $EA,$BA,$AE,$AA,$A8,$A4,$50,$00   ; 13
-        .byte $20,$00,$03,$03,$0F,$8F,$0F,$03   ; 14
-        .byte $F0,$F2,$F0,$C0,$C2,$00,$C0,$C0   ; 15
-        .byte $03,$20,$00,$03,$03,$0F,$0F,$03   ; 16
-        .byte $F2,$F0,$F0,$F0,$C8,$C0,$00,$C0   ; 17
-        .byte $AA,$AA,$BE,$EB,$AA,$AA,$AA,$AA   ; 18
-        .byte $AA,$AA,$AA,$AA,$AA,$AA,$BE,$EB   ; 19
-        .byte $AA,$AA,$AA,$AF,$BA,$AA,$AA,$AA   ; 20
-        .byte $AA,$AA,$AA,$AA,$EA,$AA,$AA,$AA   ; 21
-        .byte $AA,$AA,$AA,$AA,$AA,$AA,$AA,$BE   ; 22
-        .byte $AA,$BE,$EB,$AA,$AA,$AA,$AA,$AA   ; 23
-        .byte $EB,$AA,$AA,$AA,$AA,$AA,$AA,$AA   ; 24
-        .byte $AA,$AA,$AA,$AA,$AF,$BA,$AA,$AA   ; 25
-        .byte $FF,$FF,$FF,$CF,$FF,$FF,$FF,$FF   ; 26
-        .byte $FF,$F7,$FF,$FF,$FF,$BF,$FF,$FF   ; 27
-        .byte $FF,$F7,$FF,$FF,$FF,$EF,$FF,$FF   ; 28
-        .byte $FF,$FF,$FF,$F3,$FF,$FF,$FF,$FF   ; 29
-        .byte $00,$2A,$AA,$2A,$00,$04,$0C,$04   ; 30
-        .byte $00,$04,$8C,$04,$04,$00,$A8,$AA   ; 31
-        .byte $02,$10,$30,$10,$02,$10,$30,$00   ; 32
-        .byte $A8,$00,$00,$A8,$AA,$A8,$04,$0C   ; 33
-        .byte $00,$03,$0F,$3F,$FF,$FF,$30,$3F   ; 34
-        .byte $00,$C0,$F0,$FC,$FF,$FF,$0C,$FC   ; 35
-        .byte $3F,$3B,$3B,$3F,$3E,$3E,$3E,$55   ; 36
-        .byte $FC,$EC,$EC,$FC,$BC,$BC,$BC,$55   ; 37
-        .byte $CC,$FC,$EF,$FC,$FC,$FF,$CF,$EF   ; 38
-        .byte $33,$3F,$EB,$3F,$3F,$FF,$F3,$FB   ; 39
-        .byte $FF,$FF,$FB,$FF,$FC,$F0,$F0,$55   ; 40
-        .byte $FF,$FF,$EF,$FF,$3F,$0F,$0F,$55   ; 41
-        .byte $00,$00,$02,$0A,$2A,$2B,$AF,$AF   ; 42
-        .byte $00,$00,$80,$A0,$A8,$E8,$FA,$FA   ; 43
-        .byte $BF,$BF,$BF,$AF,$2A,$10,$00,$00   ; 44
-        .byte $FE,$FE,$FE,$FA,$A8,$04,$00,$00   ; 45
-        .byte $00,$20,$28,$0A,$2A,$AF,$BB,$BF   ; 46
-        .byte $00,$08,$28,$A0,$A8,$FA,$EE,$FE   ; 47
-        .byte $AF,$AE,$2F,$2B,$0A,$10,$40,$00   ; 48
-        .byte $FA,$BA,$F8,$E8,$A0,$04,$01,$00   ; 49
-        .byte $AA,$AA,$AB,$AB,$AB,$AB,$BF,$BF   ; 50
-        .byte $AA,$AA,$EA,$EA,$EA,$EA,$FE,$FE   ; 51
-        .byte $AB,$AB,$AB,$AB,$BF,$BF,$AA,$AA   ; 52
-        .byte $EA,$EA,$EA,$EA,$FE,$FE,$AA,$AA   ; 53
-        .byte $AA,$FF,$CC,$FF,$FF,$CC,$FF,$AA   ; 54
-        .byte $AA,$FF,$33,$FF,$FF,$33,$FF,$AA   ; 55
-        .byte $FA,$FA,$EA,$FA,$FE,$FA,$EA,$FA   ; 56
-        .byte $FF,$FF,$BF,$AE,$AA,$AA,$AA,$AA   ; 57
-        .byte $FF,$FF,$FF,$FE,$FA,$FA,$FA,$FA   ; 58
-        .byte $FA,$EA,$AA,$AA,$AA,$AA,$AA,$AA   ; 59
-        .byte $FC,$F0,$C0,$C0,$00,$04,$11,$00   ; 60
-        .byte $AF,$AF,$AB,$AF,$BF,$AF,$AB,$AF   ; 61
-        .byte $FF,$FF,$FE,$BA,$AA,$AA,$AA,$AA   ; 62
-        .byte $FF,$FF,$FF,$BF,$AF,$AF,$AF,$AF   ; 63
-        .byte $AF,$AB,$AA,$AA,$AA,$AA,$AA,$AA   ; 64
-        .byte $3F,$0F,$03,$03,$00,$10,$44,$00   ; 65
-        .byte $FA,$EA,$FA,$FE,$FA,$EA,$FA,$FA   ; 66
-        .byte $AA,$AA,$AA,$AA,$AE,$BF,$FF,$FF   ; 67
-        .byte $FA,$FA,$FA,$FA,$FE,$FF,$FF,$FF   ; 68
-        .byte $AA,$AA,$AA,$AA,$AA,$AA,$EA,$FA   ; 69
-        .byte $00,$11,$04,$00,$C0,$C0,$F0,$FC   ; 70
-        .byte $AF,$AB,$AF,$BF,$AF,$AB,$AF,$AF   ; 71
-        .byte $AA,$AA,$AA,$AA,$BA,$FE,$FF,$FF   ; 72
-        .byte $AF,$AF,$AF,$AF,$BF,$FF,$FF,$FF   ; 73
-        .byte $AA,$AA,$AA,$AA,$AA,$AA,$AB,$AF   ; 74
-        .byte $00,$44,$10,$00,$03,$03,$0F,$3F   ; 75
+        .byte $00,$14,$55,$57,$1F,$0C,$0C,$00   ; 8
+        .byte $05,$15,$17,$1F,$0C,$0C,$00,$00   ; 9
+        .byte $50,$54,$5C,$7C,$30,$30,$00,$00   ; 10
+        .byte $00,$03,$0F,$0F,$3F,$3B,$2B,$EA   ; 11
+        .byte $00,$C0,$F0,$B0,$A8,$A8,$A8,$EA   ; 12
+        .byte $AA,$AA,$AA,$AA,$2A,$1A,$05,$00   ; 13
+        .byte $EA,$BA,$AE,$AA,$A8,$A4,$50,$00   ; 14
+        .byte $20,$00,$03,$03,$0F,$8F,$0F,$03   ; 15
+        .byte $F0,$F2,$F0,$C0,$C2,$00,$C0,$C0   ; 16
+        .byte $03,$20,$00,$03,$03,$0F,$0F,$03   ; 17
+        .byte $F2,$F0,$F0,$F0,$C8,$C0,$00,$C0   ; 18
+        .byte $AA,$AA,$BE,$EB,$AA,$AA,$AA,$AA   ; 19
+        .byte $AA,$AA,$AA,$AA,$AA,$AA,$BE,$EB   ; 20
+        .byte $AA,$AA,$AA,$AF,$BA,$AA,$AA,$AA   ; 21
+        .byte $AA,$AA,$AA,$AA,$EA,$AA,$AA,$AA   ; 22
+        .byte $AA,$AA,$AA,$AA,$AA,$AA,$AA,$BE   ; 23
+        .byte $AA,$BE,$EB,$AA,$AA,$AA,$AA,$AA   ; 24
+        .byte $EB,$AA,$AA,$AA,$AA,$AA,$AA,$AA   ; 25
+        .byte $AA,$AA,$AA,$AA,$AF,$BA,$AA,$AA   ; 26
+        .byte $FF,$FF,$FF,$CF,$FF,$FF,$FF,$FF   ; 27
+        .byte $FF,$F7,$FF,$FF,$FF,$BF,$FF,$FF   ; 28
+        .byte $FF,$F7,$FF,$FF,$FF,$EF,$FF,$FF   ; 29
+        .byte $FF,$FF,$FF,$F3,$FF,$FF,$FF,$FF   ; 30
+        .byte $00,$2A,$AA,$2A,$00,$04,$0C,$04   ; 31
+        .byte $00,$04,$8C,$04,$04,$00,$A8,$AA   ; 32
+        .byte $02,$10,$30,$10,$02,$10,$30,$00   ; 33
+        .byte $A8,$00,$00,$A8,$AA,$A8,$04,$0C   ; 34
+        .byte $00,$03,$0F,$3F,$FF,$FF,$30,$3F   ; 35
+        .byte $00,$C0,$F0,$FC,$FF,$FF,$0C,$FC   ; 36
+        .byte $3F,$3B,$3B,$3F,$3E,$3E,$3E,$55   ; 37
+        .byte $FC,$EC,$EC,$FC,$BC,$BC,$BC,$55   ; 38
+        .byte $CC,$FC,$EF,$FC,$FC,$FF,$CF,$EF   ; 39
+        .byte $33,$3F,$EB,$3F,$3F,$FF,$F3,$FB   ; 40
+        .byte $FF,$FF,$FB,$FF,$FC,$F0,$F0,$55   ; 41
+        .byte $FF,$FF,$EF,$FF,$3F,$0F,$0F,$55   ; 42
+        .byte $00,$00,$02,$0A,$2A,$2B,$AF,$AF   ; 43
+        .byte $00,$00,$80,$A0,$A8,$E8,$FA,$FA   ; 44
+        .byte $BF,$BF,$BF,$AF,$2A,$10,$00,$00   ; 45
+        .byte $FE,$FE,$FE,$FA,$A8,$04,$00,$00   ; 46
+        .byte $00,$20,$28,$0A,$2A,$AF,$BB,$BF   ; 47
+        .byte $00,$08,$28,$A0,$A8,$FA,$EE,$FE   ; 48
+        .byte $AF,$AE,$2F,$2B,$0A,$10,$40,$00   ; 49
+        .byte $FA,$BA,$F8,$E8,$A0,$04,$01,$00   ; 50
+        .byte $AA,$AA,$AB,$AB,$AB,$AB,$BF,$BF   ; 51
+        .byte $AA,$AA,$EA,$EA,$EA,$EA,$FE,$FE   ; 52
+        .byte $AB,$AB,$AB,$AB,$BF,$BF,$AA,$AA   ; 53
+        .byte $EA,$EA,$EA,$EA,$FE,$FE,$AA,$AA   ; 54
+        .byte $AA,$FF,$CC,$FF,$FF,$CC,$FF,$AA   ; 55
+        .byte $AA,$FF,$33,$FF,$FF,$33,$FF,$AA   ; 56
+        .byte $FA,$FA,$EA,$FA,$FE,$FA,$EA,$FA   ; 57
+        .byte $FF,$FF,$BF,$AE,$AA,$AA,$AA,$AA   ; 58
+        .byte $FF,$FF,$FF,$FE,$FA,$FA,$FA,$FA   ; 59
+        .byte $FA,$EA,$AA,$AA,$AA,$AA,$AA,$AA   ; 60
+        .byte $FC,$F0,$C0,$C0,$00,$04,$11,$00   ; 61
+        .byte $AF,$AF,$AB,$AF,$BF,$AF,$AB,$AF   ; 62
+        .byte $FF,$FF,$FE,$BA,$AA,$AA,$AA,$AA   ; 63
+        .byte $FF,$FF,$FF,$BF,$AF,$AF,$AF,$AF   ; 64
+        .byte $AF,$AB,$AA,$AA,$AA,$AA,$AA,$AA   ; 65
+        .byte $3F,$0F,$03,$03,$00,$10,$44,$00   ; 66
+        .byte $FA,$EA,$FA,$FE,$FA,$EA,$FA,$FA   ; 67
+        .byte $AA,$AA,$AA,$AA,$AE,$BF,$FF,$FF   ; 68
+        .byte $FA,$FA,$FA,$FA,$FE,$FF,$FF,$FF   ; 69
+        .byte $AA,$AA,$AA,$AA,$AA,$AA,$EA,$FA   ; 70
+        .byte $00,$11,$04,$00,$C0,$C0,$F0,$FC   ; 71
+        .byte $AF,$AB,$AF,$BF,$AF,$AB,$AF,$AF   ; 72
+        .byte $AA,$AA,$AA,$AA,$BA,$FE,$FF,$FF   ; 73
+        .byte $AF,$AF,$AF,$AF,$BF,$FF,$FF,$FF   ; 74
+        .byte $AA,$AA,$AA,$AA,$AA,$AA,$AB,$AF   ; 75
+        .byte $00,$44,$10,$00,$03,$03,$0F,$3F   ; 76
+        .byte $04,$15,$17,$0F,$03,$03,$00,$00   ; 77
+        .byte $00,$00,$14,$55,$57,$1F,$0C,$0C   ; 78
+        .byte $00,$00,$00,$04,$15,$17,$0C,$00   ; 79
+        .byte $14,$55,$57,$1F,$0C,$0C,$00,$00   ; 80
+        .byte $10,$54,$D4,$F0,$C0,$C0,$00,$00   ; 81
+        .byte $00,$00,$00,$10,$54,$D4,$30,$00   ; 82
+        .byte $14,$55,$D5,$F4,$30,$30,$00,$00   ; 83
+        .byte $14,$55,$57,$1F,$0C,$00,$00,$00   ; 84
+        .byte $04,$15,$17,$0C,$00,$00,$00,$00   ; 85
+        .byte $10,$54,$D4,$30,$00,$00,$00,$00   ; 86
+        .byte $00,$00,$00,$00,$10,$44,$00,$00   ; 87
+        .byte $00,$00,$04,$15,$17,$0C,$00,$00   ; 88
+        .byte $00,$00,$00,$00,$04,$11,$00,$00   ; 89
+        .byte $00,$00,$10,$44,$00,$00,$00,$00   ; 90
+        .byte $00,$00,$04,$11,$00,$00,$00,$00   ; 91
+        .byte $00,$03,$0F,$0F,$3F,$0B,$2B,$EA   ; 92
+        .byte $00,$00,$0F,$0F,$3F,$3B,$2B,$EA   ; 93
+        .byte $00,$00,$03,$0F,$0F,$3B,$0B,$EA   ; 94
+        .byte $00,$C0,$F0,$B0,$A8,$A0,$A8,$EA   ; 95
+        .byte $00,$00,$F0,$B0,$A8,$A8,$A8,$EA   ; 96
+        .byte $00,$00,$C0,$B0,$A0,$A8,$A0,$EA   ; 97
+        .byte $AA,$2A,$0A,$2A,$2A,$1A,$05,$00   ; 98
+        .byte $AA,$AA,$AA,$AA,$2A,$1A,$00,$00   ; 99
+        .byte $AA,$0A,$2A,$0A,$0A,$02,$00,$00   ; 100
+        .byte $EA,$B8,$A0,$A8,$A8,$A4,$50,$00   ; 101
+        .byte $EA,$BA,$AE,$AA,$A8,$A4,$00,$00   ; 102
+        .byte $EA,$B0,$AC,$A0,$A0,$80,$00,$00   ; 103
+        .byte $00,$03,$0F,$03,$0F,$3B,$2B,$EA   ; 104
+        .byte $00,$00,$03,$03,$3F,$3B,$2B,$EA   ; 105
+        .byte $00,$C0,$F0,$80,$A0,$A8,$A8,$EA   ; 106
+        .byte $00,$00,$C0,$80,$A8,$A8,$A8,$EA   ; 107
+        .byte $AA,$AA,$2A,$0A,$02,$0A,$05,$00   ; 108
+        .byte $AA,$AA,$AA,$AA,$22,$02,$00,$00   ; 109
+        .byte $EA,$BA,$AC,$A0,$80,$A0,$50,$00   ; 110
+        .byte $EA,$BA,$AE,$AA,$88,$80,$00,$00   ; 111
+        .byte $3F,$0F,$3F,$CF,$3F,$0F,$3F,$FF   ; 112
+        .byte $00,$30,$FF,$CF,$FF,$FF,$FF,$FF   ; 113
+        .byte $00,$00,$03,$0F,$0F,$3F,$0F,$FF   ; 114
+        .byte $3F,$3F,$FF,$CF,$FF,$FF,$FF,$FF   ; 115
+        .byte $FC,$F0,$FC,$FF,$FC,$B0,$FC,$FF   ; 116
+        .byte $00,$04,$FF,$FF,$FF,$BF,$FF,$FF   ; 117
+        .byte $00,$00,$C0,$F0,$F0,$BC,$F0,$FF   ; 118
+        .byte $FC,$F4,$FF,$FF,$FF,$BF,$FF,$FF   ; 119
+        .byte $FF,$37,$0F,$3F,$FF,$2F,$0F,$3F   ; 120
+        .byte $FF,$F7,$FF,$FF,$FF,$EF,$30,$00   ; 121
+        .byte $FF,$07,$3F,$0F,$0F,$03,$00,$00   ; 122
+        .byte $FF,$F7,$FF,$FF,$FF,$EF,$3F,$3F   ; 123
+        .byte $FF,$FC,$F0,$F0,$FF,$FC,$F0,$FC   ; 124
+        .byte $FF,$FF,$FF,$F3,$FF,$FF,$0C,$00   ; 125
+        .byte $FF,$F0,$FC,$F0,$F0,$C0,$00,$00   ; 126
+        .byte $FF,$FF,$FF,$F3,$FF,$FF,$FC,$FC   ; 127
+        .byte $3F,$3F,$0F,$03,$0F,$3F,$FF,$FF   ; 128
+        .byte $00,$00,$C3,$C3,$FF,$FF,$FF,$FF   ; 129
+        .byte $FC,$F4,$F0,$C0,$F0,$BC,$FF,$FF   ; 130
+        .byte $00,$00,$C3,$CF,$FF,$BF,$FF,$FF   ; 131
+        .byte $FF,$F7,$3F,$0F,$03,$0F,$3F,$3F   ; 132
+        .byte $FF,$F7,$FF,$FF,$F3,$C3,$00,$00   ; 133
+        .byte $FF,$FF,$FC,$F0,$C0,$F0,$FC,$FC   ; 134
+        .byte $FF,$FF,$FF,$F3,$CF,$C3,$00,$00   ; 135
+        .byte $00,$0A,$2A,$2A,$00,$04,$0C,$04   ; 136
+        .byte $00,$20,$AA,$2A,$00,$04,$0C,$04   ; 137
+        .byte $00,$00,$02,$0A,$00,$04,$0C,$04   ; 138
+        .byte $00,$00,$8C,$04,$04,$00,$A8,$AA   ; 139
+        .byte $00,$00,$80,$00,$00,$00,$A0,$AA   ; 140
+        .byte $02,$10,$00,$10,$02,$10,$00,$00   ; 141
+        .byte $02,$00,$30,$00,$02,$00,$00,$00   ; 142
+        .byte $A8,$00,$00,$A8,$AA,$A8,$00,$0C   ; 143
+        .byte $A8,$00,$00,$A8,$AA,$A8,$04,$00   ; 144
+        .byte $A8,$00,$00,$A0,$A0,$80,$00,$00   ; 145
+        .byte $00,$2A,$0A,$02,$00,$04,$0C,$04   ; 146
+        .byte $00,$00,$82,$22,$00,$04,$0C,$04   ; 147
+        .byte $00,$04,$80,$00,$00,$00,$A8,$AA   ; 148
+        .byte $00,$00,$80,$04,$04,$00,$A8,$AA   ; 149
+        .byte $02,$10,$30,$00,$02,$00,$30,$00   ; 150
+        .byte $02,$10,$30,$10,$02,$00,$00,$00   ; 151
+        .byte $A8,$00,$00,$A0,$80,$A0,$04,$0C   ; 152
+        .byte $A8,$00,$00,$A8,$8A,$80,$00,$00   ; 153
 
 ; The hero: down, up, left and right, two strides each; 64 bytes a frame.
 ow_sprites:

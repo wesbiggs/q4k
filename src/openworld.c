@@ -85,6 +85,7 @@ unsigned long idle;             /* turns of the waiting loop while walking */
 unsigned int  walked;           /* ... over this many frames */
 
 static unsigned char moving, dir, moved, stride;
+static unsigned char frame;     /* the last frame the main loop handled */
 
 /* Eight ways, a square at a time: sprite.h's four, then the diagonals,
    as smooth.s numbers them. A diagonal faces the way it goes across. */
@@ -218,6 +219,7 @@ static unsigned char typed(void)
         build_world();
         place_camera();
         sm_draw_all();
+        frame = sm_frame;       /* seconds went by: not frames missed */
         break;
     }
     return NONE;
@@ -280,7 +282,7 @@ static unsigned char glide(void)
 
 int main(void)
 {
-    unsigned char d, frame, flipped;
+    unsigned char d, flipped;
 
     bgcolor(COLOR_BLACK);
     bordercolor(COLOR_BLACK);

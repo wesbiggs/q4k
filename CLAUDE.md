@@ -383,13 +383,29 @@ the REU path.
 
 The tiles are `assets/overworld.txt` (shared colours green, light green,
 blue; each character's own colour 0-7), made into `src/lib/ow_data.s` by
-`tools/mkoverworld.py`. Coasts are drawn, not stored: `sm_shores()` (under a
-second, once a land) fills `SHORE` at `$A000` with a byte per water square
-(which of its eight neighbours are land) and per grass square (which are
-sea), and each quarter of a square picks a beach from the three neighbours on
-its own corner (`ow_qvar`): a strip, an inside corner, an outside corner, or
-for grass a rounded headland. The asset draws one quarter of each and the
-generator mirrors them, and refuses art whose edges would not meet. `screendump.py --shot` follows the VIC bank, the
+`tools/mkoverworld.py`. Edges between terrains are drawn, not stored:
+`sm_shores()` (under a second, once a land) fills `SHORE` at `$A000` with a
+byte per square, a bit for each of its eight neighbours that gives it an
+edge, and each quarter of a square picks one of four edges (a strip, an
+inside corner, an outside corner where only the diagonal is) from the three
+neighbours on its own corner (`ow_qvar`); `ow_blend` has the character for
+every metatile, quarter and edge, so `char_at` pays one lookup for any of
+them. Water gets beaches where land is; grass a rounded headland where sea is
+on two sides; sand, swamp and mountain fray where they meet open ground
+(grass and the places on it), cut by masks from their own art (`fringe`),
+and the forest has its edges drawn (`edges`: a tree drawn back, a bush,
+grass), since cutting trees only nicks them. Where two of those meet, the
+lower frays toward the higher (`also`), which reads as a strip of grass:
+sand against the rest, swamp against forest and mountain, forest against
+mountain. Each terrain has two edge variants, picked by the same hash as its
+art, so that a long edge wanders (a terrain drawn once is listed twice to
+have one); what the asset draws is one quarter, mirrored (but never turned
+upside down where the art has a top), and the generator refuses masks whose
+edges would not meet. `ow_nflag` says what each tile is to its neighbours
+(bit 0 land, bit 1 open, then one bit per `also` terrain) and
+`ow_bsel`/`ow_binv` which of those bits make an edge on it.
+**`--poke seed=N` lands after the first land is built**, so it changes
+nothing on screen until a rebuild: type `n` first (`seed=N-1`) to see seed N. `screendump.py --shot` follows the VIC bank, the
 screen in `$D018`, multicolour characters, fine scroll and the 38/24 borders,
 so it renders this as the C64 shows it. For tests: `--poke freeze_at=N`
 (even, at speed 2) stops N pixels into the step after `freeze_after` steps,
