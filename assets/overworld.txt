@@ -16,6 +16,7 @@
 #     is a variant, picked by a hash of the square, so a field of grass is
 #     not one stamp repeated. One colour is the whole metatile's; four are
 #     its quadrants, top left, top right, bottom left, bottom right.
+# shore <colour>                 the beaches, below
 # sprite <name>                 8 double-width pixels by 16 rows:
 #     k  $D025 (shared)   s  $D026 (shared)   t  the sprite's own colour
 #
@@ -312,6 +313,28 @@ cccccccc
 c.c..c.c
 cccccccc
 bbbbbbbb
+
+# Where water meets land: the top left quarter of a water square, with land
+# to its left (west), above it (north), both, or only on the diagonal (an
+# outside corner), 4 pixels by 8 rows each; the other three quarters are
+# these mirrored. Each water quarter picks one from the three squares on its
+# own corner (see smooth.s), so any coast is drawn in these. The fifth is a
+# quarter of grass with sea both beside it and above it: its corner is
+# rounded off with sand, so a headland does not end in a right angle.
+#
+# They have to meet each other without a seam, which comes down to: the
+# diagonal's top row is the beside's top row, and its left column is the
+# above's left column; both's bottom row is the beside's bottom row, and its
+# right column is the above's right column. mkoverworld.py checks.
+shore yellow
+ccbb cccc cccc ccbb ccc.
+ccbb cccc cccc cbbb cc..
+cbbb bccc cccc bbbb c...
+ccbb bbcb cccb bbbb c...
+cccb bbbb ccbb bbbb ....
+ccbb bbbb ccbb bbbb ..a.
+cbbb bbbb ccbb bbbb .a.a
+ccbb bbbb ccbb bbbb ....
 
 # The hero, a warrior in a red tunic: down, up, left, right, two strides each.
 sprite down

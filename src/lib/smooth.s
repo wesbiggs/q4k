@@ -15,6 +15,18 @@
 ; characters are biased by 64 -- the map's 128 characters sit at 64-191 --
 ; so that the sea around it is still a byte, and anything outside is sea.
 ;
+; Coastlines. SHORE, beside WORLD, has a byte for each water square: a bit
+; for each of its eight neighbours that is land (openworld.c works it out
+; when the land is built: bit 0 north, then clockwise); and for each grass
+; square, a bit for each that is sea, whose only use is a headland: a
+; quarter of grass with sea beside and above (or below) it rounds its
+; corner off with sand. Each quarter of a
+; water square looks only at the three neighbours on its own corner -- the
+; one beside it, the one above or below, and the diagonal -- and, through
+; ow_qvar, picks a beach edge: a strip, an inside corner where both sides are
+; land, or a small outside corner where only the diagonal is. So a coast is
+; drawn in sixteen characters whatever its shape, and costs a lookup more.
+;
 ; How a scroll works. The VIC's fine scroll ($D016/$D011 bits 0-2) moves the
 ; picture up to seven pixels; past that, every character has to move one
 ; place. That is a thousand bytes of screen and a thousand of colour RAM,
@@ -44,15 +56,16 @@
 ; with the CIA's timer interrupt turned off: one interrupt a frame, at a
 ; known line. It uses no zero page.
 
-        .export _sm_init, _sm_draw_all, _sm_build, _sm_shift, _sm_edge, _sm_commit
+        .export _sm_init, _sm_draw_all, _sm_shores, _sm_build, _sm_shift, _sm_edge, _sm_commit
         .export _sm_sprite, _sm_animate, _sm_show
         .export _sm_ox, _sm_oy, _sm_fx, _sm_fy, _sm_front, _sm_frame
         .export _sm_colend, _sm_rowend, _sm_irqline
 
         .import ow_chars, ow_nchars, ow_chcol, ow_mt0, ow_mt1, ow_chq
+        .import ow_qvar, ow_shore
         .import ow_rnd, ow_water, ow_nwater, ow_sprites, ow_nsprites
         .import _ow_bg, _ow_mc1, _ow_mc2, _ow_spr1, _ow_spr2
-        .importzp ptr1, ptr2, ptr3
+        .importzp ptr1, ptr2, ptr3, ptr4
 
 SCRA     = $4000
 SCRB     = $4400
@@ -60,10 +73,14 @@ CHARS    = $4800
 SPRITES  = $5000
 SPRBLOCK = (SPRITES & $3FFF) / 64
 WORLD    = $B000                ; 64x64, page aligned
+SHORE    = $A000                ; the same, for water: land round it (below)
 D018_A   = ((SCRA & $3FFF) / $400) * 16 + ((CHARS & $3FFF) / $800) * 2
 D018_B   = ((SCRB & $3FFF) / $400) * 16 + ((CHARS & $3FFF) / $800) * 2
 IRQLINE  = 250
 T_WATER  = $64
+T_GRASS  = $60
+T_PORT   = $7E
+T_BRIDGE = $6A
 TBASE    = $60
 BIAS     = 64                   ; world characters: the map is 64-191
 
@@ -89,6 +106,14 @@ cy:         .res 1
 tx:         .res 1
 ty:         .res 1
 qofs:       .res 1
+vtmp:       .res 1
+tcode:      .res 1
+sy:         .res 1              ; sm_shores' workings
+dmask:      .res 1
+inv:        .res 1
+above:      .res 66             ; sm_shores' rows of flags
+cur:        .res 66
+below:      .res 66
 cnt:        .res 1
 dir:        .res 1
 backhi:     .res 1
@@ -134,9 +159,49 @@ char_at:
         sta     ptr2+1
         ldy     #0
         lda     (ptr2),y
+        cmp     #T_WATER
+        beq     @coast
+        cmp     #T_GRASS
+        bne     @tile
+@coast: sta     tcode
+        lda     ptr2+1          ; is there a coast on this corner?
+        sec
+        sbc     #>(WORLD - SHORE)
+        sta     ptr2+1
+        lda     (ptr2),y        ; what is round it, a bit a compass point
+        beq     @same
+        tay
+        lda     qofs            ; the quadrant's own view of those bits,
+        lsr     a               ; from ow_qvar + quadrant * 256
+        lsr     a
+        lsr     a
+        lsr     a
+        lsr     a
+        clc
+        adc     #>ow_qvar
+        sta     ptr2+1
+        lda     #<ow_qvar
+        sta     ptr2
+        lda     (ptr2),y
+        beq     @same           ; a coast, but not on this quarter's side
+        ldx     tcode
+        cpx     #T_WATER
+        beq     :+
+        cmp     #3              ; grass: only a headland, sea on both sides
+        bne     @same
+        lda     #7
+:       sta     vtmp
+        lda     qofs
+        lsr     a
+        lsr     a               ; quadrant * 8
+        ora     vtmp
+        tax
+        lda     ow_shore,x
+        rts
+@same:  lda     tcode
         .byte   $2C             ; bit abs: skip the next
 @sea:   lda     #T_WATER
-        sec
+@tile:  sec
         sbc     #TBASE
         and     #31
         tax
@@ -156,6 +221,142 @@ char_at:
         tax
         lda     ow_chq,x
         rts
+
+; ---------------------------------------------------------------------------
+; void sm_shores(void) -- SHORE from WORLD (see the top): for each water
+; square a bit for each neighbour that is land, and for each grass square a
+; bit for each that is sea, north first and then clockwise. Off the map is
+; sea. Three rows of land-or-sea flags roll down the map, each with a square
+; of sea either side, so every neighbour is a load, a shift and a rotate,
+; with no edge to test. Built once a land.
+
+; Carry set if the square in A is land: anything but water, a pier or a
+; bridge.
+isdry:  cmp     #T_WATER
+        beq     @no
+        cmp     #T_PORT
+        beq     @no
+        cmp     #T_BRIDGE
+        beq     @no
+        sec
+        rts
+@no:    clc
+        rts
+
+; The row at ptr3 as flags, into `below` (1 land, 0 sea; index x + 1).
+dryrow: ldy     #63
+@l:     lda     (ptr3),y
+        jsr     isdry
+        lda     #0
+        rol     a
+        sta     below+1,y
+        dey
+        bpl     @l
+        rts
+
+_sm_shores:
+        lda     #0
+        ldx     #65
+:       sta     above,x
+        sta     cur,x
+        sta     below,x
+        dex
+        bpl     :-
+        lda     #<WORLD
+        sta     ptr3
+        sta     ptr1
+        sta     ptr2
+        lda     #>WORLD
+        sta     ptr3+1
+        sta     ptr1+1
+        lda     #>SHORE
+        sta     ptr2+1
+        jsr     dryrow          ; row 0, to move up into `cur`
+        lda     #0
+        sta     sy
+
+@row:   ldx     #65             ; roll the rows up one
+:       lda     cur,x
+        sta     above,x
+        lda     below,x
+        sta     cur,x
+        dex
+        bpl     :-
+        lda     ptr3            ; and read the next, if there is one
+        clc
+        adc     #64
+        sta     ptr3
+        bcc     :+
+        inc     ptr3+1
+:       lda     sy
+        cmp     #63
+        bne     :+
+        lda     #0              ; below the bottom row: sea
+        ldx     #64
+@sea:   sta     below+1,x
+        dex
+        bpl     @sea
+        bmi     @cols
+:       jsr     dryrow
+
+@cols:  ldy     #63
+@col:   lda     (ptr1),y
+        ldx     #0              ; water: the land round it
+        cmp     #T_WATER
+        beq     @look
+        dex                     ; grass: the sea round it
+        cmp     #T_GRASS
+        beq     @look
+        lda     #0
+        beq     @store
+@look:  stx     inv
+        tya
+        tax
+        inx                     ; the flags' index for this square
+        lda     above,x         ; north
+        lsr     a
+        ror     dmask
+        lda     above+1,x       ; north east
+        lsr     a
+        ror     dmask
+        lda     cur+1,x         ; east
+        lsr     a
+        ror     dmask
+        lda     below+1,x       ; south east
+        lsr     a
+        ror     dmask
+        lda     below,x         ; south
+        lsr     a
+        ror     dmask
+        lda     below-1,x       ; south west
+        lsr     a
+        ror     dmask
+        lda     cur-1,x         ; west
+        lsr     a
+        ror     dmask
+        lda     above-1,x       ; north west
+        lsr     a
+        ror     dmask
+        lda     dmask
+        eor     inv
+@store: sta     (ptr2),y
+        dey
+        bpl     @col
+
+        lda     ptr1
+        clc
+        adc     #64
+        sta     ptr1
+        sta     ptr2
+        bcc     :+
+        inc     ptr1+1
+        inc     ptr2+1
+:       inc     sy
+        lda     sy
+        cmp     #64
+        beq     :+
+        jmp     @row
+:       rts
 
 ; A row of 40 from (cx, cy) into ptr1.
 fill_row:

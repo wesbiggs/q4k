@@ -335,7 +335,7 @@ walked with a camera that glides a pixel or two a frame over 16x16
 multicolour metatiles (2x2 characters), for the TeensyROM+/REU ideas. It is
 one PRG with no disk, its own memory map (`cfg/c64-openworld.cfg`: VIC bank 1
 at `$4000` for two screens, the charset and the hero sprite, home copied out
-of the vault to `$B000`) and its own raster interrupt, which chains to
+of the vault to `$B000`, its coasts at `$A000`) and its own raster interrupt, which chains to
 `$EA31` with the CIA's timer interrupt off. The game links none of it.
 
 `src/lib/smooth.s` explains the engine: the back screen is the front shifted a
@@ -360,7 +360,13 @@ the next interrupt, or a build that runs past one costs a whole frame.
 
 The tiles are `assets/overworld.txt` (shared colours green, light green,
 blue; each character's own colour 0-7), made into `src/lib/ow_data.s` by
-`tools/mkoverworld.py`. `screendump.py --shot` follows the VIC bank, the
+`tools/mkoverworld.py`. Coasts are drawn, not stored: `sm_shores()` (under a
+second, once a land) fills `SHORE` at `$A000` with a byte per water square
+(which of its eight neighbours are land) and per grass square (which are
+sea), and each quarter of a square picks a beach from the three neighbours on
+its own corner (`ow_qvar`): a strip, an inside corner, an outside corner, or
+for grass a rounded headland. The asset draws one quarter of each and the
+generator mirrors them, and refuses art whose edges would not meet. `screendump.py --shot` follows the VIC bank, the
 screen in `$D018`, multicolour characters, fine scroll and the 38/24 borders,
 so it renders this as the C64 shows it. For tests: `--poke freeze_at=N`
 (even, at speed 2) stops N pixels into the step after `freeze_after` steps,

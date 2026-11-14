@@ -53,7 +53,7 @@ def colour(name, lineno, ram=False):
 
 def parse():
     lines = open(SRC).read().split("\n")
-    palette = sprcols = None
+    palette = sprcols = shore = None
     tiles, sprites = [], []
     i = 0
     while i < len(lines):
@@ -66,6 +66,29 @@ def parse():
             palette = [colour(n, lineno) for n in f[1:4]]
         elif f[0] == "spritecolors":
             sprcols = [colour(n, lineno) for n in f[1:3]]
+        elif f[0] == "shore":
+            rows = [r.split() for r in lines[i:i + 8]]
+            i += 8
+            for n, r in enumerate(rows):
+                if len(r) != 5 or any(len(q) != 4 or set(q) - set(".abc")
+                                      for q in r):
+                    fail(lineno + 1 + n, "want five of 4 of '.abc', got %r"
+                         % " ".join(r))
+            # Five variants, each 8 rows of 4: beside, above, both, diagonal,
+            # and the grass headland.
+            v = [[r[k] for r in rows] for k in range(5)]
+            col = lambda art, c: "".join(r[c] for r in art)
+            for what, ok in (
+                    ("the diagonal's top row is the beside's", v[3][0] == v[0][0]),
+                    ("the diagonal's left column is the above's",
+                     col(v[3], 0) == col(v[1], 0)),
+                    ("both's bottom row is the beside's", v[2][7] == v[0][7]),
+                    ("both's right column is the above's",
+                     col(v[2], 3) == col(v[1], 3))):
+                if not ok:
+                    fail(lineno, "shore: %s, so a coast would show a seam"
+                         % what)
+            shore = (colour(f[1], lineno, ram=True), v)
         elif f[0] in ("tile", "sprite"):
             rows = lines[i:i + 16]
             i += 16
@@ -84,7 +107,35 @@ def parse():
                 sprites.append((f[1], rows))
         else:
             fail(lineno, "what is %r?" % f[0])
-    return palette, sprcols, tiles, sprites
+    return palette, sprcols, tiles, sprites, shore
+
+
+# The land round a water square, a bit a neighbour: north, then clockwise.
+N, NE, E, SE, S, SW, W, NW = range(8)
+# Each quarter's own three: beside it, above or below it, and the diagonal.
+CORNERS = [(W, N, NW), (E, N, NE), (W, S, SW), (E, S, SE)]
+
+
+def qvar(q, mask):
+    """Which beach a quarter gets: 0 none, 1 beside, 2 above or below,
+    3 both, 4 only the diagonal."""
+    h, v, d = (bool(mask & (1 << b)) for b in CORNERS[q])
+    if h and v:
+        return 3
+    if h:
+        return 1
+    if v:
+        return 2
+    return 4 if d else 0
+
+
+def quarter(rows, q):
+    """The top left quarter's art turned to face quarter q."""
+    if q & 1:
+        rows = [r[::-1] for r in rows]
+    if q & 2:
+        rows = rows[::-1]
+    return rows
 
 
 def glyph(rows, qx, qy, values):
@@ -99,7 +150,7 @@ def glyph(rows, qx, qy, values):
 
 
 def main():
-    palette, sprcols, tiles, sprites = parse()
+    palette, sprcols, tiles, sprites, shore = parse()
     codes = tile_codes()
 
     chars = []           # (glyph bytes, colour)
@@ -122,6 +173,18 @@ def main():
             water += [(quad[0], quad[1]), (quad[2], quad[3])]
         by_name.setdefault(name, []).append(len(metatiles))
         metatiles.append(quad)
+    shore_chars = [0] * 32
+    for q in range(4):
+        for v in range(5):
+            rows = quarter(shore[1][v], q)
+            g = tuple(sum({".": 0, "a": 1, "b": 2, "c": 3}[ch] << (6 - 2 * k)
+                          for k, ch in enumerate(r)) for r in rows)
+            key = (g, shore[0])
+            if key not in char_of:
+                char_of[key] = len(chars)
+                chars.append(key)
+            # 1-4 the water's, by qvar(); 7 the grass headland.
+            shore_chars[q * 8 + (v + 1 if v < 4 else 7)] = char_of[key]
     if len(chars) > 256:
         sys.exit("mkoverworld: %d characters, 256 at most" % len(chars))
     if len(metatiles) > 32:
@@ -149,6 +212,7 @@ def main():
     w('        .export _ow_bg, _ow_mc1, _ow_mc2, _ow_spr1, _ow_spr2')
     w('        .export ow_chars, ow_nchars, ow_chcol, ow_mt0, ow_mt1, ow_chq')
     w('        .export ow_rnd, ow_water, ow_nwater, ow_sprites, ow_nsprites')
+    w('        .export ow_shore, ow_qvar')
     w("")
     w('        .segment "RODATA"')
     w("")
@@ -177,6 +241,19 @@ def main():
     for q in range(4):
         row = [metatiles[m][q] if m < len(metatiles) else 0 for m in range(32)]
         w("        .byte " + ",".join(str(c) for c in row))
+    w("")
+    w("; The beaches: quarter * 8 + which (1 beside, 2 above or below, 3 both,")
+    w("; 4 the diagonal only; 7 a quarter of grass with sea on both sides).")
+    w("ow_shore: .byte " + ",".join(str(c) for c in shore_chars))
+    w("")
+    w("; Which (0 none) for each quarter and each byte of land round the")
+    w("; square: 256 a quarter.")
+    w('        .segment "HIDATA"')
+    w("ow_qvar:")
+    for q in range(4):
+        for n in range(0, 256, 32):
+            w("        .byte " + ",".join(str(qvar(q, m)) for m in range(n, n + 32)))
+    w('        .segment "RODATA"')
     w("")
     w("; Which variant a square gets: ow_rnd[(ow_rnd[y] + x) & 255] & 1.")
     w("ow_rnd:")

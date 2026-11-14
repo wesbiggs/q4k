@@ -49,6 +49,7 @@ extern volatile unsigned char sm_frame;
 void sm_init(void);
 void sm_show(void);
 void sm_draw_all(void);
+void sm_shores(void);
 void sm_animate(void);
 void __fastcall__ sm_build(unsigned char dir);
 void __fastcall__ sm_shift(unsigned char dir);
@@ -66,6 +67,7 @@ unsigned char still     = 0;    /* 1: the water does not flow */
 /* What the screen is doing, for --peek. */
 unsigned char hx, hy;           /* the hero's square, biased by BIAS */
 unsigned char late;             /* frames the main loop missed */
+unsigned char shore_time;       /* jiffies sm_shores() took */
 unsigned int  steps;
 
 static unsigned char moving, dir, moved, stride;
@@ -100,6 +102,9 @@ static void build_world(void)
     for (y = 0; y < 64; ++y) {
         vault_row(y, WORLD + (unsigned int)y * 64);
     }
+    shore_time = PEEK(0xA2);
+    sm_shores();
+    shore_time = PEEK(0xA2) - shore_time;
     hx = isle_fx[0] + BIAS;     /* Millford */
     hy = isle_fy[0] + BIAS;
 }
