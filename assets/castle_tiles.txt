@@ -155,6 +155,84 @@ b.bbbbb.
 bbbbbb.b
 bbbbbb.b
 
+# Roofs over the towers and the throne room -- the closed rooms with a door
+# (openworld.c) -- while you are not in them: slate, with a ridge along the
+# middle row, and the castle's stone face below where the floor is.
+code roof 0x92
+code ridge 0x93
+
+tile roof blue
+cc.ccc.c
+aaaaaaaa
+c.ccc.cc
+aaaaaaaa
+cc.ccc.c
+aaaaaaaa
+c.ccc.cc
+aaaaaaaa
+cc.ccc.c
+aaaaaaaa
+c.ccc.cc
+aaaaaaaa
+cc.ccc.c
+aaaaaaaa
+c.ccc.cc
+aaaaaaaa
+
+tile ridge blue
+cc.ccc.c
+aaaaaaaa
+c.ccc.cc
+aaaaaaaa
+cc.ccc.c
+aaaaaaaa
+bbbbbbbb
+cbcbcbcb
+bcbcbcbc
+bbbbbbbb
+c.ccc.cc
+aaaaaaaa
+cc.ccc.c
+aaaaaaaa
+c.ccc.cc
+aaaaaaaa
+
+edges roof
+.c.c .... .... .c.c .c.c ....
+.aaa aaaa .aaa aaaa .aaa aaaa
+..cc c.cc ..cc c.cc ..cc c.cc
+.aaa aaaa .aaa aaaa .aaa aaaa
+.c.c cc.c .c.c cc.c .c.c cc.c
+.aaa aaaa .aaa aaaa .aaa aaaa
+..cc c.cc ..cc c.cc ..cc c.cc
+.aaa aaaa .aaa aaaa .aaa aaaa
+.c.c aaaa .aaa cc.c .c.c aaaa
+.aaa cccc .ccc aaaa .aaa cccc
+..cc aa.a .a.a c.cc ..cc aa.a
+.aaa aa.a .a.a aaaa .aaa aa.a
+.c.c .... .... cc.c .c.c ....
+.aaa cc.c .c.c aaaa .aaa c.cc
+..cc aa.a .a.a c.cc ..cc a.aa
+.aaa .... .... aaaa .aaa ....
+
+edges ridge
+.c.c cc.c cc.c cc.c .c.c cc.c
+.aaa aaaa aaaa aaaa .aaa aaaa
+..cc c.cc c.cc c.cc ..cc c.cc
+.aaa aaaa aaaa aaaa .aaa aaaa
+.c.c cc.c cc.c cc.c .c.c cc.c
+.aaa aaaa aaaa aaaa .aaa aaaa
+bbbb bbbb bbbb bbbb bbbb bbbb
+cbcb cbcb cbcb cbcb cbcb cbcb
+bcbc bcbc bcbc bcbc bcbc bcbc
+bbbb bbbb bbbb bbbb bbbb bbbb
+..cc c.cc c.cc c.cc ..cc c.cc
+.aaa aaaa aaaa aaaa .aaa aaaa
+.c.c cc.c cc.c cc.c .c.c cc.c
+.aaa aaaa aaaa aaaa .aaa aaaa
+..cc c.cc c.cc c.cc ..cc c.cc
+.aaa aaaa aaaa aaaa .aaa aaaa
+
 include places_common.txt
 
 # Where the moat meets the grass (and only there: the walls stand in it as

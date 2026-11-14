@@ -1,0 +1,27 @@
+    +----------------------------------------+
+  0 |vvvvvvDlm@a@a@a@a@a@a@a@a@a@a@a,<__vvvvv|
+  1 |vvvvvv#%=@a·ZZZZZZZZZZZZZZZZ·@a,Djk,vvvv|
+  2 |___v<___>@aY~..............^·@a+>no,<___|
+  3 |qpqY·@a@a@aY·@a@a@a9:@a@a@aY·@a@a@aY·pqp|
+  4 |srsY·@a@a@aY·@a@a@a;<@a@a@aY·@a@a@aY·rsr|
+  5 |qpqY·@a@a·Z··@a@a@a@@@a@a@aY·Z·@a@aY·pqp|
+  6 |srsY·@a@aY~.&@a@a@a@a@a@a@aF.^·@a@aY·rsr|
+  7 |qpqY·@a@aY·56@a@a@a@a@a@a@a56Y·@a@aY·pqp|
+  8 |srsY·@a@aY·78@a@a@a@a@a@a@a78Y·@a@aY·rsr|
+  9 |qpqY·@a@aY·Z·@a@a@a@a@a@a@a·Z··@a@aY·pqp|
+ 10 |srsY·@a@aF.^·@a@a@a@a@a@a@aY~.&@a@aY·rsr|
+ 11 |qpqY·@a@a@aY·@a@a@@@@@a@a@aY·@a@a@aY·pqp|
+ 12 |srsY·@a@a@aY·@a@a@a@a@a@a@aY·@a@a@aY·rsr|
+ 13 |%%%CDjkT=@aY·ZZZZZ·jk·ZZZZZ··@aT%%%C#%%%|
+ 14 |vvvvDlm,D@aF......&lmF......&@a+_vvvvvvv|
+ 15 |vvvv#%%CD@a@a@a@a@a@a@a@a@a@a@ajk,vvvvvv|
+ 16 |vvvvvvvvD@a@a@a@a@a@a@a@a@a@a@alm,vvvvvv|
+ 17 |wwwwwwwwtZZZZZZZ·tututu·ZZZZZZZwwwwwwwww|
+ 18 |xxxxxxxx/.......&tututuF.......xxxxxxxxx|
+ 19 |vvvvvvvvDpqpqpqpqtututupqpqpqpq,vvvvvvvv|
+ 20 |vvvvvvvvDrsrsrsrstututursrsrsrs,vvvvvvvv|
+ 21 |vvvvvvvvDpqpqpqpqtututupqpqpqpq,vvvvvvvv|
+ 22 |________>rsrWPUPUtututuPUPURsrs+________|
+ 23 |qpqpqpqpqpqpJIcbctututubcbNEqpqpqpqpqpqp|
+ 24 |srsrsrsrsrWPVdedetututudedeQURsrsrsrsrsr|
+    +----------------------------------------+

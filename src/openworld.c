@@ -79,6 +79,10 @@ void __fastcall__ sm_reu_keep(unsigned char out);
 extern unsigned char sm_offtile;
 extern unsigned char sm_npc_n, sm_npc_x[7], sm_npc_y[7];
 void sm_npcs(void);
+void sm_redraw_box(void);
+void sm_shores_rect(void);
+extern unsigned char sm_sh_x0, sm_sh_y0, sm_sh_x1, sm_sh_y1;
+extern unsigned char sm_box_c0, sm_box_c1, sm_box_r0, sm_box_r1;
 
 /* The villager's sprite frame, after the hero's eight (assets/overworld.txt),
    and the robes' colours, one a person. */
@@ -134,6 +138,8 @@ unsigned char freeze_at = 0;    /* stop this many pixels into a step ... */
 unsigned char freeze_after = 0; /* ... once this many steps are done */
 unsigned char still     = 0;    /* 1: the water does not flow */
 unsigned char use_reu   = 1;    /* 0: the CPU does it all, REU or not */
+unsigned char whole     = 0;    /* 1: a roof change redraws everything, for
+                                   checking that the box it does is enough */
 
 /* What sm_reu_detect() found: 0 no REU, 1 one that reaches colour RAM, 2
    one that does not (and so is not used). */
@@ -144,6 +150,7 @@ unsigned char hx, hy;           /* the hero's square, biased by BIAS */
 unsigned char late;             /* frames the main loop missed */
 unsigned char shore_time;       /* jiffies sm_shores() took */
 unsigned char switch_time;      /* jiffies the last way in or out took */
+unsigned char roof_time;        /* jiffies the last roof change took */
 unsigned int  steps;
 unsigned long idle;             /* turns of the waiting loop while walking */
 unsigned int  walked;           /* ... over this many frames */
@@ -216,9 +223,16 @@ static void place_camera(void)
     sm_fy = (unsigned char)cam & 7;
 }
 
+/* What is really at a square: in a place, local[], where it was built
+   (WORLD has its roofs drawn over it); on the overworld, WORLD. */
 static unsigned char tile_at(unsigned char x, unsigned char y)
 {
-    return WORLD[(unsigned int)(y - BIAS) * 64 + (unsigned char)(x - BIAS)];
+    x -= BIAS;
+    y -= BIAS;
+    if (area != AREA_HOME) {
+        return local[LOCAL_AT(x, y)];
+    }
+    return WORLD[(unsigned int)y * 64 + x];
 }
 
 static unsigned char passable(unsigned char x, unsigned char y)
@@ -312,24 +326,298 @@ static void build_area(const unsigned char *set, unsigned char w,
     area_h = h;
 }
 
-/* The people, as sprites 1 to 7: where they stand, a robe each. The map
-   under them is left as it is; passable() keeps you off them. */
-static void add_people(const TownEnt *e, unsigned char n)
-{
-    unsigned char i;
+/* --- Roofs -------------------------------------------------------------
 
-    if (n > 7) {
-        n = 7;
+   In a town or the castle, a building you are not in shows only its roof,
+   as in Ultima VI. A building is a closed area with a door: found once on
+   the way in, by filling from where you stand (the outside, region 1)
+   through everything that is not a wall or a door, then again from each
+   square not yet reached. Its roof covers it and the walls round it, with a
+   ridge along its middle row, and hides the people in it; the doors stay.
+   Stepping onto its floor takes its roof off and puts back whichever came
+   off before, drawn into the hidden screen and flipped to, so it changes
+   between one frame and the next. A door's square changes nothing: it is
+   the threshold either way. What you can walk on is read from local[],
+   which has no roofs. */
+
+#define T_ROOF   0x92           /* the tile sets' own codes (mkoverworld.py) */
+#define T_RIDGE  0x93
+#define MAX_BLD  32
+#define AT(x, y) ((unsigned int)(y) * LOCAL_W + (x))
+
+static unsigned char region[LOCAL_W * LOCAL_H];        /* 0 a wall or door */
+/* For a wall, the buildings beside it (up to two, 0 for none): it is under
+   a roof if either is. Worked out once, so that a roof changing is a pass
+   over the town and no more. */
+static unsigned char owner1[LOCAL_W * LOCAL_H], owner2[LOCAL_W * LOCAL_H];
+static unsigned char has_door[MAX_BLD], ridge_y[MAX_BLD];
+static unsigned char top_y[MAX_BLD], bot_y[MAX_BLD];
+static unsigned char left_x[MAX_BLD], right_x[MAX_BLD];
+static unsigned char inside;    /* the building you are in, or 0 */
+
+static unsigned char is_door(unsigned char t)
+{
+    return t == T_DOOR || t == T_LOCKEDDOOR;
+}
+
+static unsigned char barrier(unsigned char t)
+{
+    return t == T_WALL || t == T_SECRETDOOR || is_door(t);
+}
+
+/* Everything joined to (x, y) that is not a wall or a door, as `r`. The
+   queue is in SHORE, which sm_shores() fills afresh afterwards. */
+static void flood(unsigned char x, unsigned char y, unsigned char r)
+{
+    static const signed char fx[4] = { 1, -1, 0, 0 };
+    static const signed char fy[4] = { 0, 0, 1, -1 };
+    unsigned char *qx = (unsigned char *)0xA000, *qy = qx + 512;
+    unsigned int head = 0, tail = 0;
+    unsigned char d, nx, ny;
+
+    region[AT(x, y)] = r;
+    qx[tail] = x;
+    qy[tail++] = y;
+    while (head < tail) {
+        x = qx[head];
+        y = qy[head++];
+        if (y < top_y[r]) top_y[r] = y;
+        if (y > bot_y[r]) bot_y[r] = y;
+        if (x < left_x[r]) left_x[r] = x;
+        if (x > right_x[r]) right_x[r] = x;
+        for (d = 0; d < 4; ++d) {
+            nx = x + fx[d];
+            ny = y + fy[d];
+            if (nx >= LOCAL_W || ny >= LOCAL_H || region[AT(nx, ny)] ||
+                barrier(local[LOCAL_AT(nx, ny)])) {
+                continue;
+            }
+            region[AT(nx, ny)] = r;
+            qx[tail] = nx;
+            qy[tail++] = ny;
+        }
     }
-    for (i = 0; i < n; ++i, ++e) {
-        sm_npc_x[i] = e->x + BIAS;
-        sm_npc_y[i] = e->y + BIAS;
-        POKE(0x43F9 + i, NPC_FRAME);    /* both screens' sprite pointers */
-        POKE(0x47F9 + i, NPC_FRAME);
-        POKE(0xD028 + i, robes[i]);
+}
+
+static void find_owners(void);
+
+static void find_buildings(void)
+{
+    unsigned char x, y, r = 2, t;
+
+    memset(region, 0, sizeof(region));
+    memset(has_door, 0, sizeof(has_door));
+    memset(top_y, 0xFF, sizeof(top_y));
+    memset(bot_y, 0, sizeof(bot_y));
+    memset(left_x, 0xFF, sizeof(left_x));
+    memset(right_x, 0, sizeof(right_x));
+    flood(hero.x, hero.y, 1);                   /* the outside */
+    for (y = 0; y < LOCAL_H; ++y) {
+        for (x = 0; x < LOCAL_W; ++x) {
+            if (!region[AT(x, y)] && !barrier(local[LOCAL_AT(x, y)]) &&
+                r < MAX_BLD) {
+                flood(x, y, r++);
+            }
+        }
+    }
+    for (y = 0; y < LOCAL_H; ++y) {              /* which have a door */
+        for (x = 0; x < LOCAL_W; ++x) {
+            t = local[LOCAL_AT(x, y)];
+            if (!is_door(t)) {
+                continue;
+            }
+            if (x > 0)            has_door[region[AT(x - 1, y)]] = 1;
+            if (x + 1 < LOCAL_W)  has_door[region[AT(x + 1, y)]] = 1;
+            if (y > 0)            has_door[region[AT(x, y - 1)]] = 1;
+            if (y + 1 < LOCAL_H)  has_door[region[AT(x, y + 1)]] = 1;
+        }
+    }
+    has_door[0] = has_door[1] = 0;              /* walls; the outside */
+    for (r = 2; r < MAX_BLD; ++r) {
+        ridge_y[r] = (top_y[r] + bot_y[r] + 1) / 2;
+    }
+    inside = 0;
+    find_owners();
+}
+
+static unsigned char roofed(unsigned char r)
+{
+    return has_door[r] && r != inside;
+}
+
+/* Each wall's buildings: those with a door among the eight round it. */
+static void find_owners(void)
+{
+    unsigned char x, y, dx, dy, nx, ny, r;
+    unsigned int i = 0;
+
+    for (y = 0; y < LOCAL_H; ++y) {
+        for (x = 0; x < LOCAL_W; ++x, ++i) {
+            owner1[i] = owner2[i] = 0;
+            if (region[i] || is_door(local[LOCAL_AT(x, y)])) {
+                continue;
+            }
+            for (dy = 0; dy < 3; ++dy) {
+                for (dx = 0; dx < 3; ++dx) {
+                    nx = x + dx - 1;
+                    ny = y + dy - 1;
+                    if (nx >= LOCAL_W || ny >= LOCAL_H) {
+                        continue;
+                    }
+                    r = region[AT(nx, ny)];
+                    if (!has_door[r] || r == owner1[i]) {
+                        continue;
+                    }
+                    if (!owner1[i]) {
+                        owner1[i] = r;
+                    } else {
+                        owner2[i] = r;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/* WORLD from local[], with a roof on every building you are not in: the
+   squares bx0-bx1 by by0-by1 of it (the whole town, or where a roof came
+   off and went on). */
+static unsigned char bx0, by0, bx1, by1;
+
+static void put_roofs(void)
+{
+    unsigned char x, y, t, r;
+    unsigned char *w = WORLD + (unsigned int)by0 * 64;
+    unsigned char *l = local + LOCAL_AT(0, by0);
+    unsigned int i;
+
+    for (y = by0; y <= by1; ++y, w += 64, l += LOCAL_STRIDE) {
+        i = AT(bx0, y);
+        for (x = bx0; x <= bx1; ++x, ++i) {
+            t = l[x];
+            r = region[i];
+            if (!r) {                   /* a wall: either building's roof */
+                r = owner1[i];
+                if (!roofed(r)) {
+                    r = owner2[i];
+                }
+            }
+            if (!roofed(r)) {
+                w[x] = t;
+            } else {
+                w[x] = y == ridge_y[r] ? T_RIDGE : T_ROOF;
+            }
+        }
+    }
+}
+
+/* The people, as sprites 1 to 7, but for those under a roof: where they
+   stand, and a robe each (by who they are, so it stays theirs). */
+static void show_people(void)
+{
+    const TownEnt *e = here_ents;
+    unsigned char i, n = 0;
+
+    for (i = 0; i < here_n && n < 7; ++i, ++e) {
+        if (roofed(region[AT(e->x, e->y)])) {
+            continue;
+        }
+        sm_npc_x[n] = e->x + BIAS;
+        sm_npc_y[n] = e->y + BIAS;
+        POKE(0x43F9 + n, NPC_FRAME);    /* both screens' sprite pointers */
+        POKE(0x47F9 + n, NPC_FRAME);
+        POKE(0xD028 + n, robes[i % 7]);
+        ++n;
     }
     VIC.spr_mcolor = 0xFF;
     sm_npc_n = n;
+}
+
+/* The box of squares building r decides, grown to take it in: the
+   building, its walls, and a square more. */
+static void grow_box(unsigned char r)
+{
+    unsigned char a;
+
+    if (!r) {
+        return;
+    }
+    a = left_x[r] < 2 ? 0 : left_x[r] - 2;
+    if (a < bx0) bx0 = a;
+    a = top_y[r] < 2 ? 0 : top_y[r] - 2;
+    if (a < by0) by0 = a;
+    a = right_x[r] + 2 >= LOCAL_W ? LOCAL_W - 1 : right_x[r] + 2;
+    if (a > bx1) bx1 = a;
+    a = bot_y[r] + 2 >= LOCAL_H ? LOCAL_H - 1 : bot_y[r] + 2;
+    if (a > by1) by1 = a;
+}
+
+/* That box in characters on the screen, clipped to it (if none of it is
+   on the screen, a corner of the screen: the copy is all that matters). */
+static void box_on_screen(void)
+{
+    int c0 = (bx0 + BIAS) * 2 - sm_ox, c1 = (bx1 + BIAS) * 2 + 1 - sm_ox;
+    int r0 = (by0 + BIAS) * 2 - sm_oy, r1 = (by1 + BIAS) * 2 + 1 - sm_oy;
+
+    if (c0 < 0) c0 = 0;
+    if (r0 < 0) r0 = 0;
+    if (c1 > 39) c1 = 39;
+    if (r1 > 24) r1 = 24;
+    if (c0 > c1 || r0 > r1) {
+        c0 = c1 = r0 = r1 = 0;
+    }
+    if (whole) {
+        c0 = r0 = 0;
+        c1 = 39;
+        r1 = 24;
+    }
+    sm_box_c0 = c0;
+    sm_box_c1 = c1;
+    sm_box_r0 = r0;
+    sm_box_r1 = r1;
+}
+
+/* At the end of a step in a town: in or out of a building? */
+static void roof_check(void)
+{
+    unsigned char r = region[AT(hx - BIAS, hy - BIAS)];
+
+    if (!r) {
+        return;                 /* a door: the threshold */
+    }
+    if (!has_door[r]) {
+        r = 0;                  /* outside, or nowhere with a roof */
+    }
+    if (r == inside) {
+        return;
+    }
+    roof_time = PEEK(0xA2);
+    /* What changes: the building you left and the one you went into, with
+       their walls and a square more, whose edges they decide. */
+    bx0 = by0 = 0xFF;
+    bx1 = by1 = 0;
+    grow_box(inside);
+    grow_box(r);
+    if (whole) {
+        bx0 = by0 = 0;
+        bx1 = LOCAL_W - 1;
+        by1 = LOCAL_H - 1;
+    }
+    inside = r;
+    put_roofs();
+    sm_sh_x0 = bx0;             /* their edges ... */
+    sm_sh_y0 = by0;
+    sm_sh_x1 = bx1;
+    sm_sh_y1 = by1;
+    sm_shores_rect();
+    box_on_screen();            /* ... and their characters, into the hidden */
+    sm_redraw_box();            /* screen, the rest copied from the front */
+    show_people();
+    sm_npcs();
+    sm_commit(1);               /* ... and flipped to at the next frame */
+    next_frame();
+    roof_time = PEEK(0xA2) - roof_time;
+    frame = sm_frame;
 }
 
 /* The camera on the hero at (x, y) of the new area, drawn, and on. */
@@ -370,7 +658,12 @@ static void go_town(unsigned char index)
         town_gen();             /* the people, the way out and where to stand */
     }
     build_area(area == AREA_CASTLE ? ts_castle : ts_town, LOCAL_W, LOCAL_H);
-    add_people(here_ents, here_n);
+    find_buildings();
+    bx0 = by0 = 0;
+    bx1 = LOCAL_W - 1;
+    by1 = LOCAL_H - 1;
+    put_roofs();
+    show_people();
     ex = here_ex;
     ey = here_ey;
     show_area(hero.x, hero.y);
@@ -455,6 +748,8 @@ static void arrived(void)
     default:
         if (hx - BIAS == ex && hy - BIAS == ey) {
             back_home();
+        } else {
+            roof_check();
         }
         break;
     }

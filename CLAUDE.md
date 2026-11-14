@@ -430,7 +430,25 @@ green against grass`: the water's own colour, the headland's, and the only
 land that makes a bank), so its walls still stand in the water.
 `sm_shores()` pads the map with the flags of the set's `offmap` tile, so
 the castle's grass does not round off toward the map's edge as if it were
-sea. A town's way out is
+sea. **Roofs** (Ultima VI's): in a town or the castle a
+building you are not in shows only its roof. A building is a closed area
+with a door, found on the way in (`find_buildings()`: a flood from where
+you stand is the outside, region 1; every other area another region; the
+ones a door touches get roofs) -- in the castle that is the four towers and
+the throne room. Its squares and its walls are drawn as `roof`, its middle
+row as `ridge`, on codes $92/$93 that only the prototype's sets have (`code
+roof 0x92`): thatch in towns (the walls' art and edges), slate in the castle;
+its doors stay, its people are hidden. What you can walk on is read from
+`local[]`, which has no roofs (`tile_at()`). Stepping onto a building's
+floor takes its roof off and puts back the one before; a door's square is
+the threshold and changes nothing. Only the box of what changed is redone:
+roofs, `sm_shores_rect()` and `sm_redraw_box()` (the front copied to the
+back, the box drawn over it, flipped to with its colour from the screen),
+about 8 jiffies; `--poke whole=1` redoes everything instead, and the two
+must give the same picture (they do, going in and out of the inn and into
+the throne room). Goldens `openworld-inn` and `openworld-throne` are text
+dumps, so they record who is visible. The engine's shift routines are in
+HICODE: MAIN was full. A town's way out is
 its exit square; the dungeon's stairs go down and
 up, and up from level 1 is out. The overworld is put away going in: in the
 REU when there is one (`sm_reu_keep`, 8K, so coming out takes a third of a

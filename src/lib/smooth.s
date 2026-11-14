@@ -60,6 +60,9 @@
 
         .export _sm_init, _sm_draw_all, _sm_shores, _sm_build, _sm_shift, _sm_edge, _sm_edge_row, _sm_edge_col, _sm_commit
         .export _sm_sprite, _sm_animate, _sm_show
+        .export _sm_redraw_box, _sm_shores_rect
+        .export _sm_sh_x0, _sm_sh_y0, _sm_sh_x1, _sm_sh_y1
+        .export _sm_box_c0, _sm_box_c1, _sm_box_r0, _sm_box_r1
         .export _sm_ox, _sm_oy, _sm_fx, _sm_fy, _sm_front, _sm_frame
         .export _sm_colend, _sm_rowend, _sm_irqline
         .export _sm_reu, _sm_reu_detect, _sm_reu_keep
@@ -168,7 +171,16 @@ sy:         .res 1              ; sm_shores' workings
 dmask:      .res 1
 inv:        .res 1
 sel:        .res 1
+_sm_sh_x0:  .res 1              ; the squares sm_shores_rect does
+_sm_sh_y0:  .res 1
+_sm_sh_x1:  .res 1
+_sm_sh_y1:  .res 1
 offflag:    .res 1              ; the flags of what is beyond the map
+rowlen:     .res 1              ; fill_n's count
+_sm_box_c0: .res 1              ; sm_redraw_box's characters, on the screen
+_sm_box_c1: .res 1
+_sm_box_r0: .res 1
+_sm_box_r1: .res 1
 probe_buf:  .res 8              ; sm_reu_detect's test bytes
 above:      .res 66             ; sm_shores' rows of flags
 cur:        .res 66
@@ -322,6 +334,17 @@ dryrow: ldy     #63
         rts
 
 _sm_shores:
+        lda     #0              ; all of it
+        sta     _sm_sh_x0
+        sta     _sm_sh_y0
+        lda     #63
+        sta     _sm_sh_x1
+        sta     _sm_sh_y1
+; void sm_shores_rect(void) -- the same for the squares sm_sh_x0-x1 by
+; sm_sh_y0-y1 only (where a roof came off or went on, and a square round
+; it), leaving the rest as it was: right as long as nothing changed outside
+; but next to it.
+_sm_shores_rect:
         lda     _sm_offtile     ; beyond the map: what the set says is there
         sec
         sbc     #TBASE
@@ -335,26 +358,35 @@ _sm_shores:
         sta     below,x
         dex
         bpl     :-
-        lda     #<WORLD
-        sta     ptr3
+        lda     _sm_sh_y0       ; the first row's: WORLD and SHORE + y0 * 64
+        sta     sy
+        tay
+        lda     rowlo,y
         sta     ptr1
         sta     ptr2
-        lda     #>WORLD
-        sta     ptr3+1
+        lda     rowhi,y
         sta     ptr1+1
-        lda     #>SHORE
+        sec
+        sbc     #>(WORLD - SHORE)
         sta     ptr2+1
-        jsr     dryrow          ; row 0, to move up into `cur`
-        lda     #0
-        sta     sy
+        cpy     #0              ; the row above it, if there is one ...
+        beq     :+
+        lda     ptr1
+        sec
+        sbc     #64
+        sta     ptr3
+        lda     ptr1+1
+        sbc     #0
+        sta     ptr3+1
+        jsr     dryrow
+        jsr     roll            ; ... into `cur`, to move up into `above`
+:       lda     ptr1            ; and the row itself, to move up into `cur`
+        sta     ptr3
+        lda     ptr1+1
+        sta     ptr3+1
+        jsr     dryrow
 
-@row:   ldx     #65             ; roll the rows up one
-:       lda     cur,x
-        sta     above,x
-        lda     below,x
-        sta     cur,x
-        dex
-        bpl     :-
+@row:   jsr     roll            ; roll the rows up one
         lda     ptr3            ; and read the next, if there is one
         clc
         adc     #64
@@ -372,7 +404,7 @@ _sm_shores:
         bmi     @cols
 :       jsr     dryrow
 
-@cols:  ldy     #63
+@cols:  ldy     _sm_sh_x1
 @col:   lda     (ptr1),y        ; what makes an edge on this square
         sec
         sbc     #TBASE
@@ -422,9 +454,14 @@ _sm_shores:
         lda     dmask
         eor     inv
 @store: sta     (ptr2),y
+        cpy     _sm_sh_x0
+        beq     :+
         dey
-        bmi     :+
         jmp     @col
+:       lda     sy              ; the last row?
+        cmp     _sm_sh_y1
+        bne     :+
+        rts
 :
 
         lda     ptr1
@@ -436,15 +473,23 @@ _sm_shores:
         inc     ptr1+1
         inc     ptr2+1
 :       inc     sy
-        lda     sy
-        cmp     #64
-        beq     :+
         jmp     @row
-:       rts
 
-; A row of 40 from (cx, cy) into ptr1.
+; above = cur, cur = below.
+roll:   ldx     #65
+:       lda     cur,x
+        sta     above,x
+        lda     below,x
+        sta     cur,x
+        dex
+        bpl     :-
+        rts
+
+; A row of 40 from (cx, cy) into ptr1; or of rowlen (fill_n).
 fill_row:
-        lda     #0
+        lda     #40
+        sta     rowlen
+fill_n: lda     #0
         sta     cnt
 @l:     jsr     char_at
         ldy     cnt
@@ -452,7 +497,7 @@ fill_row:
         inc     cx
         iny
         sty     cnt
-        cpy     #40
+        cpy     rowlen
         bne     @l
         rts
 
@@ -550,6 +595,7 @@ done:   rts
 ; The camera's directions are the game's (sprite.h): down, up, left, right;
 ; then the diagonals, down-left, down-right, up-left, up-right. Down shows
 ; the next row below: everything moves up a row.
+        .segment "HICODE"       ; (2.4K of them: MAIN has no room)
 a_down:  SHIFT_V SCRA + 40, SCRB
 a_up:    SHIFT_V SCRA, SCRB + 40
 a_left:  SHIFT_H SCRA, SCRB + 1
@@ -567,6 +613,7 @@ b_dr:    SHIFT_D SCRB + 41, SCRA
 b_ul:    SHIFT_D SCRB, SCRA + 41
 b_ur:    SHIFT_D SCRB + 1, SCRA + 40
 
+        .segment "CODE"
 shifts:  .addr a_down, a_up, a_left, a_right, a_dl, a_dr, a_ul, a_ur
          .addr b_down, b_up, b_left, b_right, b_dl, b_dr, b_ul, b_ur
 
@@ -695,6 +742,77 @@ _sm_draw_all:
         lda     #>SCRB
         .byte   $2C
 :       lda     #>SCRA
+        jsr     draw_page
+        lda     _sm_front
+        bne     :+
+        jmp     colour_a
+:       jmp     colour_b
+
+; void sm_redraw_box(void) -- the back screen as the front, but for the
+; characters sm_box_c0-c1 by sm_box_r0-r1, drawn from the map: for a flip
+; that changes a little of what is on the map without moving. The colour of
+; that flip comes from the screen, as sm_redraw's.
+_sm_redraw_box:
+        lda     _sm_front       ; the front copied, sprite pointers and all
+        beq     :+
+        lda     #>SCRB
+        .byte   $2C
+:       lda     #>SCRA
+        sta     ptr3+1
+        eor     #(>SCRA) ^ (>SCRB)
+        sta     ptr2+1
+        ldy     #0
+        sty     ptr3
+        sty     ptr2
+        ldx     #4
+:       lda     (ptr3),y
+        sta     (ptr2),y
+        iny
+        bne     :-
+        inc     ptr3+1
+        inc     ptr2+1
+        dex
+        bne     :-
+        lda     _sm_box_c1      ; how many a row
+        sec
+        sbc     _sm_box_c0
+        clc
+        adc     #1
+        sta     rowlen
+        lda     _sm_box_r0
+        sta     dir             ; the row, here
+@row:   ldy     dir             ; the back screen's row, from c0
+        lda     rowlo40,y
+        clc
+        adc     _sm_box_c0
+        sta     ptr1
+        lda     _sm_front
+        beq     :+
+        lda     #>SCRA
+        .byte   $2C
+:       lda     #>SCRB
+        adc     rowhi40,y
+        sta     ptr1+1
+        lda     _sm_ox
+        clc
+        adc     _sm_box_c0
+        sta     cx
+        lda     _sm_oy
+        clc
+        adc     dir
+        sta     cy
+        jsr     fill_n
+        lda     dir
+        cmp     _sm_box_r1
+        beq     :+
+        inc     dir
+        bne     @row
+:       lda     #0
+        sta     built_reu
+        rts
+
+; All 25 rows from the map into the screen whose page is in A.
+draw_page:
         sta     ptr1+1
         lda     #0
         sta     ptr1
@@ -714,10 +832,7 @@ _sm_draw_all:
 :       inc     cy
         dec     dir
         bne     @row
-        lda     _sm_front
-        bne     :+
-        jmp     colour_a
-:       jmp     colour_b
+        rts
 
 ; ---------------------------------------------------------------------------
 ; void __fastcall__ sm_commit(unsigned char flip)

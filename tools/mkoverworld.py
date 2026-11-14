@@ -82,6 +82,7 @@ def parse(path):
     lines = [t for t, _ in tagged]
     palette = sprcols = shore = None
     opens, fringes, drawn, also = [], {}, {}, {}
+    own_codes = {}
     tiles, sprites = [], []
     offmap = fallback = None
     i = 0
@@ -94,6 +95,13 @@ def parse(path):
             continue
         if f[0] == "palette":
             palette = [colour(n, lineno) for n in f[1:4]]
+        elif f[0] == "code":
+            # code <name> <hex>: a tile of this set's own, which the game
+            # does not have (a roof): a code from $92-$9F, which none uses.
+            n = int(f[2], 16)
+            if not 0x92 <= n <= 0x9F:
+                fail(lineno, "code: $92-$9F only")
+            own_codes[f[1]] = n
         elif f[0] == "offmap":
             offmap = f[1]               # what lies beyond the map's edges
         elif f[0] == "fallback":
@@ -205,7 +213,7 @@ def parse(path):
                     for r, br in zip(rows, art[base])]
         done.append((name, cols, rows, lineno))
     return (palette, sprcols, done, sprites, shore,
-            (fringes, opens, drawn, also), offmap, fallback)
+            (fringes, opens, drawn, also), offmap, fallback, own_codes)
 
 
 def seams(v, lineno, what):
@@ -270,8 +278,9 @@ def build(setname):
     worth printing about it."""
     path = os.path.join(ROOT, "assets", SET_FILE[setname])
     (palette, sprcols, tiles, sprites, shore, fringe, offmap,
-     fallback) = parse(path)
+     fallback, own_codes) = parse(path)
     codes = tile_codes()
+    codes.update(own_codes)
 
     chars = []           # (glyph bytes, colour)
     char_of = {}

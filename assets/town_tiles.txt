@@ -177,6 +177,66 @@ cccccccc
 cccccccc
 cccccccc
 
+# Roofs: what a building you are not in is drawn as (openworld.c), on codes
+# the game does not use. The roof is the walls' thatch, with their eaves,
+# rounded corners and fronts; along its middle row runs a ridge.
+code roof 0x92
+code ridge 0x93
+
+tile roof yellow
+cbccbccb
+cbccbccb
+ccbccbcc
+ccbccbcc
+bccbccbc
+bccbccbc
+cbccbccb
+cbccbccb
+ccbccbcc
+ccbccbcc
+bccbccbc
+bccbccbc
+cbccbccb
+cbccbccb
+ccbccbcc
+ccbccbcc
+
+tile ridge yellow
+cbccbccb
+cbccbccb
+ccbccbcc
+ccbccbcc
+bccbccbc
+bccbccbc
+bbbbbbbb
+cbcbcbcb
+bcbcbcbc
+bbbbbbbb
+bccbccbc
+bccbccbc
+cbccbccb
+cbccbccb
+ccbccbcc
+ccbccbcc
+
+edges ridge
+bccb cbcc cbcc cbcc bccb cbcc
+bccb cbcc cbcc cbcc bcbc cbcc
+bbcc ccbc ccbc ccbc bbcc ccbc
+bccb ccbc ccbc ccbc bccb ccbc
+bcbc bccb bccb bccb bcbc bccb
+bbcc bccb bccb bccb bbcc bccb
+bbbb bbbb bbbb bbbb bbbb bbbb
+cbcb cbcb cbcb cbcb cbcb cbcb
+bcbc bcbc bcbc bcbc bcbc bcbc
+bbbb bbbb bbbb bbbb bbbb bbbb
+bbcc bccb bccb bccb bbcc bccb
+bccb bccb bccb bccb bccb bccb
+bcbc cbcc cbcc cbcc bcbc cbcc
+bbcc cbcc cbcc cbcc bbcc cbcc
+bccb ccbc ccbc ccbc bccb ccbc
+bcbc ccbc ccbc ccbc bcbc ccbc
+
 include places_common.txt
 
 # The houses. Open ground for a wall is anything that is not one: the
@@ -190,7 +250,7 @@ open floor grass shore swamp water tree sword shield bow potion book shelf bed c
 # sticks out is rounded off into the grass the houses stand in; the front's
 # stay square, since a front may face cobbles or grass, and so do corners
 # that go in, which are as often a room's, where the floor is not the grass.
-edges wall
+edges wall roof
 bccb bbbb ...b cbcc bccb bbbb
 bccb cbcc ..bc cbcc bcbc bccb
 bbcc ccbc .bcc ccbc bbcc ccbc
