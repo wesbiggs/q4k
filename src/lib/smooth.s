@@ -56,7 +56,7 @@
 ; with the CIA's timer interrupt turned off: one interrupt a frame, at a
 ; known line. It uses no zero page.
 
-        .export _sm_init, _sm_draw_all, _sm_shores, _sm_build, _sm_shift, _sm_edge, _sm_commit
+        .export _sm_init, _sm_draw_all, _sm_shores, _sm_build, _sm_shift, _sm_edge, _sm_edge_row, _sm_edge_col, _sm_commit
         .export _sm_sprite, _sm_animate, _sm_show
         .export _sm_ox, _sm_oy, _sm_fx, _sm_fy, _sm_front, _sm_frame
         .export _sm_colend, _sm_rowend, _sm_irqline
@@ -449,36 +449,71 @@ loop:
 done:   rts
 .endmacro
 
-; The camera's directions are the game's (sprite.h): down, up, left, right.
-; Down shows the next row below: everything moves up a row.
+.macro SHIFT_D src, dst         ; 39 columns of 24 rows
+        .local loop, done
+        ldx     #38
+loop:
+        .repeat 24, R
+        lda     src + R*40, x
+        sta     dst + R*40, x
+        .endrep
+        dex
+        bmi     done
+        jmp     loop
+done:   rts
+.endmacro
+
+; The camera's directions are the game's (sprite.h): down, up, left, right;
+; then the diagonals, down-left, down-right, up-left, up-right. Down shows
+; the next row below: everything moves up a row.
 a_down:  SHIFT_V SCRA + 40, SCRB
 a_up:    SHIFT_V SCRA, SCRB + 40
 a_left:  SHIFT_H SCRA, SCRB + 1
 a_right: SHIFT_H SCRA + 1, SCRB
+a_dl:    SHIFT_D SCRA + 40, SCRB + 1
+a_dr:    SHIFT_D SCRA + 41, SCRB
+a_ul:    SHIFT_D SCRA, SCRB + 41
+a_ur:    SHIFT_D SCRA + 1, SCRB + 40
 b_down:  SHIFT_V SCRB + 40, SCRA
 b_up:    SHIFT_V SCRB, SCRA + 40
 b_left:  SHIFT_H SCRB, SCRA + 1
 b_right: SHIFT_H SCRB + 1, SCRA
+b_dl:    SHIFT_D SCRB + 40, SCRA + 1
+b_dr:    SHIFT_D SCRB + 41, SCRA
+b_ul:    SHIFT_D SCRB, SCRA + 41
+b_ur:    SHIFT_D SCRB + 1, SCRA + 40
 
-shifts:  .addr a_down, a_up, a_left, a_right, b_down, b_up, b_left, b_right
+shifts:  .addr a_down, a_up, a_left, a_right, a_dl, a_dr, a_ul, a_ur
+         .addr b_down, b_up, b_left, b_right, b_dl, b_dr, b_ul, b_ur
+
+; Which way each direction moves the camera, a character at a time.
+dirdx:   .byte 0, 0, $FF, 1, $FF, 1, $FF, 1
+dirdy:   .byte 1, $FF, 0, 0, 1, 1, $FF, $FF
 
 ; void __fastcall__ sm_build(unsigned char dir)
 ; The back screen, as the front would be with the camera a character further
 ; in `dir`. Never call it while a flip is pending: the back screen is still
-; on show until the interrupt has made it. It is the two halves below, about
-; 10K and 5K cycles, which can go in different frames (NTSC has no room for
-; both in the frame after a flip): sm_shift, then sm_edge, same `dir`.
+; on show until the interrupt has made it. It is the three parts below,
+; about 10K, 6K and 4K cycles, which can go in different frames (NTSC has no
+; room for all of them in the frame after a flip): sm_shift, then sm_edge_row
+; and sm_edge_col, all with the same `dir`.
 _sm_build:
         pha
         jsr     _sm_shift
         pla
-        jmp     _sm_edge
+; void __fastcall__ sm_edge(unsigned char dir) -- both edges.
+_sm_edge:
+        pha
+        jsr     _sm_edge_row
+        pla
+        jmp     _sm_edge_col
 
 ; void __fastcall__ sm_shift(unsigned char dir) -- the copy.
 _sm_shift:
-        and     #3
+        and     #7
         sta     dir
         lda     _sm_front
+        asl     a
         asl     a
         asl     a
         ora     dir
@@ -490,46 +525,27 @@ _sm_shift:
         sta     ptr3+1
         jmp     (ptr3)
 
-; void __fastcall__ sm_edge(unsigned char dir) -- the new row or column.
-_sm_edge:
-        and     #3
+; The back screen's page into backhi, and dir from A.
+backpage:
+        and     #7
         sta     dir
-        lda     _sm_front       ; the back screen's page
+        lda     _sm_front
         beq     :+
         lda     #>SCRA
         .byte   $2C
 :       lda     #>SCRB
         sta     backhi
-        sta     ptr1+1
-        lda     #0
-        sta     ptr1
+        rts
 
+; void __fastcall__ sm_edge_row(unsigned char dir) -- the new row, at the
+; top or the bottom, if the camera moves up or down.
+_sm_edge_row:
+        jsr     backpage
         ldx     dir
-        beq     @down
-        dex
-        beq     @up
-        dex
-        beq     @left
-
-        lda     #39             ; right: a column on the right
-        sta     ptr1
-        lda     _sm_ox
-        clc
-        adc     #40
-        sta     cx
-        lda     _sm_oy
-        sta     cy
-        jmp     fill_col
-
-@left:  lda     _sm_ox
-        sec
-        sbc     #1
-        sta     cx
-        lda     _sm_oy
-        sta     cy
-        jmp     fill_col
-
-@down:  lda     #<(24*40)       ; a row at the bottom
+        lda     dirdy,x
+        beq     @none
+        bmi     @top
+        lda     #<(24*40)       ; the bottom row, from the new origin's
         sta     ptr1
         lda     backhi
         clc
@@ -537,19 +553,51 @@ _sm_edge:
         sta     ptr1+1
         lda     _sm_oy
         clc
-        adc     #25
-        sta     cy
-        lda     _sm_ox
-        sta     cx
-        jmp     fill_row
-
-@up:    lda     _sm_oy
+        adc     #25             ; (oy + 1) + 24
+        bne     @go             ; (never 0 on the map)
+@top:   lda     #0
+        sta     ptr1
+        lda     backhi
+        sta     ptr1+1
+        lda     _sm_oy
         sec
         sbc     #1
-        sta     cy
+@go:    sta     cy
         lda     _sm_ox
+        clc
+        adc     dirdx,x         ; the new origin's x
         sta     cx
         jmp     fill_row
+@none:  rts
+
+; void __fastcall__ sm_edge_col(unsigned char dir) -- the new column, at the
+; left or the right, if the camera moves across.
+_sm_edge_col:
+        jsr     backpage
+        ldx     dir
+        lda     backhi
+        sta     ptr1+1
+        lda     dirdx,x
+        beq     @none
+        bmi     @left
+        lda     #39
+        sta     ptr1
+        lda     _sm_ox
+        clc
+        adc     #40             ; (ox + 1) + 39
+        bne     @go
+@left:  lda     #0
+        sta     ptr1
+        lda     _sm_ox
+        sec
+        sbc     #1
+@go:    sta     cx
+        lda     _sm_oy
+        clc
+        adc     dirdy,x         ; the new origin's y
+        sta     cy
+        jmp     fill_col
+@none:  rts
 
 ; void sm_draw_all(void) -- the front screen and colour RAM from scratch.
 _sm_draw_all:

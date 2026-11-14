@@ -12,6 +12,7 @@
  * tried before they go near its memory map.
  *
  *   cursor keys, WASD or a joystick in port 2   walk
+ *   Q, E, Z, C (or the stick's diagonals)       walk diagonally
  *   1 / 2                                        one or two pixels a frame
  *   N                                            the next seed's Keldmarch
  *
@@ -54,6 +55,8 @@ void sm_animate(void);
 void __fastcall__ sm_build(unsigned char dir);
 void __fastcall__ sm_shift(unsigned char dir);
 void __fastcall__ sm_edge(unsigned char dir);
+void __fastcall__ sm_edge_row(unsigned char dir);
+void __fastcall__ sm_edge_col(unsigned char dir);
 void __fastcall__ sm_commit(unsigned char flip);
 void __fastcall__ sm_sprite(unsigned char frame);
 
@@ -72,21 +75,35 @@ unsigned int  steps;
 
 static unsigned char moving, dir, moved, stride;
 
-/* The back screen's build, in two halves a frame apart (see sm_build):
+/* Eight ways, a square at a time: sprite.h's four, then the diagonals,
+   as smooth.s numbers them. A diagonal faces the way it goes across. */
+#define DIR_DL 4
+#define DIR_DR 5
+#define DIR_UL 6
+#define DIR_UR 7
+static const signed char dirdx[8] = { 0, 0, -1, 1, -1, 1, -1, 1 };
+static const signed char dirdy[8] = { 1, -1, 0, 0, 1, 1, -1, -1 };
+static const unsigned char facing[8] = {
+    DIR_DOWN, DIR_UP, DIR_LEFT, DIR_RIGHT,
+    DIR_LEFT, DIR_RIGHT, DIR_LEFT, DIR_RIGHT
+};
+
+static unsigned int camx0, camy0;   /* the camera when the step began */
+
+/* The back screen's build, in three parts a frame apart (see sm_build):
    which is still to do. */
 #define BUILT  0
 #define SHIFT  1
-#define EDGE   2
+#define ROW    2
+#define COL    3
 static unsigned char phase;
 
 static void build_some(void)
 {
-    if (phase == SHIFT) {
-        sm_shift(dir);
-        phase = EDGE;
-    } else if (phase == EDGE) {
-        sm_edge(dir);
-        phase = BUILT;
+    switch (phase) {
+    case SHIFT: sm_shift(dir);    phase = ROW;   break;
+    case ROW:   sm_edge_row(dir); phase = COL;   break;
+    case COL:   sm_edge_col(dir); phase = BUILT; break;
     }
 }
 
@@ -134,12 +151,29 @@ static unsigned char passable(unsigned char x, unsigned char y)
     return t != T_WATER && t != T_MOUNTAIN && t != T_WALL;
 }
 
-/* A direction held down: the stick, or a key still down in the matrix. */
+/* Whether a step that way can be taken: onto open ground, and on a
+   diagonal not squeezing between two corners, of sea or of mountain. */
+static unsigned char can_step(unsigned char d)
+{
+    signed char dx = dirdx[d], dy = dirdy[d];
+
+    if (!passable(hx + dx, hy + dy)) {
+        return 0;
+    }
+    return !dx || !dy || passable(hx + dx, hy) || passable(hx, hy + dy);
+}
+
+/* A direction held down: the stick, or a key still down in the matrix.
+   Q, E, Z and C are the diagonals. */
 static unsigned char held(void)
 {
     unsigned char k = PEEK(0xCB), shift = PEEK(0x28D) & 1;
     unsigned char j = ~PEEK(0xDC00) & 0x0F;
 
+    if (j == 5  || k == 62) return DIR_UL;
+    if (j == 9  || k == 14) return DIR_UR;
+    if (j == 6  || k == 12) return DIR_DL;
+    if (j == 10 || k == 20) return DIR_DR;
     if ((j & 1) || k == 9)  return DIR_UP;
     if ((j & 2) || k == 13) return DIR_DOWN;
     if ((j & 4) || k == 10) return DIR_LEFT;
@@ -157,6 +191,10 @@ static unsigned char typed(void)
     case 's': case 0x11: return DIR_DOWN;
     case 'a': case 0x9D: return DIR_LEFT;
     case 'd': case 0x1D: return DIR_RIGHT;
+    case 'q': return DIR_UL;
+    case 'e': return DIR_UR;
+    case 'z': return DIR_DL;
+    case 'c': return DIR_DR;
     case '1': speed = 1; break;
     case '2': speed = 2; break;
     case 'n':
@@ -179,36 +217,47 @@ static void publish(void)
     PROBE_SCRATCH[5] = sm_oy;
 }
 
-/* One frame of a step: the camera `speed` pixels on, and the screen flipped
-   when the fine scroll wraps. Returns whether it flipped. */
+/* The frame's camera, `moved` pixels into the step, and the screen
+   flipped if that takes it into another character. Returns whether it
+   flipped.
+
+   A diagonal one way across and the other way down would wrap its two fine
+   scrolls on different frames (the camera rests four pixels into a
+   character, which is three from wrapping one way and four the other), and
+   two flips two frames apart leave no frame to build in between. So the
+   axis going the positive way runs a pixel behind until the last frame:
+   then both wrap together and every flip is one, as on a straight step. */
 static unsigned char glide(void)
 {
-    unsigned char flip = 0;
+    signed char dx = dirdx[dir], dy = dirdy[dir];
+    unsigned char px = moved, py = moved, ox, oy, flip;
+    unsigned int c;
 
-    switch (dir) {
-    case DIR_RIGHT:
-        sm_fx += speed;
-        if (sm_fx >= 8) { sm_fx -= 8; ++sm_ox; flip = 1; }
-        break;
-    case DIR_LEFT:
-        if (sm_fx < speed) { sm_fx += 8; --sm_ox; flip = 1; }
-        sm_fx -= speed;
-        break;
-    case DIR_DOWN:
-        sm_fy += speed;
-        if (sm_fy >= 8) { sm_fy -= 8; ++sm_oy; flip = 1; }
-        break;
-    default:
-        if (sm_fy < speed) { sm_fy += 8; --sm_oy; flip = 1; }
-        sm_fy -= speed;
-        break;
+    if (dx && dy && dx != dy && moved != 16) {
+        if (dx > 0) {
+            px = moved - 1;
+        } else {
+            py = moved - 1;
+        }
     }
+    c = dx > 0 ? camx0 + px : dx < 0 ? camx0 - px : camx0;
+    ox = (unsigned char)(c >> 3);
+    sm_fx = (unsigned char)c & 7;
+    c = dy > 0 ? camy0 + py : dy < 0 ? camy0 - py : camy0;
+    oy = (unsigned char)(c >> 3);
+    sm_fy = (unsigned char)c & 7;
+
+    flip = ox != sm_ox || oy != sm_oy;
     if (flip) {
         /* Never wanted at one or two pixels a frame, but a flip to a screen
-           half built would show it: finish it first, late or not. */
+           half built would show it: finish it first, late or not. It builds
+           from the old origin, so before that moves. */
+        build_some();
         build_some();
         build_some();
     }
+    sm_ox = ox;
+    sm_oy = oy;
     sm_commit(flip);
     return flip;
 }
@@ -254,10 +303,10 @@ int main(void)
                 for (;;) {
                 }
             }
-            flipped = glide();
             moved += speed;
+            flipped = glide();
             if (moved == 8) {
-                sm_sprite(dir * 2 + (stride ^= 1));
+                sm_sprite(facing[dir] * 2 + (stride ^= 1));
             }
             if (flipped) {
                 /* The old front is on show until the interrupt: build from
@@ -270,12 +319,8 @@ int main(void)
             }
             if (moved == 16) {
                 moving = 0;
-                switch (dir) {
-                case DIR_RIGHT: ++hx; break;
-                case DIR_LEFT:  --hx; break;
-                case DIR_DOWN:  ++hy; break;
-                default:        --hy; break;
-                }
+                hx += dirdx[dir];
+                hy += dirdy[dir];
                 ++steps;
                 publish();
             }
@@ -294,15 +339,16 @@ int main(void)
                 d = typed();
             }
             if (d != NONE) {
-                sm_sprite(d * 2 + stride);
-                if (passable(hx + (d == DIR_RIGHT) - (d == DIR_LEFT),
-                             hy + (d == DIR_DOWN) - (d == DIR_UP))) {
+                sm_sprite(facing[d] * 2 + stride);
+                if (can_step(d)) {
                     dir = d;
                     moving = 1;
                     moved = 0;
+                    camx0 = (unsigned int)sm_ox * 8 + sm_fx;
+                    camy0 = (unsigned int)sm_oy * 8 + sm_fy;
                     phase = SHIFT;
-                    build_some();   /* and the edge next frame */
-                    sm_sprite(dir * 2 + (stride ^= 1));
+                    build_some();   /* and the edges in the next frames */
+                    sm_sprite(facing[dir] * 2 + (stride ^= 1));
                 }
             } else if (PEEK(0xC6) == 0 && steps != 0) {
                 probe_stage(2);

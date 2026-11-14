@@ -339,8 +339,8 @@ of the vault to `$B000`, its coasts at `$A000`) and its own raster interrupt, wh
 `$EA31` with the CIA's timer interrupt off. The game links none of it.
 
 `src/lib/smooth.s` explains the engine: the back screen is the front shifted a
-character (`sm_shift`, about 10K cycles) plus one new row or column from the
-map (`sm_edge`, about 5K), done in different frames; on the frame the fine
+character (`sm_shift`, about 10K cycles) plus the new row and column from the
+map (`sm_edge_row`, about 6K, `sm_edge_col`, 4K), each in a frame of its own; on the frame the fine
 scroll wraps, the interrupt at line 250 flips `$D018` and rewrites colour RAM
 top down from the new screen (about 15K cycles), which keeps ahead of the
 beam because each character has one colour (`ow_chcol`), so colour RAM is a
@@ -352,7 +352,12 @@ a flip overran on NTSC (18 frames missed in 27 steps) and never on PAL. To
 run on NTSC, add `-ntsc` to the x64sc arguments in a copy of `screendump.py`. The camera
 rests 4 pixels into a character so the first wrap of a step is two frames
 away either way; steps are a square each, as in the game, so the direction
-of every shift is known in advance. **Never build into the back screen in
+of every shift is known in advance. Eight ways (Q, E, Z, C or the stick's
+diagonals; directions 4-7 after `sprite.h`'s four): a diagonal step is one
+diagonal shift per flip, and on a mixed one (down-left, up-right), whose two
+fine scrolls would wrap two frames apart, `glide()` holds the positive axis a
+pixel back until the last frame so that they wrap together. A diagonal may
+not squeeze between two corners of sea or mountain (`can_step()`). **Never build into the back screen in
 the frame a flip was committed**: it is on show until the interrupt.
 `late` counts frames the main loop missed (0 over long walks at both
 speeds, PAL and NTSC); the loop waits for the frame after the last one it handled, not for
@@ -373,7 +378,8 @@ so it renders this as the C64 shows it. For tests: `--poke freeze_at=N`
 at stage 3; type only the keys up to that step, since the harness waits for
 the buffer to drain. `still=1` stops the water's animation for pixel
 comparisons. The golden (`tests/golden/openworld`) freezes mid-step and
-compares screen codes. Stage 2 drops back to 1 whenever a key is waiting, or
+compares screen codes; `openworld8` does the same in the middle of a mixed
+diagonal. Stage 2 drops back to 1 whenever a key is waiting, or
 the harness, which types ten keys at a time, reads the screen mid-step.
 
 ## The party
