@@ -44,7 +44,7 @@
 ; with the CIA's timer interrupt turned off: one interrupt a frame, at a
 ; known line. It uses no zero page.
 
-        .export _sm_init, _sm_draw_all, _sm_build, _sm_commit
+        .export _sm_init, _sm_draw_all, _sm_build, _sm_shift, _sm_edge, _sm_commit
         .export _sm_sprite, _sm_animate, _sm_show
         .export _sm_ox, _sm_oy, _sm_fx, _sm_fy, _sm_front, _sm_frame
         .export _sm_colend, _sm_rowend, _sm_irqline
@@ -264,8 +264,17 @@ shifts:  .addr a_down, a_up, a_left, a_right, b_down, b_up, b_left, b_right
 ; void __fastcall__ sm_build(unsigned char dir)
 ; The back screen, as the front would be with the camera a character further
 ; in `dir`. Never call it while a flip is pending: the back screen is still
-; on show until the interrupt has made it.
+; on show until the interrupt has made it. It is the two halves below, about
+; 10K and 5K cycles, which can go in different frames (NTSC has no room for
+; both in the frame after a flip): sm_shift, then sm_edge, same `dir`.
 _sm_build:
+        pha
+        jsr     _sm_shift
+        pla
+        jmp     _sm_edge
+
+; void __fastcall__ sm_shift(unsigned char dir) -- the copy.
+_sm_shift:
         and     #3
         sta     dir
         lda     _sm_front
@@ -278,8 +287,12 @@ _sm_build:
         sta     ptr3
         lda     shifts+1,x
         sta     ptr3+1
-        jsr     @go
+        jmp     (ptr3)
 
+; void __fastcall__ sm_edge(unsigned char dir) -- the new row or column.
+_sm_edge:
+        and     #3
+        sta     dir
         lda     _sm_front       ; the back screen's page
         beq     :+
         lda     #>SCRA
@@ -336,8 +349,6 @@ _sm_build:
         lda     _sm_ox
         sta     cx
         jmp     fill_row
-
-@go:    jmp     (ptr3)
 
 ; void sm_draw_all(void) -- the front screen and colour RAM from scratch.
 _sm_draw_all:

@@ -339,19 +339,23 @@ of the vault to `$B000`) and its own raster interrupt, which chains to
 `$EA31` with the CIA's timer interrupt off. The game links none of it.
 
 `src/lib/smooth.s` explains the engine: the back screen is the front shifted a
-character plus one new row or column from the map (`sm_build`, about 15K
-cycles); on the frame the fine scroll wraps, the interrupt at line 250 flips
-`$D018` and rewrites colour RAM top down from the new screen, which keeps
-ahead of the beam because each character has one colour (`ow_chcol`), so
-colour RAM is a function of the screen. Measured on PAL: the copy's last row
-is done at line 183, about 60 lines before the beam needs it
-(`--peek sm_rowend:25`, low bytes of each row's finishing line). The camera
+character (`sm_shift`, about 10K cycles) plus one new row or column from the
+map (`sm_edge`, about 5K), done in different frames; on the frame the fine
+scroll wraps, the interrupt at line 250 flips `$D018` and rewrites colour RAM
+top down from the new screen (about 15K cycles), which keeps ahead of the
+beam because each character has one colour (`ow_chcol`), so colour RAM is a
+function of the screen. Measured (`--peek sm_rowend:25`, the low byte of the
+line each row finished on): the last row is done at line 183 on PAL, about
+60 lines before the beam needs it, and at line 228 on NTSC, about 12. NTSC is
+the tight one: with the shift and the edge in the same frame, the frame after
+a flip overran on NTSC (18 frames missed in 27 steps) and never on PAL. To
+run on NTSC, add `-ntsc` to the x64sc arguments in a copy of `screendump.py`. The camera
 rests 4 pixels into a character so the first wrap of a step is two frames
 away either way; steps are a square each, as in the game, so the direction
 of every shift is known in advance. **Never build into the back screen in
 the frame a flip was committed**: it is on show until the interrupt.
 `late` counts frames the main loop missed (0 over long walks at both
-speeds); the loop waits for the frame after the last one it handled, not for
+speeds, PAL and NTSC); the loop waits for the frame after the last one it handled, not for
 the next interrupt, or a build that runs past one costs a whole frame.
 
 The tiles are `assets/overworld.txt` (shared colours green, light green,
@@ -363,7 +367,8 @@ so it renders this as the C64 shows it. For tests: `--poke freeze_at=N`
 at stage 3; type only the keys up to that step, since the harness waits for
 the buffer to drain. `still=1` stops the water's animation for pixel
 comparisons. The golden (`tests/golden/openworld`) freezes mid-step and
-compares screen codes.
+compares screen codes. Stage 2 drops back to 1 whenever a key is waiting, or
+the harness, which types ten keys at a time, reads the screen mid-step.
 
 ## The party
 

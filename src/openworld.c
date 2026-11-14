@@ -51,6 +51,8 @@ void sm_show(void);
 void sm_draw_all(void);
 void sm_animate(void);
 void __fastcall__ sm_build(unsigned char dir);
+void __fastcall__ sm_shift(unsigned char dir);
+void __fastcall__ sm_edge(unsigned char dir);
 void __fastcall__ sm_commit(unsigned char flip);
 void __fastcall__ sm_sprite(unsigned char frame);
 
@@ -67,6 +69,24 @@ unsigned char late;             /* frames the main loop missed */
 unsigned int  steps;
 
 static unsigned char moving, dir, moved, stride;
+
+/* The back screen's build, in two halves a frame apart (see sm_build):
+   which is still to do. */
+#define BUILT  0
+#define SHIFT  1
+#define EDGE   2
+static unsigned char phase;
+
+static void build_some(void)
+{
+    if (phase == SHIFT) {
+        sm_shift(dir);
+        phase = EDGE;
+    } else if (phase == EDGE) {
+        sm_edge(dir);
+        phase = BUILT;
+    }
+}
 
 #define NONE 0xFF
 
@@ -178,13 +198,19 @@ static unsigned char glide(void)
         sm_fy -= speed;
         break;
     }
+    if (flip) {
+        /* Never wanted at one or two pixels a frame, but a flip to a screen
+           half built would show it: finish it first, late or not. */
+        build_some();
+        build_some();
+    }
     sm_commit(flip);
     return flip;
 }
 
 int main(void)
 {
-    unsigned char d, frame, flipped, need = 0;
+    unsigned char d, frame, flipped;
 
     bgcolor(COLOR_BLACK);
     bordercolor(COLOR_BLACK);
@@ -229,12 +255,13 @@ int main(void)
                 sm_sprite(dir * 2 + (stride ^= 1));
             }
             if (flipped) {
-                /* The old front is on show until the interrupt: build next
-                   frame, if the step has another character to go. */
-                need = moved < 9;
-            } else if (need) {
-                sm_build(dir);
-                need = 0;
+                /* The old front is on show until the interrupt: build from
+                   next frame, if the step has another character to go. */
+                if (moved < 9) {
+                    phase = SHIFT;
+                }
+            } else {
+                build_some();
             }
             if (moved == 16) {
                 moving = 0;
@@ -252,6 +279,9 @@ int main(void)
         }
 
         if (!moving && !flipped) {
+            if (PEEK(0xC6) != 0) {
+                probe_stage(1); /* not still: something is to be read */
+            }
             d = held();
             if (d != NONE) {
                 POKE(0xC6, 0);  /* a tap is a step, not two */
@@ -265,7 +295,8 @@ int main(void)
                     dir = d;
                     moving = 1;
                     moved = 0;
-                    sm_build(dir);
+                    phase = SHIFT;
+                    build_some();   /* and the edge next frame */
                     sm_sprite(dir * 2 + (stride ^= 1));
                 }
             } else if (PEEK(0xC6) == 0 && steps != 0) {
