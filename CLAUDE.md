@@ -330,13 +330,48 @@ else running: see Memory.
 ## The smooth-scrolling prototype
 
 `src/openworld.c` (`dist/openworld.prg`, `make run PROG=openworld`) is a
-standalone experiment, not the game: Keldmarch from the game's generator,
+standalone experiment, not the game: a world from the game's generator,
 walked with a camera that glides a pixel or two a frame over 16x16
 multicolour metatiles (2x2 characters), for the TeensyROM+/REU ideas. It is
 one PRG with no disk, its own memory map (`cfg/c64-openworld.cfg`: VIC bank 1
-at `$4000` for two screens, the charset and the hero sprite, home copied out
-of the vault to `$B000`, its edges at `$A000`) and its own raster interrupt, which chains to
-`$EA31` with the CIA's timer interrupt off. The game links none of it.
+at `$4000` for two screens, the charset and the sprites, a 64x64 window of
+the map at `$B000` and its edges at `$A000`) and its own raster interrupt,
+which chains to `$EA31` with the CIA's timer interrupt off. The game links
+none of it.
+
+**The world** is a torus of 6 by 4 cells of 64x64 squares (`grid[]`):
+Keldmarch in the middle of the second row, the four continents (64x31, at
+rows 16-46 of their cells) north, east, south and west of it two cells
+away, the rest open sea; it wraps both ways. Every land is built once at
+the start (a few seconds) and kept in the vault: home at `$D000`, the
+continents parked at `$E000 + d * $800`. `wx`, `wy` are the hero's world
+square; the engine's coordinates are those mod 128 (384 and 256 are both
+multiples of it, so the wrap is seamless), and `WORLD` is a window indexed
+`(Y & 63) * 64 + (X & 63)` (`sm_torus` makes `char_at` and the edges wrap
+the same way). **Streaming:** each step queues jobs (`stream()`): the column
+or row it brings within `LOAD` (16) squares, copied out of the vault by
+`sm_vcopy` (or sea), and the edges of the column or row it brings within
+`EDGE_X`/`EDGE_Y` (14, 10; the view needs 11 by 7), in thirds. `jobs()` runs
+them in whatever is left of a frame, by the raster, and learns what each
+kind costs (`job_lines[]`); a full queue (32) runs one on the spot. Leaving
+for a place finishes the queue first. **Ships**: eight (`ship_x/ship_y`),
+moored beside home's four ports and the continents' docks at the start.
+Stepping onto one boards it (`boat` is its index + 1; the hero's sprite
+becomes the ship, frames 9 and 10); in it you sail open water and step off
+onto any land, where it stays; its position is kept as you sail. No
+permission is asked. The continents' places go in as they do in the game
+(`slot_of()`, copied from `game.c`).
+**Memory is full**: MAIN, HIGH and the low kilobyte all have under 300
+bytes. Code that runs only after the start lives at `$0400` (`OWLOW`, the
+text screen's, loaded inside screen A's space and copied down once the
+lands are built) and past the sprite blocks at `$52C0` (`OWTOP`); the C
+stack is moved to the tape buffer by `sm_stack()`; `ow_chcol` is page
+aligned (`ALIGNBSS`). The sixteen shift routines are one, patched for each
+direction (`sm_prep` patches in a quiet frame, when the next direction is
+already known). With the CPU scrolling, NTSC misses a frame now and then on
+long diagonals and on long voyages (PAL and the REU path do not): splitting
+the REU and CPU versions into two PRGs, loaded by a small bootstrap that
+detects the REU, would give each back the other's code.
 
 `src/lib/smooth.s` explains the engine: the back screen is the front shifted a
 character (`sm_shift`, about 10K cycles) plus the new row and column from the
@@ -344,8 +379,8 @@ map (`sm_edge_row`, about 6K, `sm_edge_col`, 4K), each in a frame of its own; on
 scroll wraps, the interrupt at line 250 flips `$D018` and rewrites colour RAM
 top down from the new screen (about 15K cycles), which keeps ahead of the
 beam because each character has one colour (`ow_chcol`), so colour RAM is a
-function of the screen. Measured (`--peek sm_rowend:25`, the low byte of the
-line each row finished on): the last row is done at line 183 on PAL, about
+function of the screen. Measured (`--peek sm_colend`, the low byte of the
+line the last row finished on): it is done at line 183 on PAL, about
 60 lines before the beam needs it, and at line 228 on NTSC, about 12. NTSC is
 the tight one: with the shift and the edge in the same frame, the frame after
 a flip overran on NTSC (18 frames missed in 27 steps) and never on PAL. To
@@ -705,7 +740,7 @@ with the machine otherwise idle, around 20 runs of each case. If three
 sprites really do fail, hide them during disk access in `savegame.c`: every
 enabled sprite takes CPU cycles from the KERNAL's serial-bus code.
 
-`--peek SYM[+OFF][:WIDTH]` prints any global after the run (wider than 8
+`--peek SYM[+OFF][:WIDTH]` (or `$ADDR` for an address) prints any global after the run (wider than 8
 bytes, just the bytes as hex, last first); `--poke
 SYM=VALUE` (and `SYM+OFFSET=VALUE`) writes one before it. Both use the label
 file ld65 emits next to the binary. Prefer it over adding debug

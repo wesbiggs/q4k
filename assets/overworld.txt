@@ -623,3 +623,42 @@ kttttttk
 .kttttk.
 .kk..kk.
 ........
+
+# The ship: what the hero becomes on the sea (openworld.c), its sails in
+# the shared light red and its hull in the sprite's own colour, brown.
+# Moored ships are drawn with it too.
+sprite left
+.kk.....
+.kkk....
+..k.....
+..kk....
+..ksk...
+.ksssk..
+.kssssk.
+ksssssk.
+.ksssk..
+..ksk...
+..k.....
+kkkkkkkk
+kttttttk
+.kttttk.
+..kkkk..
+........
+
+sprite right
+.....kk.
+....kkk.
+.....k..
+....kk..
+...ksk..
+..ksssk.
+.kssssk.
+.ksssssk
+..ksssk.
+...ksk..
+.....k..
+kkkkkkkk
+kttttttk
+.kttttk.
+..kkkk..
+........

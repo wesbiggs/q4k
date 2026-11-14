@@ -59,19 +59,22 @@
 ; known line. It uses no zero page.
 
         .export _sm_init, _sm_draw_all, _sm_shores, _sm_build, _sm_shift, _sm_edge, _sm_edge_row, _sm_edge_col, _sm_commit
-        .export _sm_sprite, _sm_animate, _sm_show
-        .export _sm_redraw_box, _sm_shores_rect
+        .export _sm_sprite, _sm_animate, _sm_show, _sm_prep
+        .export _sm_redraw_box, _sm_shores_rect, _sm_torus
+        .export _sm_vcopy, _vc_src, _vc_dst, _vc_n, _vc_sstep, _vc_dstep
+        .import vault_enter, vault_leave
         .export _sm_sh_x0, _sm_sh_y0, _sm_sh_x1, _sm_sh_y1
         .export _sm_box_c0, _sm_box_c1, _sm_box_r0, _sm_box_r1
         .export _sm_ox, _sm_oy, _sm_fx, _sm_fy, _sm_front, _sm_frame
-        .export _sm_colend, _sm_rowend, _sm_irqline
+        .export _sm_colend, _sm_irqline
         .export _sm_reu, _sm_reu_detect, _sm_reu_keep
 
         .import ow_qvar, ow_rnd, ow_sprites, ow_nsprites
         .import _ow_spr1, _ow_spr2
         .export _sm_tileset, _sm_blank, _sm_offtile
         .export _sm_npcs, _sm_npc_n, _sm_npc_x, _sm_npc_y
-        .importzp ptr1, ptr2, ptr3, ptr4
+        .importzp ptr1, ptr2, ptr3, ptr4, sp
+        .export _sm_stack
 
 SCRA     = $4000
 SCRB     = $4400
@@ -98,7 +101,16 @@ REU_SCREEN = $0000              ; where a front screen is stashed to shift
 REU_COLOUR = $0400              ; and its colour RAM
 REU_TEST   = $0800              ; and sm_reu_detect's test bytes
 TBASE    = $60
+        .assert (TBASE & 63) = 32, error, "loadrow's quick way needs it"
 BIAS     = 64                   ; world characters: the map is 64-191
+
+; Each character's colour RAM value, which the flip's colour copy looks up a
+; thousand times: on a page of its own, or most of those cross one, which
+; is a cycle each and more than NTSC has to spare. (Not cleared: the tile
+; set writes it.)
+        .segment "ALIGNBSS"
+        .align  256
+ow_chcol:   .res 256
 
         .segment "BSS"
 
@@ -112,9 +124,9 @@ ow_nwater:  .res 1              ; water character pairs to animate
 _sm_offtile: .res 1             ; what is beyond the map
 ts_nmt:     .res 1              ; metatiles
 ow_water:   .res 16             ; those pairs
-ow_chcol:   .res 256            ; each character's colour RAM value
 ow_mt0:     .res 64             ; each tile code's metatile ($60 + index) ...
 ow_mt1:     .res 64             ; ... and its variant's
+        .export ow_nflag, ow_bsel, ow_binv   ; (for tests)
 ow_nflag:   .res 64             ; what it is to its neighbours
 ow_bsel:    .res 64             ; which of their flags give it an edge ...
 ow_binv:    .res 64             ; ... set or clear
@@ -145,7 +157,6 @@ _sm_front:  .res 1              ; 0: screen A is shown, 1: B
 _sm_frame:  .res 1              ; counts the interrupts
 _sm_colend: .res 1              ; the raster line the last colour copy ended on
 _sm_irqline: .res 1             ; the line the interrupt began on
-_sm_rowend: .res 25             ; ... and each of its rows (low 8 bits)
 
 _sm_reu:    .res 1              ; 1: build and flip through the REU
 built_reu:  .res 1              ; the back screen was built through it ...
@@ -177,6 +188,13 @@ _sm_sh_x1:  .res 1
 _sm_sh_y1:  .res 1
 offflag:    .res 1              ; the flags of what is beyond the map
 rowlen:     .res 1              ; fill_n's count
+xend:       .res 1              ; sm_shores_rect's last flag index
+_sm_torus:  .res 1              ; WORLD is the overworld's wrapping window
+_vc_src:    .res 2              ; sm_vcopy's arguments
+_vc_dst:    .res 2
+_vc_n:      .res 1
+_vc_sstep:  .res 1
+_vc_dstep:  .res 1
 _sm_box_c0: .res 1              ; sm_redraw_box's characters, on the screen
 _sm_box_c1: .res 1
 _sm_box_r0: .res 1
@@ -187,6 +205,7 @@ cur:        .res 66
 below:      .res 66
 cnt:        .res 1
 dir:        .res 1
+sc_front:   .res 1              ; what shiftcopy is patched for, with ...
 backhi:     .res 1
 
         .segment "CODE"
@@ -215,7 +234,15 @@ char_at:
 
         lda     #0
         sta     bmask
+        lda     _sm_torus       ; the overworld's window wraps: no edge
+        beq     @bound
         lda     ty
+        and     #63
+        tay
+        lda     tx
+        and     #63
+        jmp     @inmap
+@bound: lda     ty
         sec
         sbc     #BIAS / 2
         cmp     #64
@@ -226,7 +253,7 @@ char_at:
         sbc     #BIAS / 2
         cmp     #64
         bcs     @sea
-        ora     rowlo,y
+@inmap: ora     rowlo,y
         sta     ptr2
         lda     rowhi,y
         sta     ptr2+1
@@ -313,25 +340,89 @@ char_at:
 ; ---------------------------------------------------------------------------
 ; void sm_shores(void) -- SHORE from WORLD (see the top): for each square
 ; that takes edges (ow_bsel), a bit for each neighbour that makes one,
-; north first and then clockwise. Three rows of
-; neighbour flags (ow_nflag) roll down the map, each with a square of what
-; is beyond the map (the set's offmap tile: sea outside, grass round the
-; castle) either side, so every neighbour is a load, a mask and a rotate,
-; with no edge to test. Built once a land.
+; north first and then clockwise. Three rows of neighbour flags (ow_nflag)
+; roll down the map, so every neighbour is a load, a mask and a rotate. In a
+; place, beyond the map is the set's offmap tile (sea, or grass round the
+; castle); on the overworld (sm_torus) WORLD is a window that wraps both
+; ways, row 63 beside row 0 and column 63 beside column 0, so the flags
+; wrap too. Only the columns asked for, and one either side, are read.
 
-; The row at ptr3 as flags, into `below` (index x + 1): ow_nflag's, bit 0
-; land, bit 1 open ground.
-dryrow: ldy     #63
-@l:     lda     (ptr3),y
-        sec
-        sbc     #TBASE
+; Row A of the map as flags into `below`, columns sm_sh_x0 - 1 to sm_sh_x1
+; + 1 (at index column + 1). A is $FF for the row above row 0 and 64 for
+; the one below row 63: on the torus those are rows 63 and 0, and in a
+; place they are off the map.
+loadrow:
+        ldx     _sm_torus
+        beq     :+
         and     #63
+        bpl     @have           ; (always)
+:       cmp     #64
+        bcc     @have
+        lda     offflag         ; a row off the map
+        ldx     _sm_sh_x0
+:       sta     below,x
+        cpx     xend
+        beq     @done
+        inx
+        bne     :-
+@done:  rts
+@have:  tay
+        lda     rowlo,y
+        sta     ptr3
+        lda     rowhi,y
+        sta     ptr3+1
+        ldy     _sm_sh_x0       ; no column off the map or wrapped: the
+        beq     @slow           ; quick way, with the column in Y and
+        lda     xend            ; the index (the column + 1) from it
+        cmp     #65
+        bcs     @slow
+        dey
+@fast:  lda     (ptr3),y
+        eor     #TBASE & $3F    ; = (code - TBASE) & 63, since TBASE is
+        and     #63             ; 32 more than a multiple of 64
         tax
         lda     ow_nflag,x
         sta     below+1,y
-        dey
-        bpl     @l
+        iny
+        cpy     xend
+        bne     @fast
         rts
+@slow:  ldx     _sm_sh_x0       ; the index: the column + 1
+@col:   txa
+        sec
+        sbc     #1              ; the column: -1 ($FF) to 64
+        ldy     _sm_torus
+        beq     :+
+        and     #63             ; wrapped
+        bpl     @in             ; (always)
+:       cmp     #64
+        bcc     @in
+        lda     offflag         ; off the map's side
+        jmp     @st
+@in:    tay
+        lda     (ptr3),y
+        sec
+        sbc     #TBASE
+        and     #63
+        tay
+        lda     ow_nflag,y
+@st:    sta     below,x
+        cpx     xend
+        beq     @done
+        inx
+        jmp     @col
+
+; above = cur, cur = below, for the columns in hand.
+roll:   ldx     _sm_sh_x0
+:       lda     cur,x
+        sta     above,x
+        lda     below,x
+        sta     cur,x
+        cpx     xend
+        beq     :+
+        inx
+        bne     :-
+:       rts
 
 _sm_shores:
         lda     #0              ; all of it
@@ -341,9 +432,9 @@ _sm_shores:
         sta     _sm_sh_x1
         sta     _sm_sh_y1
 ; void sm_shores_rect(void) -- the same for the squares sm_sh_x0-x1 by
-; sm_sh_y0-y1 only (where a roof came off or went on, and a square round
-; it), leaving the rest as it was: right as long as nothing changed outside
-; but next to it.
+; sm_sh_y0-y1 only (x0 <= x1, y0 <= y1): where a roof came off or went on,
+; or a column or row the overworld's window has just taken in, and a square
+; round it. The rest is left as it was.
 _sm_shores_rect:
         lda     _sm_offtile     ; beyond the map: what the set says is there
         sec
@@ -352,15 +443,25 @@ _sm_shores_rect:
         tax
         lda     ow_nflag,x
         sta     offflag
-        ldx     #65
-:       sta     above,x
-        sta     cur,x
-        sta     below,x
-        dex
-        bpl     :-
-        lda     _sm_sh_y0       ; the first row's: WORLD and SHORE + y0 * 64
+        lda     _sm_sh_x1
+        clc
+        adc     #2
+        sta     xend
+        lda     _sm_sh_y0       ; the row above the first ...
+        sec
+        sbc     #1
+        jsr     loadrow
+        jsr     roll            ; ... into `cur`, to move up into `above`
+        lda     _sm_sh_y0       ; and the first, to move up into `cur`
         sta     sy
-        tay
+        jsr     loadrow
+
+@row:   jsr     roll
+        lda     sy              ; the row below, into `below`
+        clc
+        adc     #1
+        jsr     loadrow
+        ldy     sy              ; this row's: WORLD and SHORE + y * 64
         lda     rowlo,y
         sta     ptr1
         sta     ptr2
@@ -369,45 +470,10 @@ _sm_shores_rect:
         sec
         sbc     #>(WORLD - SHORE)
         sta     ptr2+1
-        cpy     #0              ; the row above it, if there is one ...
-        beq     :+
-        lda     ptr1
-        sec
-        sbc     #64
-        sta     ptr3
-        lda     ptr1+1
-        sbc     #0
-        sta     ptr3+1
-        jsr     dryrow
-        jsr     roll            ; ... into `cur`, to move up into `above`
-:       lda     ptr1            ; and the row itself, to move up into `cur`
-        sta     ptr3
-        lda     ptr1+1
-        sta     ptr3+1
-        jsr     dryrow
 
-@row:   jsr     roll            ; roll the rows up one
-        lda     ptr3            ; and read the next, if there is one
-        clc
-        adc     #64
-        sta     ptr3
-        bcc     :+
-        inc     ptr3+1
-:       lda     sy
-        cmp     #63
-        bne     :+
-        lda     offflag         ; below the bottom row: what is off the map
-        ldx     #64
-@sea:   sta     below+1,x
-        dex
-        bpl     @sea
-        bmi     @cols
-:       jsr     dryrow
-
-@cols:  ldy     _sm_sh_x1
+        ldy     _sm_sh_x1
 @col:   lda     (ptr1),y        ; what makes an edge on this square
-        sec
-        sbc     #TBASE
+        eor     #TBASE & $3F    ; (code - TBASE) & 63
         and     #63
         tax
         lda     ow_bsel,x
@@ -419,7 +485,32 @@ _sm_shores_rect:
         tya
         tax
         inx                     ; the flags' index for this square
-        lda     above,x         ; north
+        lda     inv             ; most squares have no edge: all eight
+        bne     @all            ; neighbours at once first
+        lda     above-1,x       ; (an edge where a flag is set: none is?)
+        ora     above,x
+        ora     above+1,x
+        ora     cur-1,x
+        ora     cur+1,x
+        ora     below-1,x
+        ora     below,x
+        ora     below+1,x
+        and     sel
+        bne     @each
+        jmp     @store          ; (A is 0)
+@all:   lda     above-1,x       ; (an edge where one is clear: all set?)
+        and     above,x
+        and     above+1,x
+        and     cur-1,x
+        and     cur+1,x
+        and     below-1,x
+        and     below,x
+        and     below+1,x
+        and     sel
+        beq     @each
+        lda     #0
+        jmp     @store
+@each:  lda     above,x         ; north
         and     sel
         cmp     #1
         ror     dmask
@@ -462,27 +553,16 @@ _sm_shores_rect:
         cmp     _sm_sh_y1
         bne     :+
         rts
-:
-
-        lda     ptr1
-        clc
-        adc     #64
-        sta     ptr1
-        sta     ptr2
-        bcc     :+
-        inc     ptr1+1
-        inc     ptr2+1
 :       inc     sy
         jmp     @row
 
-; above = cur, cur = below.
-roll:   ldx     #65
-:       lda     cur,x
-        sta     above,x
-        lda     below,x
-        sta     cur,x
-        dex
-        bpl     :-
+; void sm_stack(void) -- the C stack to the tape buffer, down from $0400:
+; MAIN, at whose top cc65 starts it, is full. Called first thing.
+_sm_stack:
+        lda     #<$0400
+        sta     sp
+        lda     #>$0400
+        sta     sp+1
         rts
 
 ; A row of 40 from (cx, cy) into ptr1; or of rowlen (fill_n).
@@ -535,8 +615,6 @@ fill_col:
         .endrep
         dex
         bpl     :-
-        lda     $D012           ; when each row was done, for measuring
-        sta     _sm_rowend + R
         .endrep
         rts
 .endmacro
@@ -548,74 +626,38 @@ colour_b:
 
 ; ---------------------------------------------------------------------------
 ; The back screen as the front moved one character. Column by column, each
-; column all 24 or 25 rows unrolled: nine cycles a byte.
-
-.macro SHIFT_H src, dst         ; 39 columns of 25 rows
-        .local loop, done
-        ldx     #38
-loop:
+; column all 25 rows unrolled: nine cycles a byte. One copy for every
+; direction and screen, 2.2K less than sixteen copies: sm_shift patches its
+; fifty addresses for a new direction (about 2K cycles), or for the same one
+; from the other screen only flips their high bytes (about 900), which is
+; every shift of a straight walk. The first pair is row 24: a direction that
+; moves rows copies 24 and starts past it.
+        .segment "HICODE"
+shiftcopy:
+sc_ldx: ldx     #38
+sc_go:  jmp     sc_body
+sc_body:
         .repeat 25, R
-        lda     src + R*40, x
-        sta     dst + R*40, x
+        lda     $FFFF, x
+        sta     $FFFF, x
         .endrep
         dex
-        bmi     done
-        jmp     loop
-done:   rts
-.endmacro
-
-.macro SHIFT_V src, dst         ; 40 columns of 24 rows
-        .local loop, done
-        ldx     #39
-loop:
-        .repeat 24, R
-        lda     src + R*40, x
-        sta     dst + R*40, x
-        .endrep
-        dex
-        bmi     done
-        jmp     loop
-done:   rts
-.endmacro
-
-.macro SHIFT_D src, dst         ; 39 columns of 24 rows
-        .local loop, done
-        ldx     #38
-loop:
-        .repeat 24, R
-        lda     src + R*40, x
-        sta     dst + R*40, x
-        .endrep
-        dex
-        bmi     done
-        jmp     loop
-done:   rts
-.endmacro
+        bmi     :+
+sc_loop: jmp    sc_body
+:       rts
 
 ; The camera's directions are the game's (sprite.h): down, up, left, right;
 ; then the diagonals, down-left, down-right, up-left, up-right. Down shows
 ; the next row below: everything moves up a row.
-        .segment "HICODE"       ; (2.4K of them: MAIN has no room)
-a_down:  SHIFT_V SCRA + 40, SCRB
-a_up:    SHIFT_V SCRA, SCRB + 40
-a_left:  SHIFT_H SCRA, SCRB + 1
-a_right: SHIFT_H SCRA + 1, SCRB
-a_dl:    SHIFT_D SCRA + 40, SCRB + 1
-a_dr:    SHIFT_D SCRA + 41, SCRB
-a_ul:    SHIFT_D SCRA, SCRB + 41
-a_ur:    SHIFT_D SCRA + 1, SCRB + 40
-b_down:  SHIFT_V SCRB + 40, SCRA
-b_up:    SHIFT_V SCRB, SCRA + 40
-b_left:  SHIFT_H SCRB, SCRA + 1
-b_right: SHIFT_H SCRB + 1, SCRA
-b_dl:    SHIFT_D SCRB + 40, SCRA + 1
-b_dr:    SHIFT_D SCRB + 41, SCRA
-b_ul:    SHIFT_D SCRB, SCRA + 41
-b_ur:    SHIFT_D SCRB + 1, SCRA + 40
-
         .segment "CODE"
-shifts:  .addr a_down, a_up, a_left, a_right, a_dl, a_dr, a_ul, a_ur
-         .addr b_down, b_up, b_left, b_right, b_dl, b_dr, b_ul, b_ur
+sh_soff: .byte 40, 0, 0, 1, 40, 41, 0, 1
+sh_doff: .byte 0, 40, 1, 0, 1, 0, 41, 40
+sh_skip: .byte 6, 6, 0, 0, 6, 6, 6, 6   ; past row 24 if it moves rows
+sh_cnt:  .byte 39, 39, 38, 38, 38, 38, 38, 38
+
+        .segment "DATA"
+sc_dir:  .byte   $FF            ; ... this direction: none yet
+        .segment "CODE"
 
 ; Which way each direction moves the camera, a character at a time.
 dirdx:   .byte 0, 0, $FF, 1, $FF, 1, $FF, 1
@@ -648,18 +690,100 @@ _sm_shift:
         sta     built_reu
         beq     :+
         jmp     reu_shift
-:       lda     _sm_front
-        asl     a
-        asl     a
-        asl     a
-        ora     dir
-        asl     a
+:       lda     dir
+        jsr     patch
+        jmp     shiftcopy
+
+; void __fastcall__ sm_prep(unsigned char dir) -- patch the copy now for a
+; shift that way from the screen in front, in a frame with time to spare, so
+; that sm_shift has nothing to do but copy. (Nothing with the REU.)
+_sm_prep:
+        and     #7
+        ldx     _sm_reu
+        beq     patch
+        rts
+
+; The copy, made ready for direction A from the screen in front.
+patch:  cmp     sc_dir
+        bne     @new
+        lda     _sm_front       ; the same way: from the other screen?
+        cmp     sc_front
+        beq     @go
+        sta     sc_front
+        ldy     #0              ; flip every address's high byte
+@flip:  lda     sc_body+2,y
+        eor     #(>SCRA) ^ (>SCRB)
+        sta     sc_body+2,y
+        lda     sc_body+5,y
+        eor     #(>SCRA) ^ (>SCRB)
+        sta     sc_body+5,y
+        tya
+        clc
+        adc     #6
+        tay
+        cpy     #25*6
+        bne     @flip
+@go:    rts
+
+@new:   sta     sc_dir
         tax
-        lda     shifts,x
-        sta     ptr3
-        lda     shifts+1,x
-        sta     ptr3+1
-        jmp     (ptr3)
+        lda     _sm_front
+        sta     sc_front
+        lda     sh_cnt,x
+        sta     sc_ldx+1
+        lda     sh_skip,x
+        clc
+        adc     #<sc_body
+        sta     sc_go+1
+        sta     sc_loop+1
+        lda     #>sc_body
+        adc     #0
+        sta     sc_go+2
+        sta     sc_loop+2
+        lda     sh_soff,x
+        sta     ptr1
+        lda     sh_doff,x
+        sta     ptr2
+        lda     #>SCRA
+        ldy     #>SCRB
+        ldx     _sm_front
+        beq     :+
+        lda     #>SCRB
+        ldy     #>SCRA
+:       sta     ptr1+1
+        sty     ptr2+1
+        ldy     #7              ; rows 0-23 into pairs 1-24 ...
+        ldx     #25
+@pair:  dex
+        bne     :+
+        ldy     #1              ; ... and row 24 into pair 0
+:       lda     ptr1
+        sta     sc_body,y
+        lda     ptr1+1
+        sta     sc_body+1,y
+        lda     ptr2
+        sta     sc_body+3,y
+        lda     ptr2+1
+        sta     sc_body+4,y
+        txa
+        beq     @go
+        tya
+        clc
+        adc     #6
+        tay
+        lda     ptr1
+        clc
+        adc     #40
+        sta     ptr1
+        bcc     :+
+        inc     ptr1+1
+:       lda     ptr2
+        clc
+        adc     #40
+        sta     ptr2
+        bcc     @pair
+        inc     ptr2+1
+        bne     @pair           ; (always)
 
 ; The back screen's page into backhi, and dir from A.
 backpage:
@@ -1145,6 +1269,53 @@ reu_colour:
         bne     @cs
 @done:  rts
 
+; void sm_vcopy(void) -- vc_n bytes from vc_src, in the RAM under the ROMs
+; (the vault, where the lands are kept), to vc_dst, the source stepping
+; vc_sstep a byte and the destination vc_dstep (1 along a row, 64 down a
+; column). Interrupts are off for as long as it takes (vault.s). A source
+; below $100 is none: its low byte fills the run instead (open sea).
+_sm_vcopy:
+        lda     _vc_dst
+        sta     ptr2
+        lda     _vc_dst+1
+        sta     ptr2+1
+        ldy     #0
+        ldx     _vc_n
+        lda     _vc_src+1       ; no source: fill with its low byte
+        bne     @vault
+@fill:  lda     _vc_src
+        sta     (ptr2),y
+        lda     ptr2
+        clc
+        adc     _vc_dstep
+        sta     ptr2
+        bcc     :+
+        inc     ptr2+1
+:       dex
+        bne     @fill
+        rts
+@vault: sta     ptr1+1
+        lda     _vc_src
+        sta     ptr1
+        jsr     vault_enter
+@l:     lda     (ptr1),y
+        sta     (ptr2),y
+        lda     ptr1
+        clc
+        adc     _vc_sstep
+        sta     ptr1
+        bcc     :+
+        inc     ptr1+1
+:       lda     ptr2
+        clc
+        adc     _vc_dstep
+        sta     ptr2
+        bcc     :+
+        inc     ptr2+1
+:       dex
+        bne     @l
+        jmp     vault_leave
+
 ; void __fastcall__ sm_reu_keep(unsigned char out) -- the overworld's map
 ; and edges (SHORE and WORLD, 8K) into the REU (out = 1) or back from it
 ; (0), so that coming out of a town or a dungeon builds nothing again.
@@ -1331,9 +1502,9 @@ _sm_npcs:
         sta     cnlo
         lda     cnhi
         sbc     camx+1
-        bmi     @off            ; left of the screen
-        cmp     #2
-        bcs     @off            ; far right
+        and     #7              ; on a plane 2048 pixels round (the
+        cmp     #2              ; overworld's 128 squares, wrapping)
+        bcs     @off            ; off either side
         sta     cnhi
         lda     #0              ; y = square * 16 + 54 - camy, 8 bits or off
         sta     vtmp
@@ -1355,6 +1526,7 @@ _sm_npcs:
         tax
         lda     vtmp
         sbc     camy+1
+        and     #7
         bne     @off            ; above the screen, or below it
         tya                     ; on: x, y and the bits
         asl     a

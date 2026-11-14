@@ -1,0 +1,27 @@
+    +----------------------------------------+
+  0 |xstwxwxwxstwxwxststwxwxwxwxwxwxwxststwxs|
+  1 |zuvyzyzyzuvyzyzuvuvyzyzyzyzyzyzyzuvuvyzu|
+  2 |xwxwxwxwxwxwxststwxststwxwxwxstststststw|
+  3 |zyzyzyzyzyzyzuvuvyzuvuvyzyzyzuvuvuvuvuvy|
+  4 |twxwxststststwxstststwxwxstststwxststwxw|
+  5 |vyzyzuvuvuvuvyzuvuvuvyzyzuvuvuvyzuvuvyzy|
+  6 |tststststwxwxwxststwxststwxwxwxwxstwxwxw|
+  7 |vuvuvuvuvyzyzyzuvuvyzuvuvyzyzyzyzuvyzyzy|
+  8 |xwxstststwxstwxststwxstwxwxststwxststwxw|
+  9 |zyzuvuvuvyzuvyzuvuvyzuvyzyzuvuvyzuvuvyzy|
+ 10 |xwxststwxwxstwxwxststwxstwxstststwxwxwxw|
+ 11 |zyzuvuvyzyzuvyzyzuvu@yzuvyzuvuvuvyzyzyzy|
+ 12 |tstwxstwxwxstststwxststwxwxwxstststwxstw|
+ 13 |vuvyzuvyzyzuvuvuvyzuvuvyzyzyzuvuvuvyzuvy|
+ 14 |tstwxwxwxwxstwxstwxwxwxstwxwxststwxwxwxw|
+ 15 |vuvyzyzyzyzuvyzuvyzyzyzuvyzyzuvuvyzyzyzy|
+ 16 |xstwxwxstststststwxwxwxststwxststwxwxwxw|
+ 17 |zuvyzyzuvuvuvuvuvyzyzyzuvuvyzuvuvyzyzyzy|
+ 18 |xwxstwxstwxstwxwxststststwxstststwxwxsts|
+ 19 |zyzuvyzuvyzuvyzyzuvuvuvuvyzuvuvuvyzyzuvu|
+ 20 |twxststwxwxststwxwxwxwxstwxstwxstwxwxsts|
+ 21 |vyzuvuvyzyzuvuvyzyzyzyzuvyzuvyzuvyzyzuvu|
+ 22 |xstststwxwxstststwxststwxwxststwxwxstwxw|
+ 23 |zuvuvuvyzyzuvuvuvyzuKDIDIDIDIDIFzyzuvyzy|
+ 24 |tstwxststwxwxstwxwxs>=a@a@a@adB9xwxststw|
+    +----------------------------------------+

@@ -282,6 +282,7 @@ $(DIST)/%.prg: $(BUILD)/%.o $(LIB) $(wildcard cfg/*.cfg)
 # beside it: cl65 writes src/lib/battle.s on the way to either, and two at
 # once tread on it.
 $(BUILD)/lib/battle_bot.o: OPT := -Or
+$(BUILD)/openworld.o: OPT := -Or
 $(BUILD)/lib/battle_bot.o: src/lib/battle.c | $(BUILD)/lib/battle.o
 	@mkdir -p $(dir $@)
 	$(CL65) $(CFLAGS) -DFIGHT_BOT --code-name FIGHTCODE --rodata-name FIGHTDATA \

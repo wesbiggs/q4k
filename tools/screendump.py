@@ -217,9 +217,12 @@ def report_peeks(mon, syms, peeks):
         name, _, offset = name.partition("+")
         offset = int(offset, 0) if offset else 0
         width = int(width) if width else 1
-        if name not in syms:
+        if name[:1] == "$":         # an address, not a symbol: $B000
+            addr = int(name[1:], 16) + offset
+        elif name not in syms:
             raise SystemExit("screendump: no symbol %r" % name)
-        addr = syms[name] + offset
+        else:
+            addr = syms[name] + offset
         data = mon.mem_get(addr, addr + width - 1)
         if width > 8:
             # Too long to be a number: just the bytes, last one first, as
@@ -525,7 +528,7 @@ def main():
                     help="set a global by name once the program is running")
     ap.add_argument("--disk", metavar="D64",
                     help="attach a disk image as unit 8, for save and load")
-    ap.add_argument("--peek", action="append", metavar="SYM[+OFF][:WIDTH]",
+    ap.add_argument("--peek", action="append", metavar="SYM|$ADDR[+OFF][:WIDTH]",
                     default=[], help="print a global by name")
     ap.add_argument("--shot", metavar="PNG",
                     help="also render the screen to a PNG from emulated memory")

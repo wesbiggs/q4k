@@ -73,6 +73,7 @@ void __fastcall__ sm_edge_row(unsigned char dir);
 void __fastcall__ sm_edge_col(unsigned char dir);
 void __fastcall__ sm_commit(unsigned char flip);
 void __fastcall__ sm_sprite(unsigned char frame);
+void __fastcall__ sm_prep(unsigned char dir);
 void __fastcall__ sm_tileset(const unsigned char *set);
 void __fastcall__ sm_blank(unsigned char on);
 void __fastcall__ sm_reu_keep(unsigned char out);
@@ -81,12 +82,18 @@ extern unsigned char sm_npc_n, sm_npc_x[7], sm_npc_y[7];
 void sm_npcs(void);
 void sm_redraw_box(void);
 void sm_shores_rect(void);
+void sm_stack(void);
 extern unsigned char sm_sh_x0, sm_sh_y0, sm_sh_x1, sm_sh_y1;
 extern unsigned char sm_box_c0, sm_box_c1, sm_box_r0, sm_box_r1;
+extern unsigned char sm_torus;
+void sm_vcopy(void);
+extern unsigned char *vc_src, *vc_dst;
+extern unsigned char vc_n, vc_sstep, vc_dstep;
 
 /* The villager's sprite frame, after the hero's eight (assets/overworld.txt),
    and the robes' colours, one a person. */
 #define NPC_FRAME  (64 + 8)
+#define SHIP_FRAME (64 + 9)     /* and the ship's, facing left and right */
 static const unsigned char robes[7] = {
     COLOR_CYAN, COLOR_YELLOW, COLOR_PURPLE, COLOR_BLUE, COLOR_ORANGE,
     COLOR_LIGHTBLUE, COLOR_WHITE
@@ -109,9 +116,58 @@ extern const unsigned char ow_pass[64];
 #define AREA_DUNGEON 3
 unsigned char area;             /* (and game.c's depth: a dungeon's level) */
 static unsigned char area_w = 64, area_h = 64;
-static unsigned char out_x, out_y;      /* the overworld square you went in at */
 static unsigned char ex, ey;            /* a town's way out */
 static unsigned char kept;              /* the overworld is in the REU */
+static unsigned char dun_index;         /* which dungeon */
+
+/* --- The world -----------------------------------------------------------
+
+   Six cells across and four down, 64 squares each way, wrapping east to
+   west and north to south: 384 by 256 squares. Keldmarch fills its cell;
+   the four continents across the sea (64 by 31) lie across the middle of
+   theirs; the rest is open sea.
+
+        . . N . . .
+        W . K . E .
+        . . S . . .
+        . . . . . .
+
+   Every land is built once, at the start, and kept in the RAM under the
+   ROMs: Keldmarch at $D000, where the game keeps it, and the continents in
+   the four 2K slots under the KERNAL (vault_park). WORLD is a window of 64
+   by 64 squares round the hero, which wraps: square (X, Y) of the world is
+   at WORLD[(Y & 63) * 64 + (X & 63)]. The engine's coordinates are the
+   world's taken round 128 squares, which 384 and 256 both divide, so a
+   square has the same coordinates, and the same variant, wherever it is
+   seen from. A step east brings in the column 32 squares ahead, over the
+   one now 33 behind, and works out the edges a column back: a column or a
+   row a step, done in frames with time to spare (the jobs, below). */
+
+#define WORLD_W   384u
+#define CELL_HOME 5
+static const unsigned char grid[4][6] = {
+    { 0, 0, 1, 0, 0, 0 },       /* the continents are d + 1, by compass */
+    { 4, 0, CELL_HOME, 0, 2, 0 },
+    { 0, 0, 3, 0, 0, 0 },
+    { 0, 0, 0, 0, 0, 0 },
+};
+#define ISLE_TOP 16             /* a continent's first row in its cell */
+
+unsigned int  wx;               /* the hero's square in the world */
+unsigned char wy;
+static unsigned int out_wx;     /* where you went into a place */
+static unsigned char out_wy;
+
+/* Each continent's places (its story place, then its town), its biome. */
+static unsigned char ipx[4][2], ipy[4][2], ibiome[4];
+
+/* Ships: one beside each of Keldmarch's ports and each continent's landing,
+   where they were left. Any can be taken (this is a demo); the hero becomes
+   one on the water and leaves it at the last water square on landing. */
+#define SHIPS 8
+unsigned int  ship_x[SHIPS];
+unsigned char ship_y[SHIPS];
+unsigned char boat;             /* 1 + the ship you are in, or 0 */
 
 /* What the game's own modules here (the land and town generators, the
    dungeon's, the vault) read and write of game.c's and actor.c's: defined
@@ -146,7 +202,9 @@ unsigned char whole     = 0;    /* 1: a roof change redraws everything, for
 unsigned char reu_found;
 
 /* What the screen is doing, for --peek. */
-unsigned char hx, hy;           /* the hero's square, biased by BIAS */
+unsigned char hx, hy;           /* the hero's square, as the engine has it:
+                                   biased by BIAS in a place, the world's
+                                   round 128 on the overworld */
 unsigned char late;             /* frames the main loop missed */
 unsigned char shore_time;       /* jiffies sm_shores() took */
 unsigned char switch_time;      /* jiffies the last way in or out took */
@@ -192,47 +250,408 @@ static void build_some(void)
 
 #define NONE 0xFF
 
+/* Which continent holds which story place: a shuffle of the seed, as the
+   game has it (game.c's, which is not linked). */
+unsigned char slot_of(unsigned char d)
+{
+    unsigned char p[4], i, j, t, v = lore_seed;
+
+    for (i = 0; i < 4; ++i) {
+        p[i] = i;
+    }
+    for (i = 3; i > 0; --i) {
+        v = v * 5 + 3;
+        j = (v >> 5) % (i + 1);
+        t = p[i]; p[i] = p[j]; p[j] = t;
+    }
+    return p[d];
+}
+
+/* The continents' cells, by compass point. */
+static const unsigned char cell_x[4] = { 2, 4, 2, 0 };
+static const unsigned char cell_y[4] = { 0, 1, 2, 1 };
+
+/* Where square (x, y) of the world is kept, or 0 for the sea; and in `run`,
+   how many squares on from it, along its row (or down its column), are
+   kept the same way. */
+static unsigned char run;
+
+static unsigned char *kept_at(unsigned int x, unsigned char y,
+                              unsigned char down)
+{
+    unsigned char lx = x & 63, ly = y & 63, k = grid[y >> 6][x >> 6];
+
+    run = 64 - (down ? ly : lx);
+    if (k == CELL_HOME) {
+        return (unsigned char *)0xD000 + ((unsigned int)ly << 6) + lx;
+    }
+    if (!k || ly >= ISLE_TOP + ISLE_H) {
+        return 0;
+    }
+    if (ly < ISLE_TOP) {
+        if (down) {
+            run = ISLE_TOP - ly;
+        }
+        return 0;
+    }
+    if (down) {
+        run = ISLE_TOP + ISLE_H - ly;
+    }
+    return (unsigned char *)0xE000 + (unsigned int)(k - 1) * 0x800 +
+           ((unsigned int)(ly - ISLE_TOP) << 6) + lx;
+}
+
+/* n squares of the world from (x, y), along the row or down the column,
+   into the window. A run never crosses a cell, so never the window's
+   wrap either (both are at multiples of 64). */
+/* A column of the world, from one a world's width either side of it:
+   cheaper than %, which is a division. */
+static unsigned int wrapx(unsigned int x)
+{
+    return x >= WORLD_W * 2 ? x - WORLD_W * 2 : x >= WORLD_W ? x - WORLD_W : x;
+}
+
+static void load_run(unsigned int x, unsigned char y, unsigned char n,
+                     unsigned char down)
+{
+    while (n) {
+        vc_src = kept_at(x, y, down);
+        if (!vc_src) {
+            vc_src = (unsigned char *)T_WATER;  /* sm_vcopy fills with it */
+        }
+        vc_n = run < n ? run : n;
+        vc_dst = WORLD + ((unsigned int)(y & 63) << 6) + (x & 63);
+        vc_sstep = vc_dstep = down ? 64 : 1;
+        sm_vcopy();
+        n -= vc_n;
+        if (down) {
+            y += vc_n;
+        } else {
+            x = wrapx(x + vc_n);
+        }
+    }
+}
+
+/* The window is 64 by 64, but only what is LOAD round the hero is kept in
+   it: the edges need a square more than theirs (EDGE_X, EDGE_Y), and a few
+   steps' lag. */
+#define LOAD 16
+static void load_col(unsigned int x)
+{
+    load_run(x, wy - LOAD, LOAD * 2 + 1, 1);
+}
+
+static void load_row(unsigned char y)
+{
+    load_run(wrapx(wx + WORLD_W - LOAD), y, LOAD * 2 + 1, 0);
+}
+
+static void fill_window(void)
+{
+    unsigned char r;
+
+    for (r = 0; r < 64; ++r) {  /* all of it, for sm_shores() */
+        load_run(wrapx(wx + WORLD_W - 32), wy - 32 + r, 64, 0);
+    }
+}
+
+/* --- Streaming: what a step leaves to do ----------------------------------
+
+   Loading a column or a row, and working out the edges of the one behind
+   it (in two halves, each under a frame): done one a frame, in frames with
+   nothing else to build, in the order they were asked for. The window has
+   room to lag: what is loaded is 32 squares off, what is seen 10. */
+
+#define J_COL    0              /* a = the column, in the world */
+#define J_ROW    1              /* a = the row */
+#define J_ECOL   2              /* edges down column a, from row b: in */
+#define J_EROW   5              /* thirds; along row a, from column b */
+#define JOBS     32
+#define EDGE_X   14             /* the edges are kept this far round the */
+#define EDGE_Y   10             /* hero; the view needs 11 by 7 */
+static unsigned char job_kind[JOBS];
+static unsigned int  job_a[JOBS];
+static unsigned char job_b[JOBS];
+unsigned char job_head, job_tail;     /* not static: tests peek them */
+/* The step that ended last frame, + 1, until what it brings is seen to: the
+   window's jobs and the ships in view. Not in the frame the step ended,
+   which starts the next one too, and has no room for it on a diagonal. */
+static unsigned char after;
+/* How many raster lines each kind takes, at most: a guess to start with,
+   and then the most that jobs() has measured. Small jobs, so that they fit
+   what a frame has left. */
+unsigned char job_lines[8] = { 60, 60, 90, 90, 90, 90, 90, 90 };
+
+/* The edges of n squares of the window from (x, y) (each 0-63), down or
+   across, in as many pieces as the window's wrap cuts them into. */
+static void edges(unsigned char x, unsigned char y, unsigned char n,
+                  unsigned char down)
+{
+    unsigned char m;
+
+    while (n) {
+        m = 64 - (down ? y : x);
+        if (m > n) {
+            m = n;
+        }
+        sm_sh_x0 = x;
+        sm_sh_y0 = y;
+        if (down) {
+            sm_sh_x1 = x;
+            sm_sh_y1 = y + m - 1;
+            y = 0;
+        } else {
+            sm_sh_x1 = x + m - 1;
+            sm_sh_y1 = y;
+            x = 0;
+        }
+        sm_shores_rect();
+        n -= m;
+    }
+}
+
+/* One job of the window's, the oldest. A column or a row it takes in is
+   wherever the window is when it runs; the edges are where it was when they
+   were asked for, so that the thirds agree, and they are far enough ahead
+   of the view (EDGE_X, EDGE_Y) to be a few steps late. */
+static void job_run(void)
+{
+    unsigned char k, a, b;
+
+    k = job_kind[job_head];
+    a = (unsigned char)job_a[job_head] & 63;
+    b = job_b[job_head];
+    if (k == J_COL) {
+        load_col(job_a[job_head]);
+    } else if (k == J_ROW) {
+        load_row((unsigned char)job_a[job_head]);
+    } else if (k < J_EROW) {    /* 21 rows: 7 each */
+        k -= J_ECOL;
+        edges(a, (b + k * 7) & 63, 7, 1);
+    } else {                    /* 29 columns: 10, 10, 9 */
+        k -= J_EROW;
+        edges((b + k * 10) & 63, a, k == 2 ? 9 : 10, 0);
+    }
+    job_head = (job_head + 1) % JOBS;
+}
+
+static void job_add(unsigned char kind, unsigned int a, unsigned char b)
+{
+    if ((job_tail + 1) % JOBS == job_head) {
+        job_run();              /* behind by more than the queue holds */
+    }
+    job_kind[job_tail] = kind;
+    job_a[job_tail] = a;
+    job_b[job_tail] = b & 63;
+    job_tail = (job_tail + 1) % JOBS;
+}
+
+/* Whatever of the queue fits in what is left of this frame: the raster
+   lines before the interrupt at 250, which starts the next. */
+static void jobs(void)
+{
+    unsigned int r, t, n = PEEK(0x2A6) ? 312 : 263;     /* PAL or NTSC */
+    unsigned char k;
+
+    while (job_head != job_tail && sm_frame == frame) {
+        r = VIC.rasterline | ((VIC.ctrl1 & 0x80) << 1);
+        t = r <= 250 ? 250 - r : 250 + n - r;
+        k = job_kind[job_head];
+        if (t < job_lines[k]) {
+            return;
+        }
+        job_run();
+        /* What it took, if the interrupt did not come in the middle: the
+           most yet is what that kind is given from now on. */
+        t = VIC.rasterline | ((VIC.ctrl1 & 0x80) << 1);
+        t = t >= r ? t - r : t + n - r;
+        if (sm_frame == frame && t > job_lines[k] && t < 250) {
+            job_lines[k] = (unsigned char)t;
+        }
+    }
+}
+
+/* After a step of (dx, dy): the column and row it brings into the window,
+   and the edges of the ones inside them, whose neighbours they are. */
+static void stream(signed char dx, signed char dy)
+{
+    unsigned char k, e;
+
+    if (dx) {
+        job_add(J_COL, wrapx(dx > 0 ? wx + LOAD : wx + WORLD_W - LOAD), 0);
+    }
+    if (dy) {
+        job_add(J_ROW, (unsigned char)(dy > 0 ? wy + LOAD : wy - LOAD), 0);
+    }
+    if (dx) {
+        e = wx + (dx > 0 ? EDGE_X : 64 - EDGE_X);
+        for (k = 0; k < 3; ++k) {
+            job_add(J_ECOL + k, e, wy - EDGE_Y);
+        }
+    }
+    if (dy) {
+        e = wy + (dy > 0 ? EDGE_Y : 256 - EDGE_Y);
+        for (k = 0; k < 3; ++k) {
+            job_add(J_EROW + k, e, wx - EDGE_X);
+        }
+    }
+}
+
+/* --- Ships ----------------------------------------------------------------- */
+
+
+static unsigned char ship_at(unsigned int x, unsigned char y)
+{
+    unsigned char i;
+
+    for (i = 0; i < SHIPS; ++i) {
+        if (ship_y[i] == y && ship_x[i] == x && boat != i + 1) {
+            return i;
+        }
+    }
+    return NONE;
+}
+
+/* A ship on the water beside (x, y) of a land's own map, at that land's
+   place in the world. `home` says which map: Keldmarch's in the vault, or
+   a continent's in local[]. */
+static void moor(unsigned char i, unsigned char x, unsigned char y,
+                 unsigned int ox, unsigned char oy, unsigned char home)
+{
+    static const signed char mx[4] = { 0, 1, 0, -1 };
+    static const signed char my[4] = { -1, 0, 1, 0 };
+    unsigned char d, nx, ny, t;
+
+    for (d = 0; d < 4; ++d) {
+        nx = x + mx[d];
+        ny = y + my[d];
+        if (nx >= 64 || ny >= (home ? 64 : ISLE_H)) {
+            continue;
+        }
+        t = home ? vault_tile(nx, ny) : local[LOCAL_AT(nx, ny)];
+        if (t == T_WATER) {
+            break;
+        }
+    }
+    ship_x[i] = ox + nx;
+    ship_y[i] = oy + ny;
+}
+
+/* The ships within sight, as sprites 1-7 (sm_npcs places them). */
+static void show_ships(void)
+{
+    unsigned char i, n = 0;
+    int dx;
+    signed char dy;
+
+    for (i = 0; i < SHIPS && n < 7; ++i) {
+        if (boat == i + 1) {
+            continue;
+        }
+        dx = (int)(ship_x[i] - wx);
+        if (dx < -(int)WORLD_W / 2) {
+            dx += WORLD_W;
+        } else if (dx >= (int)WORLD_W / 2) {
+            dx -= WORLD_W;
+        }
+        dy = (signed char)(ship_y[i] - wy);
+        if (dx < -12 || dx > 12 || dy < -9 || dy > 9) {
+            continue;
+        }
+        sm_npc_x[n] = ship_x[i] & 127;
+        sm_npc_y[n] = ship_y[i] & 127;
+        POKE(0x43F9 + n, SHIP_FRAME + 1);
+        POKE(0x47F9 + n, SHIP_FRAME + 1);
+        POKE(0xD028 + n, COLOR_BROWN);
+        ++n;
+    }
+    VIC.spr_mcolor = 0xFF;
+    sm_npc_n = n;
+}
+
+/* The hero's frame: walking, or a ship facing the way it last went across. */
+static unsigned char ship_face = 1;
+
+static unsigned char hero_frame(unsigned char d, unsigned char st)
+{
+    if (!boat) {
+        return facing[d] * 2 + st;
+    }
+    if (facing[d] == DIR_LEFT) {
+        ship_face = 0;
+    } else if (facing[d] == DIR_RIGHT) {
+        ship_face = 1;
+    }
+    return 9 + ship_face;
+}
+
+/* --- Building the world -------------------------------------------------- */
+
+extern unsigned char _OWLOW_LOAD__[], _OWLOW_SIZE__[];
+static unsigned char shown;    /* the scrolling screen is up */
+
 static void build_world(void)
 {
-    unsigned char y;
+    unsigned char d;
 
-    lore_seed  = seed;
-    isle_story = seed & 1;
-    isle_build(ISLE_HOME);
-    land       = ISLE_HOME;     /* for town_gen(), which follows its biome */
-    home_biome = isle_biome;
-    for (y = 0; y < 64; ++y) {
-        vault_row(y, WORLD + (unsigned int)y * 64);
+    lore_seed = seed;
+    for (d = 0; d < 4; ++d) {   /* the continents, into the vault */
+        if (!shown) {
+            cputc('.');     /* the text screen, which is $0400 */
+        }
+        isle_story = slot_of(d) & 1;
+        isle_build(d);
+        ipx[d][0] = isle_fx[0];
+        ipy[d][0] = isle_fy[0];
+        ipx[d][1] = isle_fx[1];
+        ipy[d][1] = isle_fy[1];
+        ibiome[d] = isle_biome;
+        moor(4 + d, isle_dock_x, isle_dock_y, cell_x[d] * 64u,
+             cell_y[d] * 64 + ISLE_TOP, 0);
+        vault_park(d);
     }
+    if (!shown) {
+        cputc('.');
+    }
+    isle_build(ISLE_HOME);      /* and home, in place */
+    land       = ISLE_HOME;
+    home_biome = isle_biome;
+    memcpy(home_fx, isle_fx, NUM_HOME_PLACES);
+    memcpy(home_fy, isle_fy, NUM_HOME_PLACES);
+    for (d = 0; d < 4; ++d) {
+        moor(d, isle_port_x[d], isle_port_y[d], 128, 64, 1);
+    }
+    boat = 0;
+    job_head = job_tail = 0;
+    wx = 128 + home_fx[0];      /* Millford */
+    wy = 64 + home_fy[0];
+    hx = wx & 127;
+    hy = wy & 127;
+    sm_torus = 1;
+    fill_window();
     shore_time = PEEK(0xA2);
     sm_shores();
     shore_time = PEEK(0xA2) - shore_time;
-    hx = isle_fx[0] + BIAS;     /* Millford */
-    hy = isle_fy[0] + BIAS;
 }
 
 static void place_camera(void)
 {
-    unsigned int cam;
-
-    cam   = (unsigned int)hx * 16 - HERO_PX;
-    sm_ox = (unsigned char)(cam >> 3);
-    sm_fx = (unsigned char)cam & 7;
-    cam   = (unsigned int)hy * 16 - HERO_PY;
-    sm_oy = (unsigned char)(cam >> 3);
-    sm_fy = (unsigned char)cam & 7;
+    /* The square's top left at (148, 84) on the screen: 2 * square - 18.5
+       characters, so four pixels into one. */
+    sm_ox = hx * 2 - HERO_PX / 8 - 1;
+    sm_fx = 8 - (HERO_PX & 7);
+    sm_oy = hy * 2 - HERO_PY / 8 - 1;
+    sm_fy = 8 - (HERO_PY & 7);
 }
 
 /* What is really at a square: in a place, local[], where it was built
-   (WORLD has its roofs drawn over it); on the overworld, WORLD. */
+   (WORLD has its roofs drawn over it); on the overworld, the window. */
 static unsigned char tile_at(unsigned char x, unsigned char y)
 {
-    x -= BIAS;
-    y -= BIAS;
     if (area != AREA_HOME) {
-        return local[LOCAL_AT(x, y)];
+        return local[LOCAL_AT(x - BIAS, y - BIAS)];
     }
-    return WORLD[(unsigned int)y * 64 + x];
+    return WORLD[((unsigned int)(y & 63) << 6) | (x & 63)];
 }
 
 static unsigned char passable(unsigned char x, unsigned char y)
@@ -251,12 +670,34 @@ static unsigned char passable(unsigned char x, unsigned char y)
     return ow_pass[(tile_at(x, y) - 0x60) & 63];
 }
 
+/* On the overworld, the square dx, dy from the hero: on foot, land, or a
+   ship to board; in a ship, open water, or land to step off onto. */
+static unsigned char world_ok(signed char dx, signed char dy)
+{
+    unsigned int x = wrapx(wx + WORLD_W + dx);
+    unsigned char y = wy + dy, t = tile_at(x, y);
+
+    if (t == T_WATER && ship_at(x, y) != NONE) {
+        return !boat;           /* board it; a ship cannot sail into one */
+    }
+    if (boat && t == T_WATER) {
+        return 1;
+    }
+    return ow_pass[(t - 0x60) & 63];
+}
+
 /* Whether a step that way can be taken: onto open ground, and on a
    diagonal not squeezing between two corners, of sea or of mountain. */
 static unsigned char can_step(unsigned char d)
 {
     signed char dx = dirdx[d], dy = dirdy[d];
 
+    if (area == AREA_HOME) {
+        if (!world_ok(dx, dy)) {
+            return 0;
+        }
+        return !dx || !dy || world_ok(dx, 0) || world_ok(0, dy);
+    }
     if (!passable(hx + dx, hy + dy)) {
         return 0;
     }
@@ -294,14 +735,24 @@ static void next_frame(void)
 }
 
 /* The screen off, and the overworld put away if that is where you are. */
+#pragma code-name (push, "HICODE")  /* places, roofs, arriving: MAIN is full */
 static void leave_area(void)
 {
     switch_time = PEEK(0xA2);
     sm_blank(1);
     next_frame();               /* the blank has reached the screen */
     if (area == AREA_HOME) {
-        out_x = hx;
-        out_y = hy;
+        /* The window finished first: what the REU keeps, it puts back,
+           and a place's map must not get the overworld's jobs. */
+        if (after) {
+            stream(dirdx[after - 1], dirdy[after - 1]);
+            after = 0;
+        }
+        while (job_head != job_tail) {
+            job_run();
+        }
+        out_wx = wx;
+        out_wy = wy;
         kept = sm_reu;
         if (kept) {
             sm_reu_keep(1);
@@ -317,6 +768,7 @@ static void build_area(const unsigned char *set, unsigned char w,
     unsigned char y;
 
     sm_npc_n = 0;               /* nobody, until add_people() */
+    sm_torus = 0;               /* a place has edges */
     sm_tileset(set);
     memset(WORLD, sm_offtile, 64 * 64);
     for (y = 0; y < h; ++y) {
@@ -367,6 +819,7 @@ static unsigned char barrier(unsigned char t)
 
 /* Everything joined to (x, y) that is not a wall or a door, as `r`. The
    queue is in SHORE, which sm_shores() fills afresh afterwards. */
+#pragma code-name (push, "OWLOW")   /* run at $0400: see main() */
 static void flood(unsigned char x, unsigned char y, unsigned char r)
 {
     static const signed char fx[4] = { 1, -1, 0, 0 };
@@ -398,6 +851,8 @@ static void flood(unsigned char x, unsigned char y, unsigned char r)
         }
     }
 }
+
+#pragma code-name (pop)
 
 static void find_owners(void);
 
@@ -484,6 +939,7 @@ static void find_owners(void)
    off and went on). */
 static unsigned char bx0, by0, bx1, by1;
 
+#pragma code-name (push, "OWLOW")
 static void put_roofs(void)
 {
     unsigned char x, y, t, r;
@@ -513,6 +969,8 @@ static void put_roofs(void)
 
 /* The people, as sprites 1 to 7, but for those under a roof: where they
    stand, and a robe each (by who they are, so it stays theirs). */
+#pragma code-name (pop)
+
 static void show_people(void)
 {
     const TownEnt *e = here_ents;
@@ -655,14 +1113,17 @@ static void roof_check(void)
     frame = sm_frame;
 }
 
-/* The camera on the hero at (x, y) of the new area, drawn, and on. */
+/* The camera on the hero at engine square (x, y) of the new area, drawn,
+   and on. */
+#pragma code-name (pop)
+
 static void show_area(unsigned char x, unsigned char y)
 {
     if (!(area == AREA_HOME && kept)) {
         sm_shores();            /* (the REU kept the overworld's) */
     }
-    hx = x + BIAS;
-    hy = y + BIAS;
+    hx = x;
+    hy = y;
     place_camera();
     sm_draw_all();
     sm_npcs();
@@ -701,39 +1162,49 @@ static void go_town(unsigned char index)
     show_people();
     ex = here_ex;
     ey = here_ey;
-    show_area(hero.x, hero.y);
+    show_area(hero.x + BIAS, hero.y + BIAS);
 }
 
-/* Level `depth` of the first dungeon, the Hollow Crown, standing on the
-   stairs you came by: up if you came down, down if you came up. */
+/* Level `depth` of dungeon dun_index (the Hollow Crown at home, the
+   Drowned Stair or Blackpit across the sea), standing on the stairs you
+   came by: up if you came down, down if you came up. */
 static void dungeon_level(unsigned char came_down)
 {
-    dungeon_build(0, depth);
+    dungeon_build(dun_index, depth);
     build_area(ts_dungeon, DUN_W, DUN_H);
     if (came_down) {
-        show_area(dun_up_x, dun_up_y);
+        show_area(dun_up_x + BIAS, dun_up_y + BIAS);
     } else {
-        show_area(dun_dn_x, dun_dn_y);
+        show_area(dun_dn_x + BIAS, dun_dn_y + BIAS);
     }
+}
+
+static void go_dungeon(unsigned char index)
+{
+    leave_area();
+    area = AREA_DUNGEON;
+    dun_index = index;
+    depth = 1;
+    dungeon_level(1);
 }
 
 static void back_home(void)
 {
-    unsigned char y;
-
     leave_area();
     area = AREA_HOME;
     sm_npc_n = 0;               /* the town's people stay in the town */
     sm_tileset(ts_overworld);
+    sm_torus = 1;
     area_w = area_h = 64;
+    wx = out_wx;
+    wy = out_wy;
     if (kept) {
-        sm_reu_keep(0);
+        sm_reu_keep(0);         /* the window as it was, edges and all */
     } else {
-        for (y = 0; y < 64; ++y) {
-            vault_row(y, WORLD + (unsigned int)y * 64);
-        }
+        fill_window();          /* (show_area works out the edges) */
     }
-    show_area(out_x - BIAS, out_y - BIAS);
+    show_ships();
+    show_area(wx & 127, wy & 127);
 }
 
 /* At the end of a step: whatever the square does. Home's places are, in
@@ -741,32 +1212,55 @@ static void back_home(void)
    (which is the dragon, and not here) and a town of its own. */
 static void arrived(void)
 {
-    unsigned char t = tile_at(hx, hy), i;
+    unsigned char t = tile_at(hx, hy), i, k, lx, ly, d;
 
     switch (area) {
     case AREA_HOME:
         if (t != T_TOWN && t != T_CASTLE && t != T_DUNGEON) {
             return;
         }
-        for (i = 0; i < 5; ++i) {
-            if (isle_fx[i] + BIAS == hx && isle_fy[i] + BIAS == hy) {
-                break;
+        k = grid[wy >> 6][wx >> 6];
+        lx = wx & 63;
+        ly = wy & 63;
+        if (k == CELL_HOME) {
+            for (i = 0; i < 5; ++i) {
+                if (home_fx[i] == lx && home_fy[i] == ly) {
+                    break;
+                }
             }
-        }
-        switch (i) {
-        case 0: go_town(TOWN_MILLFORD); break;
-        case 1: go_town(TOWN_CASTLE);   break;
-        case 2:
-            leave_area();
-            area = AREA_DUNGEON;
-            depth = 1;
-            dungeon_level(1);
-            break;
-        case 4: go_town(TOWN_PROC);     break;
+            land = ISLE_HOME;
+            switch (i) {
+            case 0: go_town(TOWN_MILLFORD); break;
+            case 1: go_town(TOWN_CASTLE);   break;
+            case 2: go_dungeon(0);          break;
+            case 4: go_town(TOWN_PROC);     break;
+            }
+        } else if (k) {
+            /* A continent's: its story place (a town or a dungeon, by the
+               seed's shuffle), or its own town. */
+            k -= 1;
+            ly -= ISLE_TOP;
+            for (i = 0; i < 2; ++i) {
+                if (ipx[k][i] == lx && ipy[k][i] == ly) {
+                    break;
+                }
+            }
+            land = k;
+            isle_biome = ibiome[k];
+            if (i == 0) {
+                d = slot_of(k);
+                if (d & 1) {
+                    go_dungeon(1 + (d >> 1));
+                } else {
+                    go_town(TOWN_WARDLOW + (d >> 1));
+                }
+            } else if (i == 1) {
+                go_town(TOWN_PROC);
+            }
         }
         break;
     case AREA_DUNGEON:
-        if (t == T_STAIRDN && depth < dungeon_deep[0]) {
+        if (t == T_STAIRDN && depth < dungeon_deep[dun_index]) {
             leave_area();
             ++depth;
             dungeon_level(1);
@@ -791,9 +1285,10 @@ static void arrived(void)
 }
 
 /* Something typed: a step, or a setting. PETSCII. */
-static unsigned char typed(void)
+#pragma code-name (push, "OWTOP")  /* past the sprite blocks: MAIN is full */
+static unsigned char key_dir(unsigned char k)
 {
-    switch (cbm_k_getin()) {
+    switch (k) {
     case 'w': case 0x91: return DIR_UP;
     case 's': case 0x11: return DIR_DOWN;
     case 'a': case 0x9D: return DIR_LEFT;
@@ -802,6 +1297,18 @@ static unsigned char typed(void)
     case 'e': return DIR_UR;
     case 'z': return DIR_DL;
     case 'c': return DIR_DR;
+    }
+    return NONE;
+}
+
+static unsigned char typed(void)
+{
+    unsigned char k = cbm_k_getin(), d = key_dir(k);
+
+    if (d != NONE) {
+        return d;
+    }
+    switch (k) {
     case '1': speed = 1; break;
     case '2': speed = 2; break;
     case 'r':
@@ -817,6 +1324,10 @@ static unsigned char typed(void)
         build_world();
         place_camera();
         sm_draw_all();
+        show_ships();
+        sm_npcs();
+        sm_sprite(hero_frame(DIR_DOWN, 0));
+        VIC.spr0_color = COLOR_RED;
         frame = sm_frame;       /* seconds went by: not frames missed */
         break;
     }
@@ -834,6 +1345,7 @@ static void publish(void)
     PROBE_SCRATCH[6] = area;
     PROBE_SCRATCH[7] = depth;
 }
+#pragma code-name (pop)
 
 /* The frame's camera, `moved` pixels into the step, and the screen
    flipped if that takes it into another character. Returns whether it
@@ -880,9 +1392,44 @@ static unsigned char glide(void)
     return flip;
 }
 
+/* The end of a step on the overworld: where the hero is in the world;
+   on to a ship, or off one onto land, leaving it at the last of the water;
+   and what the window has to take in. */
+static void step_world(void)
+{
+    unsigned char s;
+
+    wx = wrapx(wx + WORLD_W + (signed char)dirdx[dir]);
+    wy += dirdy[dir];
+    hx = wx & 127;
+    hy = wy & 127;
+    if (!boat) {
+        s = ship_at(wx, wy);
+        if (s != NONE) {
+            boat = s + 1;
+            VIC.spr0_color = COLOR_BROWN;
+            sm_sprite(hero_frame(dir, 0));
+        }
+    } else if (tile_at(hx, hy) == T_WATER) {
+        ship_x[boat - 1] = wx;      /* the ship goes where you sail it */
+        ship_y[boat - 1] = wy;
+    } else {
+        boat = 0;                   /* ashore: it stays where it was */
+        VIC.spr0_color = COLOR_RED;
+        sm_sprite(hero_frame(dir, stride));
+    }
+    after = dir + 1;            /* and the rest next frame: see main() */
+}
+
 int main(void)
 {
     unsigned char d, flipped;
+
+    /* The C stack, which cc65 starts at the top of MAIN, into the tape
+       buffer instead ($0334-$03FF, down from $0400), which nothing else
+       here uses: MAIN is full to the last byte. (main() keeps nothing on
+       it, and never returns.) */
+    sm_stack();
 
     bgcolor(COLOR_BLACK);
     bordercolor(COLOR_BLACK);
@@ -901,14 +1448,20 @@ int main(void)
                            "the REU scrolls (R turns it off).\r\n" :
                            "REU found, but DMA does not reach colour\r\n"
                            "RAM: the CPU scrolls.\r\n");
-    cputs("\r\nBuilding Keldmarch...");
+    cputs("\r\nBuilding the world");
     build_world();
+    /* The text screen is done with: the code that runs at $0400 comes out
+       of screen A's space, which nothing has drawn on yet. */
+    shown = 1;
+    memcpy((void *)0x0400, _OWLOW_LOAD__, (unsigned)_OWLOW_SIZE__);
 
     sm_init();
     place_camera();
     sm_draw_all();
     sm_sprite(0);
     sm_show();
+    show_ships();
+    sm_npcs();
 
     while (kbhit()) {
         cgetc();
@@ -933,6 +1486,12 @@ int main(void)
         }
         frame = sm_frame;
         PROBE_COUNTER = frame;
+        if (after) {
+            stream(dirdx[after - 1], dirdy[after - 1]);
+            show_ships();
+            sm_npcs();
+            after = 0;
+        }
 
         if (moving) {
             if (freeze_at && moved == freeze_at && steps >= freeze_after) {
@@ -947,7 +1506,7 @@ int main(void)
                 sm_npcs();      /* the people move with the map */
             }
             if (moved == 8) {
-                sm_sprite(facing[dir] * 2 + (stride ^= 1));
+                sm_sprite(hero_frame(dir, stride ^= 1));
             }
             if (flipped) {
                 /* The old front is on show until the interrupt: build from
@@ -955,13 +1514,28 @@ int main(void)
                 if (moved < 9) {
                     phase = SHIFT;
                 }
-            } else {
+            } else if (phase != BUILT) {
                 build_some();
+            } else if (moved > 12) {
+                /* Nothing left to build this step: get the copy ready for
+                   the next one, if it can be seen coming, so the frame
+                   that ends this step and starts it has only to copy. */
+                d = held();
+                if (d == NONE && PEEK(0xC6)) {
+                    d = key_dir(PEEK(0x277));
+                }
+                if (d != NONE) {
+                    sm_prep(d);
+                }
             }
             if (moved == 16) {
                 moving = 0;
-                hx += dirdx[dir];
-                hy += dirdy[dir];
+                if (area == AREA_HOME) {
+                    step_world();
+                } else {
+                    hx += dirdx[dir];
+                    hy += dirdy[dir];
+                }
                 ++steps;
                 arrived();
                 publish();
@@ -981,7 +1555,7 @@ int main(void)
                 d = typed();
             }
             if (d != NONE) {
-                sm_sprite(facing[d] * 2 + stride);
+                sm_sprite(hero_frame(d, stride));
                 if (can_step(d)) {
                     dir = d;
                     moving = 1;
@@ -990,11 +1564,15 @@ int main(void)
                     camy0 = (unsigned int)sm_oy * 8 + sm_fy;
                     phase = SHIFT;
                     build_some();   /* and the edges in the next frames */
-                    sm_sprite(facing[dir] * 2 + (stride ^= 1));
+                    sm_sprite(hero_frame(dir, stride ^= 1));
                 }
             } else if (PEEK(0xC6) == 0 && steps != 0) {
                 probe_stage(2);
             }
+        }
+        /* A frame with nothing built in it: the window's next job. */
+        if (area == AREA_HOME) {
+            jobs();
         }
         flipped = 0;
     }
