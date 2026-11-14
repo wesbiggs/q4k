@@ -22,7 +22,9 @@
 #     is a variant, picked by a hash of the square, so a field of grass is
 #     not one stamp repeated. One colour is the whole metatile's; four are
 #     its quadrants, top left, top right, bottom left, bottom right.
-# shore <colour>                 the beaches, below
+# shore <colour> [<headland colour>] [against <tile>...]
+#                               the beaches, below: where water meets land
+#                               (or only the tiles named)
 # sprite <name>                 8 double-width pixels by 16 rows:
 #     k  $D025 (shared)   s  $D026 (shared)   t  the sprite's own colour
 #

@@ -168,6 +168,7 @@ sy:         .res 1              ; sm_shores' workings
 dmask:      .res 1
 inv:        .res 1
 sel:        .res 1
+offflag:    .res 1              ; the flags of what is beyond the map
 probe_buf:  .res 8              ; sm_reu_detect's test bytes
 above:      .res 66             ; sm_shores' rows of flags
 cur:        .res 66
@@ -300,10 +301,11 @@ char_at:
 ; ---------------------------------------------------------------------------
 ; void sm_shores(void) -- SHORE from WORLD (see the top): for each square
 ; that takes edges (ow_bsel), a bit for each neighbour that makes one,
-; north first and then clockwise. Off the map is sea. Three rows of
-; neighbour flags (ow_nflag) roll down the map, each with a square of sea
-; either side, so every neighbour is a load, a mask and a rotate, with no
-; edge to test. Built once a land.
+; north first and then clockwise. Three rows of
+; neighbour flags (ow_nflag) roll down the map, each with a square of what
+; is beyond the map (the set's offmap tile: sea outside, grass round the
+; castle) either side, so every neighbour is a load, a mask and a rotate,
+; with no edge to test. Built once a land.
 
 ; The row at ptr3 as flags, into `below` (index x + 1): ow_nflag's, bit 0
 ; land, bit 1 open ground.
@@ -320,7 +322,13 @@ dryrow: ldy     #63
         rts
 
 _sm_shores:
-        lda     #0
+        lda     _sm_offtile     ; beyond the map: what the set says is there
+        sec
+        sbc     #TBASE
+        and     #63
+        tax
+        lda     ow_nflag,x
+        sta     offflag
         ldx     #65
 :       sta     above,x
         sta     cur,x
@@ -356,7 +364,7 @@ _sm_shores:
 :       lda     sy
         cmp     #63
         bne     :+
-        lda     #0              ; below the bottom row: sea
+        lda     offflag         ; below the bottom row: what is off the map
         ldx     #64
 @sea:   sta     below+1,x
         dex

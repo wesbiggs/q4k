@@ -424,7 +424,13 @@ town's cobbles fray into the grass (`fringe floor`, the overworld's masks)
 and its roofs round their outside corners, while the fronts and inside
 corners stay square, because what is beyond them may be cobbles or a room's
 floor rather than the grass the cut reveals. A terrain that is itself open
-ground (a floor) takes edges only from its `also` list. A town's way out is
+ground (a floor) takes edges only from its `also` list. The castle's moat
+has banks of mud where it meets the grass and nowhere else (`shore blue
+green against grass`: the water's own colour, the headland's, and the only
+land that makes a bank), so its walls still stand in the water.
+`sm_shores()` pads the map with the flags of the set's `offmap` tile, so
+the castle's grass does not round off toward the map's edge as if it were
+sea. A town's way out is
 its exit square; the dungeon's stairs go down and
 up, and up from level 1 is out. The overworld is put away going in: in the
 REU when there is one (`sm_reu_keep`, 8K, so coming out takes a third of a

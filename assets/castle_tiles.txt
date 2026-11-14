@@ -157,6 +157,20 @@ bbbbbb.b
 
 include places_common.txt
 
+# Where the moat meets the grass (and only there: the walls stand in it as
+# they are), a bank of mud, the overworld's beaches in the castle's colours:
+# the water is the characters' own blue and the bank the shared brown; the
+# fifth, a quarter of grass with water on two sides, is green blades.
+shore blue green against grass
+bbcc bbbb bbbb bbcc bbb.
+bbcc bbbb bbbb bccc bb..
+bccc cbbb bbbb cccc b...
+bbcc ccbc bbbc cccc b...
+bbbc cccc bbcc cccc ....
+bbcc cccc bbcc cccc ..c.
+bccc cccc bbcc cccc .c.c
+bbcc cccc bbcc cccc ....
+
 open floor grass door lockeddoor water drawbridge sword shield bow potion book shelf bed chest crown boulder
 
 # The wall-walk's edges, and the face: stone blocks with black mortar and a

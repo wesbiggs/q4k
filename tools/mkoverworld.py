@@ -112,7 +112,16 @@ def parse(path):
             # and the grass headland.
             v = [[r[k] for r in rows] for k in range(5)]
             seams(v, lineno, "shore")
-            shore = (colour(f[1], lineno, ram=True), v)
+            # shore <colour> [<headland colour>] [against <tile>...]: the
+            # beaches' own colour, the headland's if it differs, and what
+            # land makes a beach (anything not water, if not said).
+            against = None
+            if "against" in f:
+                against = f[f.index("against") + 1:]
+                f = f[:f.index("against")]
+            water_col = colour(f[1], lineno, ram=True)
+            head_col = colour(f[2], lineno, ram=True) if len(f) > 2 else water_col
+            shore = (water_col, v, head_col, against)
         elif f[0] == "edges":
             # edges <terrain>...: their edges drawn, not cut: beside, above, both,
             # diagonal, then beside and above for its second variant; eight
@@ -305,7 +314,8 @@ def build(setname):
     # sides; the fringe's terrains get their own art with the mask's squares
     # cut back to the background, and the drawn ones what is drawn; anything
     # else keeps its own character.
-    beach = shore and [[char(art_glyph(quarter(shore[1][v], q)), shore[0])
+    beach = shore and [[char(art_glyph(quarter(shore[1][v], q)),
+                             shore[0] if v < 4 else shore[2])
                         for v in range(5)] for q in range(4)]
     fringes, open_names, drawn, also = fringe
     for n in (list(fringes) + open_names + list(drawn) + list(also) +
@@ -350,7 +360,8 @@ def build(setname):
     # whether they count when set or when clear (binv): water's edges are
     # where land is, grass's where land is not (with a shore), a fringe's
     # where open ground or its `also` terrains are; 0 for none.
-    extra = sorted({m for v in also.values() for m in v})
+    against = shore[3] if shore else None
+    extra = sorted({m for v in also.values() for m in v} | set(against or []))
     bit_of = {m: 1 << (2 + k) for k, m in enumerate(extra)}
     if len(extra) > 6:
         sys.exit("mkoverworld: also: %d terrains, 6 at most" % len(extra))
@@ -361,7 +372,11 @@ def build(setname):
         nflag.append((name not in ("water", "port", "bridge")) |
                      (name in open_names) << 1 | bit_of.get(name, 0))
         if shore and name == "water":
-            sel, inv = 1, 0
+            sel, inv = 1, 0             # where land is ...
+            if against:                 # ... or only that land
+                sel = 0
+                for m in against:
+                    sel |= bit_of[m]
         elif shore and name == "grass":
             sel, inv = 1, 0xFF
         elif name in fringes or name in drawn:
