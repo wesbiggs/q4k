@@ -360,7 +360,7 @@ PALETTE = [
 
 
 def render_png(path, screen, colors, charset, border, background, scale=2,
-               sprites=None):
+               sprites=None, vic=None):
     """Draw the screen exactly as the VIC-II would, from emulated memory.
 
     VICE's -exitscreenshot only fires when the emulator quits, which is no use
@@ -376,19 +376,48 @@ def render_png(path, screen, colors, charset, border, background, scale=2,
     px = img.load()
     bg = PALETTE[background & 0x0F]
 
+    # Multicolour characters, fine scroll and the 38-column and 24-row
+    # borders, when the registers ask for them (the smooth-scrolling
+    # prototype does; the game uses none of it).
+    d016 = vic[0x16] if vic else 0x08
+    d011 = vic[0x11] if vic else 0x1B
+    multi = bool(d016 & 0x10)
+    shared = [bg, PALETTE[vic[0x22] & 0x0F] if vic else bg,
+              PALETTE[vic[0x23] & 0x0F] if vic else bg]
+    dx, dy = d016 & 7, (d011 & 7) - 3
+
     for cy in range(SCR_H):
         for cx in range(SCR_W):
             code = screen[cy * SCR_W + cx]
-            fg = PALETTE[colors[cy * SCR_W + cx] & 0x0F]
+            nyb = colors[cy * SCR_W + cx] & 0x0F
+            fg = PALETTE[nyb]
             glyph = charset[code * 8:code * 8 + 8]
             for row in range(8):
                 bits = glyph[row] if row < len(glyph) else 0
-                y = margin + cy * 8 + row
+                y = margin + cy * 8 + row + dy
+                if not margin <= y < margin + SCR_H * 8:
+                    continue
                 for bit in range(8):
-                    px[margin + cx * 8 + bit, y] = fg if bits & (0x80 >> bit) else bg
+                    x = margin + cx * 8 + bit + dx
+                    if x >= margin + SCR_W * 8:
+                        continue
+                    if multi and nyb & 8:
+                        pair = (bits >> (6 - (bit & 6))) & 3
+                        px[x, y] = shared[pair] if pair < 3 else PALETTE[nyb & 7]
+                    else:
+                        px[x, y] = fg if bits & (0x80 >> bit) else bg
 
     if sprites:
         draw_sprites(px, img.size, margin, *sprites)
+
+    edge = PALETTE[border & 0x0F]
+    left, right = (7, 9) if not d016 & 0x08 else (0, 0)
+    top, bottom = (4, 4) if not d011 & 0x08 else (0, 0)
+    for y in range(margin, margin + SCR_H * 8):
+        for x in range(margin, margin + SCR_W * 8):
+            if (x < margin + left or x >= margin + SCR_W * 8 - right
+                    or y < margin + top or y >= margin + SCR_H * 8 - bottom):
+                px[x, y] = edge
 
     if scale != 1:
         img = img.resize((img.width * scale, img.height * scale), Image.NEAREST)
@@ -400,8 +429,8 @@ def draw_sprites(px, size, margin, vic, pointers, fetch):
 
     Hi-res and multicolour, expanded or not, highest number drawn first so
     sprite 0 ends up on top. Sprite-behind-background priority is ignored:
-    q4k never sets it. `fetch(addr)` returns the sprite's 63 bytes; the VIC
-    bank is assumed to be 0, as it is for the charset.
+    q4k never sets it. `fetch(addr)` returns the sprite's 63 bytes, given its
+    address in the VIC's bank.
     """
     enabled = vic[0x15]
     for n in range(7, -1, -1):
@@ -528,30 +557,39 @@ def main():
             time.sleep(args.settle)
         elif args.stage > args.ready:
             stage = wait_for_stage(mon, args.stage, args.timeout)
-        screen = mon.mem_get(SCREEN_RAM, SCREEN_RAM + SCR_W * SCR_H - 1)
+        # Which 16K the VIC sees ($DD00 bits 1-0, inverted) and where in
+        # it the screen is ($D018 bits 7-4). The game keeps bank 0 and
+        # $0400; the smooth-scrolling prototype does not.
+        bank = (3 - (mon.mem_get(0xDD00, 0xDD00)[0] & 3)) * 0x4000
+        d018 = mon.mem_get(VIC_ADDR, VIC_ADDR)[0]
+        screen_at = bank + (d018 >> 4) * 0x400
+        screen = mon.mem_get(screen_at, screen_at + SCR_W * SCR_H - 1)
         # $D018 bits 3-1 select the charset base. $1000 is the uppercase ROM
         # set; $1800 is the lowercase one. Anything else is a RAM charset,
         # and q4k's is a copy of the lowercase set with tiles patched over it.
-        charset_base = (mon.mem_get(VIC_ADDR, VIC_ADDR)[0] & 0x0E) << 10
+        charset_base = (d018 & 0x0E) << 10
         lowercase = charset_base != 0x1000
+        rom_charset = bank in (0, 0x8000) and charset_base in (0x1000, 0x1800)
+        charset_base += bank
         colors = mon.mem_get(COLOR_RAM, COLOR_RAM + SCR_W * SCR_H - 1)
         if args.peek:
             report_peeks(mon, load_symbols(args.prg), args.peek)
         scratch = mon.mem_get(PROBE, PROBE + 19)
         vic = mon.mem_get(0xD000, 0xD02E)
-        pointers = mon.mem_get(SCREEN_RAM + 0x3F8, SCREEN_RAM + 0x3FF)
-        sprite_data = {p * 64: mon.mem_get(p * 64, p * 64 + 62)
+        pointers = mon.mem_get(screen_at + 0x3F8, screen_at + 0x3FF)
+        sprite_data = {p * 64: mon.mem_get(bank + p * 64, bank + p * 64 + 62)
                        for n, p in enumerate(pointers)
                        if vic[0x15] & (1 << n)}
         if args.shot:
-            if charset_base in (0x1000, 0x1800):
+            if rom_charset:
                 print("screendump: charset is in ROM; --shot needs a RAM "
                       "charset", file=sys.stderr)
             else:
                 charset = mon.mem_get(charset_base, charset_base + 0x7FF)
                 render_png(args.shot, screen, colors, charset,
                            vic[0x20], vic[0x21],
-                           sprites=(vic, pointers, sprite_data.__getitem__))
+                           sprites=(vic, pointers, sprite_data.__getitem__),
+                           vic=vic)
                 print("screendump: wrote %s" % args.shot, file=sys.stderr)
         mon.quit()
     finally:

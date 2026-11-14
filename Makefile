@@ -58,6 +58,8 @@ CFLAGS    = -t $(TARGET) $(OPT) --static-locals -I include \
             $(if $(filter 1,$(ONLINE)),-DQ4K_ONLINE)
 ASFLAGS  := -t $(TARGET) -I include --asm-include-dir include \
             --asm-define TALK_SIZE=$(TALK_SIZE)
+# openworld, the smooth-scrolling prototype, has a map of its own
+# (cfg/c64-openworld.cfg), with VIC bank 1 kept for its screens.
 # The game gets the full memory map; the demos and tools get a lean one that
 # skips the HIGH region and its contiguity padding.
 LDFLAGS  := -t $(TARGET)
@@ -72,7 +74,7 @@ DEPFLAGS  = -Wc --create-full-dep,$(@:.o=.d) -Wc --dep-target,$@
 # rule below). dungeontest links the maps and the font, arena the fights and
 # isletest the land, so they need the game's charset and probe page as well,
 # with everything in one load (cfg/c64-flat.cfg).
-LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest,$*),flat,tool).cfg
+LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest,$*),flat,$(if $(filter openworld,$*),openworld,tool)).cfg
 
 MAINS    := $(wildcard src/*.c)
 PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
@@ -168,6 +170,7 @@ GEN_FONT  := src/lib/font_data.c
 GEN_LOOT  := include/q4k/loot_data.h src/lib/loot_data.c
 GEN_VER   := include/q4k/version.h
 GEN_MUSIC := src/lib/music_data.s
+GEN_OW    := src/lib/ow_data.s
 
 # Where the letters come from. FONT_SOURCE is "rom" for the machine's own
 # character set, or a path to a C64 charset binary. FONT_STYLE only applies
@@ -182,7 +185,7 @@ FONT_SOURCE ?= rom
 FONT_STYLE  ?= bold
 
 assets: $(GEN_TILES) $(GEN_TOWN) $(GEN_ARENA) $(GEN_NAMES) $(GEN_GEO) $(GEN_FONT) \
-        $(GEN_LOOT) $(GEN_VER) $(GEN_MUSIC)
+        $(GEN_LOOT) $(GEN_VER) $(GEN_MUSIC) $(GEN_OW)
 
 # The version lives in VERSION alone; the release workflow checks the tag
 # against it. No Python needed, so this one is plain shell.
@@ -211,6 +214,9 @@ $(GEN_LOOT): assets/loot.txt assets/towns.txt \
 
 $(GEN_MUSIC): assets/theme.txt tools/mkmusic.py
 	tools/mkmusic.py
+
+$(GEN_OW): assets/overworld.txt assets/tiles.txt tools/mkoverworld.py
+	tools/mkoverworld.py
 
 $(GEN_NAMES): assets/names.txt tools/mknames.py
 	tools/mknames.py

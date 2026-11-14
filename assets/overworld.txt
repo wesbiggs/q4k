@@ -1,0 +1,459 @@
+# The overworld in multicolour: the smooth-scrolling prototype's tiles
+# (src/openworld.c, src/lib/smooth.s). tools/mkoverworld.py turns this into
+# src/lib/ow_data.s.
+#
+# Every square of the map is a metatile of 2x2 characters, 16 by 16 pixels,
+# drawn here as 16 rows of 8 double-width pixels:
+#
+#   .  background   $D021, shared by the whole screen
+#   a  multicolour 1 $D022, shared
+#   b  multicolour 2 $D023, shared
+#   c  the character's own colour, from colour RAM: 0-7 only
+#
+# palette  bg mc1 mc2           the three shared colours
+# tile <name> <colour> [<colour> <colour> <colour>]
+#     <name> is a tile of assets/tiles.txt; a second block with the same name
+#     is a variant, picked by a hash of the square, so a field of grass is
+#     not one stamp repeated. One colour is the whole metatile's; four are
+#     its quadrants, top left, top right, bottom left, bottom right.
+# sprite <name>                 8 double-width pixels by 16 rows:
+#     k  $D025 (shared)   s  $D026 (shared)   t  the sprite's own colour
+#
+# Water is animated: the generator lists its characters, and the engine
+# rotates their rows a pixel at a time.
+
+palette green lightgreen blue
+spritecolors black lightred
+
+tile grass yellow
+........
+..a.....
+.a.a....
+......a.
+.....a.a
+........
+...c....
+........
+.a......
+a.a.....
+.....a..
+....a.a.
+........
+..a.....
+.a.a..c.
+........
+
+tile grass yellow
+........
+......a.
+.....a.a
+.a......
+a.a.....
+........
+........
+....c...
+........
+..a.....
+.a.a....
+......a.
+.....a.a
+........
+.c......
+........
+
+tile forest black
+.aa..aa.
+aaaaaaaa
+aaacaaac
+aaccaacc
+.cc..cc.
+..c...c.
+..c...c.
+........
+a..aa..a
+aaaaaaaa
+acaaacaa
+ccaaccaa
+c..cc..c
+....c...
+....c...
+........
+
+tile forest black
+a..aa..a
+aaaaaaaa
+acaaacaa
+ccaaccaa
+c..cc..c
+....c...
+....c...
+........
+.aa..aa.
+aaaaaaaa
+aaacaaac
+aaccaacc
+.cc..cc.
+..c...c.
+..c...c.
+........
+
+tile mountain white
+........
+...cc...
+..cccc..
+..ccbc..
+.cccbbb.
+.cbcbbb.
+.bbcbbb.
+cbbbcbbb
+bbbbcbbb
+bbbbbcbb
+bbbbbbcb
+bbbbbbbb
+.bbbbbb.
+.abbbba.
+..aaaa..
+........
+
+tile pass yellow
+.b..cc..
+....cc.b
+...ccc..
+...cc...
+..ccc..b
+b.cc....
+..ccc...
+...cc...
+...ccc.b
+.b..cc..
+....cc..
+...ccc..
+...cc.b.
+..ccc...
+..cc....
+...cc...
+
+tile water cyan
+bbbbbbbb
+bbbbbbbb
+bccbbbbb
+cbbcbbbb
+bbbbbbbb
+bbbbbbbb
+bbbbbccb
+bbbbcbbc
+bbbbbbbb
+bbbbbbbb
+bbbbbbbb
+bbccbbbb
+bcbbcbbb
+bbbbbbbb
+bbbbbbbb
+bbbbbbbb
+
+tile water cyan
+bbbbbbbb
+bbbbbccb
+bbbbcbbc
+bbbbbbbb
+bbbbbbbb
+bbbbbbbb
+bbbbbbbb
+bccbbbbb
+cbbcbbbb
+bbbbbbbb
+bbbbbbbb
+bbbbbbbb
+bbbbbbcc
+bbbbbcbb
+bbbbbbbb
+bbbbbbbb
+
+tile shore yellow
+cccccccc
+ccccccac
+cccccccc
+c.cccccc
+cccccccc
+ccccbccc
+cccccccc
+cccccccc
+cccccccc
+ccaccccc
+cccccccc
+cccccc.c
+cccccccc
+cbcccccc
+cccccccc
+cccccccc
+
+tile swamp black
+........
+.bbb..a.
+bbbbb.c.
+.bbb..a.
+......a.
+..a.....
+..c.bbb.
+..a.bbbb
+...bbbb.
+.a......
+.c......
+.a..bbb.
+...bbbbb
+.a..bbb.
+.c....a.
+......c.
+
+tile town red red white white
+........
+...cc...
+..cccc..
+.cccccc.
+cccccccc
+cccccccc
+.c....c.
+.cccccc.
+.cccccc.
+.cbccbc.
+.cbccbc.
+.cccccc.
+.ccbbcc.
+.ccbbcc.
+.ccbbcc.
+aaaaaaaa
+
+tile castle white
+c.c..c.c
+ccc..ccc
+cbcccbbc
+ccc..ccc
+ccc..ccc
+cccccccc
+c.cccc.c
+cbccccbc
+cccccccc
+cccccccc
+ccbccbcc
+cccccccc
+ccc..ccc
+cc....cc
+cc....cc
+aaaaaaaa
+
+tile dungeon black
+........
+........
+...bb...
+..bbbb..
+.bbbbbb.
+.bbccbb.
+bbccccbb
+bbccccbb
+bccccccb
+bccccccb
+bccccccb
+bbccccbb
+.bbbbbb.
+.a....a.
+........
+........
+
+tile lair red
+........
+.b....b.
+.bb..bb.
+..bbbb..
+.bbbbbb.
+bbccccbb
+bcbccbcb
+bccccccb
+bbccccbb
+bbcbbcbb
+.bccccb.
+.bbccbb.
+..bbbb..
+.a....a.
+a......a
+........
+
+tile port yellow
+bbbbbbbb
+bbbbbbbb
+bbbccbbb
+bbbccbbb
+bbbccbbb
+bbbccbbb
+bccccccb
+bccccccb
+bbbccbbb
+bbbccbbb
+bbbccbbb
+bbbccbbb
+bccccccb
+bccccccb
+bbbbbbbb
+bbbbbbbb
+
+tile bridge yellow
+bbbbbbbb
+cccccccc
+c.c..c.c
+cccccccc
+cccccccc
+c.c..c.c
+cccccccc
+bbbbbbbb
+bbbbbbbb
+cccccccc
+c.c..c.c
+cccccccc
+cccccccc
+c.c..c.c
+cccccccc
+bbbbbbbb
+
+# The hero, a warrior in a red tunic: down, up, left, right, two strides each.
+sprite down
+..kkkk..
+.kkkkkk.
+.kssssk.
+.ksskssk
+.kssssk.
+..kssk..
+.kttttk.
+kttttttk
+ksttttsk
+ksttttsk
+kkttttkk
+.kkkkkk.
+.kt..tk.
+.kk..kk.
+.kk..kk.
+kkk...k.
+
+sprite down
+..kkkk..
+.kkkkkk.
+.kssssk.
+.ksskssk
+.kssssk.
+..kssk..
+.kttttk.
+kttttttk
+ksttttsk
+ksttttsk
+kkttttkk
+.kkkkkk.
+.kt..tk.
+.kk..kk.
+.kk..kk.
+.k...kkk
+
+sprite up
+..kkkk..
+.kkkkkk.
+.kkkkkk.
+.kkkkkk.
+.kkkkkk.
+..kkkk..
+.kttttk.
+kttttttk
+ksttttsk
+ksttttsk
+kkttttkk
+.kkkkkk.
+.kt..tk.
+.kk..kk.
+.kk..kk.
+kkk...k.
+
+sprite up
+..kkkk..
+.kkkkkk.
+.kkkkkk.
+.kkkkkk.
+.kkkkkk.
+..kkkk..
+.kttttk.
+kttttttk
+ksttttsk
+ksttttsk
+kkttttkk
+.kkkkkk.
+.kt..tk.
+.kk..kk.
+.kk..kk.
+.k...kkk
+
+sprite left
+..kkkk..
+.kkkkkk.
+.ksskkk.
+.kskskk.
+.ksssk..
+..kssk..
+..kttk..
+.kttttk.
+.ksttk..
+.ksttk..
+.kttttk.
+.kkkkk..
+.kt.tk..
+.kk.kk..
+kk..kk..
+kk...kk.
+
+sprite left
+..kkkk..
+.kkkkkk.
+.ksskkk.
+.kskskk.
+.ksssk..
+..kssk..
+..kttk..
+.kttttk.
+..kstk..
+..kstk..
+.kttttk.
+.kkkkk..
+..ktk...
+..kkk...
+..kkk...
+.kkk....
+
+sprite right
+..kkkk..
+.kkkkkk.
+.kkkssk.
+.kkskskk
+..ksssk.
+..kssk..
+..kttk..
+.kttttk.
+..kttsk.
+..kttsk.
+.kttttk.
+..kkkkk.
+..kt.tk.
+..kk.kk.
+..kk..kk
+.kk...kk
+
+sprite right
+..kkkk..
+.kkkkkk.
+.kkkssk.
+.kkskskk
+..ksssk.
+..kssk..
+..kttk..
+.kttttk.
+..ktsk..
+..ktsk..
+.kttttk.
+..kkkkk.
+...ktk..
+...kkk..
+...kkk..
+....kkk.

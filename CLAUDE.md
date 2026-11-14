@@ -327,6 +327,44 @@ Home is built when the story first needs it (stepping out of Millford, or
 loading a game past it) and the first time takes a few seconds with nothing
 else running: see Memory.
 
+## The smooth-scrolling prototype
+
+`src/openworld.c` (`dist/openworld.prg`, `make run PROG=openworld`) is a
+standalone experiment, not the game: Keldmarch from the game's generator,
+walked with a camera that glides a pixel or two a frame over 16x16
+multicolour metatiles (2x2 characters), for the TeensyROM+/REU ideas. It is
+one PRG with no disk, its own memory map (`cfg/c64-openworld.cfg`: VIC bank 1
+at `$4000` for two screens, the charset and the hero sprite, home copied out
+of the vault to `$B000`) and its own raster interrupt, which chains to
+`$EA31` with the CIA's timer interrupt off. The game links none of it.
+
+`src/lib/smooth.s` explains the engine: the back screen is the front shifted a
+character plus one new row or column from the map (`sm_build`, about 15K
+cycles); on the frame the fine scroll wraps, the interrupt at line 250 flips
+`$D018` and rewrites colour RAM top down from the new screen, which keeps
+ahead of the beam because each character has one colour (`ow_chcol`), so
+colour RAM is a function of the screen. Measured on PAL: the copy's last row
+is done at line 183, about 60 lines before the beam needs it
+(`--peek sm_rowend:25`, low bytes of each row's finishing line). The camera
+rests 4 pixels into a character so the first wrap of a step is two frames
+away either way; steps are a square each, as in the game, so the direction
+of every shift is known in advance. **Never build into the back screen in
+the frame a flip was committed**: it is on show until the interrupt.
+`late` counts frames the main loop missed (0 over long walks at both
+speeds); the loop waits for the frame after the last one it handled, not for
+the next interrupt, or a build that runs past one costs a whole frame.
+
+The tiles are `assets/overworld.txt` (shared colours green, light green,
+blue; each character's own colour 0-7), made into `src/lib/ow_data.s` by
+`tools/mkoverworld.py`. `screendump.py --shot` follows the VIC bank, the
+screen in `$D018`, multicolour characters, fine scroll and the 38/24 borders,
+so it renders this as the C64 shows it. For tests: `--poke freeze_at=N`
+(even, at speed 2) stops N pixels into the step after `freeze_after` steps,
+at stage 3; type only the keys up to that step, since the harness waits for
+the buffer to drain. `still=1` stops the water's animation for pixel
+comparisons. The golden (`tests/golden/openworld`) freezes mid-step and
+compares screen codes.
+
 ## The party
 
 `actor.h`. Up to three made on the title screen (`party_make()`), a fourth
