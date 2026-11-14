@@ -11,6 +11,12 @@
 #   c  the character's own colour, from colour RAM: 0-7 only
 #
 # palette  bg mc1 mc2           the three shared colours
+# offmap <tile>                 what lies beyond the map's edges
+# fallback <tile>               what a tile with no art here is drawn as
+# include <file>                another file's lines, here
+# (This is one of the tile sets; the places' are *_tiles.txt, which use the
+# same format. A tile's art may use - for the pixel of the tile it stands
+# on: tile <name> <colour> on <tile>.)
 # tile <name> <colour> [<colour> <colour> <colour>]
 #     <name> is a tile of assets/tiles.txt; a second block with the same name
 #     is a variant, picked by a hash of the square, so a field of grass is
@@ -24,6 +30,8 @@
 # rotates their rows a pixel at a time.
 
 palette green lightgreen blue
+offmap water
+fallback grass
 spritecolors black lightred
 
 tile grass yellow
@@ -593,3 +601,23 @@ sprite right
 ...kkk..
 ...kkk..
 ....kkk.
+
+# The people in towns and the castle: sprites 1-7, a robe in a colour of
+# their own (openworld.c gives each one).
+sprite villager
+...kk...
+..kssk..
+.kssssk.
+.kssssk.
+..kssk..
+.kttttk.
+kttttttk
+ksttttsk
+kttttttk
+kttttttk
+.kttttk.
+.kttttk.
+.kttttk.
+.kttttk.
+.kk..kk.
+........

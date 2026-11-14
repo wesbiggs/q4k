@@ -62,12 +62,12 @@
         .export _sm_sprite, _sm_animate, _sm_show
         .export _sm_ox, _sm_oy, _sm_fx, _sm_fy, _sm_front, _sm_frame
         .export _sm_colend, _sm_rowend, _sm_irqline
-        .export _sm_reu, _sm_reu_detect
+        .export _sm_reu, _sm_reu_detect, _sm_reu_keep
 
-        .import ow_chars, ow_nchars, ow_chcol, ow_mt0, ow_mt1, ow_chq
-        .import ow_qvar, ow_blend, ow_nflag, ow_bsel, ow_binv
-        .import ow_rnd, ow_water, ow_nwater, ow_sprites, ow_nsprites
-        .import _ow_bg, _ow_mc1, _ow_mc2, _ow_spr1, _ow_spr2
+        .import ow_qvar, ow_rnd, ow_sprites, ow_nsprites
+        .import _ow_spr1, _ow_spr2
+        .export _sm_tileset, _sm_blank, _sm_offtile
+        .export _sm_npcs, _sm_npc_n, _sm_npc_x, _sm_npc_y
         .importzp ptr1, ptr2, ptr3, ptr4
 
 SCRA     = $4000
@@ -94,11 +94,45 @@ FETCH      = $91                ; REU to C64
 REU_SCREEN = $0000              ; where a front screen is stashed to shift
 REU_COLOUR = $0400              ; and its colour RAM
 REU_TEST   = $0800              ; and sm_reu_detect's test bytes
-T_WATER  = $64
 TBASE    = $60
 BIAS     = 64                   ; world characters: the map is 64-191
 
         .segment "BSS"
+
+; The tile set in use: what sm_tileset() unpacks from a set's blob (see
+; tools/mkoverworld.py). Everything that draws reads these.
+ts_bg:      .res 1              ; the three shared colours
+ts_mc1:     .res 1
+ts_mc2:     .res 1
+ts_nchars:  .res 1              ; 0 is 256
+ow_nwater:  .res 1              ; water character pairs to animate
+_sm_offtile: .res 1             ; what is beyond the map
+ts_nmt:     .res 1              ; metatiles
+ow_water:   .res 16             ; those pairs
+ow_chcol:   .res 256            ; each character's colour RAM value
+ow_mt0:     .res 64             ; each tile code's metatile ($60 + index) ...
+ow_mt1:     .res 64             ; ... and its variant's
+ow_nflag:   .res 64             ; what it is to its neighbours
+ow_bsel:    .res 64             ; which of their flags give it an edge ...
+ow_binv:    .res 64             ; ... set or clear
+ow_chq:     .res 128            ; each metatile's characters, 32 a quarter
+ow_blend:   .res 512            ; and its edges', 16 a metatile
+den:        .res 1              ; $10, or 0 while the screen is blanked
+
+; People: sprites 1-7 over the map, at squares (biased, like the hero's),
+; placed from the camera the next frame shows (sm_npcs) and written by the
+; interrupt with the fine scroll, so they move with the map.
+_sm_npc_n:  .res 1
+_sm_npc_x:  .res 7
+_sm_npc_y:  .res 7
+spr_xy:     .res 14             ; sprites 1-7: x, y, x, y, ...
+spr_msb:    .res 1              ; $D010
+spr_en:     .res 1              ; $D015
+spr_ready:  .res 1              ; the interrupt copies them in, once
+camx:       .res 2              ; the camera, in pixels
+camy:       .res 2
+cnlo:       .res 1              ; copyn's count
+cnhi:       .res 1
 
 _sm_ox:     .res 1              ; the front screen's top left, in characters
 _sm_oy:     .res 1
@@ -193,11 +227,11 @@ char_at:
         lda     (ptr2),y
         sta     bmask
         txa
-        .byte   $2C             ; bit abs: skip the next
-@sea:   lda     #T_WATER
-        sec
+        jmp     @code           ; (not a BIT skip: the load below is 3 bytes)
+@sea:   lda     _sm_offtile
+@code:  sec
         sbc     #TBASE
-        and     #31
+        and     #63
         tax
 
         ldy     ty              ; the variant, from a hash of the square
@@ -277,7 +311,7 @@ dryrow: ldy     #63
 @l:     lda     (ptr3),y
         sec
         sbc     #TBASE
-        and     #31
+        and     #63
         tax
         lda     ow_nflag,x
         sta     below+1,y
@@ -334,7 +368,7 @@ _sm_shores:
 @col:   lda     (ptr1),y        ; what makes an edge on this square
         sec
         sbc     #TBASE
-        and     #31
+        and     #63
         tax
         lda     ow_bsel,x
         bne     :+
@@ -693,7 +727,7 @@ _sm_commit:
         lda     #7
         sec
         sbc     _sm_fy
-        ora     #$10            ; display on, 24 rows
+        ora     den             ; display on (unless blanked), 24 rows
         sta     pend11
         tya
         beq     @done
@@ -988,6 +1022,33 @@ reu_colour:
         bne     @cs
 @done:  rts
 
+; void __fastcall__ sm_reu_keep(unsigned char out) -- the overworld's map
+; and edges (SHORE and WORLD, 8K) into the REU (out = 1) or back from it
+; (0), so that coming out of a town or a dungeon builds nothing again.
+REU_KEEP = $2000                ; past what the scroll uses
+_sm_reu_keep:
+        tax
+        sei
+        lda     #<SHORE
+        sta     r_c64
+        lda     #>SHORE
+        sta     r_c64+1
+        lda     #<REU_KEEP
+        sta     r_addr
+        lda     #>REU_KEEP
+        sta     r_addr+1
+        lda     #<$2000
+        sta     r_len
+        lda     #>$2000
+        sta     r_len+1
+        lda     #FETCH
+        cpx     #0
+        beq     :+
+        lda     #STASH
+:       jsr     reu_go
+        cli
+        rts
+
 ; unsigned char sm_reu_detect(void) -- 1, and sm_reu set, if there is an
 ; REU and a transfer into colour RAM lands there; 0 if there is none; 2 if
 ; there is one but colour RAM did not take the transfer (then sm_reu stays
@@ -1092,6 +1153,269 @@ probe_set:
 ctest:  .byte   3, 12, 5, 10, 15, 0, 9, 6
 
 ; ---------------------------------------------------------------------------
+; void sm_npcs(void) -- the people's sprites from the camera just committed
+; (sm_ox/sm_fx, sm_oy/sm_fy), for the next interrupt to write. Off the
+; screen, a sprite is switched off. On the screen: x = square * 16 - camera
+; + 31 and y = square * 16 - camera + 54, as the hero's (openworld.c).
+_sm_npcs:
+        lda     _sm_ox          ; camx = ox * 8 + fx
+        ldx     #0
+        stx     camx+1
+        asl     a
+        rol     camx+1
+        asl     a
+        rol     camx+1
+        asl     a
+        rol     camx+1
+        ora     _sm_fx
+        sta     camx
+        lda     _sm_oy
+        stx     camy+1
+        asl     a
+        rol     camy+1
+        asl     a
+        rol     camy+1
+        asl     a
+        rol     camy+1
+        ora     _sm_fy
+        sta     camy
+        lda     #0
+        sta     spr_msb
+        lda     #1              ; the hero is always on
+        sta     spr_en
+        ldy     #0
+@one:   cpy     _sm_npc_n
+        bcc     :+
+        jmp     @done
+:
+        lda     #0              ; x = square * 16 + 31 - camx, 16 bits
+        sta     cnhi
+        lda     _sm_npc_x,y
+        asl     a
+        rol     cnhi
+        asl     a
+        rol     cnhi
+        asl     a
+        rol     cnhi
+        asl     a
+        rol     cnhi
+        clc
+        adc     #31
+        bcc     :+
+        inc     cnhi
+:       sec
+        sbc     camx
+        sta     cnlo
+        lda     cnhi
+        sbc     camx+1
+        bmi     @off            ; left of the screen
+        cmp     #2
+        bcs     @off            ; far right
+        sta     cnhi
+        lda     #0              ; y = square * 16 + 54 - camy, 8 bits or off
+        sta     vtmp
+        lda     _sm_npc_y,y
+        asl     a
+        rol     vtmp
+        asl     a
+        rol     vtmp
+        asl     a
+        rol     vtmp
+        asl     a
+        rol     vtmp
+        clc
+        adc     #54
+        bcc     :+
+        inc     vtmp
+:       sec
+        sbc     camy
+        tax
+        lda     vtmp
+        sbc     camy+1
+        bne     @off            ; above the screen, or below it
+        tya                     ; on: x, y and the bits
+        asl     a
+        sta     dmask           ; (two bytes a sprite)
+        txa
+        ldx     dmask
+        sta     spr_xy+1,x
+        lda     cnlo
+        sta     spr_xy,x
+        lda     bit_of+1,y
+        ora     spr_en
+        sta     spr_en
+        lda     cnhi
+        beq     @off2
+        lda     bit_of+1,y
+        ora     spr_msb
+        sta     spr_msb
+        bne     @off2
+@off:
+@off2:  iny
+        jmp     @one
+@done:  lda     #1
+        sta     spr_ready
+        rts
+
+bit_of: .byte   1, 2, 4, 8, 16, 32, 64, 128
+
+; ---------------------------------------------------------------------------
+; void __fastcall__ sm_tileset(const unsigned char *set) -- a tile set in:
+; its blob (src/lib/ow_data.s; the order is mkoverworld.py's) unpacked into
+; the tables above and its characters into the character set, and its
+; colours. Whatever is on screen is drawn in the new set until it is
+; redrawn, so blank the screen first (sm_blank) if one is showing.
+_sm_tileset:
+        sta     ptr1
+        stx     ptr1+1
+        ldy     #6              ; the header: colours, counts, off the map
+:       lda     (ptr1),y
+        sta     ts_bg,y
+        dey
+        bpl     :-
+        lda     #7
+        jsr     skip
+        lda     ts_bg
+        sta     $D021
+        lda     ts_mc1
+        sta     $D022
+        lda     ts_mc2
+        sta     $D023
+
+        lda     ow_nwater       ; the water pairs
+        asl     a
+        ldx     #0
+        ldy     #<ow_water
+        jsr     copyto
+        lda     ts_nchars       ; each character's colour
+        ldx     #0
+        cmp     #0
+        bne     :+
+        inx                     ; 0 is 256
+:       ldy     #<ow_chcol
+        sty     ptr2
+        ldy     #>ow_chcol
+        sty     ptr2+1
+        jsr     copyn
+        lda     #<(64 * 5)      ; the five tables by tile code, end to end
+        ldx     #>(64 * 5)
+        ldy     #<ow_mt0
+        sty     ptr2
+        ldy     #>ow_mt0
+        sty     ptr2+1
+        jsr     copyn
+        ldy     #0              ; each quarter's characters, 32 apart
+@quart: tya
+        pha
+        asl     a
+        asl     a
+        asl     a
+        asl     a
+        asl     a
+        clc
+        adc     #<ow_chq
+        sta     ptr2
+        lda     #>ow_chq
+        adc     #0
+        sta     ptr2+1
+        lda     ts_nmt
+        ldx     #0
+        jsr     copyn
+        pla
+        tay
+        iny
+        cpy     #4
+        bne     @quart
+        lda     ts_nmt          ; the edges, 16 a metatile
+        ldx     #0
+        stx     cnhi
+        asl     a
+        rol     cnhi
+        asl     a
+        rol     cnhi
+        asl     a
+        rol     cnhi
+        asl     a
+        rol     cnhi
+        ldx     cnhi
+        ldy     #<ow_blend
+        sty     ptr2
+        ldy     #>ow_blend
+        sty     ptr2+1
+        jsr     copyn
+        lda     ts_nchars       ; and the characters, 8 bytes each
+        ldx     #0
+        stx     cnhi
+        cmp     #0
+        bne     :+
+        inc     cnhi            ; 256 of them
+:       asl     a
+        rol     cnhi
+        asl     a
+        rol     cnhi
+        asl     a
+        rol     cnhi
+        ldx     cnhi
+        ldy     #<CHARS
+        sty     ptr2
+        ldy     #>CHARS
+        sty     ptr2+1
+        jmp     copyn
+
+; A bytes on from ptr1.
+skip:   clc
+        adc     ptr1
+        sta     ptr1
+        bcc     :+
+        inc     ptr1+1
+:       rts
+
+; A bytes (under 256) from ptr1 to the page of ow_water at Y: for the
+; little tables. (ow_water is the only one: it does not cross a page.)
+copyto: sty     ptr2
+        ldy     #>ow_water
+        sty     ptr2+1
+        ldx     #0
+; X:A bytes from ptr1, which ends past them, to ptr2.
+copyn:  sta     cnlo
+        stx     cnhi
+        ldy     #0
+@l:     lda     cnlo
+        ora     cnhi
+        beq     @done
+        lda     (ptr1),y
+        sta     (ptr2),y
+        inc     ptr1
+        bne     :+
+        inc     ptr1+1
+:       inc     ptr2
+        bne     :+
+        inc     ptr2+1
+:       lda     cnlo
+        bne     :+
+        dec     cnhi
+:       dec     cnlo
+        jmp     @l
+@done:  rts
+
+; void __fastcall__ sm_blank(unsigned char on) -- the screen off (1) or on
+; (0) from the next frame: for while a tile set and a map change.
+_sm_blank:
+        tax
+        lda     #$10
+        cpx     #0
+        beq     :+
+        lda     #0
+:       sta     den
+        sei
+        lda     pend11
+        and     #$EF
+        ora     den
+        sta     pend11
+        cli
+        rts
+
+; ---------------------------------------------------------------------------
 ; The raster interrupt, from the KERNAL's vector at $0314.
 
 irq:
@@ -1120,36 +1444,27 @@ irq:
 :       jsr     colour_b
 :       lda     $D012
         sta     _sm_colend
-@tail:  inc     _sm_frame
+@tail:  lda     spr_ready       ; the people, with the scroll
+        beq     @nospr
+        ldx     #13
+:       lda     spr_xy,x
+        sta     $D002,x
+        dex
+        bpl     :-
+        lda     spr_msb
+        sta     $D010
+        lda     spr_en
+        sta     $D015
+        lda     #0
+        sta     spr_ready
+@nospr: inc     _sm_frame
         jmp     $EA31
 
-; void sm_init(void) -- the character set and the hero into the VIC's bank,
-; and the interrupt in. The display stays as it is until sm_show().
+; void sm_init(void) -- the hero into the VIC's bank. The display stays as
+; it is until sm_show(); a tile set goes in with sm_tileset().
 _sm_init:
-        ldx     #0              ; the character set: what there is, then blank
-        lda     #0
-:       sta     CHARS,x
-        sta     CHARS+$100,x
-        sta     CHARS+$200,x
-        sta     CHARS+$300,x
-        sta     CHARS+$400,x
-        sta     CHARS+$500,x
-        sta     CHARS+$600,x
-        sta     CHARS+$700,x
-        inx
-        bne     :-
-        lda     #<ow_chars
-        sta     ptr1
-        lda     #>ow_chars
-        sta     ptr1+1
-        lda     #<CHARS
-        sta     ptr2
-        lda     #>CHARS
-        sta     ptr2+1
-        lda     ow_nchars
-        sta     cnt
-        jsr     copy8s
-
+        lda     #$10
+        sta     den
         lda     #<ow_sprites
         sta     ptr1
         lda     #>ow_sprites
@@ -1209,12 +1524,6 @@ _sm_show:
         sta     $D011
         lda     #0
         sta     $D020
-        lda     _ow_bg
-        sta     $D021
-        lda     _ow_mc1
-        sta     $D022
-        lda     _ow_mc2
-        sta     $D023
 
         lda     _ow_spr1        ; the hero: sprite 0, multicolour
         sta     $D025

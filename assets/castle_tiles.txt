@@ -1,0 +1,180 @@
+# The castle's tile set, in the smooth-scrolling prototype: Castle Matheson,
+# within its moat. The format is assets/overworld.txt's.
+#
+# Night-black ground; the shared colours are grey (stone) and brown (the
+# floor's flags, wood). The walls are grey stone in two and a half
+# dimensions, like the towns' houses: the wall-walk from above, and its face
+# below where the floor is. A secret door is drawn as a wall, faces and all,
+# or it would not be secret.
+
+palette black gray2 brown
+offmap grass
+fallback floor
+
+tile floor black
+bbbbbbb.
+bbbbbbb.
+bbbbbbb.
+........
+bbb.bbbb
+bbb.bbbb
+bbb.bbbb
+........
+bbbbbbb.
+bbbbbbb.
+bbbbbbb.
+........
+bbb.bbbb
+bbb.bbbb
+bbb.bbbb
+........
+
+tile grass green
+........
+..c.....
+.c.c....
+......c.
+.....c.c
+........
+........
+........
+...c....
+..c.c...
+........
+.......c
+......c.
+........
+.c......
+........
+
+tile wall white
+aaaaaaaa
+aaca.aaa
+aaaa.aca
+a.aaaaaa
+aaaaaaaa
+aaaaca.a
+aaaa.aaa
+aa.aaaaa
+aaaaaaaa
+aca.aaaa
+aaa.aaca
+aaaaaaaa
+aaaaaaaa
+a.aaaaa.
+aaaaacaa
+aaaaaaaa
+
+tile secretdoor white
+aaaaaaaa
+aaca.aaa
+aaaa.aca
+a.aaaaaa
+aaaaaaaa
+aaaaca.a
+aaaa.aaa
+aa.aaaaa
+aaaaaaaa
+aca.aaaa
+aaa.aaca
+aaaaaaaa
+aaaaaaaa
+a.aaaaa.
+aaaaacaa
+aaaaaaaa
+
+tile door yellow
+aaaaaaaa
+aaca.aaa
+aa....aa
+a.bbbb.a
+a.bbbb.a
+.bbbbbb.
+.bbbbbb.
+.b.bb.b.
+.bbbbbb.
+.b.bb.b.
+.bbbbcb.
+.b.bb.b.
+.bbbbbb.
+.b.bb.b.
+.bbbbbb.
+........
+
+tile lockeddoor yellow
+aaaaaaaa
+aaca.aaa
+aa....aa
+a.bbbb.a
+a.bbbb.a
+.bbbbbb.
+.bbbbbb.
+.b.bb.b.
+.bbccbb.
+.b.cc.b.
+.bbccbb.
+.b.bb.b.
+.bbbbbb.
+.b.bb.b.
+.bbbbbb.
+........
+
+tile water blue
+cccccccc
+cccccccc
+caaccccc
+acccaccc
+cccccccc
+cccccccc
+ccccccaa
+ccccacca
+cccccccc
+cccccccc
+cccccccc
+ccaacccc
+caccaccc
+cccccccc
+cccccccc
+cccccccc
+
+tile drawbridge black
+b.bbbbb.
+b.bbbbb.
+bbbbbb.b
+bbbbbb.b
+b.bbbbb.
+b.bbbbb.
+bbbbbb.b
+bbbbbb.b
+b.bbbbb.
+b.bbbbb.
+bbbbbb.b
+bbbbbb.b
+b.bbbbb.
+b.bbbbb.
+bbbbbb.b
+bbbbbb.b
+
+include places_common.txt
+
+open floor grass door lockeddoor water drawbridge sword shield bow potion book shelf bed chest crown boulder
+
+# The wall-walk's edges, and the face: stone blocks with black mortar and a
+# white edge where the light catches them. Secret doors are walls.
+edges wall secretdoor
+.aaa .... .... .aaa .aaa ....
+.aca aaaa aaaa aaca .aaa aaaa
+.aaa aaca .aca aaaa .aca aaca
+.a.a aaaa .aaa aaaa .aaa aaaa
+.aaa aaaa .aaa aaaa .a.a a.aa
+.aca aa.a .a.a aa.a .aaa aaaa
+.aaa aaaa .aaa aaaa .aca aaaa
+.aaa aaaa .aaa aaaa .aaa aaaa
+.aaa aaaa .aaa aaaa .aaa aaaa
+.aca cccc .ccc aaca .aca cccc
+.aaa aa.a .a.a aaaa .aaa aa.a
+.a.a aa.a .a.a a.aa .a.a aa.a
+.aaa .... .... aaaa .aaa ....
+.aca cc.c .c.c aaca .aca c.cc
+.aaa aa.a .a.a aaaa .aaa a.aa
+.aaa .... .... .aaa .aaa ....

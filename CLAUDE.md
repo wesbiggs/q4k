@@ -335,7 +335,7 @@ walked with a camera that glides a pixel or two a frame over 16x16
 multicolour metatiles (2x2 characters), for the TeensyROM+/REU ideas. It is
 one PRG with no disk, its own memory map (`cfg/c64-openworld.cfg`: VIC bank 1
 at `$4000` for two screens, the charset and the hero sprite, home copied out
-of the vault to `$B000`, its coasts at `$A000`) and its own raster interrupt, which chains to
+of the vault to `$B000`, its edges at `$A000`) and its own raster interrupt, which chains to
 `$EA31` with the CIA's timer interrupt off. The game links none of it.
 
 `src/lib/smooth.s` explains the engine: the back screen is the front shifted a
@@ -404,6 +404,32 @@ upside down where the art has a top), and the generator refuses masks whose
 edges would not meet. `ow_nflag` says what each tile is to its neighbours
 (bit 0 land, bit 1 open, then one bit per `also` terrain) and
 `ow_bsel`/`ow_binv` which of those bits make an edge on it.
+**Places.** Stepping onto Millford, the castle, the Hollow Crown or home's
+generated town goes in, built the game's own way (`town_data.c`'s maps,
+`town_gen()`, `dungeon_build()`) into `local[]` and copied into `WORLD`, in a
+tile set of its own: `assets/town_tiles.txt`, `castle_tiles.txt`,
+`dungeon_tiles.txt` (sharing `places_common.txt`'s furniture, drawn `on
+floor`: a `-` is the floor's pixel). `mkoverworld.py` turns every set into a
+blob in `ow_data.s` and `sm_tileset()` unpacks one into the engine's tables
+in BSS and the character set; a set says its palette and what lies off the
+map (`offmap`). Walls are two and a half dimensions: a top, and a face in the
+lower half where floor is below, which is a drawn edge (`edges wall`, top
+and bottom quarters drawn apart, not mirrored upside down). People are
+sprites 1-7 (`sm_npcs()` places them from the camera just committed, the
+interrupt writes them with the fine scroll; `passable()` keeps the hero off
+them). A town's way out is its exit square; the dungeon's stairs go down and
+up, and up from level 1 is out. The overworld is put away going in: in the
+REU when there is one (`sm_reu_keep`, 8K, so coming out takes a third of a
+second), otherwise rebuilt from the vault and `sm_shores()` (1.3 s). The
+prototype defines the few of `game.c`'s and `actor.c`'s variables the
+generators use itself, so neither is linked (with them came the view, the
+sprite and the arms, 6K it has no room for). Going in takes about 0.75 s, the
+dungeon 1.6 s (its generator). The goldens `openworld-town` and
+`openworld-dungeon` (and their `-reu` twins) freeze mid-step inside.
+**A `.byte $2C` skip hides two bytes only**: one put in front of an absolute
+load (three) ran the load's last byte as an instruction and drew wrong edges
+in a few places without crashing; use a jump.
+
 **`--poke seed=N` lands after the first land is built**, so it changes
 nothing on screen until a rebuild: type `n` first (`seed=N-1`) to see seed N. `screendump.py --shot` follows the VIC bank, the
 screen in `$D018`, multicolour characters, fine scroll and the 38/24 borders,

@@ -215,7 +215,8 @@ $(GEN_LOOT): assets/loot.txt assets/towns.txt \
 $(GEN_MUSIC): assets/theme.txt tools/mkmusic.py
 	tools/mkmusic.py
 
-$(GEN_OW): assets/overworld.txt assets/tiles.txt tools/mkoverworld.py
+$(GEN_OW): assets/overworld.txt $(wildcard assets/*_tiles.txt) \
+           assets/places_common.txt assets/tiles.txt tools/mkoverworld.py
 	tools/mkoverworld.py
 
 $(GEN_NAMES): assets/names.txt tools/mknames.py

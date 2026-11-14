@@ -1,0 +1,206 @@
+# The towns' tile set: Millford and the town each land makes for itself
+# (src/lib/tgen.s), in the smooth-scrolling prototype. The format is
+# assets/overworld.txt's.
+#
+# Grass is the background; the shared colours are light grey (cobbles,
+# plaster) and brown (timber, thatch's shadow). Walls are drawn in two and a
+# half dimensions: a thatched roof seen from above, and, where the street is
+# below it, the house's front, plaster and timber, in the lower half of the
+# square -- which is an edge, below, so it comes from the same machinery as
+# the coasts.
+
+palette green gray3 brown
+offmap grass
+fallback floor
+
+tile floor black
+aaabaaab
+aaabaaab
+aaabaaab
+bbbbbbbb
+abaaabaa
+abaaabaa
+abaaabaa
+bbbbbbbb
+aaabaaab
+aaabaaab
+aaabaaab
+bbbbbbbb
+abaaabaa
+abaaabaa
+abaaabaa
+bbbbbbbb
+
+tile grass yellow
+........
+........
+....b...
+........
+.c......
+........
+......b.
+........
+........
+..b.....
+........
+.....c..
+........
+........
+.b......
+........
+
+tile grass yellow
+........
+.....b..
+........
+........
+........
+..c.....
+........
+........
+......b.
+........
+........
+........
+.b......
+........
+....c...
+........
+
+tile wall yellow
+cbccbccb
+cbccbccb
+ccbccbcc
+ccbccbcc
+bccbccbc
+bccbccbc
+cbccbccb
+cbccbccb
+ccbccbcc
+ccbccbcc
+bccbccbc
+bccbccbc
+cbccbccb
+cbccbccb
+ccbccbcc
+ccbccbcc
+
+# A door is a gap in a house's front: the thatch over it, a lintel, and the
+# planks, with the handle in yellow.
+tile door yellow
+cbccbccb
+ccbccbcc
+bccbccbc
+cbccbccb
+bbbbbbbb
+abbbbbba
+abaaaaba
+ababbaba
+ababbaba
+ababbaba
+abcbbaba
+ababbaba
+ababbaba
+ababbaba
+ababbaba
+bbbbbbbb
+
+tile tree black on grass
+--------
+---cc---
+--c..c--
+-c....c-
+-c.c..c-
+c....c.c
+c.c.....
+c......c
+-c..c..c
+-c.....c
+--cc.cc-
+----b---
+----b---
+---bbb--
+--------
+--------
+
+tile shore yellow
+cccccccc
+cccbcccc
+cccccccc
+cccccccb
+cccccccc
+cbcccccc
+cccccccc
+cccccbcc
+cccccccc
+cccccccc
+ccbccccc
+cccccccc
+cccccccc
+ccccccbc
+cccccccc
+cccccccc
+
+tile swamp blue
+........
+.ccc....
+ccccc.b.
+.ccc....
+........
+....b...
+.b...cc.
+....cccc
+.....cc.
+........
+..b.....
+........
+.cc...b.
+cccc....
+.cc.....
+........
+
+tile water blue
+cccccccc
+cccccccc
+caaccccc
+acccaccc
+cccccccc
+cccccccc
+ccccccaa
+ccccacca
+cccccccc
+cccccccc
+cccccccc
+ccaacccc
+caccaccc
+cccccccc
+cccccccc
+cccccccc
+
+include places_common.txt
+
+# The houses. Open ground for a wall is anything that is not one: the
+# street, the grass, a doorway.
+open floor grass door shore swamp water tree sword shield bow potion book shelf bed chest boulder
+
+# Top left quarter (open to the west, north, both, diagonal, and west and
+# north again for the second variant), then bottom left (west, south, ...).
+# Above: the roof's back edge. Below: the house's front, the eaves, plaster
+# and a beam, and a sill. Beside: the gable's edge.
+edges wall
+bccb bbbb bbbb bccb bccb bbbb
+bccb cbcc bbcc ccbc bcbc bccb
+bbcc ccbc bcbc bccb bbcc ccbc
+bccb bccb bccb cbcc bccb bccb
+bcbc cbcc bbcc ccbc bcbc cbcc
+bbcc ccbc bcbc bccb bbcc ccbc
+bccb bccb bccb cbcc bccb bccb
+bcbc cbcc bbcc ccbc bcbc cbcc
+bccb bbbb bbbb bccb bccb bbbb
+bcbc aaaa baaa ccbc bcbc aaaa
+bbcc abaa baba bccb bbcc aaba
+bccb abaa baba cbcc bccb aaba
+bcbc aaaa baaa ccbc bcbc aaaa
+bbcc abaa baba bccb bbcc aaba
+bccb bbbb bbbb cbcc bccb bbbb
+bcbc bbbb bbbb ccbc bcbc bbbb
