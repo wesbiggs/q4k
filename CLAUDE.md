@@ -439,9 +439,10 @@ the throne room. Its squares and its walls are drawn as `roof`, its middle
 row as `ridge`, on codes $92/$93 that only the prototype's sets have (`code
 roof 0x92`): thatch in towns (the walls' art and edges), slate in the castle;
 its doors stay, its people are hidden. What you can walk on is read from
-`local[]`, which has no roofs (`tile_at()`). Stepping onto a building's
-floor takes its roof off and puts back the one before; a door's square is
-the threshold and changes nothing. Only the box of what changed is redone:
+`local[]`, which has no roofs (`tile_at()`). Stepping into a building's
+doorway (or onto its floor) takes its roof off and puts back the one
+before; a door between two rooms keeps open the one already open
+(`door_opens()`). Golden `openworld-door` stands in the inn's doorway. Only the box of what changed is redone:
 roofs, `sm_shores_rect()` and `sm_redraw_box()` (the front copied to the
 back, the box drawn over it, flipped to with its colour from the screen),
 about 8 jiffies; `--poke whole=1` redoes everything instead, and the two

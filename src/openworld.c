@@ -334,10 +334,10 @@ static void build_area(const unsigned char *set, unsigned char w,
    through everything that is not a wall or a door, then again from each
    square not yet reached. Its roof covers it and the walls round it, with a
    ridge along its middle row, and hides the people in it; the doors stay.
-   Stepping onto its floor takes its roof off and puts back whichever came
-   off before, drawn into the hidden screen and flipped to, so it changes
-   between one frame and the next. A door's square changes nothing: it is
-   the threshold either way. What you can walk on is read from local[],
+   Stepping into its doorway (or onto its floor) takes its roof off and puts
+   back whichever came off before, drawn into the hidden screen and flipped
+   to, so it changes between one frame and the next. A door between two
+   rooms keeps open the one already open. What you can walk on is read from local[],
    which has no roofs. */
 
 #define T_ROOF   0x92           /* the tile sets' own codes (mkoverworld.py) */
@@ -578,12 +578,47 @@ static void box_on_screen(void)
 }
 
 /* At the end of a step in a town: in or out of a building? */
+/* The building a door at (x, y) opens into: one beside it with a roof, or
+   the one already open if it joins two (a door between rooms); 0 if none. */
+static unsigned char door_opens(unsigned char x, unsigned char y)
+{
+    static const signed char dx[4] = { 1, -1, 0, 0 };
+    static const signed char dy[4] = { 0, 0, 1, -1 };
+    unsigned char d, nx, ny, r, found = 0;
+
+    for (d = 0; d < 4; ++d) {
+        nx = x + dx[d];
+        ny = y + dy[d];
+        if (nx >= LOCAL_W || ny >= LOCAL_H) {
+            continue;
+        }
+        r = region[AT(nx, ny)];
+        if (!has_door[r]) {
+            continue;
+        }
+        if (r == inside) {
+            return r;
+        }
+        if (!found) {
+            found = r;
+        }
+    }
+    return found;
+}
+
 static void roof_check(void)
 {
-    unsigned char r = region[AT(hx - BIAS, hy - BIAS)];
+    unsigned char x = hx - BIAS, y = hy - BIAS;
+    unsigned char r = region[AT(x, y)];
 
     if (!r) {
-        return;                 /* a door: the threshold */
+        if (!is_door(local[LOCAL_AT(x, y)])) {
+            return;             /* (a wall: never stood on) */
+        }
+        r = door_opens(x, y);   /* standing in a doorway opens the building */
+        if (!r) {
+            return;
+        }
     }
     if (!has_door[r]) {
         r = 0;                  /* outside, or nowhere with a roof */
