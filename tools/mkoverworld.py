@@ -214,7 +214,8 @@ def main():
     w('        .export ow_rnd, ow_water, ow_nwater, ow_sprites, ow_nsprites')
     w('        .export ow_shore, ow_qvar')
     w("")
-    w('        .segment "RODATA"')
+    w("; All of it is only read, so it goes in HIGH (cfg/c64-openworld.cfg).")
+    w('        .segment "HIDATA"')
     w("")
     w("_ow_bg:      .byte %d" % palette[0])
     w("_ow_mc1:     .byte %d" % palette[1])
@@ -248,12 +249,10 @@ def main():
     w("")
     w("; Which (0 none) for each quarter and each byte of land round the")
     w("; square: 256 a quarter.")
-    w('        .segment "HIDATA"')
     w("ow_qvar:")
     for q in range(4):
         for n in range(0, 256, 32):
             w("        .byte " + ",".join(str(qvar(q, m)) for m in range(n, n + 32)))
-    w('        .segment "RODATA"')
     w("")
     w("; Which variant a square gets: ow_rnd[(ow_rnd[y] + x) & 255] & 1.")
     w("ow_rnd:")

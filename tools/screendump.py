@@ -240,7 +240,7 @@ def free_port():
         return s.getsockname()[1]
 
 
-def launch(prg, port, rs232=None, disk=None):
+def launch(prg, port, rs232=None, disk=None, extra=()):
     argv = [
         "x64sc",
         "-default",
@@ -254,6 +254,7 @@ def launch(prg, port, rs232=None, disk=None):
     ]
     if disk:
         argv += ["-8", disk]
+    argv += list(extra)
     if not rs232:
         # Warp is free speed for a self-contained program, but it decouples
         # emulated time from wall-clock time. With a live host on the other
@@ -531,6 +532,9 @@ def main():
     ap.add_argument("--settle", type=float, metavar="SECS",
                     help="after typing, let the machine run this long, then dump")
     ap.add_argument("--timeout", type=float, default=60.0)
+    ap.add_argument("--vice", action="append", metavar="ARG", default=[],
+                    help="pass ARG to x64sc as well, e.g. --vice=-reu "
+                         "--vice=-ntsc (one argument each)")
     args = ap.parse_args()
     if args.keys:
         # So a shell can pass "look\r" without needing $'...' quoting.
@@ -539,7 +543,7 @@ def main():
     port = free_port()
     vice = launch(args.prg, port,
                   (args.rs232, args.baud) if args.rs232 else None,
-                  args.disk)
+                  args.disk, args.vice)
     sock = None
     try:
         sock = connect(port)

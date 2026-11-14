@@ -15,6 +15,9 @@
  *   Q, E, Z, C (or the stick's diagonals)       walk diagonally
  *   1 / 2                                        one or two pixels a frame
  *   N                                            the next seed's Keldmarch
+ *   R                                            the REU on or off, if there
+ *                                                is one (the picture should
+ *                                                not change: only the time)
  *
  * For tests, through tools/screendump.py: steps can be typed (w, a, s, d),
  * stage 2 is published whenever the hero stands still with nothing typed
@@ -45,7 +48,8 @@
 #define HERO_PX 148
 #define HERO_PY 84
 
-extern unsigned char sm_ox, sm_oy, sm_fx, sm_fy, sm_front, sm_colend;
+extern unsigned char sm_ox, sm_oy, sm_fx, sm_fy, sm_front, sm_colend, sm_reu;
+unsigned char sm_reu_detect(void);
 extern volatile unsigned char sm_frame;
 void sm_init(void);
 void sm_show(void);
@@ -66,12 +70,19 @@ unsigned char speed     = 2;    /* pixels a frame: 1 or 2 */
 unsigned char freeze_at = 0;    /* stop this many pixels into a step ... */
 unsigned char freeze_after = 0; /* ... once this many steps are done */
 unsigned char still     = 0;    /* 1: the water does not flow */
+unsigned char use_reu   = 1;    /* 0: the CPU does it all, REU or not */
+
+/* What sm_reu_detect() found: 0 no REU, 1 one that reaches colour RAM, 2
+   one that does not (and so is not used). */
+unsigned char reu_found;
 
 /* What the screen is doing, for --peek. */
 unsigned char hx, hy;           /* the hero's square, biased by BIAS */
 unsigned char late;             /* frames the main loop missed */
 unsigned char shore_time;       /* jiffies sm_shores() took */
 unsigned int  steps;
+unsigned long idle;             /* turns of the waiting loop while walking */
+unsigned int  walked;           /* ... over this many frames */
 
 static unsigned char moving, dir, moved, stride;
 
@@ -197,6 +208,11 @@ static unsigned char typed(void)
     case 'c': return DIR_DR;
     case '1': speed = 1; break;
     case '2': speed = 2; break;
+    case 'r':
+        if (reu_found == 1) {
+            sm_reu ^= 1;
+        }
+        break;
     case 'n':
         ++seed;
         build_world();
@@ -269,7 +285,20 @@ int main(void)
     bgcolor(COLOR_BLACK);
     bordercolor(COLOR_BLACK);
     clrscr();
-    cputs("Building Keldmarch...");
+    /* Said before the land is built, which takes a few seconds, so that it
+       can be read on the machine itself: whether an REU was found, and
+       whether its transfers reach colour RAM, which the TeensyROM's has to
+       be trusted to do until this says so. */
+    reu_found = sm_reu_detect();
+    if (!use_reu) {
+        sm_reu = 0;
+    }
+    cputs(reu_found == 0 ? "No REU: the CPU scrolls.\r\n" :
+          reu_found == 1 ? "REU found, and DMA reaches colour RAM:\r\n"
+                           "the REU scrolls (R turns it off).\r\n" :
+                           "REU found, but DMA does not reach colour\r\n"
+                           "RAM: the CPU scrolls.\r\n");
+    cputs("\r\nBuilding Keldmarch...");
     build_world();
 
     sm_init();
@@ -289,6 +318,12 @@ int main(void)
         /* The next frame after the last one handled: a step's build can
            run past an interrupt, and then this does not wait at all. */
         while (sm_frame == frame) {
+            if (moving) {
+                ++idle;         /* how much of the frame is left over */
+            }
+        }
+        if (moving) {
+            ++walked;
         }
         if ((unsigned char)(sm_frame - frame) > 1) {
             ++late;

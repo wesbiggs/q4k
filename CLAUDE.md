@@ -349,7 +349,7 @@ line each row finished on): the last row is done at line 183 on PAL, about
 60 lines before the beam needs it, and at line 228 on NTSC, about 12. NTSC is
 the tight one: with the shift and the edge in the same frame, the frame after
 a flip overran on NTSC (18 frames missed in 27 steps) and never on PAL. To
-run on NTSC, add `-ntsc` to the x64sc arguments in a copy of `screendump.py`. The camera
+run on NTSC, `screendump.py --vice=-ntsc`. The camera
 rests 4 pixels into a character so the first wrap of a step is two frames
 away either way; steps are a square each, as in the game, so the direction
 of every shift is known in advance. Eight ways (Q, E, Z, C or the stick's
@@ -362,6 +362,24 @@ the frame a flip was committed**: it is on show until the interrupt.
 `late` counts frames the main loop missed (0 over long walks at both
 speeds, PAL and NTSC); the loop waits for the frame after the last one it handled, not for
 the next interrupt, or a build that runs past one costs a whole frame.
+
+**The REU path** (`smooth.s`, after the copies). With an REU the shift is two
+transfers (the front screen out, then back into the back screen `off` bytes
+along: what wraps round a row lands in the edge column, which is redrawn
+anyway), colour RAM is stashed with it, and the flip's interrupt fetches
+colour RAM back the same `off` along and colours only the new edge. The
+interrupt then ends about 48 lines after it starts instead of 245, so colour
+RAM is done before the screen starts on PAL and NTSC, and a walk leaves
+about half as much time again free on PAL, three quarters on NTSC (idle-loop
+turns, `--peek idle:4 --peek walked:2`). `sm_reu_detect()` checks the
+registers, a round trip, and that a transfer lands in colour RAM (in its
+last 24 bytes, which nothing shows) -- the TeensyROM question -- and the
+loading screen says what it found; `R` toggles it, `--poke use_reu=0` turns
+it off. Each transfer in the main loop has interrupts off for its own setting
+up and running only, since the interrupt shares the REU and `r_*`.
+`screendump.py --vice=ARG` passes ARG to x64sc (`--vice=-reu --vice=-reusize
+--vice=512`, `--vice=-ntsc`); the `-reu` goldens are the same screens through
+the REU path.
 
 The tiles are `assets/overworld.txt` (shared colours green, light green,
 blue; each character's own colour 0-7), made into `src/lib/ow_data.s` by

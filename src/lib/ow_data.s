@@ -5,7 +5,8 @@
         .export ow_rnd, ow_water, ow_nwater, ow_sprites, ow_nsprites
         .export ow_shore, ow_qvar
 
-        .segment "RODATA"
+; All of it is only read, so it goes in HIGH (cfg/c64-openworld.cfg).
+        .segment "HIDATA"
 
 _ow_bg:      .byte 5
 _ow_mc1:     .byte 13
@@ -53,7 +54,6 @@ ow_shore: .byte 0,56,57,58,59,0,0,60,0,61,62,63,64,0,0,65,0,66,67,68,69,0,0,70,0
 
 ; Which (0 none) for each quarter and each byte of land round the
 ; square: 256 a quarter.
-        .segment "HIDATA"
 ow_qvar:
         .byte 0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2
         .byte 0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2
@@ -87,7 +87,6 @@ ow_qvar:
         .byte 0,0,0,0,1,1,1,1,4,4,4,4,1,1,1,1,2,2,2,2,3,3,3,3,2,2,2,2,3,3,3,3
         .byte 0,0,0,0,1,1,1,1,4,4,4,4,1,1,1,1,2,2,2,2,3,3,3,3,2,2,2,2,3,3,3,3
         .byte 0,0,0,0,1,1,1,1,4,4,4,4,1,1,1,1,2,2,2,2,3,3,3,3,2,2,2,2,3,3,3,3
-        .segment "RODATA"
 
 ; Which variant a square gets: ow_rnd[(ow_rnd[y] + x) & 255] & 1.
 ow_rnd:

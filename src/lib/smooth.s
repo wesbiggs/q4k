@@ -60,6 +60,7 @@
         .export _sm_sprite, _sm_animate, _sm_show
         .export _sm_ox, _sm_oy, _sm_fx, _sm_fy, _sm_front, _sm_frame
         .export _sm_colend, _sm_rowend, _sm_irqline
+        .export _sm_reu, _sm_reu_detect
 
         .import ow_chars, ow_nchars, ow_chcol, ow_mt0, ow_mt1, ow_chq
         .import ow_qvar, ow_shore
@@ -77,6 +78,20 @@ SHORE    = $A000                ; the same, for water: land round it (below)
 D018_A   = ((SCRA & $3FFF) / $400) * 16 + ((CHARS & $3FFF) / $800) * 2
 D018_B   = ((SCRB & $3FFF) / $400) * 16 + ((CHARS & $3FFF) / $800) * 2
 IRQLINE  = 250
+
+; The REU (a 1700/1750, or one emulated: VICE's, a TeensyROM's), at $DF00.
+REU_STATUS = $DF00
+REU_CMD    = $DF01              ; $90 + type: execute now, no $FF00 trigger
+REU_C64    = $DF02              ; and $DF03
+REU_ADDR   = $DF04              ; and $DF05, $DF06 the bank
+REU_LEN    = $DF07              ; and $DF08
+REU_IMASK  = $DF09
+REU_ACTL   = $DF0A
+STASH      = $90                ; C64 to REU
+FETCH      = $91                ; REU to C64
+REU_SCREEN = $0000              ; where a front screen is stashed to shift
+REU_COLOUR = $0400              ; and its colour RAM
+REU_TEST   = $0800              ; and sm_reu_detect's test bytes
 T_WATER  = $64
 T_GRASS  = $60
 T_PORT   = $7E
@@ -96,6 +111,13 @@ _sm_colend: .res 1              ; the raster line the last colour copy ended on
 _sm_irqline: .res 1             ; the line the interrupt began on
 _sm_rowend: .res 25             ; ... and each of its rows (low 8 bits)
 
+_sm_reu:    .res 1              ; 1: build and flip through the REU
+built_reu:  .res 1              ; the back screen was built through it ...
+built_dir:  .res 1              ; ... moving this way
+r_c64:      .res 2              ; reu_go's arguments
+r_addr:     .res 2
+r_len:      .res 2
+pendreu:    .res 1              ; the flip's colour comes from the REU
 pend16:     .res 1              ; what the interrupt writes next
 pend11:     .res 1
 pend18:     .res 1
@@ -111,6 +133,7 @@ tcode:      .res 1
 sy:         .res 1              ; sm_shores' workings
 dmask:      .res 1
 inv:        .res 1
+probe_buf:  .res 8              ; sm_reu_detect's test bytes
 above:      .res 66             ; sm_shores' rows of flags
 cur:        .res 66
 below:      .res 66
@@ -512,7 +535,12 @@ _sm_edge:
 _sm_shift:
         and     #7
         sta     dir
-        lda     _sm_front
+        sta     built_dir
+        lda     _sm_reu
+        sta     built_reu
+        beq     :+
+        jmp     reu_shift
+:       lda     _sm_front
         asl     a
         asl     a
         asl     a
@@ -658,6 +686,10 @@ _sm_commit:
         .byte   $2C
 :       lda     #D018_A
         sta     pend18
+        lda     built_reu
+        sta     pendreu
+        lda     #0
+        sta     built_reu       ; until the next build says otherwise
         lda     #1
         sta     pendswap
 @done:  cli
@@ -728,6 +760,319 @@ _sm_animate:
         rts
 
 ; ---------------------------------------------------------------------------
+; The REU. Its transfers run at a byte a cycle with the CPU stopped, about
+; five times the fastest copy the CPU can do, and it reaches colour RAM like
+; any other address, so:
+;
+;  - the shift is two transfers: the front screen into the REU, and back
+;    out into the back screen `off` bytes along (+-1 a column, +-40 a row,
+;    both for a diagonal). What wraps round a row's end lands in the edge
+;    column, which sm_edge_col then draws over. About 2K cycles, not 10K.
+;  - colour RAM goes into the REU with it (it changes only at a flip, so
+;    it is the front's), and at the flip the interrupt brings it back the
+;    same `off` along -- a thousand cycles, not fifteen thousand -- and then
+;    colours only the new edge from the screen.
+;
+; sm_reu_detect() looks for one and then checks that a transfer really
+; lands in colour RAM, which an emulated REU might not do; sm_reu is set
+; only if both are so, and the C side may clear it to compare.
+
+; Where each direction takes a byte from: the shift as a signed offset.
+offlo:  .byte <40, <-40, <-1, <1, <39, <41, <-41, <-39
+offhi:  .byte >40, >-40, >-1, >1, >39, >41, >-41, >-39
+
+; One transfer: r_c64, r_addr (bank 0), r_len, the command in A.
+reu_go: ldx     r_c64
+        stx     REU_C64
+        ldx     r_c64+1
+        stx     REU_C64+1
+        ldx     r_addr
+        stx     REU_ADDR
+        ldx     r_addr+1
+        stx     REU_ADDR+1
+        ldx     #0
+        stx     REU_ADDR+2
+        stx     REU_ACTL
+        ldx     r_len
+        stx     REU_LEN
+        ldx     r_len+1
+        stx     REU_LEN+1
+        sta     REU_CMD
+        rts
+
+; r_addr = base + max(off, 0), r_c64 = c64 + max(-off, 0), r_len = 1000 -
+; |off|, for the direction in X: what a shifted transfer needs. The bases
+; come in r_addr and r_c64.
+shifted:
+        lda     offhi,x
+        bmi     @neg
+        lda     r_addr
+        clc
+        adc     offlo,x
+        sta     r_addr
+        lda     r_addr+1
+        adc     #0
+        sta     r_addr+1
+        lda     #<1000
+        sec
+        sbc     offlo,x
+        sta     r_len
+        lda     #>1000
+        sbc     #0
+        sta     r_len+1
+        rts
+@neg:   lda     r_c64           ; c64 + -off
+        sec
+        sbc     offlo,x
+        sta     r_c64
+        lda     r_c64+1
+        sbc     #$FF
+        sta     r_c64+1
+        lda     #<1000          ; 1000 + off
+        clc
+        adc     offlo,x
+        sta     r_len
+        lda     #>1000
+        adc     #$FF
+        sta     r_len+1
+        rts
+
+; The page of the front screen into A.
+frontpage:
+        lda     _sm_front
+        beq     :+
+        lda     #>SCRB
+        .byte   $2C
+:       lda     #>SCRA
+        rts
+
+; Each transfer's setting up and running is one stretch with interrupts off
+; (the interrupt uses the REU and these variables too), and no longer: a
+; thousand cycles at most, so a flip is never held up past the border.
+reu_shift:
+        sei
+        lda     #0              ; the front screen out ...
+        sta     r_c64
+        sta     r_addr
+        sta     r_addr+1
+        jsr     frontpage
+        sta     r_c64+1
+        jsr     len1000
+        lda     #STASH
+        jsr     reu_go
+        cli
+
+        sei
+        lda     #<$D800         ; ... and its colour, for the flip ...
+        sta     r_c64
+        lda     #>$D800
+        sta     r_c64+1
+        lda     #<REU_COLOUR
+        sta     r_addr
+        lda     #>REU_COLOUR
+        sta     r_addr+1
+        jsr     len1000
+        lda     #STASH
+        jsr     reu_go
+        cli
+
+        sei
+        lda     #0              ; ... and into the back screen, shifted
+        sta     r_c64
+        sta     r_addr
+        sta     r_addr+1
+        jsr     frontpage
+        eor     #(>SCRA) ^ (>SCRB)
+        sta     r_c64+1
+        ldx     dir
+        jsr     shifted
+        lda     #FETCH
+        jsr     reu_go
+        cli
+        rts
+
+len1000:
+        lda     #<1000
+        sta     r_len
+        lda     #>1000
+        sta     r_len+1
+        rts
+
+; In the interrupt, at a flip built through the REU: colour RAM from the
+; REU, shifted, then the new edge's colours from the new front screen. The
+; edge loops modify their own operands: the interrupt has no zero page.
+reu_colour:
+        lda     #<$D800
+        sta     r_c64
+        lda     #>$D800
+        sta     r_c64+1
+        lda     #<REU_COLOUR
+        sta     r_addr
+        lda     #>REU_COLOUR
+        sta     r_addr+1
+        ldx     built_dir
+        jsr     shifted
+        lda     #FETCH
+        jsr     reu_go
+
+        ldx     built_dir
+        lda     dirdy,x
+        beq     @col
+        ldy     #0              ; the top row ...
+        lda     dirdy,x
+        bmi     :+
+        ldy     #24             ; ... or the bottom
+:       lda     rowlo40,y
+        sta     @rs+1
+        sta     @rc+1
+        jsr     frontpage
+        clc
+        adc     rowhi40,y
+        sta     @rs+2
+        lda     #>$D800
+        clc
+        adc     rowhi40,y
+        sta     @rc+2
+        ldx     #39
+@rs:    ldy     $FFFF,x
+        lda     ow_chcol,y
+@rc:    sta     $FFFF,x
+        dex
+        bpl     @rs
+
+@col:   ldx     built_dir
+        lda     dirdx,x
+        beq     @done
+        ldy     #0              ; the left column ...
+        lda     dirdx,x
+        bmi     :+
+        ldy     #39             ; ... or the right
+:       sty     @cs+1
+        sty     @cc+1
+        jsr     frontpage
+        sta     @cs+2
+        lda     #>$D800
+        sta     @cc+2
+        ldx     #25
+@cs:    ldy     $FFFF
+        lda     ow_chcol,y
+@cc:    sta     $FFFF
+        lda     @cs+1
+        clc
+        adc     #40
+        sta     @cs+1
+        sta     @cc+1
+        bcc     :+
+        inc     @cs+2
+        inc     @cc+2
+:       dex
+        bne     @cs
+@done:  rts
+
+; unsigned char sm_reu_detect(void) -- 1, and sm_reu set, if there is an
+; REU and a transfer into colour RAM lands there; 0 if there is none; 2 if
+; there is one but colour RAM did not take the transfer (then sm_reu stays
+; 0: half a REU path is worse than none). The test bytes are colour RAM's
+; last 24, past the screen's thousand, where nothing shows.
+_sm_reu_detect:
+        lda     #0
+        sta     _sm_reu
+        ldx     #5              ; registers that read back what was written?
+:       txa
+        eor     #$A5
+        sta     REU_STATUS,x
+        dex
+        cpx     #1
+        bne     :-
+        ldx     #2
+:       txa
+        eor     #$A5
+        cmp     REU_STATUS,x
+        bne     @none
+        inx
+        cpx     #6
+        bne     :-
+        sei
+        ldx     #7              ; a pattern through it and back
+:       txa
+        eor     #$5A
+        sta     probe_buf,x
+        dex
+        bpl     :-
+        jsr     probe_set
+        lda     #STASH
+        jsr     reu_go
+        ldx     #7
+        lda     #0
+:       sta     probe_buf,x
+        dex
+        bpl     :-
+        jsr     probe_set
+        lda     #FETCH
+        jsr     reu_go
+        cli
+        ldx     #7
+:       txa
+        eor     #$5A
+        cmp     probe_buf,x
+        bne     @none
+        dex
+        bpl     :-
+
+        sei                     ; now into colour RAM: 3, 12, 5, 10, ...
+        ldx     #7
+:       lda     ctest,x
+        sta     probe_buf,x
+        lda     #0
+        sta     $DBE8,x
+        dex
+        bpl     :-
+        jsr     probe_set
+        lda     #STASH
+        jsr     reu_go
+        lda     #<$DBE8
+        sta     r_c64
+        lda     #>$DBE8
+        sta     r_c64+1
+        lda     #FETCH
+        jsr     reu_go
+        cli
+        ldx     #7
+:       lda     $DBE8,x
+        and     #$0F
+        cmp     ctest,x
+        bne     @nocol
+        dex
+        bpl     :-
+        lda     #1
+        sta     _sm_reu
+        ldx     #0
+        rts
+@nocol: lda     #2
+        ldx     #0
+        rts
+@none:  lda     #0
+        tax
+        rts
+
+probe_set:
+        lda     #<probe_buf
+        sta     r_c64
+        lda     #>probe_buf
+        sta     r_c64+1
+        lda     #<REU_TEST
+        sta     r_addr
+        lda     #>REU_TEST
+        sta     r_addr+1
+        lda     #8
+        sta     r_len
+        lda     #0
+        sta     r_len+1
+        rts
+
+ctest:  .byte   3, 12, 5, 10, 15, 0, 9, 6
+
+; ---------------------------------------------------------------------------
 ; The raster interrupt, from the KERNAL's vector at $0314.
 
 irq:
@@ -745,7 +1090,11 @@ irq:
         sta     pendswap
         lda     pend18
         sta     $D018
-        lda     _sm_front
+        lda     pendreu
+        beq     :+
+        jsr     reu_colour
+        jmp     :+++
+:       lda     _sm_front
         bne     :+
         jsr     colour_a
         jmp     :++
@@ -886,6 +1235,16 @@ _sm_show:
         rts
 
         .segment "RODATA"
+
+; A screen row's offset, row * 40, for the rows the edges use.
+rowlo40:
+        .repeat 25, N
+        .byte   <(N * 40)
+        .endrep
+rowhi40:
+        .repeat 25, N
+        .byte   >(N * 40)
+        .endrep
 
 ; The map's rows: WORLD + y * 64.
 rowlo:
