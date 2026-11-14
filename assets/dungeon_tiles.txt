@@ -1,85 +1,86 @@
 # The dungeons' tile set, in the smooth-scrolling prototype. The format is
 # assets/overworld.txt's.
 #
-# Black, with dark grey and brown shared: slabs of floor in the dark, rock
-# dark grey from above and brown in its face where the floor runs beneath
-# it, and the way up and down in white.
+# Dark grey, with mid grey and brown shared: worn stone underfoot,
+# rock in grey stone from above and brown in its face where the floor runs
+# beneath it, and the way up and down in white. Rock rounds its corners off
+# and the floor darkens against it, so a room does not end in right angles.
 
-palette black gray1 brown
+palette gray1 gray2 brown
 offmap wall
 fallback floor
 
 tile floor black
-a.......
-........
-........
-.......a
 ........
 ...a....
 ........
-a.......
-........
-........
-.....a..
-........
+......c.
+.....c..
 ........
 .a......
 ........
-........
-
-tile floor black
-........
-....a...
-........
-........
-a.......
 ........
 ......a.
 ........
+..c.....
+...c....
+........
+.......a
+........
+
+tile floor black
+......a.
+........
+..c.....
+........
+........
+........
+....a...
 ........
 .a......
 ........
 ........
-.......a
 ........
-...a....
+.....c..
+......c.
 ........
+..a.....
 
 tile wall black
-aaaaaaaa
-aa.aaaaa
-aaaaa.aa
-aaaaaaab
-a.aaaaaa
-aaaaaa.a
-aabaaaaa
-aaa.aaaa
-aaaaaaaa
-aaaaaaaa
-a.aaaa.a
-aaaaabaa
-aaaaaaaa
-aaaa.aaa
-baaaaaaa
-aa.aaaaa
+aaacaaac
+aaacaaac
+aaacaaac
+cccccccc
+acaaacaa
+acaaacaa
+acaaacaa
+cccccccc
+aaacaaac
+aaacaaac
+aaacaaac
+cccccccc
+acaaacaa
+acaaacaa
+acaaacaa
+cccccccc
 
 tile secretdoor black
-aaaaaaaa
-aa.aaaaa
-aaaaa.aa
-aaaaaaab
-a.aaaaaa
-aaaaaa.a
-aabaaaaa
-aaa.aaaa
-aaaaaaaa
-aaaaaaaa
-a.aaaa.a
-aaaaabaa
-aaaaaaaa
-aaaa.aaa
-baaaaaaa
-aa.aaaaa
+aaacaaac
+aaacaaac
+aaacaaac
+cccccccc
+acaaacaa
+acaaacaa
+acaaacaa
+cccccccc
+aaacaaac
+aaacaaac
+aaacaaac
+cccccccc
+acaaacaa
+acaaacaa
+acaaacaa
+cccccccc
 
 tile stairup white
 ........
@@ -121,22 +122,49 @@ include places_common.txt
 
 open floor stairup stairdn chest monster boulder
 
-# The rock's edges, and its face: brown blocks, black between, where the
-# floor runs beneath and a torch would catch them; from above, dark grey.
+# The floor darkens where rock is beside it, which is what rounds a room's
+# inside corners: a dithered shadow, along a side and round a corner.
+also floor wall secretdoor
+
+# The rock's edges (the top left quarter, open to the west, north, both,
+# diagonal, and west and north again; then the bottom left, open to the
+# west, south, ...). A corner that sticks out is cut back to the floor in a
+# curve, and one that goes in loses a corner pixel; the face, where the
+# floor is below, is brown stone under a black lip.
 edges wall secretdoor
-.aaa .... .... .aaa .aaa ....
-.a.a aaaa aaaa aa.a .aaa aaaa
-.aaa aa.a .a.a aaaa .a.a aa.a
-.aaa aaaa .aaa aaaa .aaa aaaa
-.a.a aaaa .aaa aaaa .aaa a.aa
-.aaa aaaa .aaa aaaa .a.a aaaa
-.aaa a.aa .a.a aaaa .aaa aaaa
-.aaa aaaa .aaa aaaa .aaa aaaa
-.aaa aaaa .aaa aaaa .aaa aaaa
-.a.a bbb. .bb. aa.a .a.a bb.b
-.aaa b.bb .b.b aaaa .aaa bbb.
-.aaa bb.b .bb. aaaa .aaa .bbb
-.aaa .... .... aaaa .aaa ....
-.a.a bb.b .b.b aa.a .a.a b.bb
-.aaa b.bb .bb. aaaa .aaa bbb.
-.aaa .... .... .aaa .aaa ....
+caac cccc ..cc .aac caac cccc
+caac aaac .cac aaac caac aaac
+caac aaac caac aaac caac aaac
+cccc cccc cccc cccc cccc cccc
+ccaa acaa ccaa acaa ccaa acaa
+ccaa acaa ccaa acaa ccaa acaa
+ccaa acaa ccaa acaa ccaa acaa
+cccc cccc cccc cccc cccc cccc
+caac cccc cccc aaac caac cccc
+caac bbbc cbbc aaac caac bcbb
+caac bbbc cbbc aaac caac bcbb
+cccc cccc cccc cccc cccc cccc
+ccaa bcbb ccbb acaa ccaa bbbc
+ccaa bcbb .cbb acaa ccaa bbbc
+ccaa cccc .ccc acaa ccaa cccc
+cccc .... ..cc .ccc cccc ....
+
+# The floor's shadow, where rock is beside it: the top left quarter (rock
+# to the west, north, both, diagonal, ...), then the bottom left.
+edges floor
+c... c.c. cc.c c... c... .c.c
+.... .... c.c. .... c... ....
+c... .... c... .... .... ....
+.... .... .... .... c... ....
+c... .... c... .... .... ....
+.... .... .... .... c... ....
+c... .... c... .... .... ....
+.... .... .... .... c... ....
+c... .... c... .... c... ....
+.... .... .... .... .... ....
+c... .... c... .... c... ....
+.... .... .... .... .... ....
+c... .... c... .... c... ....
+.... .... c... .... .... ....
+c... .... c.c. .... c... ....
+.... c.c. cc.c c... .... .c.c

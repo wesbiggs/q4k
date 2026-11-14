@@ -181,26 +181,42 @@ include places_common.txt
 
 # The houses. Open ground for a wall is anything that is not one: the
 # street, the grass, a doorway.
-open floor grass door shore swamp water tree sword shield bow potion book shelf bed chest boulder
+open floor grass shore swamp water tree sword shield bow potion book shelf bed chest boulder
 
 # Top left quarter (open to the west, north, both, diagonal, and west and
 # north again for the second variant), then bottom left (west, south, ...).
 # Above: the roof's back edge. Below: the house's front, the eaves, plaster
-# and a beam, and a sill. Beside: the gable's edge.
+# and a beam, and a sill. Beside: the gable's edge. A roof's corner that
+# sticks out is rounded off into the grass the houses stand in; the front's
+# stay square, since a front may face cobbles or grass, and so do corners
+# that go in, which are as often a room's, where the floor is not the grass.
 edges wall
-bccb bbbb bbbb bccb bccb bbbb
-bccb cbcc bbcc ccbc bcbc bccb
-bbcc ccbc bcbc bccb bbcc ccbc
+bccb bbbb ...b cbcc bccb bbbb
+bccb cbcc ..bc cbcc bcbc bccb
+bbcc ccbc .bcc ccbc bbcc ccbc
+bccb bccb bccb ccbc bccb bccb
+bcbc cbcc bcbc bccb bcbc cbcc
+bbcc ccbc bbcc bccb bbcc ccbc
 bccb bccb bccb cbcc bccb bccb
-bcbc cbcc bbcc ccbc bcbc cbcc
-bbcc ccbc bcbc bccb bbcc ccbc
-bccb bccb bccb cbcc bccb bccb
-bcbc cbcc bbcc ccbc bcbc cbcc
-bccb bbbb bbbb bccb bccb bbbb
-bcbc aaaa baaa ccbc bcbc aaaa
-bbcc abaa baba bccb bbcc aaba
-bccb abaa baba cbcc bccb aaba
-bcbc aaaa baaa ccbc bcbc aaaa
+bcbc cbcc bcbc cbcc bcbc cbcc
+bccb bbbb bbbb cbcc bccb bbbb
+bcbc aaaa baaa cbcc bcbc aaaa
+bbcc abaa baba ccbc bbcc aaba
+bccb abaa baba ccbc bccb aaba
+bcbc aaaa baaa bccb bcbc aaaa
 bbcc abaa baba bccb bbcc aaba
 bccb bbbb bbbb cbcc bccb bbbb
-bcbc bbbb bbbb ccbc bcbc bbbb
+bcbc bbbb bbbb cbcc bcbc bbbb
+
+# Where the cobbles meet the grass, they fray into it, as the overworld's
+# sand does: the same masks.
+also floor grass
+fringe floor
+x... xxxx xxxx x... x... xxxx
+xx.. x.xx xxxx x... x... xxxx
+x... .... xxx. .... xx.. .xx.
+.... .... xx.. .... xxx. ..x.
+x... .... xx.. .... xx.. ....
+xx.. .... x... .... x... ....
+x... .... xx.. .... .... ....
+.... .... .... .... .... ....

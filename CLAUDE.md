@@ -417,7 +417,15 @@ lower half where floor is below, which is a drawn edge (`edges wall`, top
 and bottom quarters drawn apart, not mirrored upside down). People are
 sprites 1-7 (`sm_npcs()` places them from the camera just committed, the
 interrupt writes them with the fine scroll; `passable()` keeps the hero off
-them). A town's way out is its exit square; the dungeon's stairs go down and
+them). Corners: the dungeon's rock rounds its outside
+corners off into the floor and nicks its inside ones, and the floor darkens
+against it (a dithered shadow, `edges floor`, with `also floor wall`); a
+town's cobbles fray into the grass (`fringe floor`, the overworld's masks)
+and its roofs round their outside corners, while the fronts and inside
+corners stay square, because what is beyond them may be cobbles or a room's
+floor rather than the grass the cut reveals. A terrain that is itself open
+ground (a floor) takes edges only from its `also` list. A town's way out is
+its exit square; the dungeon's stairs go down and
 up, and up from level 1 is out. The overworld is put away going in: in the
 REU when there is one (`sm_reu_keep`, 8K, so coming out takes a third of a
 second), otherwise rebuilt from the vault and `sm_shores()` (1.3 s). The

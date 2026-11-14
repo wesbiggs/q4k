@@ -365,7 +365,9 @@ def build(setname):
         elif shore and name == "grass":
             sel, inv = 1, 0xFF
         elif name in fringes or name in drawn:
-            sel = 2
+            # Against open ground -- unless it is open ground itself (a
+            # town's floor fraying into grass), when only its `also` count.
+            sel = 0 if name in open_names else 2
             for m in also.get(name, []):
                 sel |= bit_of[m]
             inv = 0
