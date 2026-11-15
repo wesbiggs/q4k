@@ -205,7 +205,10 @@ def parse(path):
     for name, cols, rows, lineno, base in tiles:
         art.setdefault(name, rows)
     done = []
+    OVERLAYS.clear()
     for name, cols, rows, lineno, base in tiles:
+        if base:
+            OVERLAYS.setdefault(name, (cols, rows))
         if base:
             if base not in art:
                 fail(lineno, "on %r: no such tile above" % base)
@@ -214,6 +217,11 @@ def parse(path):
         done.append((name, cols, rows, lineno))
     return (palette, sprcols, done, sprites, shore,
             (fringes, opens, drawn, also), offmap, fallback, own_codes)
+
+
+# The art of the last set parsed that stands `on` another tile, as drawn
+# (with its - pixels): tools/mkfields.py puts it on other ground.
+OVERLAYS = {}
 
 
 def seams(v, lineno, what):
@@ -440,7 +448,14 @@ def build(setname):
         blob += list(g)
     return {"blob": blob, "names": mt_name, "chars": len(chars),
             "metatiles": nmt, "sprites": sprites, "sprcols": sprcols,
-            "extra": extra}
+            "extra": extra,
+            # ... and the set itself, for tools/mkfields.py, which draws the
+            # multicolour arena's fields with it.
+            "palette": palette, "charlist": chars, "quads": metatiles,
+            "blend": blend, "nflag": nflag, "bsel": bsel, "binv": binv,
+            "mt0": mt0, "mt1": mt1, "codes": codes, "art": mt_art,
+            "cols": mt_cols, "by_name": by_name, "water": water,
+            "overlays": dict(OVERLAYS)}
 
 
 def main():

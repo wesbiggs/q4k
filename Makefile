@@ -74,7 +74,7 @@ DEPFLAGS  = -Wc --create-full-dep,$(@:.o=.d) -Wc --dep-target,$@
 # rule below). dungeontest links the maps and the font, arena the fights and
 # isletest the land, so they need the game's charset and probe page as well,
 # with everything in one load (cfg/c64-flat.cfg).
-LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest,$*),flat,$(if $(filter openworld,$*),owboot,tool)).cfg
+LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest,$*),flat,$(if $(filter openworld,$*),owboot,$(if $(filter owarena,$*),owarena,tool))).cfg
 
 MAINS    := $(wildcard src/*.c)
 PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
@@ -131,7 +131,7 @@ endif
 # nor the core an engine.
 ENG_MAP   := scene draw fov town_data town_gen loot loot_data sail \
              dungeon fightcall
-ENG_FIGHT := battle arena_data
+ENG_FIGHT := battle bestiary arena_data
 ENG_TALK  := talk dialog inn gift
 ENG_SHOP  := shop help
 ENGMODS   := $(ENG_MAP) $(ENG_FIGHT) $(ENG_TALK) $(ENG_SHOP)
@@ -149,7 +149,7 @@ endif
         online d64-online run-online
 .SECONDARY: $(BUILD)/$(PROG).o $(BUILD)/q4k.o
 
-all: dirs assets $(PRGS) $(DIST)/openworld.d64
+all: dirs assets $(PRGS) $(DIST)/openworld.d64 $(DIST)/owarena.d64
 
 # Assembly cannot see tiles.h; it has its own generated copy of the codes.
 $(BUILD)/lib/isle_gen.o: include/q4k/tiles.inc
@@ -171,6 +171,7 @@ GEN_LOOT  := include/q4k/loot_data.h src/lib/loot_data.c
 GEN_VER   := include/q4k/version.h
 GEN_MUSIC := src/lib/music_data.s
 GEN_OW    := src/lib/ow_data.s
+GEN_FIGHT := src/fight/fight_data.s
 
 # Where the letters come from. FONT_SOURCE is "rom" for the machine's own
 # character set, or a path to a C64 charset binary. FONT_STYLE only applies
@@ -185,7 +186,7 @@ FONT_SOURCE ?= rom
 FONT_STYLE  ?= bold
 
 assets: $(GEN_TILES) $(GEN_TOWN) $(GEN_ARENA) $(GEN_NAMES) $(GEN_GEO) $(GEN_FONT) \
-        $(GEN_LOOT) $(GEN_VER) $(GEN_MUSIC) $(GEN_OW)
+        $(GEN_LOOT) $(GEN_VER) $(GEN_MUSIC) $(GEN_OW) $(GEN_FIGHT)
 
 # The version lives in VERSION alone; the release workflow checks the tag
 # against it. No Python needed, so this one is plain shell.
@@ -218,6 +219,17 @@ $(GEN_MUSIC): assets/theme.txt tools/mkmusic.py
 $(GEN_OW): assets/overworld.txt $(wildcard assets/*_tiles.txt) \
            assets/places_common.txt assets/tiles.txt tools/mkoverworld.py
 	tools/mkoverworld.py
+
+# The multicolour arena's sprites (the ones linked into the fight), and
+# further down the files of its disk: the fields, drawn with the prototype's
+# tile sets, and each monster's sprites.
+FIELD_SRC := assets/fields.txt assets/monsters.txt assets/field_tiles.txt \
+             assets/overworld.txt assets/dungeon_tiles.txt \
+             assets/places_common.txt assets/tiles.txt tools/mkfields.py \
+             tools/mkoverworld.py
+
+$(GEN_FIGHT): $(FIELD_SRC)
+	tools/mkfields.py
 
 $(GEN_NAMES): assets/names.txt tools/mknames.py
 	tools/mknames.py
@@ -323,6 +335,42 @@ $(DIST)/openworld.d64: $(DIST)/openworld.prg $(OWENG)
 
 -include $(BUILD)/ow/engine-cpu.d $(BUILD)/ow/engine-reu.d
 
+# The multicolour arena (src/owarena.c) and the fight it calls: a module
+# linked on its own (src/fight/, cfg/c64-fight.cfg, include/q4k/fight.h),
+# with the game's arms out of the library. Its disk holds the arena, the
+# module, and what the module loads for a fight: a field (f.*) and the
+# monster's sprites (s.*), which tools/mkfields.py makes.
+FIGHTOBJ := $(patsubst %,$(BUILD)/fight/%.o,head block fight mux fight_data)
+FIGHT_STAMP := $(BUILD)/fight/disk/.stamp
+
+# -Or, as the game's own fight is (SMALLMODS): a tenth smaller.
+$(BUILD)/fight/%.o: src/fight/%.c
+	@mkdir -p $(dir $@)
+	$(CL65) $(filter-out -Osir,$(CFLAGS)) -Or $(DEPFLAGS) -c -o $@ $<
+
+$(BUILD)/fight/%.o: src/fight/%.s
+	@mkdir -p $(dir $@)
+	$(CL65) $(ASFLAGS) -c -o $@ $<
+
+$(DIST)/fight.prg: $(FIGHTOBJ) $(LIB) cfg/c64-fight.cfg
+	@mkdir -p $(DIST)
+	$(CL65) $(LDFLAGS) -C cfg/c64-fight.cfg -m $(BUILD)/fight.map \
+	    -Wl -Ln,$(BUILD)/fight.lbl -o $@ $(FIGHTOBJ) $(LIB)
+	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
+
+$(FIGHT_STAMP): $(FIELD_SRC)
+	@rm -rf $(BUILD)/fight/disk
+	tools/mkfields.py $(BUILD)/fight/disk
+	@touch $@
+
+$(DIST)/owarena.d64: $(DIST)/owarena.prg $(DIST)/fight.prg $(FIGHT_STAMP)
+	$(C1541) -format "owarena,01" d64 $@ >/dev/null
+	$(C1541) -attach $@ -write $(DIST)/owarena.prg owarena \
+	    -write $(DIST)/fight.prg fight \
+	    $$(for f in $(BUILD)/fight/disk/[fs].*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
+
+-include $(BUILD)/fight/fight.d $(BUILD)/fight/block.d
+
 # The game. The engines come out of the same link, as files beside the PRG,
 # and the scenes' music is cut out of it: tools/mkengines.py, which also
 # checks that no engine reaches into another. The disk gets them all (d64,
@@ -350,9 +398,10 @@ endif
 
 # The game needs its disk (engine.h), so it runs from that, and so does the
 # smooth-scrolling prototype (its bootstrap loads an engine).
-DISKPROGS := q4k openworld
+DISKPROGS := q4k openworld owarena
 run: dirs $(DIST)/$(PROG).prg $(if $(filter q4k,$(PROG)),d64) \
-     $(if $(filter openworld,$(PROG)),$(DIST)/openworld.d64)
+     $(if $(filter openworld,$(PROG)),$(DIST)/openworld.d64) \
+     $(if $(filter owarena,$(PROG)),$(DIST)/owarena.d64)
 	tools/run.sh $(DIST)/$(PROG).$(if $(filter $(DISKPROGS),$(PROG)),d64,prg)
 
 # Play the networked build with NPC dialogue: starts host/npcd.py and wires

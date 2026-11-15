@@ -1,0 +1,27 @@
+    +----------------------------------------+
+  0 |abefabefefefefefabefefefefefefabefefefab|
+  1 |cdghcdghghghghghcdghghghghghghcdghghghcd|
+  2 |abijefijefefijefijefe@ijefijefefijefijab|
+  3 |cdkfghkfghghkfghkfghghkfghkfghghkfghkfcd|
+  4 |abefefopijefopefiji@efopefi@ijefefabijlm|
+  5 |cdghghqrkfghqrghkfkfghqrghkfkfghghcdkfnd|
+  6 |ablmijefefefijijefe@efi@ijefefefijijefab|
+  7 |cdndkfghghghkfkfghghghkfkfghghghkfkfghcd|
+  8 |efefijefijefefijefije@e@opefijefefijefij|
+  9 |ghghkfghkfghghkfghkfghghqrghkfghghkfghkf|
+ 10 |abefefopefefefefefefefefefefefefopefefab|
+ 11 |cdghghqrghghghghghghghghghghghghqrghghcd|
+ 12 |abijefijefefijefijefefijeflmefefijefijab|
+ 13 |cdkfghkfghghkfghkfghghkfghndghghkfghkfcd|
+ 14 |abefefijijefefefijijefefefijijefefeflmlm|
+ 15 |cdghghkfkfghghghkfkfghghghkfkfghghghndnd|
+ 16 |ablmijefefabijijefefefijijefefefijijefab|
+ 17 |cdndkfghghcdkfkfghghghkfkfghghghkfkfghcd|
+ 18 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|
+ 19 |A█dRgmt█wgsz█x4████KP█5██5██5██5████████|
+ 20 |>A@grRb████MRrg██████ZOs██████DrgudQt█3█|
+ 21 |█22/22█████16/18█████10/16█6██ArrYws█40█|
+ 22 |At█Wg@@s.███████████████████████████████|
+ 23 |A█dRgmt█wgsz█QRts█MRrg█WYr█1.███████████|
+ 24 |A█dRgmt█wgsz█QRts█MRrg█WYr█1.███████████|
+    +----------------------------------------+

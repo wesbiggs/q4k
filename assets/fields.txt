@@ -1,0 +1,88 @@
+# Quest for the King -- the multicolour arena's battle fields (src/fight/).
+#
+# One for each kind of ground, as in assets/arenas.txt, but 20 squares by 9:
+# a square is a 2x2 metatile, so that is the screen's width and its top 18
+# rows. tools/mkfields.py draws each with its tile set, blended edges and
+# all, and writes the picture to a file of its own (f.<name>), which the
+# fight loads when it is fought on.
+#
+#   field <name> <tile set> <ground> [size 2] [shut]
+#       <tile set>   a file in assets/, without its .txt
+#       <ground>     the tile under the party, the monster and the boulders
+#       size 2       checks the start and the path for a 2x2 body
+#       shut         no way out at the sides (Maldrath's lair)
+#   then 9 rows of 20 characters
+#
+# Map characters are the tile glyphs of assets/tiles.txt, plus:
+#   @  where the leader starts      m  where the monster starts
+#
+# The way out is the middle row, open at both ends; mkfields.py refuses a
+# field where it is not, or where the monster could not reach the party.
+
+field grass field_tiles grass
+t.t.....t......t...t
+t..................t
+t.....o...m......t.t
+tt.................t
+....................
+t..o............o..t
+t............t.....t
+t.........@.......tt
+tt...t.............t
+
+field forest field_tiles forest
+tFtFFtFFFFtFFFFtFFtt
+tFFFFFFtFFFFFFFFFFFt
+tF.FFFFFFFmFFFtFFF.t
+tFFFtFFFFFFFFFFFFFFt
+FFFFFFFF.FFFFFFtFFFF
+tFFFFFFFFFFFtFFFFFFt
+tFtFFF.FFFFFFFFFFFtt
+ttFFFFFFFF@FFFF.FFFt
+tttFFtFFFFFFFFtFFttt
+
+field shore field_tiles shore
+~~~~~~~~~~~~~~~~~~~~
+~~~,,,,~~~~~,,,,,~~~
+t,,,,,,,,,m,,,,,,,,t
+t,,,o,,,,,,,,,,,,,,t
+,,,,,,,,,,,,,,,,,,,,
+t,,,,,,,,,,,,,o,,,,t
+t,~~,,,,,,,,,,,,,..t
+t.,,,,,,,,@,,,,,...t
+t...,,,,,,,,,.....tt
+
+field swamp field_tiles swamp
+t%%%~~%%%%%%%%t%%%%t
+t%%%%%%%%%%%%%%%%%%t
+t%%%%%%%%%m%%%%~~%%t
+t%~~%%%%%%%%%%%%~%%t
+%%%%%%%%%%%%%%%%%%%%
+t%%%%%%t%%%%%%%%%%%t
+t%%%%%%%%%%%%~~%%%%t
+t%%%%%%%%%@%%%%%%%tt
+tt%%~~%%%%%%%%%%%ttt
+
+# Maldrath's lair. He is two squares by two, and there is no way out.
+field lair dungeon_tiles floor size 2 shut
+####____________####
+##________________##
+#________m_________#
+#__________________#
+#__________________#
+#__________________#
+##________________##
+###______@_______###
+#####__________#####
+
+# Underground: every fight in a deep place, keepers included.
+field floor dungeon_tiles floor
+###______________###
+#__________________#
+#___o____m_________#
+#__________________#
+____________________
+#______________o___#
+#__________________#
+##_______@________##
+####____________####

@@ -57,7 +57,7 @@ slot holds one engine at a time, loaded from the disk.
   buffer (`talkbuf.s`, `TALKBSS`). Each scene's music is a file too (`m.map`,
   ...: every score is the same fixed size, see `tools/mkmusic.py`). The game
   needs its disk, and asks for it back if a load fails. The map's engine is
-  the biggest, 15638 bytes of the slot's 17408, then the fight's (14277). The
+  the biggest, 15638 bytes of the slot's 17408, then the fight's (14800). The
   shop's engine also holds the screens the map opens that are not a place:
   the help screen and the party screen (`I`), through `shop_entry()` with
   `SHOP_HELP`/`SHOP_PARTY`; the quest's next-step table (`quest.c`) is in the
@@ -534,6 +534,103 @@ comparisons. The golden (`tests/golden/openworld`) freezes mid-step and
 compares screen codes; `openworld8` does the same in the middle of a mixed
 diagonal. Stage 2 drops back to 1 whenever a key is waiting, or
 the harness, which types ten keys at a time, reads the screen mid-step.
+
+## The multicolour arena
+
+`make run PROG=owarena` (disk `dist/owarena.d64`): the game's fight on the
+prototype's multicolour metatiles, with the party, the monsters and the shots
+all sprites. Like the prototype it is a standalone experiment; the game links
+none of it. Two parts, and the split is the point:
+
+**The fight is a module** (`src/fight/`, `include/q4k/fight.h`,
+`cfg/c64-fight.cfg`): one file, `FIGHT`, linked on its own with no BASIC stub
+and no startup, loaded at `$5400` and entered by a jump at `$5800`
+(`fight_call()`). Right after the jump is the block its caller fills in (the
+`Fight` struct: the party, the monster's numbers with its name in place, how
+many, whether the sides are a way out, a seed, and the names of two files);
+`block.c` lays the same bytes down under the game's own names (`party`,
+`potions`, ...) so that `arms.c` links unchanged, and `head.s` refuses to
+link if the block moved or changed length (146 bytes: change both). The
+module shares its caller's zero page and C stack (so the caller must be a
+cc65 program, with BASIC switched out: its BSS runs past `$A000`), clears
+its own BSS on every call and keeps nothing between fights; it returns
+`BATTLE_*`, or `FIGHT_NODISK`, with health, magic, draughts and arrows in the
+block as the fight left them. The pay, the levels and the spoils are the
+caller's (`fq_foes` says for how many). `src/owarena.c` is only the menu and
+the example of a caller; it stays below `$4000` (`cfg/c64-owarena.cfg`).
+The module is 17.5K, 14K of it `fight.c` (`-Or`).
+
+**What it loads for each fight**, itself, before it takes the screen:
+- a field, `f.<ground>`, 3K at `$4000`: the finished screen (18 rows of
+  field, a solid black row, six of spaces), the field's facts at `$4400`
+  (`FI_*`: palette, where everyone starts, a boulder's four characters, a
+  colour for each character, a flag for each square) and its characters at
+  `$4800`, 128 at most. `tools/mkfields.py` draws it from `assets/fields.txt`
+  (20 squares by 9) with a tile set of the prototype's, read by
+  `mkoverworld.py` (`build()` returns the set as well as its blob), applying
+  `smooth.s`'s edge rules itself -- so the 6502 has no tile code at all.
+  Outdoors is `assets/field_tiles.txt`, which includes `overworld.txt` and
+  adds a tree and a boulder; the lair and the dungeon room use
+  `dungeon_tiles.txt`. The generator refuses a field whose sides are not shut
+  but for the middle row, or where the monster cannot reach the party.
+- the monster's sprites, `s.<name>`, at `$5000`: two frames, or eight for a
+  2x2 body (Maldrath is four sprites). `assets/monsters.txt` has the art, in
+  the hero's format (8 double-width pixels by 16; black, light red and its
+  own colour, which is the bestiary's, so a cutthroat is a red bandit); drawn
+  once, the second frame is the first sunk a row onto its feet. The party's
+  three classes, the shots, the cursor and the blow's star are linked into
+  the module (`fight_data.s`, generated, at `$5400`). `owarena.c`'s
+  `sprite_of()` picks the file by the glyph the game draws the monster as.
+`tools/mkfields.py --preview out.png` draws every field and sprite without
+a C64.
+
+**The multiplexer** (`src/fight/mux.s`; its head has the design). The fight
+asks for up to sixteen sprites (`vs_x/xh/y/ptr/col`; one is on while its y is
+not 0: members 0-3, monsters 4-9 or a big one's quarters 4-7, the shot 10, the
+cursor 11) and `mx_plan()`, in the main program once a frame, sorts them by y
+and gives the VIC's eight out in turn: the ninth on reuses the sprite given
+out longest ago, on the raster line 22 past that one's y, if it stands at
+least 3 lines below that. Squares are 16 lines apart and a sprite 21 tall, so
+what cannot be shown is the ninth sprite on two neighbouring rows; then the
+next plan starts its sort one sprite on, so a crowd flickers and nobody
+vanishes (`mx_drops`, `mx_most`: six wasps and the party make ten with none
+dropped). Two plans are kept and the frame's first interrupt (line 251)
+takes a new one up whole. That interrupt also sets the first eight sprites
+and chains to `$EA31` for the keyboard; the events follow down the screen;
+the last (line 198) turns the background black for the text. **That one
+needs no stable raster because row 18 is solid**: a character with every
+pixel set shows no background, so nothing shows of where in it the colour
+changes. Do not put text or art with background in that row.
+
+**Text** is in the field's multicolour mode, where a colour of 0-7 makes an
+ordinary character: so text has those eight colours only, and its letters
+are the ROM's lowercase set copied to characters `$80-$FF` (`mx_font()`;
+`t_ch()` turns PETSCII into them). Row 19 names the foe and lists their
+health, 20-21 the party (a column of ten each, draughts and arrows in the
+fourth), 22-24 the log.
+
+**The rules are `battle.c`'s**, ported by hand, not shared: the flood, the
+lone monster's banked turns, `LONE_HP`, `ARCHER_EYE`, the spells. Change one
+and change the other. What differs: the field is 20 by 9, not 21 by 19 (so
+two to four boulders, and long ranges mean less), there is no autoplayer, no
+sound yet, and `M`/`X` do nothing. The bestiary moved out of `battle.c` into
+`src/lib/bestiary.c` (still in the fight's engine) so that the arena has the
+same monsters.
+
+**Tests**: `screendump.py dist/owarena.prg --disk dist/owarena.d64 --mux
+build/fight.lbl --poke auto_seed=7 --stage 3 --keys ...`. `--mux` reads the
+sixteen sprites asked for instead of the VIC's eight registers (which hold
+whatever the raster had got to), marks each by its square, and draws the
+text rows on black in `--shot`; it also adds the module's labels to
+`--peek`. The module sets the probe's stage to 3 while it waits for a key
+with none typed ahead and 2 while busy; the menu's is 1, and 4 once a fight
+has come back. `auto_seed` fixes the dice, `auto_hp` everyone's health. Keys
+typed past the end of a fight go to the menu, where a letter starts another:
+a test that waits for stage 4 must not type more than the fight takes.
+`--keys=-a...` when the keys begin with a minus. For a picture from VICE
+itself (the real raster: the split, more than eight sprites), build the menu
+with `-DOWARENA_AUTO=7`, which goes straight into a fight, and run it with
+`-limitcycles 200000000 -exitscreenshot`.
 
 ## The party
 

@@ -1,0 +1,68 @@
+# The multicolour arena's outdoor tile set (src/fight/, tools/mkfields.py):
+# the smooth-scrolling prototype's overworld, art, palette, edges and all,
+# plus what only a battlefield has. The format is assets/overworld.txt's.
+#
+# A tree blocks the way and a shot; so does a boulder, which the fight also
+# scatters afresh each time. The boulder is drawn `on grass` only to say that
+# its - pixels are the ground's: mkfields.py puts it on whatever ground the
+# field is of, white where it can be and the sand's yellow on sand.
+
+include overworld.txt
+
+tile tree black
+...cc...
+..caac..
+.caaaac.
+.caacaac
+caaaaaac
+caacaaac
+caaaaacc
+.caaacc.
+.ccaacc.
+..cccc..
+...cc...
+...cc...
+...cc...
+..cccc..
+........
+........
+
+tile tree black
+........
+..cccc..
+.caaaac.
+caaaaaac
+caacaaac
+caaaacac
+caaaaaac
+.caaaac.
+.ccaacc.
+..cccc..
+...cc...
+...cc...
+..ccc...
+..cccc..
+........
+........
+
+tile boulder white on grass
+--------
+--------
+--------
+---ccc--
+--ccccb-
+-cccccbb
+-ccccbbb
+-cccbbbb
+-ccbbbbb
+-cbbbbbb
+--bbbbb-
+---bbb--
+--------
+--------
+--------
+--------
+
+# Sand and swamp fray toward a tree as they do toward the forest.
+also shore forest mountain swamp tree
+also swamp forest mountain tree

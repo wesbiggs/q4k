@@ -365,7 +365,7 @@ PALETTE = [
 
 
 def render_png(path, screen, colors, charset, border, background, scale=2,
-               sprites=None, vic=None):
+               sprites=None, vic=None, text_from=SCR_H):
     """Draw the screen exactly as the VIC-II would, from emulated memory.
 
     VICE's -exitscreenshot only fires when the emulator quits, which is no use
@@ -392,6 +392,10 @@ def render_png(path, screen, colors, charset, border, background, scale=2,
     dx, dy = d016 & 7, (d011 & 7) - 3
 
     for cy in range(SCR_H):
+        if cy == text_from:
+            # The multicolour fight's rows of text: the background is black
+            # from here down (its interrupt changes it in the row above).
+            bg = shared[0] = PALETTE[0]
         for cx in range(SCR_W):
             code = screen[cy * SCR_W + cx]
             nyb = colors[cy * SCR_W + cx] & 0x0F
@@ -413,7 +417,7 @@ def render_png(path, screen, colors, charset, border, background, scale=2,
                         px[x, y] = fg if bits & (0x80 >> bit) else bg
 
     if sprites:
-        draw_sprites(px, img.size, margin, *sprites)
+        draw_sprites(px, img.size, margin, vic, *sprites)
 
     edge = PALETTE[border & 0x0F]
     left, right = (7, 9) if not d016 & 0x08 else (0, 0)
@@ -429,26 +433,43 @@ def render_png(path, screen, colors, charset, border, background, scale=2,
     img.save(path)
 
 
-def draw_sprites(px, size, margin, vic, pointers, fetch):
-    """Overlay the enabled hardware sprites, the way the VIC would.
+def hw_sprites(vic, pointers):
+    """The VIC's enabled sprites as (x, y, block, colour, multi, wide, tall),
+    sprite 0 first."""
+    return [(vic[n * 2] | (0x100 if vic[0x10] & (1 << n) else 0),
+             vic[n * 2 + 1], pointers[n], vic[0x27 + n],
+             bool(vic[0x1C] & (1 << n)),
+             2 if vic[0x1D] & (1 << n) else 1,
+             2 if vic[0x17] & (1 << n) else 1)
+            for n in range(8) if vic[0x15] & (1 << n)]
 
-    Hi-res and multicolour, expanded or not, highest number drawn first so
-    sprite 0 ends up on top. Sprite-behind-background priority is ignored:
+
+def mux_sprites(mon, syms):
+    """The sprites the multicolour fight asks its multiplexer for (vs_* in
+    src/fight/mux.s), all of them: the VIC's own eight registers hold
+    whichever of them the raster had got to when the machine was stopped,
+    which is no two runs the same. One is on while its y is not 0; all are
+    multicolour."""
+    n = 16
+    get = lambda name: mon.mem_get(syms[name], syms[name] + n - 1)
+    x, xh, y, ptr, col = (get(k) for k in
+                          ("vs_x", "vs_xh", "vs_y", "vs_ptr", "vs_col"))
+    return [(x[i] | (xh[i] & 1) << 8, y[i], ptr[i], col[i], True, 1, 1)
+            for i in range(n) if y[i]]
+
+
+def draw_sprites(px, size, margin, vic, sprites, fetch):
+    """Overlay the sprites, the way the VIC would.
+
+    Hi-res and multicolour, expanded or not, the last drawn first so
+    the first ends up on top. Sprite-behind-background priority is ignored:
     q4k never sets it. `fetch(addr)` returns the sprite's 63 bytes, given its
     address in the VIC's bank.
     """
-    enabled = vic[0x15]
-    for n in range(7, -1, -1):
-        if not enabled & (1 << n):
-            continue
-        x = vic[n * 2] | (0x100 if vic[0x10] & (1 << n) else 0)
-        y = vic[n * 2 + 1]
-        wide = 2 if vic[0x1D] & (1 << n) else 1
-        tall = 2 if vic[0x17] & (1 << n) else 1
-        multi = vic[0x1C] & (1 << n)
+    for x, y, block, own, multi, wide, tall in reversed(sprites):
         colours = (None, PALETTE[vic[0x25] & 0x0F],
-                   PALETTE[vic[0x27 + n] & 0x0F], PALETTE[vic[0x26] & 0x0F])
-        data = fetch(pointers[n] * 64)
+                   PALETTE[own & 0x0F], PALETTE[vic[0x26] & 0x0F])
+        data = fetch(block * 64)
         # Screen column 0 is sprite X 24; row 0 is sprite Y 50.
         left = margin + x - 24
         top = margin + y - 50
@@ -476,24 +497,27 @@ SPRITE_MARK = "@"
 SPRITE_CODE = 0x100
 
 
-def sprite_cells(vic, pointers, fetch):
-    """The screen cell under the middle of each enabled sprite's pixels."""
+def sprite_cells(sprites, fetch, square=False):
+    """The screen cell under the middle of each sprite's pixels -- or, with
+    `square`, of the 16 by 16 it is drawn in (the multicolour fight's, whose
+    figures shift their feet between two frames, so that the middle of
+    their pixels is not always the same cell)."""
     cells = set()
-    for n in range(8):
-        if not vic[0x15] & (1 << n):
+    for x, y, block, _, _, wide, tall in sprites:
+        if square:
+            cx, cy = (x - 24 + 8) // 8, (y - 50 + 7) // 8
+            if 0 <= cx < SCR_W and 0 <= cy < SCR_H:
+                cells.add((cx, cy))
             continue
-        data = fetch(pointers[n] * 64)
+        data = fetch(block * 64)
         lit = [(col, row) for row in range(21) for col in range(24)
                if data[row * 3 + col // 8] & (0x80 >> (col % 8))]
         if not lit:
             continue
-        wide = 2 if vic[0x1D] & (1 << n) else 1
-        tall = 2 if vic[0x17] & (1 << n) else 1
         mid_x = (min(c for c, _ in lit) + max(c for c, _ in lit)) * wide // 2
         mid_y = (min(r for _, r in lit) + max(r for _, r in lit)) * tall // 2
-        x = vic[n * 2] | (0x100 if vic[0x10] & (1 << n) else 0)
         cx = (x + mid_x - 24) // 8
-        cy = (vic[n * 2 + 1] + mid_y - 50) // 8
+        cy = (y + mid_y - 50) // 8
         if 0 <= cx < SCR_W and 0 <= cy < SCR_H:
             cells.add((cx, cy))
     return cells
@@ -538,6 +562,11 @@ def main():
                     default=[], help="print a global by name")
     ap.add_argument("--shot", metavar="PNG",
                     help="also render the screen to a PNG from emulated memory")
+    ap.add_argument("--mux", metavar="LBL",
+                    help="show the sprites the multicolour fight asks its "
+                         "multiplexer for, from its label file "
+                         "(build/fight.lbl), not the eight the VIC has; and "
+                         "its text rows on black")
     ap.add_argument("--settle", type=float, metavar="SECS",
                     help="after typing, let the machine run this long, then dump")
     ap.add_argument("--timeout", type=float, default=60.0)
@@ -586,13 +615,19 @@ def main():
         charset_base += bank
         colors = mon.mem_get(COLOR_RAM, COLOR_RAM + SCR_W * SCR_H - 1)
         if args.peek:
-            report_peeks(mon, load_symbols(args.prg, args.lbl), args.peek)
+            syms = load_symbols(args.prg, args.lbl)
+            if args.mux:
+                syms = dict(load_symbols(args.prg, args.mux), **syms)
+            report_peeks(mon, syms, args.peek)
         scratch = mon.mem_get(PROBE, PROBE + 19)
         vic = mon.mem_get(0xD000, 0xD02E)
         pointers = mon.mem_get(screen_at + 0x3F8, screen_at + 0x3FF)
+        if args.mux:
+            sprites = mux_sprites(mon, load_symbols(args.prg, args.mux))
+        else:
+            sprites = hw_sprites(vic, pointers)
         sprite_data = {p * 64: mon.mem_get(bank + p * 64, bank + p * 64 + 62)
-                       for n, p in enumerate(pointers)
-                       if vic[0x15] & (1 << n)}
+                       for p in {sp[2] for sp in sprites}}
         if args.shot:
             if rom_charset:
                 print("screendump: charset is in ROM; --shot needs a RAM "
@@ -601,8 +636,8 @@ def main():
                 charset = mon.mem_get(charset_base, charset_base + 0x7FF)
                 render_png(args.shot, screen, colors, charset,
                            vic[0x20], vic[0x21],
-                           sprites=(vic, pointers, sprite_data.__getitem__),
-                           vic=vic)
+                           sprites=(sprites, sprite_data.__getitem__),
+                           vic=vic, text_from=19 if args.mux else SCR_H)
                 print("screendump: wrote %s" % args.shot, file=sys.stderr)
         mon.quit()
     finally:
@@ -627,7 +662,8 @@ def main():
         # mistaken for anything the charset draws.
         if not args.raw:
             rows = [list(row) for row in rows]
-            for cx, cy in sprite_cells(vic, pointers, sprite_data.__getitem__):
+            for cx, cy in sprite_cells(sprites, sprite_data.__getitem__,
+                                       bool(args.mux)):
                 rows[cy][cx] = SPRITE_CODE
         print(grid(rows, lambda c: SPRITE_MARK if c == SPRITE_CODE
                    else to_text(c, lowercase, legend)))
