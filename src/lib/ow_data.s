@@ -4,8 +4,13 @@
         .export ow_rnd, ow_qvar, ow_sprites, ow_nsprites
         .export _ts_overworld, _ts_town, _ts_castle, _ts_dungeon
 
-; All of it is only read, so it goes in HIGH (cfg/c64-openworld.cfg).
-        .segment "HIDATA"
+; All of it is only read, and the same in both engines, so it goes in
+; the file they share, OW-DATA (cfg/c64-openworld.cfg), whose load
+; address this is.
+        .import __COMMON_START__
+        .segment "OWADDR"
+        .word __COMMON_START__
+        .segment "OWDATA"
 
 _ow_spr1:    .byte 0
 _ow_spr2:    .byte 10

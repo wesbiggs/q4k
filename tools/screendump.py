@@ -322,6 +322,27 @@ def wait_for_stage(mon, stage, timeout=60.0):
     )
 
 
+# The smooth-scrolling prototype's splash screen reads F1 and F3 from the
+# keyboard matrix, with the KERNAL out, so nothing typed into the KERNAL's
+# buffer reaches it. While it waits it holds a mark in its hand-off block
+# (OW->hook, include/q4k/ow.h), and takes a key written there as pressed.
+SPLASH_HOOK = 0x02A7 + 62
+SPLASH_WAIT = 0xA5
+SPLASH_KEYS = {"f1": 0x85, "f3": 0x86}
+
+
+def press_splash(mon, key, timeout=60.0):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if mon.mem_get(SPLASH_HOOK, SPLASH_HOOK)[0] == SPLASH_WAIT:
+            mon.mem_set(SPLASH_HOOK, bytes([SPLASH_KEYS[key]]))
+            mon.resume()
+            return
+        mon.resume()
+        time.sleep(0.05)
+    raise TimeoutError("the splash screen never waited for a key")
+
+
 def to_text(code, lowercase_charset=False, legend=None):
     """Screen code -> a printable stand-in.
 
@@ -548,6 +569,10 @@ def main():
     ap.add_argument("--rs232", type=int, metavar="PORT",
                     help="bridge the user port modem to 127.0.0.1:PORT")
     ap.add_argument("--baud", type=int, default=300)
+    ap.add_argument("--splash", choices=sorted(SPLASH_KEYS),
+                    help="press this key at the smooth-scrolling "
+                         "prototype's splash screen (f1 a new game, f3 the "
+                         "saved one), before anything else")
     ap.add_argument("--poke", action="append", metavar="SYM=VALUE",
                     default=[],
                     help="set a global by name once the program is running")
@@ -587,6 +612,8 @@ def main():
         sock = connect(port)
         mon = Monitor(sock)
         mon.resume()   # connecting drops VICE into the monitor; let it boot
+        if args.splash:
+            press_splash(mon, args.splash, args.timeout)
         stage = wait_for_stage(mon, args.ready, args.timeout)
         if args.poke:
             apply_pokes(mon, load_symbols(args.prg, args.lbl), args.poke)

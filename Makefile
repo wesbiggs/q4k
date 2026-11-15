@@ -267,6 +267,13 @@ $(BUILD)/lib/%.o: src/lib/%.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) -c -o $@ $<
 
+# The prototype's splash screen is the splash kit's libraries (assets/
+# splash-kit/lib, made with vic2orious) with a routine of ours round them.
+# -t none, not c64: they compare the files' magic with ASCII strings.
+SPLASHKIT := assets/splash-kit
+$(BUILD)/lib/ow_splash.o: ASFLAGS := -t none --asm-include-dir $(SPLASHKIT)/lib
+$(BUILD)/lib/ow_splash.o: $(wildcard $(SPLASHKIT)/lib/*.inc)
+
 ifdef LIB
 $(LIB): $(LIBOBJ)
 	@rm -f $@
@@ -308,8 +315,15 @@ $(DIST)/arena.prg: $(BUILD)/arena.o $(BUILD)/lib/battle_bot.o $(LIB) $(wildcard 
 # The smooth-scrolling prototype: a bootstrap (openworld.prg, built as any
 # program here) and two engines from one source, with and without the REU
 # (src/ow/, -DOW_REU and --asm-define OW_REU), each with a label file for
-# the tests. Its disk holds the three; the bootstrap loads one (ow.h).
+# the tests. The bootstrap loads one (ow.h). What is the same in both -- the
+# tile sets and the towns' maps -- ld65 writes to a file beside each
+# (cfg/c64-openworld.cfg's COMMON), and the disk has it once, as OW-DATA,
+# which the bootstrap loads: the two must be the same bytes. The disk also
+# has the splash screen's two pictures (PAL and NTSC), each with its text,
+# and a saved game to load, since nothing saves yet.
 OWENG := $(DIST)/ow-cpu.prg $(DIST)/ow-reu.prg
+OWFILES := $(DIST)/ow-data.prg $(DIST)/splash-p.prg $(DIST)/splash-n.prg \
+           $(DIST)/ow-save.prg
 
 $(BUILD)/ow/engine-cpu.o $(BUILD)/ow/engine-reu.o: $(BUILD)/ow/engine-%.o: src/ow/engine.c
 	@mkdir -p $(dir $@)
@@ -325,12 +339,29 @@ $(DIST)/ow-%.prg: $(BUILD)/ow/engine-%.o $(BUILD)/ow/smooth-%.o $(LIB) cfg/c64-o
 	$(CL65) $(LDFLAGS) -C cfg/c64-openworld.cfg -m $(BUILD)/ow-$*.map \
 	    -Wl -Ln,$(BUILD)/ow-$*.lbl -o $@ $(BUILD)/ow/engine-$*.o \
 	    $(BUILD)/ow/smooth-$*.o $(LIB)
+	@mv $@.data $(BUILD)/ow-$*.data
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
+$(DIST)/ow-data.prg: $(OWENG)
+	cmp $(BUILD)/ow-cpu.data $(BUILD)/ow-reu.data
+	cp $(BUILD)/ow-cpu.data $@
+	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
+
+$(DIST)/splash-%.prg: $(SPLASHKIT)/data/splash-%.v2i $(SPLASHKIT)/data/splash-%.v2t \
+                      tools/mksplash.py
+	@mkdir -p $(DIST)
+	tools/mksplash.py $(SPLASHKIT)/data/splash-$*.v2i $(SPLASHKIT)/data/splash-$*.v2t $@
+
+$(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py
+	@mkdir -p $(DIST)
+	tools/mkowsave.py $@
+
 # c1541 -format makes a fresh image over whatever was there.
-$(DIST)/openworld.d64: $(DIST)/openworld.prg $(OWENG)
+$(DIST)/openworld.d64: $(DIST)/openworld.prg $(OWENG) $(OWFILES)
 	$(C1541) -format "openworld,01" d64 $@ >/dev/null
 	$(C1541) -attach $@ -write $(DIST)/openworld.prg openworld \
+	    -write $(DIST)/splash-p.prg splash-p -write $(DIST)/splash-n.prg splash-n \
+	    -write $(DIST)/ow-save.prg ow-save -write $(DIST)/ow-data.prg ow-data \
 	    -write $(DIST)/ow-cpu.prg ow-cpu -write $(DIST)/ow-reu.prg ow-reu >/dev/null
 
 -include $(BUILD)/ow/engine-cpu.d $(BUILD)/ow/engine-reu.d

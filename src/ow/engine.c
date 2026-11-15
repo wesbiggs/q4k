@@ -542,7 +542,8 @@ static unsigned char hero_frame(unsigned char d, unsigned char st)
 extern unsigned char _OWLOW_LOAD__[], _OWLOW_SIZE__[];
 
 /* What the bootstrap built and found (ow.h), into the engine's own: the
-   lands are in the vault already. The hero starts at Millford. */
+   lands are in the vault already. The hero starts where it says: at
+   Millford in a new game, wherever a saved one left them. */
 static void take_world(void)
 {
     seed = lore_seed = OW->seed;
@@ -555,8 +556,8 @@ static void take_world(void)
     memcpy(ibiome, OW->ibiome, sizeof ibiome);
     memcpy(ship_x, OW->ship_x, sizeof ship_x);
     memcpy(ship_y, OW->ship_y, sizeof ship_y);
-    wx = 128 + home_fx[0];
-    wy = 64 + home_fy[0];
+    wx = OW->start_x;
+    wy = OW->start_y;
     hx = wx & 127;
     hy = wy & 127;
     sm_torus = 1;

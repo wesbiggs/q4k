@@ -1,19 +1,28 @@
 /*
  * Open world: the bootstrap of the smooth-scrolling prototype.
  *
- * Run from its disk (dist/openworld.d64, the first file). It looks for an
- * REU, builds Keldmarch and the four continents with the game's generator
- * into the RAM under the ROMs, moors a ship beside each port and landing,
- * leaves all of that in the hand-off block (include/q4k/ow.h) and loads the
- * engine that suits the machine: OW-REU if there is an REU whose transfers
- * reach colour RAM, OW-CPU otherwise. The engines are src/ow/engine.c,
- * built twice; see there for the keys.
+ * Run from its disk (dist/openworld.d64, the first file). It shows the
+ * splash screen, the picture for the machine's video system, until F1 (a
+ * new game) or F3 (a saved one); looks for an REU; loads what the two
+ * engines share (OW-DATA); builds Keldmarch and the four continents with
+ * the game's generator into the RAM under the ROMs; moors a ship beside
+ * each port and landing; leaves all of that in the hand-off block
+ * (include/q4k/ow.h) and loads the engine that suits the machine: OW-REU if
+ * there is an REU whose transfers reach colour RAM, OW-CPU otherwise. The
+ * engines are src/ow/engine.c, built twice; see there for the keys.
  *
- * An engine comes back here for N, with the next seed in the block, and
- * this builds that world instead of seed 1's.
+ * The order is the memory's. The picture is unpacked into $C000-$FFFF and
+ * shown with the KERNAL out, so nothing loads while it is up, and the lands
+ * go into that same RAM after it; the picture's file is where OW-DATA goes,
+ * so that is loaded after it too.
+ *
+ * An engine comes back here for N, with the next seed in the block: no
+ * splash then, OW-DATA is still in memory, and this builds that world.
  */
 
+#include <cbm.h>
 #include <conio.h>
+#include <peekpoke.h>
 #include <string.h>
 
 #include <q4k/game.h>
@@ -76,30 +85,78 @@ static void moor(unsigned char i, unsigned char x, unsigned char y,
     OW->ship_y[i] = oy + ny;
 }
 
+/* ow_splash.s finds OW->hook by its offset: six bytes from the end (cc65's
+   offsetof is not a constant, so this checks the size instead). */
+typedef char hook_is_where_ow_splash_has_it
+    [2 * (sizeof(OwWorld) == OW_HOOK_OFF + 6) - 1];
+
+static OwSave save;
+
+/* A file that has to be there. Nothing is said unless it is not. */
+static void need(const char *name, void *at)
+{
+    while (!cbm_load(name, 8, at)) {
+        cputs("Put the disk back and press a key.\r\n");
+        cgetc();
+    }
+}
+
+/* The splash screen and what the player chose there: the seed, and whether
+   it is a saved game, with `save` loaded if so. The screen is black until
+   the picture is ready, and from the key on it shows the disk. */
+static void splash(void)
+{
+    unsigned char key = 0;
+
+    OW->video = ow_video();
+    /* A machine with no picture, or a disk without one, starts a new
+       game. */
+    if (OW->video <= OW_NTSC &&
+        cbm_load(OW->video == OW_NTSC ? "splash-n" : "splash-p", 8,
+                 (void *)OW_SPLASH_AT)) {
+        key = ow_splash();
+    }
+    ow_disk_on();
+    /* A new world for a new game, from how long the player took. */
+    lore_seed = 1 + ow_splash_ticks;
+    OW->saved = 0;
+    if (key == OW_KEY_F3) {
+        /* Nothing saves yet: the disk comes with a game to load. */
+        need("ow-save", &save);
+        if (save.magic == OW_SAVE_MAGIC) {
+            lore_seed = save.seed;
+            OW->saved = 1;
+        }
+    }
+}
+
 int main(void)
 {
     unsigned char d, again = OW->magic == OW_MAGIC;
 
     bgcolor(COLOR_BLACK);
     bordercolor(COLOR_BLACK);
-    textcolor(COLOR_GRAY3);
+    textcolor(COLOR_GRAY3);     /* for the one thing that may be said */
     clrscr();
-    cputs("Quest for the King\r\n"
-          "the open world, at sea\r\n\r\n");
+    /* MEMSIZ up to the probe page before the drive is touched, as the
+       game has it. */
+    POKEW(0x0283, 0xCF00);
 
-    lore_seed = again ? OW->seed : 1;
+    if (again) {
+        lore_seed = OW->seed;   /* N in an engine: the next world */
+        OW->saved = 0;
+        ow_disk_on();
+    } else {
+        splash();
+    }
     OW->magic = 0;              /* until it is all there */
     OW->seed = lore_seed;
     OW->reu = ow_reu_detect();
-    cputs(OW->reu == OW_NO_REU ? "No REU: the CPU scrolls.\r\n" :
-          OW->reu == OW_REU_OK ? "An REU, and its DMA reaches colour\r\n"
-                                 "RAM: the REU scrolls.\r\n" :
-                                 "An REU, but its DMA does not reach\r\n"
-                                 "colour RAM: the CPU scrolls.\r\n");
+    if (!again) {               /* else it is still there */
+        need("ow-data", 0);     /* to its own address, $7400 */
+    }
 
-    cputs("\r\nBuilding the world");
     for (d = 0; d < 4; ++d) {   /* the continents, into the vault */
-        cputc('.');
         OW->slot[d] = slot_of(d);
         isle_story = OW->slot[d] & 1;
         isle_build(d);
@@ -112,7 +169,6 @@ int main(void)
              cell_y[d] * 64 + ISLE_TOP, 0);
         vault_park(d);
     }
-    cputc('.');
     isle_build(ISLE_HOME);      /* and home, in place */
     OW->home_biome = isle_biome;
     memcpy(OW->home_fx, isle_fx, OW_PLACES);
@@ -120,10 +176,11 @@ int main(void)
     for (d = 0; d < 4; ++d) {
         moor(d, isle_port_x[d], isle_port_y[d], 128, 64, 1);
     }
+    /* The hero starts at Millford, or where the save has them. */
+    OW->start_x = OW->saved ? save.x : 128 + isle_fx[0];
+    OW->start_y = OW->saved ? save.y : 64 + isle_fy[0];
     OW->magic = OW_MAGIC;
 
-    cputs(OW->reu == OW_REU_OK ? "\r\n\r\nLoading OW-REU" :
-                                 "\r\n\r\nLoading OW-CPU");
     ow_run(OW->reu == OW_REU_OK ? "ow-reu" : "ow-cpu");
     return 0;
 }

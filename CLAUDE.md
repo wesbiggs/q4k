@@ -334,12 +334,12 @@ the game: a world from the game's generator, walked with a camera that
 glides a pixel or two a frame over 16x16 multicolour metatiles (2x2
 characters), for the TeensyROM+/REU ideas. The game links none of it.
 
-**Three programs on a disk of their own** (`dist/openworld.d64`, which `make`
-builds). The first, `openworld` (`src/openworld.c`, `cfg/c64-owboot.cfg`),
+**A disk of its own** (`dist/openworld.d64`, which `make` builds): a
+bootstrap, two engines and what the bootstrap loads for them. The first, `openworld` (`src/openworld.c`, `cfg/c64-owboot.cfg`),
 is a bootstrap: it looks for an REU (`ow_reu_detect()`, `src/lib/ow_run.s`:
 the registers, a round trip, and that a transfer lands in colour RAM, in its
-last 24 bytes, which nothing shows -- the TeensyROM question), says what it
-found, builds every land into the vault, moors the ships, leaves all of it in
+last 24 bytes, which nothing shows -- the TeensyROM question), builds
+every land into the vault, moors the ships, leaves all of it in
 the hand-off block at `$02A7` (`include/q4k/ow.h`) and loads an engine over
 itself (`ow_run()`, a loader copied into the tape buffer). The engines are
 `src/ow/engine.c` and `src/ow/smooth.s` built twice: `ow-reu` (`-DOW_REU`,
@@ -353,9 +353,44 @@ An engine has its own memory map (`cfg/c64-openworld.cfg`: VIC bank 1 at
 map at `$B000` and its edges at `$A000`) and its own raster interrupt, which
 chains to `$EA31` with the CIA's timer interrupt off. **Tests** start the
 bootstrap with the disk and read the engine's labels:
-`screendump.py dist/openworld.prg --disk dist/openworld.d64 --lbl
-build/ow-cpu.lbl` (`ow-reu.lbl` with `--vice=-reu`); the bootstrap and the
-load take about ten seconds.
+`screendump.py dist/openworld.prg --disk dist/openworld.d64 --splash f1
+--lbl build/ow-cpu.lbl` (`ow-reu.lbl` with `--vice=-reu`); the bootstrap and
+the loads take about fifteen seconds.
+
+**The splash screen** comes first (`src/lib/ow_splash.s`, round the libraries
+of `assets/splash-kit`, which is vic2orious's output: do not edit `lib/` or
+`data/` there, regenerate them). The bootstrap finds the video system
+(`ow_video()`), loads `splash-p` or `splash-n` at `$4000` (the kit's `.v2t`
+in a page and then its `.v2i`, joined by `tools/mksplash.py`) and shows it
+until F1, a new game (its seed is 1 plus the frames the player took), or F3,
+a saved one: `ow-save`, five bytes (`OwSave`: a mark, the seed, the hero's
+world square) that `tools/mkowsave.py` writes, seed 7 at the castle, since
+nothing saves yet. `OW->start_x/start_y` is where the engine puts the hero.
+**While the picture is up nothing else can happen**: the KERNAL is out, so
+no disk; the picture is unpacked into `$C000-$FFFF`, so the lands are built
+after it, and the bootstrap's BSS is at `$A000`; `$02`, half of cc65's stack
+pointer, is the picture's and is saved round it. The module is assembled
+`-t none`, because the libraries compare the files' magic with ASCII strings.
+The keys are read from the matrix, which the tests cannot press: while it
+waits `OW->hook` is `$A5`, and `screendump.py --splash f1|f3` writes the key
+there (then the new game's seed is 1, as the goldens have it). `N` skips all
+of this. Golden `openworld-load` is the F3 path. The bootstrap says nothing:
+the screen is black until the picture is up, and from the key until the
+engine has the screen a yellow floppy blinks in the middle (`ow_disk_on()`
+in `ow_run.s`: sprite 0 at `$0380` and a few instructions in front of the
+KERNAL's interrupt at `$03C0`, in the tape buffer past the loader, since they
+must outlast the bootstrap; it stands still while the lands are built, with
+interrupts off). Only a failed load prints anything.
+
+**What both engines read and neither changes** is one file, `ow-data`
+(10.3K at `$7400-$9FFF`: the tile sets, in `OWDATA`, and the towns' maps and
+names), which the bootstrap loads once, after the splash, and which is still
+there after `N`. ld65 writes it beside each engine (`COMMON` in the cfg,
+`%O.data`) and the Makefile fails if the two differ, so only bytes that are
+the same in both links can go there: data, not code (the engines' BSS
+differs). `local[]` (`HIDATA`, the game's font image) is at `$6C00` in an
+engine and in no file. An engine is 25K, not 37K; its HIGH, `$5400-$6BFF`,
+has 620 bytes free and COMMON 930.
 
 **The world** is a torus of 6 by 4 cells of 64x64 squares (`grid[]`):
 Keldmarch in the middle of the second row, the four continents (64x31, at
@@ -379,7 +414,7 @@ becomes the ship, frames 9 and 10); in it you sail open water and step off
 onto any land, where it stays; its position is kept as you sail. No
 permission is asked. The continents' places go in as they do in the game
 (the bootstrap works out `slot_of()` for each).
-**Memory**: each engine has about 1.5K free in HIGH, and in MAIN `ow-cpu`
+**Memory**: each engine has what is said above free in HIGH, and in MAIN `ow-cpu`
 about 1.4K and `ow-reu` 2.1K: it has one colour copy, not two
 (`colour_for` patches its hundred screen addresses for the screen a
 redraw or a roof's flip reads, in the main loop before the flip, about 2K

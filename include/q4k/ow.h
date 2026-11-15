@@ -1,13 +1,18 @@
 /*
  * Quest for the King -- the smooth-scrolling prototype's hand-off.
  *
- * The prototype is three files on its disk (dist/openworld.d64): the
- * bootstrap, OPENWORLD (src/openworld.c), and two engines built from one
- * source (src/ow/engine.c and smooth.s), OW-CPU and OW-REU. The bootstrap
- * looks for an REU, builds every land into the RAM under the ROMs (the
- * vault), moors the ships, writes what it found here and loads the engine
- * that suits the machine, which takes everything from here. So neither
- * engine carries the land generator, and each carries only its own way of
+ * The prototype is a disk (dist/openworld.d64): the bootstrap, OPENWORLD
+ * (src/openworld.c), two engines built from one source (src/ow/engine.c and
+ * smooth.s), OW-CPU and OW-REU, and what the bootstrap loads for them. It
+ * shows the splash screen (SPLASH-P or SPLASH-N, by the machine's video
+ * system) until F1, a new game, or F3, a saved one (OW-SAVE, which the disk
+ * comes with: nothing saves yet); then it looks for an REU, loads what both
+ * engines read and neither changes (OW-DATA: the tile sets and the towns'
+ * maps, at the top of the engines' memory, where their own files do not
+ * reach), builds every land into the RAM under the ROMs (the vault), moors
+ * the ships, writes what it found here and loads the engine that suits the
+ * machine, which takes everything from here. So neither engine carries the
+ * land generator or the tiles, and each carries only its own way of
  * scrolling.
  *
  * The block is in $02A7-$02FF, which neither the KERNAL nor cc65 uses, so
@@ -38,6 +43,11 @@ typedef struct {
     unsigned char slot[4];      /* which story place: game.c's slot_of() */
     unsigned int  ship_x[OW_SHIPS];      /* in the world, 384 by 256 */
     unsigned char ship_y[OW_SHIPS];
+    unsigned char hook;         /* the tests' way to press F1 or F3: below */
+    unsigned char video;        /* OW_PAL, OW_NTSC */
+    unsigned char saved;        /* the game came from a save, not F1 */
+    unsigned int  start_x;      /* where the hero starts, in the world */
+    unsigned char start_y;
 } OwWorld;
 
 #define OW ((OwWorld *)0x02A7)
@@ -48,8 +58,46 @@ typedef struct {
    return; the border flashes if the load fails. */
 void __fastcall__ ow_run(const char *name);
 
+/* A floppy disk blinking in the middle of the screen, from now until an
+   engine has the screen: the machine is busy. */
+void ow_disk_on(void);
+
 /* 0 no REU, 1 one whose transfers reach colour RAM, 2 one whose do not:
    OW_NO_REU, OW_REU_OK, OW_REU_BLIND. */
 unsigned char ow_reu_detect(void);
+
+/* --- The splash screen (src/lib/ow_splash.s) --------------------------- */
+
+#define OW_PAL  0
+#define OW_NTSC 1               /* anything else has no picture */
+
+/* Where the bootstrap loads SPLASH-P or SPLASH-N: its text, in a page, and
+   then the picture (tools/mksplash.py), 21K, clear of the bootstrap below
+   and its BSS above (cfg/c64-owboot.cfg). OW-DATA is loaded over it later. */
+#define OW_SPLASH_AT 0x4000
+
+#define OW_KEY_F1 0x85          /* a new game */
+#define OW_KEY_F3 0x86          /* a saved one */
+
+/* While the splash waits for a key OW->hook is OW_HOOK_WAIT, and a key
+   written there is taken as pressed: tools/screendump.py --splash. */
+#define OW_HOOK_OFF  62
+#define OW_HOOK_WAIT 0xA5
+
+unsigned char ow_video(void);
+/* Show the picture at OW_SPLASH_AT until F1 or F3: OW_KEY_F1, OW_KEY_F3, or
+   0 if there is no picture there for this machine. */
+unsigned char ow_splash(void);
+extern unsigned char ow_splash_ticks;   /* frames the player took, mod 256 */
+
+/* A saved game, as far as the open world goes: OW-SAVE on the disk
+   (tools/mkowsave.py writes the one it comes with). */
+#define OW_SAVE_MAGIC 0x53
+typedef struct {
+    unsigned char magic;
+    unsigned char seed;
+    unsigned int  x;            /* the hero's square in the world */
+    unsigned char y;
+} OwSave;
 
 #endif /* Q4K_OW_H */
