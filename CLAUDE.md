@@ -379,7 +379,11 @@ becomes the ship, frames 9 and 10); in it you sail open water and step off
 onto any land, where it stays; its position is kept as you sail. No
 permission is asked. The continents' places go in as they do in the game
 (the bootstrap works out `slot_of()` for each).
-**Memory**: each engine has about 1.3K free in MAIN and 1.5K in HIGH.
+**Memory**: each engine has about 1.5K free in HIGH, and in MAIN `ow-cpu`
+about 1.4K and `ow-reu` 2.1K: it has one colour copy, not two
+(`colour_for` patches its hundred screen addresses for the screen a
+redraw or a roof's flip reads, in the main loop before the flip, about 2K
+cycles; every other flip is coloured from the REU).
 Code that runs only after the start lives at `$0400` (`OWLOW`, the text
 screen's, loaded inside screen A's space and copied down then) and past the
 sprite blocks at `$52C0` (`OWTOP`); the C stack is moved to the tape buffer

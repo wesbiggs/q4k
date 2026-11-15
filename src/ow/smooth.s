@@ -623,10 +623,56 @@ fill_col:
         rts
 .endmacro
 
+.if !OW_REU
 colour_a:
         COLCOPY SCRA
 colour_b:
         COLCOPY SCRB
+.else
+; OW-REU colours a flip from the REU, and needs a copy from the screen only
+; for a redraw (sm_draw_all, sm_redraw_box): one copy will do, made to read
+; whichever screen that is by colour_for, in the main loop, beforehand.
+colour_a:
+        COLCOPY SCRA
+CC_ROW = 2 + 4 * 9 + 3          ; a row's code: ldx, four ldy-lda-sta, dex, bpl
+        .assert * - colour_a = 25 * CC_ROW + 1, error, "colour_for's layout"
+
+; colour_a, made to read the screen whose page is in A: the high byte of
+; each of its hundred ldy's, flipped if it reads the other one. About 2K
+; cycles, when it does. Clobbers X, Y and ptr1.
+colour_for:
+        cmp     cc_page
+        beq     @done
+        sta     cc_page
+        lda     #<(colour_a + 4)
+        sta     ptr1
+        lda     #>(colour_a + 4)
+        sta     ptr1+1
+        ldx     #25
+@row:   ldy     #0
+@ldy:   lda     (ptr1),y
+        eor     #(>SCRA) ^ (>SCRB)
+        sta     (ptr1),y
+        tya
+        clc
+        adc     #9
+        tay
+        cpy     #36
+        bne     @ldy
+        lda     ptr1
+        clc
+        adc     #CC_ROW
+        sta     ptr1
+        bcc     :+
+        inc     ptr1+1
+:       dex
+        bne     @row
+@done:  rts
+
+        .segment "DATA"
+cc_page: .byte  >SCRA           ; the screen colour_a reads
+        .segment "CODE"
+.endif
 
 ; ---------------------------------------------------------------------------
 .if !OW_REU
@@ -869,10 +915,20 @@ _sm_draw_all:
         .byte   $2C
 :       lda     #>SCRA
         jsr     draw_page
+.if OW_REU
+        lda     _sm_front
+        beq     :+
+        lda     #>SCRB
+        .byte   $2C
+:       lda     #>SCRA
+        jsr     colour_for
+        jmp     colour_a
+.else
         lda     _sm_front
         bne     :+
         jmp     colour_a
 :       jmp     colour_b
+.endif
 
 ; void sm_redraw_box(void) -- the back screen as the front, but for the
 ; characters sm_box_c0-c1 by sm_box_r0-r1, drawn from the map: for a flip
@@ -969,6 +1025,20 @@ draw_page:
 ; flip, the other screen. All of it at once, so that a frame never gets the
 ; new fine scroll with the old screen.
 _sm_commit:
+.if OW_REU
+        pha                     ; a flip coloured from the screen: the copy
+        tax                     ; made to read the one that will be in front
+        beq     @nocol
+        lda     built_reu
+        bne     @nocol
+        lda     _sm_front
+        beq     @tob
+        lda     #>SCRA
+        bne     @pat
+@tob:   lda     #>SCRB
+@pat:   jsr     colour_for
+@nocol: pla
+.endif
         sei
         tay
         lda     #7
@@ -1641,14 +1711,15 @@ irq:
         lda     pendreu
         beq     :+
         jsr     reu_colour
-        jmp     :+++
-:
-.endif
+        jmp     :++
+:       jsr     colour_a        ; (colour_for chose the screen)
+.else
         lda     _sm_front
         bne     :+
         jsr     colour_a
         jmp     :++
 :       jsr     colour_b
+.endif
 :       lda     $D012
         sta     _sm_colend
 @tail:  lda     spr_ready       ; the people, with the scroll
