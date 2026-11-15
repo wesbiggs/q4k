@@ -30,7 +30,7 @@
         .export _isle_build, _isle_begin, _isle_work
         .export _isle_sx, _isle_sy, _isle_dock_x, _isle_dock_y, _isle_biome
         .export _isle_story, _isle_port_x, _isle_port_y, _isle_fx, _isle_fy
-        .export isle_rnd, isle_seed        ; the towns' generator borrows these
+        .import isle_rnd, isle_seed        ; (isle_rnd.s: the towns' too)
         .import _local, _local_w, _local_h, _lore_seed
         .import vault_enter, vault_leave
 
@@ -104,7 +104,6 @@ ax:             .res 1
 ay:             .res 1
 need:           .res 1
 dd:             .res 1
-seed:           .res 2  ; the LFSR
 lay:            .res 1  ; what the walker is laying down
 phase:          .res 1  ; 1 land, 2 ranges, 3 lakes, 4 places, 5 tiles, 6 done
 arms:           .res 1  ; walks from the middle still to take
@@ -138,22 +137,8 @@ happart: .byte 0, 24, 12, 12, 10
 
         .segment "MAPCODE"           ; an engine of its own: engine.h
 
-; A = a random byte: eight bits of a Galois LFSR, taps $B400, whose period is
-; 65535. Clobbers X.
-rnd:    ldx #8
-@bit:   lsr seed+1
-        ror seed
-        bcc @no
-        lda seed+1
-        eor #$B4
-        sta seed+1
-@no:    dex
-        bne @bit
-        lda seed
-        rts
-
-isle_rnd = rnd
-isle_seed = seed
+rnd = isle_rnd                  ; A = a random byte; clobbers X
+seed = isle_seed                ; its LFSR
 
 ; ptr1 = &map[at]
 setp:   clc

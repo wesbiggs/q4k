@@ -329,21 +329,39 @@ else running: see Memory.
 
 ## The smooth-scrolling prototype
 
-`src/openworld.c` (`dist/openworld.prg`, `make run PROG=openworld`) is a
-standalone experiment, not the game: a world from the game's generator,
-walked with a camera that glides a pixel or two a frame over 16x16
-multicolour metatiles (2x2 characters), for the TeensyROM+/REU ideas. It is
-one PRG with no disk, its own memory map (`cfg/c64-openworld.cfg`: VIC bank 1
-at `$4000` for two screens, the charset and the sprites, a 64x64 window of
-the map at `$B000` and its edges at `$A000`) and its own raster interrupt,
-which chains to `$EA31` with the CIA's timer interrupt off. The game links
-none of it.
+The open world (`make run PROG=openworld`) is a standalone experiment, not
+the game: a world from the game's generator, walked with a camera that
+glides a pixel or two a frame over 16x16 multicolour metatiles (2x2
+characters), for the TeensyROM+/REU ideas. The game links none of it.
+
+**Three programs on a disk of their own** (`dist/openworld.d64`, which `make`
+builds). The first, `openworld` (`src/openworld.c`, `cfg/c64-owboot.cfg`),
+is a bootstrap: it looks for an REU (`ow_reu_detect()`, `src/lib/ow_run.s`:
+the registers, a round trip, and that a transfer lands in colour RAM, in its
+last 24 bytes, which nothing shows -- the TeensyROM question), says what it
+found, builds every land into the vault, moors the ships, leaves all of it in
+the hand-off block at `$02A7` (`include/q4k/ow.h`) and loads an engine over
+itself (`ow_run()`, a loader copied into the tape buffer). The engines are
+`src/ow/engine.c` and `src/ow/smooth.s` built twice: `ow-reu` (`-DOW_REU`,
+`--asm-define OW_REU=1`) if the REU's transfers reach colour RAM, `ow-cpu`
+otherwise, each with only its own way of scrolling, and neither with the land
+generator (the towns' generator's random numbers are in `isle_rnd.s` so that
+it can be had without it). `N` goes back through the bootstrap with the next
+seed in the block (`sm_quit()` gives the machine back to the KERNAL first).
+An engine has its own memory map (`cfg/c64-openworld.cfg`: VIC bank 1 at
+`$4000` for two screens, the charset and the sprites, a 64x64 window of the
+map at `$B000` and its edges at `$A000`) and its own raster interrupt, which
+chains to `$EA31` with the CIA's timer interrupt off. **Tests** start the
+bootstrap with the disk and read the engine's labels:
+`screendump.py dist/openworld.prg --disk dist/openworld.d64 --lbl
+build/ow-cpu.lbl` (`ow-reu.lbl` with `--vice=-reu`); the bootstrap and the
+load take about ten seconds.
 
 **The world** is a torus of 6 by 4 cells of 64x64 squares (`grid[]`):
 Keldmarch in the middle of the second row, the four continents (64x31, at
 rows 16-46 of their cells) north, east, south and west of it two cells
-away, the rest open sea; it wraps both ways. Every land is built once at
-the start (a few seconds) and kept in the vault: home at `$D000`, the
+away, the rest open sea; it wraps both ways. Every land is built once, by
+the bootstrap (a few seconds), and kept in the vault: home at `$D000`, the
 continents parked at `$E000 + d * $800`. `wx`, `wy` are the hero's world
 square; the engine's coordinates are those mod 128 (384 and 256 are both
 multiples of it, so the wrap is seamless), and `WORLD` is a window indexed
@@ -360,20 +378,23 @@ Stepping onto one boards it (`boat` is its index + 1; the hero's sprite
 becomes the ship, frames 9 and 10); in it you sail open water and step off
 onto any land, where it stays; its position is kept as you sail. No
 permission is asked. The continents' places go in as they do in the game
-(`slot_of()`, copied from `game.c`).
-**Memory is full**: MAIN, HIGH and the low kilobyte all have under 300
-bytes. Code that runs only after the start lives at `$0400` (`OWLOW`, the
-text screen's, loaded inside screen A's space and copied down once the
-lands are built) and past the sprite blocks at `$52C0` (`OWTOP`); the C
-stack is moved to the tape buffer by `sm_stack()`; `ow_chcol` is page
-aligned (`ALIGNBSS`). The sixteen shift routines are one, patched for each
-direction (`sm_prep` patches in a quiet frame, when the next direction is
-already known). With the CPU scrolling, NTSC misses a frame now and then on
-long diagonals and on long voyages (PAL and the REU path do not): splitting
-the REU and CPU versions into two PRGs, loaded by a small bootstrap that
-detects the REU, would give each back the other's code.
+(the bootstrap works out `slot_of()` for each).
+**Memory**: each engine has about 1.3K free in MAIN and 1.5K in HIGH.
+Code that runs only after the start lives at `$0400` (`OWLOW`, the text
+screen's, loaded inside screen A's space and copied down then) and past the
+sprite blocks at `$52C0` (`OWTOP`); the C stack is moved to the tape buffer
+by `sm_stack()`; `ow_chcol` is page aligned (`ALIGNBSS`). The CPU's sixteen
+shift routines are one, patched for each direction. **The quiet frame**: at
+speed 2, the frame after a step's second flip builds nothing, so it shifts
+the back screen for the next step if its direction can be seen coming (a
+key held, or one waiting in the buffer: `pre_dir`), and the frame that ends
+one step and starts the next does not have to (on NTSC it has no room for
+it). A flip or a redraw cancels it. With the CPU scrolling, NTSC still
+misses the odd frame when a step's direction could not be seen coming (the
+test harness's keys arrive ten at a time, so it shows more of them than a
+player would: 7 on the long voyage north); PAL and the REU do not.
 
-`src/lib/smooth.s` explains the engine: the back screen is the front shifted a
+`src/ow/smooth.s` explains the engine: the back screen is the front shifted a
 character (`sm_shift`, about 10K cycles) plus the new row and column from the
 map (`sm_edge_row`, about 6K, `sm_edge_col`, 4K), each in a frame of its own; on the frame the fine
 scroll wraps, the interrupt at line 250 flips `$D018` and rewrites colour RAM
@@ -398,7 +419,7 @@ the frame a flip was committed**: it is on show until the interrupt.
 speeds, PAL and NTSC); the loop waits for the frame after the last one it handled, not for
 the next interrupt, or a build that runs past one costs a whole frame.
 
-**The REU path** (`smooth.s`, after the copies). With an REU the shift is two
+**The REU path** (`smooth.s`, after the copies; `ow-reu` only). With an REU the shift is two
 transfers (the front screen out, then back into the back screen `off` bytes
 along: what wraps round a row lands in the edge column, which is redrawn
 anyway), colour RAM is stashed with it, and the flip's interrupt fetches
@@ -406,11 +427,7 @@ colour RAM back the same `off` along and colours only the new edge. The
 interrupt then ends about 48 lines after it starts instead of 245, so colour
 RAM is done before the screen starts on PAL and NTSC, and a walk leaves
 about half as much time again free on PAL, three quarters on NTSC (idle-loop
-turns, `--peek idle:4 --peek walked:2`). `sm_reu_detect()` checks the
-registers, a round trip, and that a transfer lands in colour RAM (in its
-last 24 bytes, which nothing shows) -- the TeensyROM question -- and the
-loading screen says what it found; `R` toggles it, `--poke use_reu=0` turns
-it off. Each transfer in the main loop has interrupts off for its own setting
+turns, `--peek idle:4 --peek walked:2`). Each transfer in the main loop has interrupts off for its own setting
 up and running only, since the interrupt shares the REU and `r_*`.
 `screendump.py --vice=ARG` passes ARG to x64sc (`--vice=-reu --vice=-reusize
 --vice=512`, `--vice=-ntsc`); the `-reu` goldens are the same screens through

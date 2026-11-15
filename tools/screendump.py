@@ -168,7 +168,7 @@ class Monitor:
             pass
 
 
-def load_symbols(prg):
+def load_symbols(prg, lbl=None):
     """Read ld65's label file for the program, so tests can name globals.
 
     Poking state directly is how a test reaches the middle of a long quest
@@ -178,12 +178,13 @@ def load_symbols(prg):
     """
     # dist/<sub>/x.prg was linked in build/<sub>/ (make online's builds are
     # dist/online/ and build/online/), and the plain build is just dist/.
-    sub = os.path.relpath(os.path.dirname(os.path.abspath(prg)),
-                          os.path.abspath("dist"))
-    if sub.startswith(".."):
-        sub = "."
-    lbl = os.path.join("build", sub,
-                       os.path.splitext(os.path.basename(prg))[0] + ".lbl")
+    if not lbl:
+        sub = os.path.relpath(os.path.dirname(os.path.abspath(prg)),
+                              os.path.abspath("dist"))
+        if sub.startswith(".."):
+            sub = "."
+        lbl = os.path.join("build", sub,
+                           os.path.splitext(os.path.basename(prg))[0] + ".lbl")
     syms = {}
     if not os.path.exists(lbl):
         return syms
@@ -526,6 +527,11 @@ def main():
     ap.add_argument("--poke", action="append", metavar="SYM=VALUE",
                     default=[],
                     help="set a global by name once the program is running")
+    ap.add_argument("--lbl", metavar="FILE",
+                    help="the label file for --poke and --peek, when the "
+                         "program that runs is not the one started (the "
+                         "smooth-scrolling prototype's bootstrap loads an "
+                         "engine: build/ow-cpu.lbl or build/ow-reu.lbl)")
     ap.add_argument("--disk", metavar="D64",
                     help="attach a disk image as unit 8, for save and load")
     ap.add_argument("--peek", action="append", metavar="SYM|$ADDR[+OFF][:WIDTH]",
@@ -554,7 +560,7 @@ def main():
         mon.resume()   # connecting drops VICE into the monitor; let it boot
         stage = wait_for_stage(mon, args.ready, args.timeout)
         if args.poke:
-            apply_pokes(mon, load_symbols(args.prg), args.poke)
+            apply_pokes(mon, load_symbols(args.prg, args.lbl), args.poke)
 
         if args.keys:
             mon.resume()
@@ -580,7 +586,7 @@ def main():
         charset_base += bank
         colors = mon.mem_get(COLOR_RAM, COLOR_RAM + SCR_W * SCR_H - 1)
         if args.peek:
-            report_peeks(mon, load_symbols(args.prg), args.peek)
+            report_peeks(mon, load_symbols(args.prg, args.lbl), args.peek)
         scratch = mon.mem_get(PROBE, PROBE + 19)
         vic = mon.mem_get(0xD000, 0xD02E)
         pointers = mon.mem_get(screen_at + 0x3F8, screen_at + 0x3FF)

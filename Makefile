@@ -74,7 +74,7 @@ DEPFLAGS  = -Wc --create-full-dep,$(@:.o=.d) -Wc --dep-target,$@
 # rule below). dungeontest links the maps and the font, arena the fights and
 # isletest the land, so they need the game's charset and probe page as well,
 # with everything in one load (cfg/c64-flat.cfg).
-LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest,$*),flat,$(if $(filter openworld,$*),openworld,tool)).cfg
+LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest,$*),flat,$(if $(filter openworld,$*),owboot,tool)).cfg
 
 MAINS    := $(wildcard src/*.c)
 PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
@@ -124,7 +124,7 @@ endif
 # in the engine's segments, and their variables stay in the core's BSS and
 # DATA, so that nothing they keep is lost when another engine takes the slot.
 # Everything else is the core. The assembly modules choose their own
-# segments: isle_gen, tgen and place_near are the map's, open9 the fight's,
+# segments: isle_gen, isle_rnd, tgen and place_near are the map's, open9 the fight's,
 # overlay has the fight's arrays and talkbuf the talk's buffer; town_data puts
 # the people's ids, which only a conversation needs, with the talk.
 # tools/mkengines.py checks after every link that no engine calls another,
@@ -149,7 +149,7 @@ endif
         online d64-online run-online
 .SECONDARY: $(BUILD)/$(PROG).o $(BUILD)/q4k.o
 
-all: dirs assets $(PRGS)
+all: dirs assets $(PRGS) $(DIST)/openworld.d64
 
 # Assembly cannot see tiles.h; it has its own generated copy of the codes.
 $(BUILD)/lib/isle_gen.o: include/q4k/tiles.inc
@@ -282,7 +282,6 @@ $(DIST)/%.prg: $(BUILD)/%.o $(LIB) $(wildcard cfg/*.cfg)
 # beside it: cl65 writes src/lib/battle.s on the way to either, and two at
 # once tread on it.
 $(BUILD)/lib/battle_bot.o: OPT := -Or
-$(BUILD)/openworld.o: OPT := -Or
 $(BUILD)/lib/battle_bot.o: src/lib/battle.c | $(BUILD)/lib/battle.o
 	@mkdir -p $(dir $@)
 	$(CL65) $(CFLAGS) -DFIGHT_BOT --code-name FIGHTCODE --rodata-name FIGHTDATA \
@@ -293,6 +292,36 @@ $(DIST)/arena.prg: $(BUILD)/arena.o $(BUILD)/lib/battle_bot.o $(LIB) $(wildcard 
 	$(CL65) $(LDFLAGS) -C cfg/c64-flat.cfg -m $(BUILD)/arena.map \
 	    -Wl -Ln,$(BUILD)/arena.lbl -o $@ $< $(BUILD)/lib/battle_bot.o $(LIB)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
+
+# The smooth-scrolling prototype: a bootstrap (openworld.prg, built as any
+# program here) and two engines from one source, with and without the REU
+# (src/ow/, -DOW_REU and --asm-define OW_REU), each with a label file for
+# the tests. Its disk holds the three; the bootstrap loads one (ow.h).
+OWENG := $(DIST)/ow-cpu.prg $(DIST)/ow-reu.prg
+
+$(BUILD)/ow/engine-cpu.o $(BUILD)/ow/engine-reu.o: $(BUILD)/ow/engine-%.o: src/ow/engine.c
+	@mkdir -p $(dir $@)
+	$(CL65) $(filter-out -Osir,$(CFLAGS)) -Or $(if $(filter reu,$*),-DOW_REU) \
+	    $(DEPFLAGS) -c -o $@ $<
+
+$(BUILD)/ow/smooth-cpu.o $(BUILD)/ow/smooth-reu.o: $(BUILD)/ow/smooth-%.o: src/ow/smooth.s
+	@mkdir -p $(dir $@)
+	$(CL65) $(ASFLAGS) --asm-define OW_REU=$(if $(filter reu,$*),1,0) -c -o $@ $<
+
+$(DIST)/ow-%.prg: $(BUILD)/ow/engine-%.o $(BUILD)/ow/smooth-%.o $(LIB) cfg/c64-openworld.cfg
+	@mkdir -p $(DIST)
+	$(CL65) $(LDFLAGS) -C cfg/c64-openworld.cfg -m $(BUILD)/ow-$*.map \
+	    -Wl -Ln,$(BUILD)/ow-$*.lbl -o $@ $(BUILD)/ow/engine-$*.o \
+	    $(BUILD)/ow/smooth-$*.o $(LIB)
+	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
+
+# c1541 -format makes a fresh image over whatever was there.
+$(DIST)/openworld.d64: $(DIST)/openworld.prg $(OWENG)
+	$(C1541) -format "openworld,01" d64 $@ >/dev/null
+	$(C1541) -attach $@ -write $(DIST)/openworld.prg openworld \
+	    -write $(DIST)/ow-cpu.prg ow-cpu -write $(DIST)/ow-reu.prg ow-reu >/dev/null
+
+-include $(BUILD)/ow/engine-cpu.d $(BUILD)/ow/engine-reu.d
 
 # The game. The engines come out of the same link, as files beside the PRG,
 # and the scenes' music is cut out of it: tools/mkengines.py, which also
@@ -319,9 +348,12 @@ endif
 
 # --- run / verify -----------------------------------------------------------
 
-# The game needs its disk (engine.h), so it runs from that.
-run: dirs $(DIST)/$(PROG).prg $(if $(filter q4k,$(PROG)),d64)
-	tools/run.sh $(DIST)/$(PROG).$(if $(filter q4k,$(PROG)),d64,prg)
+# The game needs its disk (engine.h), so it runs from that, and so does the
+# smooth-scrolling prototype (its bootstrap loads an engine).
+DISKPROGS := q4k openworld
+run: dirs $(DIST)/$(PROG).prg $(if $(filter q4k,$(PROG)),d64) \
+     $(if $(filter openworld,$(PROG)),$(DIST)/openworld.d64)
+	tools/run.sh $(DIST)/$(PROG).$(if $(filter $(DISKPROGS),$(PROG)),d64,prg)
 
 # Play the networked build with NPC dialogue: starts host/npcd.py and wires
 # it to the modem port. Q4K_MOCK=1 make play  uses canned replies instead of
