@@ -1,44 +1,42 @@
-; The theme, played on SID voices 1 and 2 from the frame interrupt, and the
-; sound effects on voice 3.
+; The music, a SID file's play routine called from the frame interrupt, and
+; the sound effects on voice 3.
 ;
-; The score is two bytes a note in music_data.s (generated from
-; assets/theme.txt): pitch index, slur flag at bit 6, vibrato flag at bit 7,
-; then the length in eighths. cc65's interruptor chain calls music_irq from
-; the KERNAL's 50/60 Hz IRQ, so this is pure assembly that touches only A, X
-; and Y, and none of the zero page the C code keeps its temporaries in.
+; A tune is a standard SID file's player and data (tools/mksid.py), which
+; src/lib/tune.c loads from the disk into the RAM under the KERNAL: a
+; header at $E7C0, then the tune at $E800-$FFF9. Reaching it takes the KERNAL
+; out ($01 = $35, I/O stays in), so every call into it -- init here, play
+; from the interrupt -- banks it out and back, with interrupts off (the
+; interrupt's own call is inside the interrupt). An NMI can still come while
+; it is out, and its vector is read from RAM: vault_nmi (vault.s) passes it
+; on to the KERNAL's handler with the KERNAL banked back in, which the modem's
+; RS-232 needs.
 ;
-; The voice is a triangle with a soft attack, the nearest SID gets to a
-; pipe. Voice 2 is a quiet triangle a fourth below it that moves only on the
-; long notes, holding between them; the generator picks its pitches and says
-; which notes hold (bit 7 of music_harm) and which are followed by a rest in
-; this voice (bit 6): it lets go an eighth before the note ends. A slurred note changes pitch without taking the gate down, so there
-; is no new attack; any other note lets go three frames early so that the
-; next one speaks afresh. Vibrato waits a third of a second, then swings the
-; pitch about 20 cents either way at 5 Hz.
+; The KERNAL's interrupt comes 60 times a second on PAL as well as NTSC (its
+; CIA timer is $4025 on PAL, $4295 on NTSC). A tune made to be called at the
+; frame rate (the PSID speed flag "VBI") is called five times in six on PAL,
+; 50 Hz; a "CIA" one, and any on NTSC, every time. cc65's interruptor chain
+; calls music_irq, so this is pure assembly that touches only A, X and Y and
+; none of the zero page the C code keeps its temporaries in; a tune may use
+; $FB-$FE, which nothing else here does (mksid.py checks).
 ;
 ; State, so that the disk code can step out of the way: 0 stopped, 1
 ; playing, 2 paused. music_pause()/music_resume() do nothing in any other
 ; state, which lets savegame.c call them whether or not the music has
-; started. Pausing also waits a moment for the silence to be flushed out; see
-; _music_pause. The serial bus is timing-sensitive and every IRQ here is cycles it
-; does not have.
+; started. Pausing silences by the volume alone, and keeps the place: on
+; resuming, the notes carry on from where they were. It also waits a moment
+; for the silence to be flushed out; see _music_pause. The serial bus is
+; timing-sensitive and every IRQ here is cycles it does not have.
 
-        .export _music_start, _music_stop, _music_pause, _music_resume
-        .export _music_toggle, _music_state, _music_idx, _music_rewind
+        .export _music_stop, _music_pause, _music_resume
+        .export _music_state, _music_play
         .export _sfx_play, _sfx_step, _sfx_toggle, _sfx_delay
-        .import music_notes, music_harm, music_count, music_npitch, music_tempo
-        .import music_freq_lo, music_freq_hi
+        .import vault_nmi
         .interruptor music_irq
 
-SID_FLO  = $D400                ; voice 1 frequency, low then high
-SID_CTRL = $D404
-SID_AD   = $D405
-SID_SR   = $D406
-SID_V2F  = $D407                ; voice 2, the same registers seven on
-SID_V2C  = $D40B
-SID_V2AD = $D40C
+SID_CTRL = $D404                ; voice 1's control register
+SID_V2C  = $D40B                ; voice 2's
 SID_V2SR = $D40D
-SID_V3F  = $D40E                ; voice 3
+SID_V3F  = $D40E                ; voice 3, the effects'
 SID_V3PW = $D410
 SID_V3C  = $D412
 SID_V3AD = $D413
@@ -46,29 +44,18 @@ SID_V3SR = $D414
 SID_VOL  = $D418
 PALFLAG  = $02A6                ; the KERNAL's own: 0 NTSC, 1 PAL
 
-TRI_ON   = $11                  ; triangle, gate up
-TRI_OFF  = $10
-HARM_ON  = $11                  ; triangle, gate up
-HARM_OFF = $10
-VIB_WAIT = 20                   ; frames before the vibrato starts
-VIB_LEN  = 12                   ; frames to a cycle of it
-PAUSE_FRAMES = 12              ; jiffies music_pause waits for silence to be flushed
-LET_GO   = 3                    ; frames of release before an unslurred note ends
+TUNE_HDR = $E7C0                ; the header tools/mksid.py puts before the tune
+HDR_INIT = TUNE_HDR
+HDR_PLAY = TUNE_HDR + 2
+HDR_VOL  = TUNE_HDR + 5
+HDR_CIA  = TUNE_HDR + 6         ; a byte a song: 1 if it is called at 60 Hz
+NO_KERNAL = $35                 ; RAM under the KERNAL, I/O in
+PAUSE_FRAMES = 12               ; jiffies music_pause waits for silence to be flushed
 
         .segment "BSS"
 _music_state: .res 1
-_music_idx:   .res 1                 ; the next note to start
-m_left:  .res 1                 ; frames until the current one ends
-m_age:   .res 1                 ; frames since it began
-m_cur:   .res 1                 ; its flags byte
-m_flo:   .res 1                 ; its pitch, before vibrato
-m_fhi:   .res 1
-m_dlt:   .res 1
-m_vph:   .res 1                 ; where it is in the vibrato cycle
-m_fpe:   .res 1                 ; frames to an eighth, for this machine's clock
-m_hflg:  .res 1                 ; the second voice's flags for the current note
-m_force: .res 1                 ; strike it even if it is held: after a pause
-m_poff:  .res 1                 ; where this machine's half of the pitch table starts
+m_skip:  .res 1                 ; nonzero: one call in six is skipped (50 Hz)
+m_tick:  .res 1                 ; calls until the next skip
 m_sx_on: .res 1                 ; an effect is playing
 m_sx_pos: .res 1                ; the next step of it, in sfx_data
 m_sx_left: .res 1               ; frames left in this one
@@ -80,10 +67,6 @@ m_fx_off: .res 1                ; the X key: no effects, and no waiting for them
 m_foot:  .res 1                 ; 0 or 4: which foot the next step is
 
         .segment "HIDATA"
-; The vibrato, in multiples of the frequency's high byte: about 1.2% at the
-; peak, a fifth of a semitone.
-vibtab: .byte 0, 2, 3, 3, 3, 2, 0, <-2, <-3, <-3, <-3, <-2
-
 ; The effects. A record is its attack/decay and sustain/release, then steps
 ; of four bytes -- frames, control (waveform and gate), pitch's high byte,
 ; and how that moves each frame -- and a zero. The envelope always climbs to
@@ -129,61 +112,61 @@ sfx_bow:    .byte $03, $04,  1, $81, $60, 0,  3, $41, $0C, <-2,  5, $40, $06, <-
 
         .segment "HICODE"
 
-; void music_start(void): from the top, on this machine's clock.
-_music_start:
+; void music_play(unsigned char song): start song (from 0) of the tune that
+; is loaded, from the top. tune.c calls it only with one loaded.
+_music_play:
+        tax
         lda #0
-        sta _music_state
-        ldx #0
+        sta _music_state        ; the interrupt leaves it alone from here
+        php
+        sei
+        lda $01
+        pha
+        lda #NO_KERNAL
+        sta $01
+        lda #<vault_nmi         ; an NMI while the KERNAL is out finds its way
+        sta $FFFA               ; to the KERNAL's handler (vault.s)
+        lda #>vault_nmi
+        sta $FFFB
+        lda HDR_INIT
+        sta @init+1
+        lda HDR_INIT+1
+        sta @init+2
+        lda HDR_PLAY
+        sta call+1
+        lda HDR_PLAY+1
+        sta call+2
+        lda HDR_VOL
+        sta vol+1
+        ldy #0                  ; 60 Hz: every call; at the frame rate on PAL,
+        lda HDR_CIA,x           ; five in six
+        bne @rate
         lda PALFLAG
-        beq @clock
-        ldx #1
-@clock: lda music_tempo,x
-        sta m_fpe
-        lda #0
-        cpx #0
-        beq @off
-        lda music_npitch
-@off:   sta m_poff
-        ldx #$18                ; every register, so nothing is left from BASIC
-        lda #0
-@wipe:  sta SID_FLO,x
-        dex
-        bpl @wipe
-        lda #$43                ; attack 38 ms, decay 72 ms
-        sta SID_AD
-        lda #$C3                ; sustain 12/15, release 72 ms
-        sta SID_SR
-        lda #$88                ; attack 100 ms, decay 300 ms: the envelope always
-        sta SID_V2AD            ; climbs to full before settling to a quiet sustain,
-                                ; so a quick attack is a click and this is a swell
-        lda #$23                ; sustain 2/15: far under the lead
-        sta SID_V2SR
-        lda #0
-        sta _music_idx
-        lda #2
+        beq @rate
+        iny
+@rate:  sty m_skip
+        lda #6
+        sta m_tick
+        txa
+        cld
+@init:  jsr $FFFF               ; the tune's init, song in A
+        pla
+        sta $01
+        plp
+        lda #1
         sta _music_state
-        ; fall into resume, which starts a paused tune on its next note
+        rts
 
 ; void music_resume(void)
 _music_resume:
         lda _music_state
         cmp #2
-        bne @no
-        lda #0
-        sta m_cur               ; no slur from before the pause
+        bne resumed
         lda #1
-        sta m_left              ; the next frame starts the next note
         sta _music_state
-        lda #$0F
+vol:    lda #$0F                ; the tune's volume, from its header
         sta SID_VOL
-@no:    rts
-
-; void music_rewind(void): the next note is the first. For a new score,
-; loaded while the music is paused or stopped (engine.c): resuming then
-; starts it from the top.
-_music_rewind:
-        lda #0
-        sta _music_idx
+resumed:
         rts
 
 ; void music_pause(void)
@@ -195,10 +178,6 @@ _music_pause:
         sta _music_state
         lda #0
         sta SID_VOL
-        lda #TRI_OFF
-        sta SID_CTRL
-        lda #HARM_OFF
-        sta SID_V2C
         ldx #PAUSE_FRAMES       ; VICE, with the drive emulated, stops making
 @wait:  lda $A2                 ; sound while the drive works and plays its last
 @same:  cmp $A2                 ; buffer over and over: a note held for as long
@@ -207,28 +186,12 @@ _music_pause:
         bne @wait
 @no:    rts
 
-; unsigned char music_toggle(void): the M key. Off if it was playing, from the
-; top if it was not; returns 1 for on. A stopped tune stays stopped through
-; the disk's pause and resume, which only touch one that is playing.
-_music_toggle:
-        lda _music_state
-        beq @on
-        jsr _music_stop
-        lda #0
-        tax
-        rts
-@on:    jsr _music_start
-        lda #1
-        ldx #0
-        rts
-
-; void music_stop(void)
+; void music_stop(void): no more calls, and the tune's voices let go. It has
+; only voices 1 and 2 (mksid.py checks); the effects keep voice 3.
 _music_stop:
         lda #0
         sta _music_state
-        lda #TRI_OFF
         sta SID_CTRL
-        lda #HARM_OFF
         sta SID_V2C
         rts
 
@@ -236,130 +199,24 @@ music_irq:
         jsr sfx_tick
         lda _music_state
         cmp #1
-        beq @run
-        clc
-        rts
-@run:   dec m_left
-        bne @mid
-        jmp @next               ; (out of a branch's reach, now)
-@mid:   inc m_age
-        lda m_hflg              ; the second voice rests for the bar's last eighth
-        and #$40
-        beq @mel
-        lda m_left
-        cmp m_fpe
-        bne @mel
-        lda #HARM_OFF
-        sta SID_V2C
-@mel:   lda m_cur
-        and #$40                ; slurred: keep the gate up to the end
-        bne @vib
-        lda m_left
-        cmp #LET_GO
-        bne @vib
-        lda #TRI_OFF
-        sta SID_CTRL
-@vib:   lda m_cur
-        bpl @out
-        lda m_age
-        cmp #VIB_WAIT
-        bcc @out
-        ldx m_vph
-        inx
-        cpx #VIB_LEN
-        bcc @step
-        ldx #0
-@step:  stx m_vph
-        lda vibtab,x
-        tay                     ; Y keeps the sign
-        bpl @mag
-        eor #$FF
-        clc
-        adc #1
-@mag:   tax
-        lda #0
-        cpx #0
-        beq @got
-@mul:   clc
-        adc m_fhi
-        dex
-        bne @mul
-@got:   sta m_dlt
-        tya
-        bmi @down
-        lda m_flo
-        clc
-        adc m_dlt
-        sta SID_FLO
-        lda m_fhi
-        adc #0
-        sta SID_FLO+1
-        bcc @out                ; (always taken: the sum cannot carry past $FF)
-@down:  lda m_flo
-        sec
-        sbc m_dlt
-        sta SID_FLO
-        lda m_fhi
-        sbc #0
-        sta SID_FLO+1
-@out:   clc                     ; not ours alone: let the KERNAL have it too
-        rts
-
-@next:  lda _music_idx
-        asl
-        tay
-        lda music_notes,y
-        sta m_cur
-        lda music_notes+1,y     ; its length, in eighths, times the frames in one
-        tax
-        lda #0
-@len:   clc
-        adc m_fpe
-        dex
-        bne @len
-        sta m_left
-        lda m_cur
-        and #$1F
-        clc
-        adc m_poff
-        tax
-        lda music_freq_lo,x
-        sta m_flo
-        sta SID_FLO
-        lda music_freq_hi,x
-        sta m_fhi
-        sta SID_FLO+1
-        ldx _music_idx          ; and the voice below it
-        lda music_harm,x
-        sta m_hflg
-        bpl @strike             ; bit 7: a short note holds what is sounding
-        lda m_force
-        beq @held
-@strike:
-        and #$1F
-        clc
-        adc m_poff
-        tax
-        lda music_freq_lo,x
-        sta SID_V2F
-        lda music_freq_hi,x
-        sta SID_V2F+1
-        lda #HARM_ON
-        sta SID_V2C
-@held:  lda #0
-        sta m_force
-        lda #TRI_ON             ; already up after a slur, which is the point
-        sta SID_CTRL
-        lda #0
-        sta m_age
-        sta m_vph
-        ldx _music_idx
-        inx
-        cpx music_count
-        bcc @keep
-        ldx #0                  ; and round again
-@keep:  stx _music_idx
-        clc
+        bne irq_out
+        lda m_skip
+        beq @play
+        dec m_tick
+        bne @play
+        lda #6                  ; the sixth: skipped
+        sta m_tick
+        bne irq_out
+@play:  lda $01
+        pha
+        lda #NO_KERNAL
+        sta $01
+        cld
+call:   jsr $FFFF               ; the tune's play
+        pla
+        sta $01
+irq_out:
+        clc                     ; not ours alone: let the KERNAL have it too
         rts
 
 SFX_GAP  = 15                   ; frames from one effect's start to the next's, in a fight
@@ -402,8 +259,12 @@ play:   ldy m_fx_off
         sta SID_V3PW
         lda #$08
         sta SID_V3PW+1          ; a square, for the records that are pulses
+        ldy _music_state        ; the volume is the tune's while it plays (or
+        bne @vol                ; is paused, when it is silence)
         lda #$0F
         sta SID_VOL
+@vol:   lda sfx_off,x
+        tay
         iny
         iny
         sty m_sx_pos

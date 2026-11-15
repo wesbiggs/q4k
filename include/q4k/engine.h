@@ -35,8 +35,8 @@ extern char          eng_text[41];
 /* Which engine the slot holds. */
 extern unsigned char eng_held;
 
-/* Make sure the slot holds engine `e`, loading it (and its music: see
-   engine.c) if it does not. Waits for the disk if it is not there. */
+/* Make sure the slot holds engine `e`, loading it if it does not, with the
+   music paused meanwhile. Waits for the disk if it is not there. */
 void          engine_load(unsigned char e);
 
 /* Load `e`, call `entry` in it, load back whatever the slot held before,

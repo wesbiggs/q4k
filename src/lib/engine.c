@@ -3,10 +3,8 @@
  *
  * Each engine is a file on the disk, linked to the slot's address, with the
  * two-byte load address in front that every PRG has, so the KERNAL's LOAD
- * puts it where it belongs. Each scene has a file of music too, which goes
- * into the score area the player reads (music_data.s), in the same pause:
- * the silence a load needs is where one tune ends and the next begins. For
- * now every scene's file is the same tune (tools/mkengines.py copies it).
+ * puts it where it belongs. The music carries on across a load, paused for
+ * it: what plays is the scene's business, not the engine's (tune.c).
  */
 
 #include <cbm.h>
@@ -28,15 +26,9 @@ unsigned char eng_a, eng_b;
 char          eng_text[41];
 unsigned char fight_spoils;
 
-/* The music each engine brings, if any (0: none, keep what is playing), and
-   which of those the score area holds (0: the one linked into the PRG). */
-static unsigned char score_held;
-
 static const char *const eng_file[ENG_COUNT] = {
     0, "e.map", "e.fight", "e.talk", "e.shop",
 };
-static const unsigned char eng_score[ENG_COUNT] = { 0, 1, 2, 3, 0 };
-static const char *const score_file[4] = { 0, "m.map", "m.fight", "m.talk" };
 
 /* The load addresses at the head of each engine's file: the slot's. */
 extern unsigned char _SLOT_START__[];
@@ -64,8 +56,6 @@ static void fetch(const char *name)
 
 void engine_load(unsigned char e)
 {
-    unsigned char s;
-
     if (eng_held == e) {
         return;
     }
@@ -77,12 +67,6 @@ void engine_load(unsigned char e)
     eng_held = NONE;                /* half a file is no engine at all */
     fetch(eng_file[e]);
     eng_held = e;
-    s = eng_score[e];
-    if (s && s != score_held) {
-        fetch(score_file[s]);
-        score_held = s;
-        music_rewind();
-    }
     music_resume();
 }
 

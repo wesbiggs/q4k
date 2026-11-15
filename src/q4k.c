@@ -174,6 +174,7 @@ static void interact(unsigned char index)
         return;
     }
     if (e->kind == ENT_SHOP) {
+        music_scene(MUSIC_SHOP);
         eng_a = e->param;
         engine_call(ENG_SHOP, shop_entry);
         back_to_map();
@@ -185,6 +186,7 @@ static void interact(unsigned char index)
                                               : town_gen_inn());
         eng_a = TALK_INN;
         eng_b = e->param;
+        music_scene(MUSIC_INN);
         engine_call(ENG_TALK, talk_entry);
         back_to_map();
         return;
@@ -199,6 +201,7 @@ static void interact(unsigned char index)
     strcpy(eng_text, npc_names[e->param]);
     eng_a = TALK_NPC;
     eng_b = e->param;
+    music_scene(MUSIC_TALK);
     if (engine_call(ENG_TALK, talk_entry)) {
         note = eng_text;
     }
@@ -207,6 +210,17 @@ static void interact(unsigned char index)
         view_message(note);
     }
     ++game_turn;
+}
+
+/* The music for where the party stands (assets/music.txt). */
+static unsigned char map_music(void)
+{
+    switch (scene) {
+        case SCENE_TOWN:    return place == TOWN_CASTLE ? MUSIC_CASTLE : MUSIC_TOWN;
+        case SCENE_DUNGEON: return MUSIC_DUNGEON;
+        case SCENE_ISLE:    return MUSIC_ISLE;
+        default:            return MUSIC_HOME;
+    }
 }
 
 /* The entity standing on (x,y), or -1. */
@@ -567,6 +581,7 @@ void map_entry(unsigned char restored)
         if (scene == SCENE_DUNGEON) {
             fov_update(hero.x, hero.y);
         }
+        music_scene(map_music());   /* before the draw: a load hides the hero */
         view_draw();
         view_draw_panel();
         publish();

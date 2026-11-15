@@ -149,7 +149,8 @@ endif
         online d64-online run-online
 .SECONDARY: $(BUILD)/$(PROG).o $(BUILD)/q4k.o
 
-all: dirs assets $(PRGS) $(DIST)/openworld.d64 $(DIST)/owarena.d64
+all: dirs assets $(PRGS) $(DIST)/openworld.d64 $(DIST)/owarena.d64 \
+     $(DIST)/theme.sid $(BUILD)/music/.stamp
 
 # Assembly cannot see tiles.h; it has its own generated copy of the codes.
 $(BUILD)/lib/isle_gen.o: include/q4k/tiles.inc
@@ -169,7 +170,8 @@ GEN_GEO   := assets/geography.json
 GEN_FONT  := src/lib/font_data.c
 GEN_LOOT  := include/q4k/loot_data.h src/lib/loot_data.c
 GEN_VER   := include/q4k/version.h
-GEN_MUSIC := src/lib/music_data.s
+GEN_MUSIC := src/sid/theme_data.s
+GEN_TUNES := include/q4k/music_map.h src/lib/music_map.c
 GEN_OW    := src/lib/ow_data.s
 GEN_FIGHT := src/fight/fight_data.s
 
@@ -186,7 +188,7 @@ FONT_SOURCE ?= rom
 FONT_STYLE  ?= bold
 
 assets: $(GEN_TILES) $(GEN_TOWN) $(GEN_ARENA) $(GEN_NAMES) $(GEN_GEO) $(GEN_FONT) \
-        $(GEN_LOOT) $(GEN_VER) $(GEN_MUSIC) $(GEN_OW) $(GEN_FIGHT)
+        $(GEN_LOOT) $(GEN_VER) $(GEN_MUSIC) $(GEN_TUNES) $(GEN_OW) $(GEN_FIGHT)
 
 # The version lives in VERSION alone; the release workflow checks the tag
 # against it. No Python needed, so this one is plain shell.
@@ -215,6 +217,9 @@ $(GEN_LOOT): assets/loot.txt assets/towns.txt \
 
 $(GEN_MUSIC): assets/theme.txt tools/mkmusic.py
 	tools/mkmusic.py
+
+$(GEN_TUNES): assets/music.txt tools/mksid.py
+	tools/mksid.py map
 
 $(GEN_OW): assets/overworld.txt $(wildcard assets/*_tiles.txt) \
            assets/places_common.txt assets/tiles.txt tools/mkoverworld.py
@@ -402,11 +407,38 @@ $(DIST)/owarena.d64: $(DIST)/owarena.prg $(DIST)/fight.prg $(FIGHT_STAMP)
 
 -include $(BUILD)/fight/fight.d $(BUILD)/fight/block.d
 
-# The game. The engines come out of the same link, as files beside the PRG,
-# and the scenes' music is cut out of it: tools/mkengines.py, which also
-# checks that no engine reaches into another. The disk gets them all (d64,
-# below); the game does not go past its title screen without them.
-ENGFILES := e.map e.fight e.talk e.shop m.map m.fight m.talk
+# The game. The engines come out of the same link, as files beside the PRG:
+# tools/mkengines.py, which also checks that no engine reaches into another.
+# The disk gets them all (d64, below); the game does not go past its title
+# screen without them.
+ENGFILES := e.map e.fight e.talk e.shop
+
+# The music: SID files, one per tune, loaded when a scene wants them
+# (assets/music.txt, src/lib/tune.c). The theme is built here, its player
+# (src/sid/theme.s) linked at $E800 with cfg/sid.cfg and wrapped as a PSID,
+# which also lands in $(DIST) to play in any SID player; the rest are
+# assets/music/*.sid. tools/mksid.py checks each and writes the disk's
+# m.NAME files into $(BUILD)/music.
+SIDDIR := $(BUILD)/sid
+SIDS   := $(SIDDIR)/theme.sid
+
+$(SIDDIR)/theme.bin: src/sid/theme.s $(GEN_MUSIC) cfg/sid.cfg
+	@mkdir -p $(SIDDIR)
+	$(CL65) -t none -C cfg/sid.cfg -Ln $(SIDDIR)/theme.lbl -m $(SIDDIR)/theme.map \
+	    -o $@ src/sid/theme.s $(GEN_MUSIC)
+
+$(SIDDIR)/theme.sid: $(SIDDIR)/theme.bin tools/mksid.py
+	tools/mksid.py wrap $< $(SIDDIR)/theme.lbl $@
+
+$(DIST)/theme.sid: $(SIDDIR)/theme.sid
+	@mkdir -p $(DIST)
+	cp $< $@
+
+MUSIC_STAMP := $(BUILD)/music/.stamp
+
+$(MUSIC_STAMP): assets/music.txt $(SIDS) $(wildcard assets/music/*.sid) \
+                tools/mksid.py tools/sid6502.py
+	tools/mksid.py disk $(BUILD)/music $(SIDDIR) assets/music
 
 $(DIST)/q4k.prg: $(BUILD)/q4k.o $(LIB) $(wildcard cfg/*.cfg) tools/mkengines.py
 	@mkdir -p $(DIST)
@@ -497,13 +529,14 @@ release: dirs d64 d64-online
 # on the command line picks another program; the default is the game.
 D64PROG = $(if $(filter command line,$(origin PROG)),$(PROG),q4k)
 
-d64: dirs $(DIST)/$(D64PROG).prg $(TALK_STAMP)
+d64: dirs $(DIST)/$(D64PROG).prg $(TALK_STAMP) $(MUSIC_STAMP)
 	@rm -f $(DIST)/$(D64PROG).d64
 	$(C1541) -format "q4k $(VERSION_NUM),01" d64 $(DIST)/$(D64PROG).d64 >/dev/null
 	$(C1541) -attach $(DIST)/$(D64PROG).d64 -write $(DIST)/$(D64PROG).prg $(D64PROG) >/dev/null
 ifeq ($(D64PROG),q4k)
 	$(C1541) -attach $(DIST)/$(D64PROG).d64 \
-	    $$(for f in $(ENGFILES); do printf ' -write %s %s' $(DIST)/$$f $$f; done) >/dev/null
+	    $$(for f in $(ENGFILES); do printf ' -write %s %s' $(DIST)/$$f $$f; done) \
+	    $$(for f in $(BUILD)/music/m.*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
 endif
 ifeq ($(D64PROG)$(ONLINE),q4k0)
 	$(C1541) -attach $(DIST)/$(D64PROG).d64 \

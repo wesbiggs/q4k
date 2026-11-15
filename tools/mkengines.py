@@ -13,9 +13,9 @@ PRG.fight and so on. This
      listed in ALLOWED, are boot.c running the title screen, which the PRG
      brings in the slot;
   2. copies the engines to the names the game loads them by (e.map, ...);
-  3. cuts the score out of the PRG and writes it as each scene's music
-     (m.map, m.fight, m.talk) -- the same tune for every scene, for now;
-  4. says how big each engine is, and what is left.
+  3. says how big each engine is, and what is left.
+
+(The music is not the engines' business: tools/mksid.py makes its files.)
 
 Exits non-zero if the check fails. See include/q4k/engine.h and ENGINES.md.
 """
@@ -27,7 +27,6 @@ import sys
 
 ENGINES = {"TITLE": None, "MAP": "map", "FIGHT": "fight", "TALK": "talk",
            "SHOP": "shop"}
-SCORES = ["map", "fight", "talk"]
 ALLOWED = {("boot", "_title_screen"), ("boot", "_tiles_install")}
 SLOT = 0x4000
 
@@ -141,15 +140,6 @@ def main():
             f.write(data)
         os.remove(src)
 
-    # The score, cut out of the PRG: every scene's, for now.
-    image = open(prg, "rb").read()
-    base = image[0] | image[1] << 8
-    lo, hi = addr["music_count"], addr["music_score_end"]
-    score = image[lo - base + 2:hi - base + 2]
-    for suffix in SCORES:
-        with open(os.path.join(dist, "m." + suffix), "wb") as f:
-            f.write(bytes([lo & 255, lo >> 8]) + score)
-
     # How full things are.
     slot = seg_end.get("TITLEDATA", SLOT) - SLOT + 1
     sizes["TITLE"] = slot
@@ -159,7 +149,6 @@ def main():
     top = max(sizes.values())
     print("mkengines: slot $%04X, %d bytes at most:" % (SLOT, top),
           ", ".join("%s %d" % (e.lower(), n) for e, n in sizes.items()))
-    print("mkengines: score %d bytes, as m.%s" % (len(score), ", m.".join(SCORES)))
     return 0
 
 

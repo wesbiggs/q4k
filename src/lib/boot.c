@@ -10,7 +10,6 @@
 #include <q4k/actor.h>
 #include <q4k/engine.h>
 #include <q4k/game.h>
-#include <q4k/music.h>
 #include <q4k/savegame.h>
 #include <q4k/tiles.h>
 #include <q4k/title.h>
@@ -32,7 +31,6 @@ int main(void)
        the slot is the map's from here on, bar a fight or a conversation. */
     engine_load(ENG_MAP);
     view_init();
-    music_start();
-    map_entry(restored);
+    map_entry(restored);            /* which starts the music: music_scene() */
     return 0;
 }

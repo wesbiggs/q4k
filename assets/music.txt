@@ -1,0 +1,27 @@
+# Which music each scene plays: the scene, a SID file, and which of its songs
+# (counting from 1, as SID players do).
+#
+# A SID file named here is build/sid/NAME.sid if the build makes it (the
+# theme: src/sid/theme.s, from assets/theme.txt), otherwise
+# assets/music/NAME.sid. It goes on the disk as m.NAME, and is loaded when a
+# scene wants it and the one in memory is another; the same file with
+# another song only starts that song. tools/mksid.py checks every file the
+# game can host (see the top of it for the rules: relocated to $E800,
+# voices 1 and 2 only) and makes this table into include/q4k/music_map.h.
+#
+# Scenes are the game's: renaming or removing one breaks the build where the
+# code names it (MUSIC_HOME and so on); a new one does nothing until the
+# code calls music_scene() with it. Order does not matter.
+#
+# scene     sid     song
+home        theme   1       # Keldmarch, the overworld
+isle        theme   1       # a continent over the sea
+town        theme   1       # any town but the castle
+castle      theme   1
+dungeon     theme   1
+sea         theme   1       # the voyage, either way
+fight       theme   1       # wanderers and the undead
+boss        theme   1       # a keeper, or Maldrath
+talk        theme   1       # a conversation
+inn         theme   1
+shop        theme   1       # buying and selling (not the help or party screens)
