@@ -15,12 +15,14 @@
 #include <q4k/battle.h>
 #include <q4k/engine.h>
 #include <q4k/loot.h>
+#include <q4k/music.h>
 #include <q4k/shop.h>
 
 static unsigned char fight(unsigned char what, unsigned char arg)
 {
     unsigned char r;
 
+    music_scene(what >= FIGHT_BOSS ? MUSIC_BOSS : MUSIC_FIGHT);
     eng_a = what;
     eng_b = arg;
     fight_spoils = 0;

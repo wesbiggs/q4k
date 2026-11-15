@@ -25,7 +25,7 @@ from collections import defaultdict
 # the panel use): they are counted where most of their bytes go, and
 # ENGINES.md says what would have to move.
 MODES = {
-    "core": """text panel sprite music music_data vault stick probe rle actor
+    "core": """text panel sprite music tune music_map vault stick probe rle actor
                local font_data tiles_names view game isle arms engine boot quest""",
     "map": """q4k world fov town_data town_gen place_near loot loot_data scene
               draw fightcall""",

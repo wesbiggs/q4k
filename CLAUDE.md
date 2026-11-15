@@ -54,10 +54,10 @@ slot holds one engine at a time, loaded from the disk.
   `*_entry`. `tools/mkengines.py` checks that after every link and fails the
   build otherwise. Scratch that lasts only while its engine runs follows its
   code: the fight's arrays (`overlay.s`, `FIGHTBSS`) and the offline talk's
-  buffer (`talkbuf.s`, `TALKBSS`). Each scene's music is a file too (`m.map`,
-  ...: every score is the same fixed size, see `tools/mkmusic.py`). The game
-  needs its disk, and asks for it back if a load fails. The map's engine is
-  the biggest, 15638 bytes of the slot's 17408, then the fight's (14277). The
+  buffer (`talkbuf.s`, `TALKBSS`). The music is not in the slot: it is a SID
+  file loaded under the KERNAL when a scene wants it (see Music). The game
+  needs its disk, and asks for it back if an engine's load fails. The map's engine is
+  the biggest, 15731 bytes of the slot's 17408, then the fight's (14801). The
   shop's engine also holds the screens the map opens that are not a place:
   the help screen and the party screen (`I`), through `shop_entry()` with
   `SHOP_HELP`/`SHOP_PARTY`; the quest's next-step table (`quest.c`) is in the
@@ -67,9 +67,9 @@ slot holds one engine at a time, loaded from the disk.
   Makefile's `HIMODS` are compiled with `--code-name HICODE --rodata-name
   HIDATA`; an engine's modules go to their engine whatever that list says.
   Changing either needs the objects rebuilt, because a target-specific
-  `CFLAGS` will not invalidate them on its own. About 5.3K are free in HIGH
-  (4.6K online), 5.4K in MAIN (less the stack) and 247 bytes in BSS -- but
-  **only 10 online**, so anything new that lives in BSS has to be paid for
+  `CFLAGS` will not invalidate them on its own. About 6.0K are free in HIGH
+  (5.3K online), 5.1K in MAIN (less the stack) and 257 bytes in BSS -- but
+  **only 20 online**, so anything new that lives in BSS has to be paid for
   there first. The party is why: `Actor` is kept small (no level, glyph or
   `alive`; a fallen member is one with no health) because four are in
   memory and four more in the save's buffer. The Makefile's `SMALLMODS` (loot, shop, inn, help, battle, arms,
@@ -114,13 +114,18 @@ slot holds one engine at a time, loaded from the disk.
   ROM (banked out at startup).
 - **The RAM under the ROMs** (`src/lib/vault.s`). `$D000-$DFFF`, under the I/O
   area, holds the home continent for the whole game, 64 by 64 bytes of tiles;
-  `$E000-$FFF9`, under the KERNAL, holds a continent put away while a town or
-  a dungeon is in `local[]` (four 1984-byte slots, `$800` apart; only slot 0 is
-  used). Reaching either takes the machine to all-RAM (`$01 = $34`), which
+  `$E000-$E7BF`, under the KERNAL, holds a continent put away while a town or
+  a dungeon is in `local[]` (1984 bytes); the rest under the KERNAL is the
+  music's, a tune's header at `$E7C0` and the tune at `$E800-$FFF9` (see
+  Music). Reaching the vault takes the machine to all-RAM (`$01 = $34`), which
   takes the KERNAL and the I/O area away, so interrupts are off for as long as
   it lasts and the only code that may run is in ordinary RAM and calls nothing
   of the KERNAL's. An NMI cannot be turned off and its vector is read from RAM
-  under the KERNAL too, so `vault_enter` points it at an RTI. Everything is a
+  under the KERNAL too, so `vault_enter` (and the music, which plays with the
+  KERNAL out) points it at `vault_nmi`, which banks the KERNAL in, runs its
+  handler and banks it out again: the modem's RS-232 is NMI-driven, and a
+  byte arriving while a tune plays would otherwise stop it for good (tested:
+  the online dialog hangs with a bare RTI there and a slow tune). Everything is a
   copy of a screenful or a row (`vault_row`, `vault_tile`, `vault_park`,
   `vault_unpark`, about 30 ms at the worst) except building home, which the
   generator does in place, a few seconds with nothing else running.
@@ -196,36 +201,92 @@ Nothing is stored for a map beyond those bytes, and nothing needs `looted[]`.
 
 ## Music
 
-`assets/theme.txt` is the score (`~` slurs a note into the next, `v` adds
-vibrato); `tools/mkmusic.py` turns it into `src/lib/music_data.s`, and
-`src/lib/music.s` plays it from cc65's interruptor chain (the
-KERNAL's 50/60 Hz IRQ), in pure assembly that touches no zero page: a
-triangle lead on voice 1, and on voice 2 a quiet triangle (the pulse it started as was too loud
-and too bright) holding one
-note a bar, a perfect fourth below whichever of the bar's melody notes leaves
-the least clashing, resting for the bar's last eighth
+**SID files, one scene at a time.** Every tune is a standard SID file (PSID):
+a 6502 player and its data, with an init routine (song number in A) and a
+play routine called 60 or 50 times a second. `assets/music.txt` maps each
+scene (`home`, `isle`, `town`, `castle`, `dungeon`, `sea`, `fight`, `boss`,
+`talk`, `inn`, `shop`) to a SID file and one of its songs; `tools/mksid.py
+map` makes that into `include/q4k/music_map.h` (`MUSIC_HOME` ...) and
+`src/lib/music_map.c`. The code says which scene it is in with
+`music_scene()` (`src/lib/tune.c`, in the core): the map loop each turn,
+from where the party stands (`map_music()` in `q4k.c`), and the fight
+(`fightcall.c`), a conversation, an inn, a shop (`q4k.c`) and a voyage
+(`sail.c`) before they start. A scene whose file is not the one in memory
+loads it from the disk (`m.NAME`), with the music paused and the sprites
+hidden, and starts its song; the same file with another song only starts
+that song; the same file and song carries on, which is why the theme now
+plays straight through a fight. A file that will not load leaves the music
+off without asking for the disk (the music is not worth stopping for), until
+a scene wants another. The help and party screens keep whatever is playing.
+
+**Where it lives.** One tune at a time, in the RAM under the KERNAL: the disk
+file loads at `$E7C0`, a 64-byte header that `mksid.py` writes (init, play,
+song count, the volume to restore after a pause, a byte a song for its
+speed), then the tune at its own address, which must be inside
+`$E800-$FFF9` (6K). `src/lib/music.s` reads the header into its own code
+(`music_play()`), and calls play from cc65's interruptor chain with the
+KERNAL banked out (`$01 = $35`) and back in after; see the RAM under the
+ROMs, under Memory, for the NMI that this needs. **The KERNAL's interrupt is
+60 Hz on PAL as well as NTSC** (its CIA timer is `$4025` on PAL, `$4295` on
+NTSC; measured: 151 jiffies in 125 PAL frames): a song made for the frame
+rate (PSID speed "VBI") is called five times in six on PAL, 50 Hz, and a
+"CIA" one every time. (The old built-in player took PAL for 50 Hz and played
+the theme about 18% fast there.)
+
+**What `mksid.py disk` checks** before a tune goes on the disk, by running
+init and 2000 calls of play for every song, on both clocks, in a small
+emulated 6502 (`tools/sid6502.py`, official opcodes only): that it is a PSID
+(not an RSID) with a play routine, for one SID, loaded inside the area; that
+it runs only there, writes only there, voices 1 and 2, the filter and volume
+(`$D415-$D418`) and zero page `$FB-$FE`, and reads only those, the stack and
+`$02A6`; that it uses at most 64 bytes of stack and `PLAY_BUDGET` (4000)
+cycles a call. **Voice 3 is the sound effects'**, so a tune that touches it
+is refused. A tune refused for its address needs relocating to `$E800`
+(GoatTracker exports at any address; `sidreloc` moves an existing one).
+The tunes the build makes are `build/sid/NAME.sid`, the rest go in
+`assets/music/NAME.sid`; `make` also copies the theme to `dist/theme.sid`,
+which plays in any SID player. A new SID file costs nothing in memory and a
+few blocks on the disk (283 were free).
+
+**The theme** is one of those SID files. `assets/theme.txt` is the score
+(`~` slurs a note into the next, `v` adds vibrato); `tools/mkmusic.py` turns
+it into `src/sid/theme_data.s`, which `src/sid/theme.s`, the player, plays;
+`cfg/sid.cfg` links the two at `$E800` and `mksid.py wrap` makes the PSID
+(470 bytes). Its speed is CIA (60 Hz on both machines) and it picks its
+pitch table by `$02A6`. It plays a triangle lead on voice 1, and on voice 2
+a quiet triangle (the pulse it started as was too loud and too bright)
+holding one note a bar, a perfect fourth below whichever of the bar's melody
+notes leaves the least clashing, resting for the bar's last eighth
 (`HARMONY_REST = False` in the generator never re-strikes it: only the pitch
 changes). A quick attack on a quiet SID voice clicks, because the envelope
 always climbs to full level first; voice 2 uses a 100 ms attack for that
 reason. (`HARMONY = "long"` in `tools/mkmusic.py` moves it only on
-long notes instead, and `h` marks in the score force a move there). The generator works the harmony out; the score is just the tune. The player
-and data live in HIGH (what is free now is under Memory). `music_pause()`/`music_resume()` wrap the disk
-code, which the interrupt would steal cycles from. Pausing zeroes the master
-volume *and waits twelve jiffies*: with the drive emulated, VICE makes no new
-sound while the drive works and replays its last audio buffer, so a note
+long notes instead, and `h` marks in the score force a move there). The
+generator works the harmony out; the score is just the tune.
+
+**Pausing.** `music_pause()`/`music_resume()` wrap the disk code, which the
+interrupt would steal cycles from. Pausing stops the calls, zeroes the
+master volume and leaves the gates alone, so the notes carry on where they
+were; it also *waits twelve jiffies*: with the drive emulated, VICE makes no
+new sound while the drive works and replays its last audio buffer, so a note
 sounding at the moment the disk starts is held for as long as the disk takes
 (a five-second drone on a save; the SID itself had been told to stop, as
-`-sounddev dump` shows). Silence has to reach that buffer first. `M` toggles it. To hear it
-without a human: `x64sc ... -sound -soundrecdev wav -soundrecarg out.wav`
-with the game past its title screen -- `-keybuf` does not get there, so drive
-it through `tools/screendump.py` with `-warp` and `-silent` stripped.
-`--peek music_state` and `--peek music_idx` show whether it is playing. (If
-VICE's coreaudio device is unavailable -- Bluetooth switching, say -- use
-`-sounddev wav -soundarg out.wav` instead of `-soundrecdev`: it writes the
-file without needing a sound card.)
+`-sounddev dump` shows). Silence has to reach that buffer first. `M` stops
+the tune (its voices let go) and starts its song again from the top.
+
+**Listening and measuring.** `x64sc ... -sound -sounddev dump -soundarg
+out.dump`, through `tools/screendump.py --vice=...` (its `+sound` comes
+first, so `--vice=-sound` overrides it), writes every SID register write
+with its cycle delta in warp mode: that is how the SID theme was checked
+against the old player, note for note and frame for frame. (Without warp,
+with `--rs232`, the dump writes register snapshots instead.) To hear it:
+`-sound -soundrecdev wav -soundrecarg out.wav` with the game past its title
+screen, `-warp` and `-silent` stripped (or `-sounddev wav -soundarg out.wav`
+if VICE's coreaudio device is unavailable). `--peek music_state` says
+whether it is playing; the tune's own variables are under the KERNAL.
 
 Sound effects are on voice 3, from the same interrupt, and work whether or not
-the music is on (`M` mutes only the music, `X` only the effects; both are handled in the
+the music is on (with a tune playing they leave the volume register to it) (`M` mutes only the music, `X` only the effects; both are handled in the
 map loop in `q4k.c` and in the fight loop in `battle.c`, and cost no turn):
 `sfx_step(tile)` for a step, which picks a sound by terrain from a table
 indexed by screen code and gives the two feet slightly different pitches, and

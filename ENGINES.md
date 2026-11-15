@@ -167,14 +167,12 @@ slot itself has room to grow too: the fight has 6.5K spare in it, and talk
    order and the same dice as before. `gear_drop()`'s roll moved in front of
    loading the shop engine, so the shop loads only when something really
    drops. The messages still appear in the same order in the log.
-5. **Music.** Each scene has a score file (`m.map`, `m.fight`, `m.talk`), all
-   the same tune for now, cut out of the PRG by `mkengines.py`. A score loads
-   in the same pause as its engine, and starts from the top. So **the tune
-   restarts at every fight and conversation, and again on returning to the
-   map**; before, it carried on. The shop has no score and keeps the map's
-   tune playing. Every score takes a fixed 516 bytes (32 pitches, 128 notes:
-   `MAX_PITCHES`, `MAX_NOTES` in `tools/mkmusic.py`), so they can replace one
-   another.
+5. **Music.** (Since replaced: the music is SID files loaded by scene, not by
+   engine, under the KERNAL; see Music in CLAUDE.md.) Each scene had a score
+   file (`m.map`, `m.fight`, `m.talk`), all the same tune, cut out of the PRG
+   by `mkengines.py`, loaded in the same pause as its engine, and started from
+   the top, so the tune restarted at every fight and conversation. Now a
+   scene that maps to the music already playing lets it carry on.
 6. **Sprites are hidden during every load** (the hero reappears on the next
    draw). The open question in CLAUDE.md, about sprites and the serial bus,
    matters more now that loads are frequent.
@@ -517,7 +515,9 @@ have to be drawn into the bitmap or kept to a text-mode band with a raster
 split. Do it after the slots exist, and prototype the drawing speed first.
 A full redraw copies 8 bytes for every cell, which this machine notices.
 
-**Music for each scene.** This fits the slots without any extra work. The
+**Music for each scene.** (Done differently since: each tune is a SID file,
+loaded under the KERNAL when a scene wants it; see Music in CLAUDE.md. The
+plan as it was:) This fits the slots without any extra work. The
 player (`music.s`, about 0.9K with the sound effects) stays in core, because
 it runs from the interrupt in every mode. The score is data, 132 bytes now,
 and is loaded with each engine, inside the same pause: the map brings the

@@ -1,23 +1,26 @@
 ; The RAM under the ROMs, which nothing else uses.
 ;
 ; $D000-$DFFF (under the I/O area) holds the home continent, 64 by 64, for
-; the whole game; $E000-$FFF9 (under the KERNAL) holds up to four 64 by 31
-; maps, 2K apart, of which the game keeps one: the continent you left to visit
-; a town or a dungeon, which both want local[].
+; the whole game; $E000-$E7BF (under the KERNAL) holds a 64 by 31 map: the
+; continent you left to visit a town or a dungeon, which both want local[].
+; The rest under the KERNAL is the music's: a tune's header at $E7C0 and the
+; tune at $E800-$FFF9 (music.s).
 ;
 ; Reaching either takes the machine to all-RAM ($01 = $34), which takes the
 ; KERNAL and the I/O area away: so interrupts are off for as long as it lasts,
 ; and for that long only the code below, in ordinary RAM, may run. An NMI cannot
 ; be turned off, and its vector is read from RAM under the KERNAL too, so it
-; is pointed at an RTI. Nothing here lasts longer than a copy of a screen's
-; worth of map: about thirty milliseconds at the worst.
+; is pointed at vault_nmi, which banks the KERNAL in for its handler and out
+; again; the music, which plays with the KERNAL out, uses it too. Nothing
+; here lasts longer than a copy of a screen's worth of map: about thirty
+; milliseconds at the worst.
 ;
 ; (The generator builds home in place in the same mode. See isle_gen.s.)
 
         .include "zeropage.inc"
 
         .export _vault_row, _vault_tile, _vault_park, _vault_unpark, _lair_clear
-        .export vault_enter, vault_leave
+        .export vault_enter, vault_leave, vault_nmi
         .import _local, popa
         .import _quest_stage, _home_fx, _home_fy
         .include "q4k/tiles.inc"
@@ -43,9 +46,9 @@ vault_enter:
         sta kept
         lda #BANK
         sta $01
-        lda #<nmi
+        lda #<vault_nmi
         sta $FFFA
-        lda #>nmi
+        lda #>vault_nmi
         sta $FFFB
         rts
 
@@ -55,7 +58,30 @@ vault_leave:
         cli
         rts
 
-nmi:    rti
+; An NMI while the KERNAL is banked out: its vector is read from the RAM
+; under it, which points here. Bank the KERNAL and I/O in, as cc65 keeps them
+; ($01 = %x110), run the KERNAL's handler through its vector at $0318 as if
+; the NMI had gone there, and come back here, by the return address pushed
+; for its RTI, to put $01 back. The modem's RS-232 is NMI-driven: without
+; this a byte arriving while a tune plays would be lost, or worse. The
+; RESTORE key gets the KERNAL's handling too, as it does anywhere else.
+vault_nmi:
+        pha
+        lda $01
+        pha
+        and #$F8
+        ora #$06
+        sta $01
+        lda #>@back             ; a frame for the handler's RTI to return to
+        pha
+        lda #<@back
+        pha
+        php
+        jmp ($0318)
+@back:  pla
+        sta $01
+        pla
+        rti
 
 ; ptr1 = HOME_AT + A * 64, from a row number in A.
 rowptr: ldx #0

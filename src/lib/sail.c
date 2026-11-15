@@ -4,6 +4,7 @@
 #include <q4k/actor.h>
 #include <q4k/game.h>
 #include <q4k/isle.h>
+#include <q4k/music.h>
 #include <q4k/sail.h>
 #include <q4k/sprite.h>
 #include <q4k/tiles.h>
@@ -171,6 +172,7 @@ void sail_out(void)
     }
 
     view_message(outward[d]);
+    music_scene(MUSIC_SEA);
     sprite_hide();
 
     /* The home coast slides off while the other shore is made behind it. */
@@ -212,6 +214,7 @@ void sail_home(void)
     unsigned char d = land, ex, ey;
 
     home_ensure();      /* built long since, unless a restored game is only now back */
+    music_scene(MUSIC_SEA);
     sprite_hide();
 
     /* From the landing: the view as the map draws it, then the ship to the
