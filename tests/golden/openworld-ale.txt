@@ -1,0 +1,27 @@
+    +----------------------------------------+
+  0 |The Plough and Harrow                   |
+  1 |········································|
+  2 |                                        |
+  3 |  1  A mug of ale         5 marks       |
+  4 |  2  Beds for the night 20 marks        |
+  5 |                                        |
+  6 |You have 4 marks.                       |
+  7 |                                        |
+  8 |You drink.                              |
+  9 |Three stones, and Garrett the smith has |
+ 10 |the only anvil fit to use them. He is   |
+ 11 |in Millford.                            |
+ 12 |You are not weary.                      |
+ 13 |                                        |
+ 14 |                                        |
+ 15 |                                        |
+ 16 |                                        |
+ 17 |                                        |
+ 18 |                                        |
+ 19 |········································|
+ 20 |Number to buy, RUN/STOP leaves          |
+ 21 |                                        |
+ 22 |                                        |
+ 23 |                                        |
+ 24 |                                        |
+    +----------------------------------------+

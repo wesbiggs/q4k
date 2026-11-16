@@ -34,8 +34,6 @@ static const unsigned char robes[7] = {
     COLOR_LIGHTBLUE, COLOR_WHITE
 };
 
-/* The conversation's program (src/owtown.c). */
-static const char owtown_name[] = "owtown";
 
 static unsigned char ex, ey;            /* the way out */
 static unsigned char npc_ent[7];        /* which of here_ents each sprite is */
@@ -436,17 +434,25 @@ void t_arrived(void)
     }
 }
 
-/* Talk to sprite n's person. The engine goes; src/owtown.c has the talk,
+/* Talk, or trade, with sprite n's person: a conversation, a shop or an
+   inn. The engine goes; src/owtown.c has the screens,
    and loads the engine back when it ends, which comes straight back here
    (engine.c's main()). Never returns. */
 static void talk_to(unsigned char n)
 {
-    OWB->mode = OWB_TALK;
-    OWB->npc = here_ents[npc_ent[n]].param;
-    ow_leave(owtown_name);
+    const TownEnt *e = &here_ents[npc_ent[n]];
+
+    switch (e->kind) {
+    case ENT_NPC:  OWB->mode = OWB_TALK; break;
+    case ENT_SHOP: OWB->mode = OWB_SHOP; break;
+    case ENT_INN:  OWB->mode = OWB_INN;  break;
+    default:       return;      /* a villager is a wall */
+    }
+    OWB->npc = OWB->arg = e->param;
+    ow_leave(owtown);
 }
 
-/* A step into someone: a conversation, if they have lines (a villager is a
+/* A step into someone: a conversation, a shop or an inn (a villager is a
    wall); into Millford's gate too soon, a refusal. */
 void __fastcall__ t_bump(unsigned char d)
 {
@@ -458,9 +464,7 @@ void __fastcall__ t_bump(unsigned char d)
     }
     for (i = 0; i < sm_npc_n; ++i) {
         if (sm_npc_x[i] == x && sm_npc_y[i] == y) {
-            if (here_ents[npc_ent[i]].kind == ENT_NPC) {
-                talk_to(i);
-            }
+            talk_to(i);
             return;
         }
     }

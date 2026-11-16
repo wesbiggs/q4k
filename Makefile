@@ -74,7 +74,7 @@ DEPFLAGS  = -Wc --create-full-dep,$(@:.o=.d) -Wc --dep-target,$@
 # rule below). dungeontest links the maps and the font, arena the fights and
 # isletest the land, so they need the game's charset and probe page as well,
 # with everything in one load (cfg/c64-flat.cfg).
-LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest owtown,$*),flat,$(if $(filter openworld,$*),owboot,$(if $(filter owarena,$*),owarena,tool))).cfg
+LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest,$*),flat,$(if $(filter owtown,$*),owtown,$(if $(filter openworld,$*),owboot,$(if $(filter owarena,$*),owarena,tool)))).cfg
 
 MAINS    := $(wildcard src/*.c)
 PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
