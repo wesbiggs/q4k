@@ -28,6 +28,7 @@
  *   Q, E, Z, C (or the stick's diagonals)       walk diagonally
  *   1 / 2                                        one or two pixels a frame
  *   M                                            the music off and on
+ *   X                                            the sound effects off and on
  *   N                                            the next seed's world (back
  *                                                through the bootstrap)
  *
@@ -48,6 +49,7 @@
 #include <q4k/dungeon.h>
 #include <q4k/game.h>
 #include <q4k/isle.h>
+#include <q4k/music.h>
 #include <q4k/music_map.h>
 #include <q4k/ow.h>
 #include <q4k/town_data.h>
@@ -417,6 +419,9 @@ static unsigned char typed(void)
             ow_tune_play(song_now);
         }
         break;
+    case 'x':                   /* the effects off and on */
+        sfx_toggle();
+        break;
     case 'n':                   /* the bootstrap builds the next world */
         sm_quit();
         OW->seed = seed + 1;
@@ -657,6 +662,9 @@ int main(void)
                         build_some();   /* the edges in the next frames */
                     }
                     sm_sprite(hero_frame(dir, stride ^= 1));
+                    if (!boat) {    /* a footstep, by what it lands on */
+                        sfx_step(tile_at(hx + dirdx[d], hy + dirdy[d]));
+                    }
                 } else {
                     ov_bump(d); /* into a person: a talk, in a town */
                 }

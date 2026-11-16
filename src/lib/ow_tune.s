@@ -7,7 +7,8 @@
 ; game's comes 60 times a second everywhere. So the cadence is the other way
 ; round from music.s: a tune made for the frame rate (PSID "VBI") is called
 ; every time, and one made for 60 Hz ("CIA") gets a sixth call every fifth
-; frame on PAL. No effects, so no voice 3.
+; frame on PAL. The sound effects (sfx.s, voice 3) tick here too, every
+; frame.
 ;
 ; ow_tune_irq is called by the interrupt (src/ow/smooth.s), after it has
 ; rewritten colour RAM, which races the beam and cannot wait: so on the
@@ -15,7 +16,7 @@
 ; scrolling. It uses A, X and Y and no zero page, as that interrupt promises.
 
         .export _ow_tune_play, _ow_tune_stop, _ow_tune_on, ow_tune_irq
-        .import vault_nmi
+        .import vault_nmi, sfx_tick
 
 SID_CTRL = $D404                ; voice 1's control register
 SID_V2C  = $D40B                ; voice 2's
@@ -83,6 +84,7 @@ _ow_tune_stop:
         rts
 
 ow_tune_irq:
+        jsr     sfx_tick
         lda     _ow_tune_on
         beq     t_out
         jsr     t_play
