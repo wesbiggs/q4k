@@ -29,6 +29,11 @@
  *   1 / 2                                        one or two pixels a frame
  *   M                                            the music off and on
  *   X                                            the sound effects off and on
+ *   F1                                           save (OW-SAVE): the border is
+ *                                                light blue while the drive
+ *                                                works, red if it would not
+ *   F3                                           the saved game (back through
+ *                                                the bootstrap, for its world)
  *   N                                            the next seed's world (back
  *                                                through the bootstrap)
  *
@@ -296,10 +301,13 @@ static void disk_off(unsigned char sprites)
     frame = sm_frame;           /* those frames were not missed */
 }
 
+static unsigned char scene_now;         /* the scene play_for() was told */
+
 void play_for(unsigned char s)
 {
     unsigned char f = tune_file[s], i;
 
+    scene_now = s;
     if (f != OW->tune) {
         OW->tune = OW_NO_TUNE;
         sm_blank(1);
@@ -315,6 +323,54 @@ void play_for(unsigned char s)
             ow_tune_play(song_now);
         }
     }
+}
+
+/* F1: the game block (owgame.h) into OW-SAVE, over the one there. The
+   drive will not overwrite, so the old one is scratched first; the command
+   is spelled in bytes (cc65 would shift a literal's S: CLAUDE.md). The
+   border is light blue while the drive works, and red for a second if it
+   would not. */
+static const char scratch_save[] = {
+    0x53, 0x30, 0x3A,                           /* S0:      */
+    0x4F, 0x57, 0x2D, 0x53, 0x41, 0x56, 0x45,   /* OW-SAVE  */
+    0
+};
+
+static void save_game(void)
+{
+    unsigned char s, i, ok, st[2];
+
+    owg_where();
+    s = disk_on();
+    VIC.bordercolor = COLOR_LIGHTBLUE;
+    ok = 0;
+    if (cbm_open(15, 8, 15, scratch_save) == 0) {
+        cbm_read(15, st, 2);            /* (no save yet is fine) */
+        ok = cbm_save(scratch_save + 3, 8, G, OWG_SIZE) == 0;
+        st[0] = 0;
+        cbm_read(15, st, 2);
+        ok &= st[0] == 0x30 && st[1] == 0x30;
+        cbm_close(15);
+    }
+    VIC.bordercolor = ok ? COLOR_BLACK : COLOR_RED;
+    for (i = 0; i < 50 && !ok; ++i) {
+        next_frame();
+    }
+    VIC.bordercolor = COLOR_BLACK;
+    disk_off(s);
+    play_for(scene_now);
+}
+
+/* Back through the bootstrap, which builds a world: the saved game's
+   (OWB_LOAD, F3), or the next seed's (N), with the party in it. The game
+   block first, which is what goes on if there is no save. */
+static void rebuild(unsigned char mode)
+{
+    owg_where();
+    sm_quit();
+    OWB->mode = mode;
+    OW->seed = seed + 1;
+    ow_run("openworld");
 }
 
 /* The overlay ov_want asks for, into the slot (the screen is off), and
@@ -426,11 +482,13 @@ static unsigned char typed(void)
     case 'x':                   /* the effects off and on */
         sfx_toggle();
         break;
-    case 'n':                   /* the bootstrap builds the next world */
-        sm_quit();
-        OW->seed = seed + 1;
-        ow_run("openworld");
+    case 0x85:                  /* F1: save */
+        save_game();
         break;
+    case 0x86:                  /* F3: the saved game */
+        rebuild(OWB_LOAD);
+    case 'n':                   /* the next world */
+        rebuild(OWB_NONE);
     }
     return NONE;
 }

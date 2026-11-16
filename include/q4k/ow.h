@@ -74,6 +74,7 @@ typedef struct {
 #define OWB_SHOP  5             /* a shop: arg is its kind (SHOP_*) */
 #define OWB_INN   6             /* an inn: arg is which (INN_PROC: ours) */
 #define OWB_PARTY 7             /* the party and what they carry */
+#define OWB_LOAD  8             /* (to the bootstrap) F3: the saved game */
 
 typedef struct {
     unsigned char mode;         /* OWB_* */

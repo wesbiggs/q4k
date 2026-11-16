@@ -196,7 +196,13 @@ M and X). ld65 does not clear it. The engines' cfg names its party `party`
 the game's own `actor.c`/`game.c` uses `owg_in()`/`owg_out()`
 (`src/lib/owgame.c`). A save is this block as it is, in `ow-save` (139
 bytes, `OWG_SIZE`, which `tools/mkowsave.py` writes too and the engine
-checks). Every engine start resumes from it: the overworld, a town (at
+checks): F1 in an engine writes it (scratching the old file first, as
+`savegame.c` does; the border is light blue while the drive works, red
+for a second if it would not, since the engine has no line for words), and
+F3 goes back through the bootstrap with `OWB_LOAD`, which loads it and
+builds its world (the game goes on as it was if there is no save). The
+`openworld-save` case in `tools/test.sh` saves, walks on and restores, on a
+copy of the disk. Every engine start resumes from it: the overworld, a town (at
 its gate when `x` is `OWG_GATE`) or a dungeon level, where it was left.
 
 **The screens of text are a program loaded from disk, not a part of the
