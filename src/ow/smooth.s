@@ -575,12 +575,18 @@ _sm_shores_rect:
 :       inc     sy
         jmp     @row
 
-; void sm_stack(void) -- the C stack to the tape buffer, down from $0400:
-; MAIN, at whose top cc65 starts it, is full. Called first thing.
+; void sm_stack(void) -- the C stack down from $0800, the top of the KERNAL's
+; screen, which the engine does not show (it is in VIC bank 1): MAIN, at
+; whose top cc65 starts it, is full. Called first thing. Not the tape
+; buffer, where it was: a drive's driver in a cartridge may use that while
+; it loads (a TeensyROM's did), and cc65's cbm_load() keeps the load
+; address on the C stack, so the first load of each file came back as a
+; failure with the drive saying OK. ow_leave() clears only the rows above
+; it ($0400-$07BF), and nothing else writes there while it is live.
 _sm_stack:
-        lda     #<$0400
+        lda     #<$0800
         sta     sp
-        lda     #>$0400
+        lda     #>$0800
         sta     sp+1
         rts
 
