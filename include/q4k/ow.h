@@ -60,22 +60,25 @@ typedef struct {
 
 #define OW ((OwWorld *)0x02A7)
 
-/* A conversation (src/owtalk.c) takes the engine away, and the engine comes
-   back to the town it was in, where the conversation began, as the
-   bootstrap leaves it for it. Its own block, past the bootstrap's (which
-   ends at $02EC), so that the bootstrap's layout does not move. */
-#define OWB_NONE 0
-#define OWB_TALK 1              /* the engine asks: a conversation */
-#define OWB_BACK 2              /* the conversation ends: back to the town */
+/* The open world's other programs -- the party's making (src/lib/ow_party.c),
+   the talk, the shops and the inns, all in src/owtown.c -- take the engine's place
+   for a while and load it back when they are done, and the engine carries
+   on from the game block (owgame.h), which says where it was. This block
+   says what the program is for. Its own, past the bootstrap's (which ends
+   at $02EC), so that the bootstrap's layout does not move. */
+#define OWB_NONE  0
+#define OWB_TALK  1             /* a conversation: npc */
+#define OWB_BACK  2             /* (done: the engine carries on) */
+#define OWB_NEW   3             /* the party's making, then Millford */
+#define OWB_QUICK 4             /* a lone warrior outside Millford: tests */
+#define OWB_SHOP  5             /* a shop: arg is its kind (SHOP_*) */
+#define OWB_INN   6             /* an inn: arg is which (INN_PROC: ours) */
+#define OWB_PARTY 7             /* the party and what they carry */
 
 typedef struct {
-    unsigned char mode;         /* OWB_NONE, OWB_TALK or OWB_BACK */
+    unsigned char mode;         /* OWB_* */
     unsigned char npc;          /* the person (NPC_* in town_data.h) */
-    unsigned char town;         /* the town (TOWN_* in town_data.h) */
-    unsigned char land;         /* a continent's index, or ISLE_HOME */
-    unsigned char x, y;         /* the hero, in the town */
-    unsigned int  out_x;        /* the world square they came in from */
-    unsigned char out_y;
+    unsigned char arg;
 } OwBack;
 
 #define OWB ((OwBack *)0x02ED)
@@ -85,6 +88,10 @@ typedef struct {
    the interrupts must be the KERNAL's again before it is called. Does not
    return; the border flashes if the load fails. */
 void __fastcall__ ow_run(const char *name);
+
+/* From another program of the open world's back to the engine, which
+   carries on from the game block (src/lib/ow_back.c). Does not return. */
+void ow_back(void);
 
 /* A floppy disk blinking in the middle of the screen, from now until an
    engine has the screen: the machine is busy. */
@@ -106,6 +113,8 @@ unsigned char ow_reu_detect(void);
 
 #define OW_KEY_F1 0x85          /* a new game */
 #define OW_KEY_F3 0x86          /* a saved one */
+#define OW_KEY_QUICK 0x87       /* the tests': a lone warrior outside Millford,
+                                   as the prototype began (no matrix key) */
 
 /* While the splash waits for a key OW->hook is OW_HOOK_WAIT, and a key
    written there is taken as pressed: tools/screendump.py --splash. */
@@ -118,14 +127,7 @@ unsigned char ow_video(void);
 unsigned char ow_splash(void);
 extern unsigned char ow_splash_ticks;   /* frames the player took, mod 256 */
 
-/* A saved game, as far as the open world goes: OW-SAVE on the disk
-   (tools/mkowsave.py writes the one it comes with). */
-#define OW_SAVE_MAGIC 0x53
-typedef struct {
-    unsigned char magic;
-    unsigned char seed;
-    unsigned int  x;            /* the hero's square in the world */
-    unsigned char y;
-} OwSave;
+/* A saved game is the game block (owgame.h) in OW-SAVE, which the disk
+   comes with one of (tools/mkowsave.py) until the game saves over it. */
 
 #endif /* Q4K_OW_H */

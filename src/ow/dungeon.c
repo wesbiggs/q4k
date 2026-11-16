@@ -29,12 +29,19 @@ static void dungeon_level(unsigned char came_down)
     }
 }
 
-/* Just loaded into the slot: the first level of dun_index, on its way up.
-   The screen is off. */
+/* Just loaded into the slot: the first level of dun_index, on its way up,
+   or (resuming) level depth where the hero stood. The screen is off. */
 void d_enter(void)
 {
     area = AREA_DUNGEON;
     play_for(MUSIC_DUNGEON);
+    if (resuming) {             /* back from another program: as left */
+        resuming = 0;
+        dungeon_build(dun_index, depth);
+        build_area(ts_dungeon, DUN_W, DUN_H);
+        show_area(resume_x + BIAS, resume_y + BIAS);
+        return;
+    }
     depth = 1;
     dungeon_level(1);
 }

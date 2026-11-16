@@ -185,25 +185,42 @@ place game data there (bar BSS2, above).
 **Colour RAM is write-only-ish nybbles at `$D800`** and is *not* covered by the
 VIC bank switch — it stays at `$D800` regardless of where the screen matrix is.
 
-**Conversations in the open world are a program loaded from disk, not a
-part of the engine.** Walking into a townsperson who has lines (an `ENT_NPC`,
-not a villager, who is a wall) makes the town's overlay (below) write the
-hand-off block (`OWB` in `include/q4k/ow.h`, at `$02ED`), copy the ships back
-into `OW` so they stay where they were left, and load `owtalk`
-(`src/owtalk.c`, flat, the talk's own file as `talk.c` reads it) over the
-engine with `ow_run()`. The talk reloads `ow-data` (which it overwrites),
-resets the machine as `sm_quit()` leaves it, and loads the engine back with
-`OWB_BACK`; the engine then loads the town's overlay straight away, with the
+**The open world's game lives in a block every one of its programs leaves
+alone**: `OwGame` (`include/q4k/owgame.h`) at `$CE40-$CEFF`, between the
+engines' BSS (cut to end there) and the probe page: the party, the purse,
+the quest, the looted bits and where everyone is (the area, the town or
+dungeon and its level, the square, the world square, the ships, the boat,
+M and X). ld65 does not clear it. The engines' cfg names its party `party`
+(it comes first), and they copy the rest in (`take_block()`) and out
+(`owg_where()`, before a save or another program); a program that links
+the game's own `actor.c`/`game.c` uses `owg_in()`/`owg_out()`
+(`src/lib/owgame.c`). A save is this block as it is, in `ow-save` (139
+bytes, `OWG_SIZE`, which `tools/mkowsave.py` writes too and the engine
+checks). Every engine start resumes from it: the overworld, a town (at
+its gate when `x` is `OWG_GATE`) or a dungeon level, where it was left.
+
+**The screens of text are a program loaded from disk, not a part of the
+engine**: `owtown` (`src/owtown.c`, flat, linked with `cfg/c64-flat.cfg`).
+The hand-off block (`OWB` in `include/q4k/ow.h`, at `$02ED`) says what for
+(`OWB_NEW`/`OWB_QUICK` the party's making, `src/lib/ow_party.c`; `OWB_TALK`
+a conversation; shops, inns and the party's screen to come). The engine
+leaves with `ow_leave()` (the block out, the machine as `sm_quit()` leaves
+it, `ow_run()`); `owtown` comes back with `ow_back()` (`src/lib/ow_back.c`:
+reloads `ow-data`, which it overwrites, resets the machine and loads the
+engine), and the engine loads the area's overlay straight away, with the
 hero where they stood, and builds the overworld afresh only on the way out
-(`fresh` in `world.c`, even with an REU, whose copy did not survive). Both
-engines have it. The talk's files are on `openworld.d64` beside it. The
-RUN/STOP that leaves a talk is still flagged when `ow-data` reloads, and the
-KERNAL's `LOAD` then fails with no drive error: `owtalk`'s `need_data()` waits
-for STOP to come up and sets `$91` to `$FF` (released). `$7F` in `$91` means
-STOP is held down, so clearing the bit with `& 0x7F` is the wrong fix. Golden
-`openworld-talk` talks to Old Tam in Millford, comes back and walks out; it
-leans on the harness typing its keys a bufferful at a time (the talk and the
-engine each empty the buffer as they start), hence the `x` padding.
+(`fresh` in `world.c`, even with an REU, whose copy did not survive). The
+talk's files are on `openworld.d64` beside it (which has about 57 blocks
+free: the disk is the limit for more programs). The RUN/STOP that leaves
+a talk is still flagged when `ow-data` reloads, and the KERNAL's `LOAD`
+then fails with no drive error: `ow_back()` waits for STOP to come up and
+sets `$91` to `$FF` (released). `$7F` in `$91` means STOP is held down, so
+clearing the bit with `& 0x7F` is the wrong fix. Golden `openworld-talk`
+talks to Old Tam in Millford, comes back and walks out; it leans on the
+harness typing its keys a bufferful at a time (the talk and the engine
+each empty the buffer as they start), hence the `x` padding. **Never
+`--poke` an engine's label in a test that starts in `owtown`**: pokes land
+when the first stage is published, which is `owtown`'s, over its code.
 
 **The open world's engine is a core and three overlays** (`src/ow/engine.h`).
 The core (`engine.c`, `smooth.s`, and the library: the main loop, the
@@ -483,7 +500,7 @@ An engine has its own memory map (`cfg/c64-openworld.cfg`: VIC bank 1 at
 map at `$B000` and its edges at `$A000`) and its own raster interrupt, which
 chains to `$EA31` with the CIA's timer interrupt off. **Tests** start the
 bootstrap with the disk and read the engine's labels:
-`screendump.py dist/openworld.prg --disk dist/openworld.d64 --splash f1
+`screendump.py dist/openworld.prg --disk dist/openworld.d64 --splash quick
 --lbl build/ow-cpu.lbl` (`ow-reu.lbl` with `--vice=-reu`); the bootstrap and
 the loads take about fifteen seconds.
 
@@ -492,17 +509,21 @@ of `assets/splash-kit`, which is vic2orious's output: do not edit `lib/` or
 `data/` there, regenerate them). The bootstrap finds the video system
 (`ow_video()`), loads `splash-p` or `splash-n` at `$4000` (the kit's `.v2t`
 in a page and then its `.v2i`, joined by `tools/mksplash.py`) and shows it
-until F1, a new game (its seed is 1 plus the frames the player took), or F3,
-a saved one: `ow-save`, five bytes (`OwSave`: a mark, the seed, the hero's
-world square) that `tools/mkowsave.py` writes, seed 7 at the castle, since
-nothing saves yet. `OW->start_x/start_y` is where the engine puts the hero.
+until F1, a new game (its seed is 1 plus the frames the player took: the
+lands are built, then `owtown` makes the party and the game starts at
+Millford's gate), or F3, a saved one: `ow-save`, the game block, which the
+disk comes with one of from `tools/mkowsave.py` (seed 7, a lone warrior at
+the castle). The tests' `--splash quick` (`OW_KEY_QUICK`, `$87`, no key on
+the matrix) is the prototype's old start: a lone warrior, Alaric, with every
+dungeon's key, on the overworld outside Millford, made without asking;
+golden `openworld-party` is the F1 path.
 **While the picture is up nothing else can happen**: the KERNAL is out, so
 no disk; the picture is unpacked into `$C000-$FFFF`, so the lands are built
 after it, and the bootstrap's BSS is at `$A000`; `$02`, half of cc65's stack
 pointer, is the picture's and is saved round it. The module is assembled
 `-t none`, because the libraries compare the files' magic with ASCII strings.
 The keys are read from the matrix, which the tests cannot press: while it
-waits `OW->hook` is `$A5`, and `screendump.py --splash f1|f3` writes the key
+waits `OW->hook` is `$A5`, and `screendump.py --splash f1|f3|quick` writes the key
 there (then the new game's seed is 1, as the goldens have it). `N` skips all
 of this. Golden `openworld-load` is the F3 path. The bootstrap says nothing:
 the screen is black until the picture is up, and from the key until the
@@ -519,8 +540,10 @@ there after `N`. ld65 writes it beside each engine (`COMMON` in the cfg,
 `%O.data`) and the Makefile fails if the two differ, so only bytes that are
 the same in both links can go there: data, not code (the engines' BSS
 differs). `local[]` (`HIDATA`, the game's font image) is at `$6C00` in an
-engine and in no file. An engine is 19.7K (the file runs to HIGH, so MAIN's
-spare bytes are in it as filler). The overlays are 3.9K (world), 4.1K
+engine and in no file. An engine is 12.6K, MAIN only: what it has past the
+screens (`VICTOP` and `HIGH`, `$52C0-$59FF`) is a file of its own,
+`ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
+that the engine's file does not carry 5K of empty screens to the disk. The overlays are 3.9K (world), 4.1K
 (town) and 1.8K (dungeon) of the slot's 4.5K. Free: about 2.4K in MAIN
 (the land and town generators' `MAPCODE` moved there from HIGH), 1.2K in
 HIGH (`$5400-$59FF`), 700 bytes beside the world's overlay, 440 beside the

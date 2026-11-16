@@ -26,6 +26,10 @@ _ov_bump        = __SLOTW_START__ + 9
 _ov_after       = __SLOTW_START__ + 12
 _ov_idle        = __SLOTW_START__ + 15
 
+        .import __VICTOP_START__
+        .segment "OWHIADDR"     ; the engine's code past the screens: %O.hi
+        .word   __VICTOP_START__
+
         .segment "OVWADDR"
         .word   __SLOTW_START__
         .segment "OVWHEAD"

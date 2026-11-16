@@ -43,6 +43,7 @@ extern unsigned char music_state;
 void sfx_play(unsigned char id);
 void sfx_step(unsigned char tile);  /* a step onto that tile, by terrain */
 unsigned char sfx_toggle(void);     /* the X key; returns 1 if now on */
+unsigned char sfx_on(void);         /* 1 if they are on */
 void sfx_delay(void);   /* wait out the last effect, if they are on */
 
 #endif

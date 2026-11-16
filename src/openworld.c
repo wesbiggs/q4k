@@ -33,6 +33,7 @@
 #include <q4k/isle.h>
 #include <q4k/music_map.h>
 #include <q4k/ow.h>
+#include <q4k/owgame.h>
 #include <q4k/tiles.h>
 #include <q4k/vault.h>
 
@@ -95,8 +96,6 @@ static void moor(unsigned char i, unsigned char x, unsigned char y,
 typedef char hook_is_where_ow_splash_has_it
     [2 * (sizeof(OwWorld) == OW_HOOK_OFF + 7) - 1];
 
-static OwSave save;
-
 /* A file that has to be there. Nothing is said unless it is not. */
 static void need(const char *name, void *at)
 {
@@ -134,15 +133,21 @@ static void splash(void)
     }
     disk_resident();
     ow_disk_on();
-    /* A new world for a new game, from how long the player took. */
+    /* A new world for a new game, from how long the player took, and a
+       party to make for it (src/owparty.c), unless it is the tests' quick
+       start. */
     lore_seed = 1 + ow_splash_ticks;
     OW->saved = 0;
+    G->magic = 0;
+    OWB->mode = key == OW_KEY_QUICK ? OWB_QUICK : OWB_NEW;
     if (key == OW_KEY_F3) {
-        /* Nothing saves yet: the disk comes with a game to load. */
-        need("ow-save", &save);
-        if (save.magic == OW_SAVE_MAGIC) {
-            lore_seed = save.seed;
+        /* The saved game is the game block, loaded where it lives. */
+        if (cbm_load("ow-save", 8, 0) && G->magic == OWG_MAGIC) {
+            lore_seed = G->seed;
             OW->saved = 1;
+            OWB->mode = OWB_NONE;
+        } else {
+            G->magic = 0;
         }
     }
 }
@@ -151,7 +156,6 @@ int main(void)
 {
     unsigned char d, again = OW->magic == OW_MAGIC;
 
-    OWB->mode = OWB_NONE;       /* nothing to come back to: see ow.h */
     bgcolor(COLOR_BLACK);
     bordercolor(COLOR_BLACK);
     textcolor(COLOR_GRAY3);     /* for the one thing that may be said */
@@ -161,6 +165,7 @@ int main(void)
     POKEW(0x0283, 0xCF00);
 
     if (again) {
+        OWB->mode = OWB_NONE;
         lore_seed = OW->seed;   /* N in an engine: the next world */
         OW->saved = 0;
         disk_resident();
@@ -201,11 +206,28 @@ int main(void)
     for (d = 0; d < 4; ++d) {
         moor(d, isle_port_x[d], isle_port_y[d], 128, 64, 1);
     }
-    /* The hero starts at Millford, or where the save has them. */
-    OW->start_x = OW->saved ? save.x : 128 + isle_fx[0];
-    OW->start_y = OW->saved ? save.y : 64 + isle_fy[0];
+    /* A new game starts at Millford, as does the next world (N, which
+       keeps the party): a save where it was saved. */
+    if (!OW->saved) {
+        G->seed  = lore_seed;
+        G->area  = AREA_HOME;
+        G->land  = ISLE_HOME;
+        G->wx    = 128 + isle_fx[0];
+        G->wy    = 64 + isle_fy[0];
+        G->x     = OWG_GATE;
+        G->boat  = 0;
+        G->ships = 0;           /* where the bootstrap moored them */
+    }
+    OW->saved = 0;              /* (N comes back here) */
     OW->magic = OW_MAGIC;
 
+    /* The party is made first, unless the game has one. */
+    if (G->magic != OWG_MAGIC) {
+        if (OWB->mode != OWB_QUICK) {
+            OWB->mode = OWB_NEW;
+        }
+        ow_run("owtown");
+    }
     ow_run(OW->reu == OW_REU_OK ? "ow-reu" : "ow-cpu");
     return 0;
 }
