@@ -32,7 +32,10 @@
 #define AREA_CASTLE  2
 #define AREA_DUNGEON 3
 
-#define OWG_GATE     0xFF       /* x: at the town's own gate, not a square */
+#define OWG_GATE     0xFF
+
+#define OWG_CALM     4          /* quiet: no wandering monsters (the tests'
+                                   quick start and the disk's save) */       /* x: at the town's own gate, not a square */
 
 typedef struct {
     Actor         party[MAX_PARTY];     /* first: the engines' cfg names it */
@@ -54,7 +57,8 @@ typedef struct {
     unsigned char ships;                /* 1: the ships below are where */
     unsigned int  ship_x[OWG_SHIPS];    /* they were left; 0: moored */
     unsigned char ship_y[OWG_SHIPS];
-    unsigned char quiet;                /* bit 0 music off, bit 1 effects */
+    unsigned char quiet;                /* bit 0 music off, bit 1 effects,
+                                           OWG_CALM nothing wanders out */
 } OwGame;
 
 #define G ((OwGame *)OWG_ADDR)
@@ -70,5 +74,12 @@ void owg_out(void);
 /* A new game into the block: the party asked for and made, at Millford's
    gate, or (quick) the tests' lone warrior outside it (src/lib/ow_party.c). */
 void ow_new_game(unsigned char quick);
+
+/* A fight (OWF_*, as OWB has it) with the fight module (q4k/fight.h),
+   loaded over the caller's own code above $4000: so the caller's code that
+   runs after it must be below (src/lib/ow_fight.c is CODE). What comes of
+   it goes into the game's variables -- the party, the pay, a level, a stone,
+   or waking in Millford -- and is said on a screen of text. */
+void __fastcall__ ow_fight(unsigned char kind, unsigned char arg);
 
 #endif /* Q4K_OWGAME_H */

@@ -17,6 +17,9 @@
  *   OWB_INN             an inn (src/lib/inn.c): ale and a rumour from the
  *                       inn's file on the disk, or beds; arg which inn
  *   OWB_PARTY           I: the party, what they carry, a wizard's spells
+ *   OWB_FIGHT           a fight (src/lib/ow_fight.c, with the multicolour
+ *                       fight module, which loads over this program's code
+ *                       above $4000: what runs after it is below)
  *
  * It reads and writes the game through the game block (q4k/owgame.h), and
  * when it is done the engine is loaded back (ow_back()) and carries on from
@@ -135,7 +138,8 @@ int main(void)
 {
     unsigned char mode = OWB->mode;
 
-    if (mode < OWB_TALK || mode > OWB_PARTY || mode == OWB_BACK) {
+    if (mode < OWB_TALK || mode > OWB_FIGHT || mode == OWB_BACK ||
+        mode == OWB_LOAD) {
         cputs("Load OPENWORLD: it builds the world.");
         for (;;) {
         }
@@ -170,6 +174,9 @@ int main(void)
         strcpy(eng_text, OWB->arg < NUM_INNS ? inn_names[OWB->arg]
                                              : town_gen_inn());
         inn_open(OWB->arg);
+        break;
+    case OWB_FIGHT:             /* the fight module, over HIGH */
+        ow_fight(OWB->arg, OWB->npc);
         break;
     case OWB_PARTY:             /* who they are and what they carry */
         eng_a = SHOP_PARTY;

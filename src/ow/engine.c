@@ -53,6 +53,7 @@
 #include <cbm.h>
 #include <conio.h>
 #include <peekpoke.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <q4k/actor.h>
@@ -131,6 +132,7 @@ unsigned char speed     = 2;    /* pixels a frame: 1 or 2 */
 unsigned char freeze_at = 0;    /* stop this many pixels into a step ... */
 unsigned char freeze_after = 0; /* ... once this many steps are done */
 unsigned char still     = 0;    /* 1: the water does not flow */
+unsigned char enc_always = 0;   /* 1: every roll is a fight, for tests */
 unsigned char whole     = 0;    /* 1: a roof change redraws everything, for
                                    checking that the box it does is enough */
 
@@ -371,6 +373,41 @@ static void save_game(void)
 /* The text screens' program (src/owtown.c): the talk, the shops, the
    inns, the party. */
 const char owtown[] = "owtown";
+
+/* A fight: owtown (src/lib/ow_fight.c) calls the fight module, and the
+   engine comes back to where it was, or to Millford. Never returns. */
+void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg)
+{
+    OWB->mode = OWB_FIGHT;
+    OWB->arg  = kind;
+    OWB->npc  = arg;
+    ow_leave(owtown);
+}
+
+/* After a step onto `tile`: something wanders out, now and then, as the
+   game's encounter_roll() has it (out of 200, by the ground; towns never
+   roll, and nor does a ship). Not with OWG_CALM, the tests'. */
+void __fastcall__ wander(unsigned char tile)
+{
+    unsigned char chance;
+
+    switch (tile) {
+    case T_GRASS:  chance = 8;  break;
+    case T_SHORE:  chance = 7;  break;
+    case T_FOREST: chance = 12; break;
+    case T_SWAMP:  chance = 16; break;
+    case T_FLOOR:  chance = 5;  break;
+    default:       return;
+    }
+    if (enc_always) {
+        chance = 200;           /* (and calm or not) */
+    } else if (G->quiet & OWG_CALM) {
+        return;
+    }
+    if ((unsigned char)(rand() % 200) < chance) {
+        ow_fight_with(OWF_WANDER, tile);
+    }
+}
 
 /* P: a draught for whoever of the party is worst hurt, as the game has it
    (arms.c's most_hurt() and drink_potion()): a gulp if someone drank, a
@@ -650,6 +687,10 @@ static void take_block(void)
     if (G->quiet & 2) {
         sfx_toggle();
     }
+    /* The dice for what wanders out, from where the game has got to: the
+       same walk meets the same things, as a test wants, and a game moves
+       on from it with every turn. */
+    srand(G->game_turn ^ ((unsigned int)seed << 8));
     OWB->mode = OWB_NONE;
 }
 
@@ -680,7 +721,7 @@ void owg_where(void)
         G->x  = hx - BIAS;
         G->y  = hy - BIAS;
     }
-    G->quiet = !music | (sfx_on() ? 0 : 2);
+    G->quiet = (G->quiet & OWG_CALM) | !music | (sfx_on() ? 0 : 2);
 }
 
 void __fastcall__ ow_leave(const char *name)

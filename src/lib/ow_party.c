@@ -199,11 +199,13 @@ void ow_new_game(unsigned char quick)
            port's ship (the stones are what open them), Dragonbane unmade. */
         quest_stage = Q_HEART;
         items = IT_SIGIL | IT_TIDAL | IT_ASHEN | IT_EMBER | IT_TEAR | IT_HEART;
+        G->quiet = OWG_CALM;    /* and nothing wanders out at a test */
     } else {
         make_party();
         G->area  = AREA_TOWN;   /* at Millford's gate (the bootstrap */
         G->place = TOWN_MILLFORD;   /* left wx, wy on Millford) */
         G->x     = OWG_GATE;
+        G->quiet = 0;
     }
     potions = party_count;      /* a draught for each who answered */
     owg_out();

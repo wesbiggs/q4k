@@ -328,6 +328,10 @@ $(DIST)/arena.prg: $(BUILD)/arena.o $(BUILD)/lib/battle_bot.o $(LIB) $(wildcard 
 # and a saved game to load, since nothing saves yet.
 OWENG := $(DIST)/ow-cpu.prg $(DIST)/ow-reu.prg
 OWOVL := $(foreach e,cpu reu,$(foreach o,world town dungeon hi,$(DIST)/ow-$(e).$(o)))
+# The NTSC splash picture (83 blocks) is left off the disk, which the
+# fights fill: an NTSC machine is asked in words (src/openworld.c's
+# title_text()). OW_NTSC_SPLASH=1 puts it back, with something else off.
+OW_NTSC_SPLASH ?= 0
 OWFILES := $(DIST)/ow-data.prg $(DIST)/splash-p.prg $(DIST)/splash-n.prg \
            $(DIST)/ow-save.prg
 
@@ -417,15 +421,20 @@ $(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py
 # The conversations (src/owtown.c, which the engine loads when the hero walks
 # into a townsperson): the program, and the talk's files, which tools/mktalk.py
 # makes for the game's disk too.
+# And the fights (src/lib/ow_fight.c): the module and its fields and sprites,
+# as the arena's disk has them.
 $(DIST)/openworld.d64: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST)/owtown.prg \
-	    $(BUILD)/music/.stamp $(BUILD)/talk/.stamp
+	    $(BUILD)/music/.stamp $(BUILD)/talk/.stamp $(DIST)/fight.prg \
+	    $(BUILD)/fight/disk/.stamp
 	$(C1541) -format "openworld,01" d64 $@ >/dev/null
 	$(C1541) -attach $@ -write $(DIST)/openworld.prg openworld \
-	    -write $(DIST)/splash-p.prg splash-p -write $(DIST)/splash-n.prg splash-n \
+	    -write $(DIST)/splash-p.prg splash-p \
+	    $(if $(filter 1,$(OW_NTSC_SPLASH)),-write $(DIST)/splash-n.prg splash-n) \
 	    -write $(DIST)/ow-save.prg ow-save -write $(DIST)/ow-data.prg ow-data \
 	    -write $(DIST)/ow-cpu.prg ow-cpu -write $(DIST)/ow-reu.prg ow-reu \
 	    $(foreach f,$(OWOVL),-write $(f) $(notdir $(f))) \
-	    -write $(DIST)/owtown.prg owtown \
+	    -write $(DIST)/owtown.prg owtown -write $(DIST)/fight.prg fight \
+	    $$(for f in $(BUILD)/fight/disk/[fs].*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/music/m.*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/talk/[0-9]*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
 

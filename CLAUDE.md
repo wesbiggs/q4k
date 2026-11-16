@@ -219,6 +219,29 @@ have it; one moved, or at a continent, always sails). Golden
 walks out. The quick start and the disk's save are at `Q_HEART` with every
 key and stone, so that nothing is shut for the other goldens.
 
+**Fights in the open world** are the multicolour arena's module (below),
+called by `owtown` (`OWB_FIGHT`, `src/lib/ow_fight.c`). The engine rolls
+after a step on foot as the game's `encounter_roll()` does (`wander()` in
+`engine.c`, out of 200 by the ground, never in towns or ships, dice seeded
+from the game's turn and seed), sends a keeper's square in a dungeon and
+Maldrath's lair (with Dragonbane, before `Q_VICTORY`) the same way, and
+leaves (`ow_fight_with()`). `ow_fight()` picks what turns up as
+`battle_wander()` does, copies it out of the bestiary, loads the module
+over everything of `owtown`'s above `$4000` (so whatever runs after the
+fight, and the C library, must be in MAIN: `cfg/c64-owtown.cfg`), and then
+pays, levels, hands over a keeper's stone, or wakes the party in Millford
+with half the purse, and says so on a screen of text. Not yet: gear and
+treasure maps dropped, the undead of `L`, music in the fight. `OWG_CALM` in
+the game block's `quiet` keeps anything from wandering out (the quick start
+and the disk's save have it, so the goldens meet nothing); `--poke
+enc_always=1` makes every roll a fight, which `openworld-fight` in
+`tools/test.sh` uses to win against a goblin. The fields are packed on
+the disk (`tools/mkfields.py`'s `pack()`, unpacked by the module from
+`$C000`), and **the NTSC splash picture is left off the open world's disk**
+for the room (an NTSC machine asks in words: `title_text()` in
+`src/openworld.c`; `make OW_NTSC_SPLASH=1` puts it back, if something else
+comes off). The disk has 2 blocks free.
+
 **The screens of text are a program loaded from disk, not a part of the
 engine**: `owtown` (`src/owtown.c`, linked with `cfg/c64-owtown.cfg`, the
 flat layout with the shop's code below the charset, where it would be 6K
@@ -244,8 +267,8 @@ reloads `ow-data`, which it overwrites, resets the machine and loads the
 engine), and the engine loads the area's overlay straight away, with the
 hero where they stood, and builds the overworld afresh only on the way out
 (`fresh` in `world.c`, even with an REU, whose copy did not survive). The
-talk's files are on `openworld.d64` beside it (which has about 50 blocks
-free: the disk is the limit for more programs). The RUN/STOP that leaves
+talk's files are on `openworld.d64` beside it (which is full: the disk
+is the limit for more programs). The RUN/STOP that leaves
 a talk is still flagged when `ow-data` reloads, and the KERNAL's `LOAD`
 then fails with no drive error: `ow_back()` waits for STOP to come up and
 sets `$91` to `$FF` (released). `$7F` in `$91` means STOP is held down, so

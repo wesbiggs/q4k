@@ -12,6 +12,7 @@
 
 #include <q4k/dungeon.h>
 #include <q4k/music_map.h>
+#include <q4k/ow.h>
 #include <q4k/tiles.h>
 
 #include "engine.h"
@@ -52,6 +53,9 @@ void d_arrived(void)
 {
     unsigned char t = tile_at(hx, hy);
 
+    if (t == T_MONSTER) {       /* the keeper, who does not step aside */
+        ow_fight_with(OWF_KEEPER, dun_index);
+    }
     if (t == T_STAIRDN && depth < dungeon_deep[dun_index]) {
         leave_area();
         ++depth;
@@ -64,5 +68,7 @@ void d_arrived(void)
             --depth;
             dungeon_level(0);
         }
+    } else {
+        wander(t);
     }
 }
