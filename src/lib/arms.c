@@ -132,8 +132,6 @@ void reseed(void)
     srand(last_seed);
 }
 
-#define POTION_SHARE 40   /* per cent of full health */
-#define POTION_FLOOR 12   /* ...but never less than the old flat amount */
 
 unsigned char potion_heal(unsigned char who)
 {
