@@ -370,14 +370,20 @@ $(BUILD)/ow/ovl.o: src/ow/ovl.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) -c -o $@ $<
 
+# The sound effects (src/lib/sfx.s) again, in the engine's own segments and
+# ticking with its music: linked ahead of the library, as ow_dungeon.o is.
+$(BUILD)/ow/ow_sfx.o: src/lib/sfx.s
+	@mkdir -p $(dir $@)
+	$(CL65) $(ASFLAGS) --asm-define OW_SFX=1 -c -o $@ $<
+
 OWOBJ = $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-$*.o) $(BUILD)/ow/ovl.o \
-        $(BUILD)/ow/ow_dungeon.o
+        $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o
 
 # The overlays come out of the same link (ld65's %O.world, ...).
 $(DIST)/ow-%.world $(DIST)/ow-%.town $(DIST)/ow-%.dungeon: $(DIST)/ow-%.prg ;
 
 $(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/ow/ovl.o \
-	    $(BUILD)/ow/ow_dungeon.o \
+	    $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o \
 	    $(LIB) cfg/c64-openworld.cfg tools/owslots.py
 	@mkdir -p $(DIST)
 	$(CL65) $(LDFLAGS) -C cfg/c64-openworld.cfg -m $(BUILD)/ow-$*.map \
