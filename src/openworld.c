@@ -4,20 +4,24 @@
  * Run from its disk (dist/openworld.d64, the first file). It shows the
  * splash screen, the picture for the machine's video system, until F1 (a
  * new game) or F3 (a saved one); looks for an REU; loads what the two
- * engines share (OW-DATA); builds Keldmarch and the four continents with
- * the game's generator into the RAM under the ROMs; moors a ship beside
+ * engines share (OW-DATA) and the music (a SID file, to under the KERNAL);
+ * builds Keldmarch with the game's generator into the RAM under the I/O
+ * area, and each of the four continents to see where its places are (an
+ * engine builds the one it needs again: there is room to keep one, beside
+ * the music); moors a ship beside
  * each port and landing; leaves all of that in the hand-off block
  * (include/q4k/ow.h) and loads the engine that suits the machine: OW-REU if
  * there is an REU whose transfers reach colour RAM, OW-CPU otherwise. The
  * engines are src/ow/engine.c, built twice; see there for the keys.
  *
  * The order is the memory's. The picture is unpacked into $C000-$FFFF and
- * shown with the KERNAL out, so nothing loads while it is up, and the lands
- * go into that same RAM after it; the picture's file is where OW-DATA goes,
- * so that is loaded after it too.
+ * shown with the KERNAL out, so nothing loads while it is up, and the land
+ * and the music go into that same RAM after it; the picture's file is where
+ * OW-DATA goes, so that is loaded after it too.
  *
  * An engine comes back here for N, with the next seed in the block: no
- * splash then, OW-DATA is still in memory, and this builds that world.
+ * splash then, OW-DATA and the music are still in memory, and this builds
+ * that world.
  */
 
 #include <cbm.h>
@@ -27,6 +31,7 @@
 
 #include <q4k/game.h>
 #include <q4k/isle.h>
+#include <q4k/music_map.h>
 #include <q4k/ow.h>
 #include <q4k/tiles.h>
 #include <q4k/vault.h>
@@ -85,10 +90,10 @@ static void moor(unsigned char i, unsigned char x, unsigned char y,
     OW->ship_y[i] = oy + ny;
 }
 
-/* ow_splash.s finds OW->hook by its offset: six bytes from the end (cc65's
-   offsetof is not a constant, so this checks the size instead). */
+/* ow_splash.s finds OW->hook by its offset: seven bytes from the end
+   (cc65's offsetof is not a constant, so this checks the size instead). */
 typedef char hook_is_where_ow_splash_has_it
-    [2 * (sizeof(OwWorld) == OW_HOOK_OFF + 6) - 1];
+    [2 * (sizeof(OwWorld) == OW_HOOK_OFF + 7) - 1];
 
 static OwSave save;
 
@@ -152,11 +157,18 @@ int main(void)
     OW->magic = 0;              /* until it is all there */
     OW->seed = lore_seed;
     OW->reu = ow_reu_detect();
-    if (!again) {               /* else it is still there */
+    if (!again) {               /* else they are still there */
         need("ow-data", 0);     /* to its own address, $7400 */
+        /* The music a game starts with, to where the game keeps a tune:
+           $E7C0, under the KERNAL. Not worth stopping for if it is not on
+           the disk; an engine loads any other itself. */
+        d = tune_file[MUSIC_HOME];
+        OW->tune = cbm_load(tune_name[d], 8, 0) ? d : OW_NO_TUNE;
     }
 
-    for (d = 0; d < 4; ++d) {   /* the continents, into the vault */
+    /* Each continent, for where its places and its landing are. It is not
+       kept: an engine builds the one it needs (ow_gen.s). */
+    for (d = 0; d < 4; ++d) {
         OW->slot[d] = slot_of(d);
         isle_story = OW->slot[d] & 1;
         isle_build(d);
@@ -167,7 +179,6 @@ int main(void)
         OW->ibiome[d] = isle_biome;
         moor(4 + d, isle_dock_x, isle_dock_y, cell_x[d] * 64u,
              cell_y[d] * 64 + ISLE_TOP, 0);
-        vault_park(d);
     }
     isle_build(ISLE_HOME);      /* and home, in place */
     OW->home_biome = isle_biome;

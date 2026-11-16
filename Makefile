@@ -362,12 +362,16 @@ $(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py
 	tools/mkowsave.py $@
 
 # c1541 -format makes a fresh image over whatever was there.
-$(DIST)/openworld.d64: $(DIST)/openworld.prg $(OWENG) $(OWFILES)
+# (and the game's music, m.*: the bootstrap loads the tune a game starts
+# with, an engine any other. MUSIC_STAMP is set further down, with the
+# game's own disk, so its file is spelled out here.)
+$(DIST)/openworld.d64: $(DIST)/openworld.prg $(OWENG) $(OWFILES) $(BUILD)/music/.stamp
 	$(C1541) -format "openworld,01" d64 $@ >/dev/null
 	$(C1541) -attach $@ -write $(DIST)/openworld.prg openworld \
 	    -write $(DIST)/splash-p.prg splash-p -write $(DIST)/splash-n.prg splash-n \
 	    -write $(DIST)/ow-save.prg ow-save -write $(DIST)/ow-data.prg ow-data \
-	    -write $(DIST)/ow-cpu.prg ow-cpu -write $(DIST)/ow-reu.prg ow-reu >/dev/null
+	    -write $(DIST)/ow-cpu.prg ow-cpu -write $(DIST)/ow-reu.prg ow-reu \
+	    $$(for f in $(BUILD)/music/m.*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
 
 -include $(BUILD)/ow/engine-cpu.d $(BUILD)/ow/engine-reu.d
 

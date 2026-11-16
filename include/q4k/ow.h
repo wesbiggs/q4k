@@ -9,11 +9,15 @@
  * comes with: nothing saves yet); then it looks for an REU, loads what both
  * engines read and neither changes (OW-DATA: the tile sets and the towns'
  * maps, at the top of the engines' memory, where their own files do not
- * reach), builds every land into the RAM under the ROMs (the vault), moors
- * the ships, writes what it found here and loads the engine that suits the
- * machine, which takes everything from here. So neither engine carries the
- * land generator or the tiles, and each carries only its own way of
- * scrolling.
+ * reach) and the music a game starts with (a SID file, under the KERNAL as
+ * the game has it), builds Keldmarch into the RAM under the I/O area (the
+ * vault) and each continent once to see where its places and its landing
+ * are, moors the ships, writes what it found here and loads the engine that
+ * suits the machine, which takes everything from here. So neither engine
+ * carries the tiles, and each carries only its own way of scrolling. (Both
+ * carry the land generator: there is room under the KERNAL for one
+ * continent beside the music, so an engine builds the one the hero is
+ * nearest as they go: src/lib/ow_gen.s.)
  *
  * The block is in $02A7-$02FF, which neither the KERNAL nor cc65 uses, so
  * it survives the loads both ways (N in an engine goes back through the
@@ -48,7 +52,11 @@ typedef struct {
     unsigned char saved;        /* the game came from a save, not F1 */
     unsigned int  start_x;      /* where the hero starts, in the world */
     unsigned char start_y;
+    unsigned char tune;         /* which SID file is under the KERNAL
+                                   (tune_name[]: music_map.h), or OW_NO_TUNE */
 } OwWorld;
+
+#define OW_NO_TUNE 0xFF
 
 #define OW ((OwWorld *)0x02A7)
 

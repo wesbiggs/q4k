@@ -21,6 +21,7 @@
  *   cursor keys, WASD or a joystick in port 2   walk
  *   Q, E, Z, C (or the stick's diagonals)       walk diagonally
  *   1 / 2                                        one or two pixels a frame
+ *   M                                            the music off and on
  *   N                                            the next seed's world (back
  *                                                through the bootstrap)
  *
@@ -41,6 +42,7 @@
 #include <q4k/dungeon.h>
 #include <q4k/game.h>
 #include <q4k/isle.h>
+#include <q4k/music_map.h>
 #include <q4k/ow.h>
 #include <q4k/rle.h>
 #include <q4k/town_data.h>
@@ -91,6 +93,16 @@ void sm_vcopy(void);
 extern unsigned char *vc_src, *vc_dst;
 extern unsigned char vc_n, vc_sstep, vc_dstep;
 
+/* A continent built behind the scrolling (src/lib/ow_gen.s). */
+void __fastcall__ gen_start(unsigned char d);
+void __fastcall__ gen_run(unsigned char frame);
+extern volatile unsigned char gen_state;    /* 1 building, 3 copying it into
+                                               the slot, 2 there, 0 nothing */
+
+/* The music (src/lib/ow_tune.s). */
+void __fastcall__ ow_tune_play(unsigned char song);
+void ow_tune_stop(void);
+
 /* The villager's sprite frame, after the hero's eight (assets/overworld.txt),
    and the robes' colours, one a person. */
 #define NPC_FRAME  (64 + 8)
@@ -132,9 +144,12 @@ static unsigned char dun_index;         /* which dungeon */
         . . S . . .
         . . . . . .
 
-   Every land is built once, by the bootstrap, and kept in the RAM under the
-   ROMs: Keldmarch at $D000, where the game keeps it, and the continents in
-   the four 2K slots under the KERNAL (vault_park). WORLD is a window of 64
+   Keldmarch is built once, by the bootstrap, and kept in the RAM under the
+   I/O area, at $D000, where the game keeps it. Under the KERNAL there is
+   room for one continent, at $E000, since the rest is the music's (a SID
+   file at $E7C0-$FFF9, as in the game): the one nearest the hero, built
+   here with the game's generator as they come nearer it (kept, below).
+   WORLD is a window of 64
    by 64 squares round the hero, which wraps: square (X, Y) of the world is
    at WORLD[(Y & 63) * 64 + (X & 63)]. The engine's coordinates are the
    world's taken round 128 squares, which 384 and 256 both divide, so a
@@ -173,9 +188,8 @@ unsigned char boat;             /* 1 + the ship you are in, or 0 */
    vault) read and write of game.c's, actor.c's and the land generator's:
    defined here instead, so that none is linked, nor the view, the sprite
    and the arms they bring with them -- about 6K the prototype has no room
-   for -- nor the land generator, which only the bootstrap needs. */
+   for. (The land generator is linked: its own variables are its own.) */
 unsigned char depth, land, local_w, local_h, quest_stage, lore_seed;
-unsigned char isle_biome;
 unsigned char items, looted[LOOTED_BYTES];
 unsigned char home_fx[NUM_HOME_PLACES], home_fy[NUM_HOME_PLACES];
 unsigned char home_biome;
@@ -209,6 +223,8 @@ unsigned char roof_time;        /* jiffies the last roof change took */
 unsigned int  steps;
 unsigned long idle;             /* turns of the waiting loop while walking */
 unsigned int  walked;           /* ... over this many frames */
+
+#define NONE 0xFF
 
 static unsigned char moving, dir, moved, stride;
 static unsigned char pre_dir = 0xFF;   /* the back screen is shifted that way */
@@ -246,7 +262,94 @@ static void build_some(void)
     }
 }
 
-#define NONE 0xFF
+/* --- The continent that is kept ------------------------------------------
+
+   One, in the slot under the KERNAL: `kept`. The window reaches LOAD (16)
+   squares from the hero and no two continents are within 65 of each other,
+   so only one is ever in reach, and when another becomes the nearest the
+   one kept is 33 squares away at least. That is when the other's build
+   starts (seek(), after every step), in the frames' spare time
+   (ow_gen.s), and it goes into the slot when it is done. If the window
+   comes to need it sooner -- the continents north and south are only 17
+   squares off Keldmarch's coasts -- need_isle() runs the build to its end
+   there and then, and the world stands still for what is left of it. */
+
+static unsigned char kept = NONE;       /* the continent in the slot */
+static unsigned char want;              /* the one being built */
+
+/* The middle of each continent: half its column, and its row. */
+static const unsigned char isle_mx[4] = { 80, 144, 80, 16 };
+static const unsigned char isle_my[4] = { 31, 95, 159, 95 };
+
+/* Which continent the hero is nearest, by the squares to its edge, across
+   or down, whichever is more (the world wraps: 192 half columns, and the
+   rows as a byte does). */
+static unsigned char nearest(void)
+{
+    unsigned char d, dx, dy, at = 0, best = 255, x = wx >> 1;
+
+    for (d = 0; d < 4; ++d) {
+        dx = x > isle_mx[d] ? x - isle_mx[d] : isle_mx[d] - x;
+        if (dx > 96) {
+            dx = 192 - dx;
+        }
+        dx = dx > 16 ? (dx - 16) << 1 : 0;
+        dy = wy - isle_my[d];
+        if (dy & 0x80) {
+            dy = -dy;
+        }
+        dy = dy > 15 ? dy - 15 : 0;
+        if (dy > dx) {
+            dx = dy;
+        }
+        if (dx < best) {
+            best = dx;
+            at = d;
+        }
+    }
+    return at;
+}
+
+/* A build that has finished is the continent kept. */
+static void settle(void)
+{
+    if (gen_state == 2) {
+        kept = want;
+        gen_state = 0;
+    }
+}
+
+/* After a step: the nearest continent on its way into the slot, unless it
+   is there or coming. (Not while one is being copied in: the next step
+   asks again.) */
+static void seek(void)
+{
+    unsigned char d = nearest();
+
+    settle();
+    if (d != kept && gen_state != 3 && !(gen_state == 1 && want == d)) {
+        want = d;
+        gen_start(d);
+    }
+}
+
+/* Continent d in the slot before this returns. */
+static void need_isle(unsigned char d)
+{
+    for (;;) {
+        settle();
+        if (gen_state != 3) {
+            if (kept == d) {
+                return;
+            }
+            if (gen_state != 1 || want != d) {
+                want = d;
+                gen_start(d);
+            }
+        }
+        gen_run(sm_frame);
+    }
+}
 
 /* Where square (x, y) of the world is kept, or 0 for the sea; and in `run`,
    how many squares on from it, along its row (or down its column), are
@@ -274,8 +377,11 @@ static unsigned char *kept_at(unsigned int x, unsigned char y,
     if (down) {
         run = ISLE_TOP + ISLE_H - ly;
     }
-    return (unsigned char *)0xE000 + (unsigned int)(k - 1) * 0x800 +
-           ((unsigned int)(ly - ISLE_TOP) << 6) + lx;
+    --k;
+    if (gen_state >= 2 || kept != k) {
+        need_isle(k);
+    }
+    return (unsigned char *)0xE000 + ((unsigned int)(ly - ISLE_TOP) << 6) + lx;
 }
 
 /* n squares of the world from (x, y), along the row or down the column,
@@ -562,6 +668,7 @@ static void take_world(void)
     hy = wy & 127;
     sm_torus = 1;
     fill_window();
+    seek();
     shore_time = PEEK(0xA2);
     sm_shores();
     shore_time = PEEK(0xA2) - shore_time;
@@ -657,6 +764,55 @@ static unsigned char held(void)
     return NONE;
 }
 
+/* --- The music ------------------------------------------------------------
+
+   The game's scenes and its SID files (assets/music.txt, music_map.h): a
+   scene plays a song of a file. The bootstrap loaded the file a game starts
+   with; one that is another is loaded here, with the screen off and the
+   interrupt left with nothing to do but the keyboard. */
+
+static unsigned char song_now = NONE;   /* the song playing, or that would be */
+static unsigned char music = 1;         /* the M key */
+
+static void next_frame(void);
+
+static void play_for(unsigned char s)
+{
+    unsigned char f = tune_file[s], i;
+
+    if (f != OW->tune) {
+        ow_tune_stop();
+        OW->tune = OW_NO_TUNE;
+        song_now = NONE;
+        sm_blank(1);
+        /* Silence has to reach VICE's sound buffer before the drive works,
+           or it plays its last one for as long as that takes (CLAUDE.md). */
+        for (i = 0; i < 12; ++i) {
+            next_frame();
+        }
+        i = VIC.spr_ena;
+        VIC.spr_ena = 0;        /* sprites take cycles the serial bus needs */
+        if (cbm_load(tune_name[f], 8, 0)) {
+            OW->tune = f;
+        }
+        VIC.spr_ena = i;
+        frame = sm_frame;       /* those frames were not missed */
+    }
+    if (OW->tune == f && tune_song[s] != song_now) {
+        song_now = tune_song[s];
+        if (music) {
+            ow_tune_play(song_now);
+        }
+    }
+}
+
+/* The overworld's: the sea in a ship, else the land you are on. */
+static void play_world(void)
+{
+    play_for(boat ? MUSIC_SEA :
+          grid[wy >> 6][wx >> 6] == CELL_HOME ? MUSIC_HOME : MUSIC_ISLE);
+}
+
 /* --- Going in and out of places --------------------------------------- */
 
 static void next_frame(void)
@@ -667,7 +823,9 @@ static void next_frame(void)
     }
 }
 
-/* The screen off, and the overworld put away if that is where you are. */
+/* The screen off, and the overworld put away if that is where you are. A
+   continent on its way into the slot is seen in or dropped: a place's map
+   is built in local[], where a continent is too. */
 #pragma code-name (push, "HICODE")  /* places, roofs, arriving: MAIN is full */
 static void leave_area(void)
 {
@@ -686,6 +844,12 @@ static void leave_area(void)
         }
         out_wx = wx;
         out_wy = wy;
+        while (gen_state == 3) {
+            gen_run(sm_frame);
+        }
+        if (gen_state == 1) {
+            gen_state = 0;      /* seek() starts it again, back outside */
+        }
 #ifdef OW_REU
         sm_reu_keep(1);         /* the window, edges and all, into the REU */
 #endif
@@ -942,6 +1106,8 @@ static void grow_box(unsigned char r)
     if (a > by1) by1 = a;
 }
 
+#pragma code-name (pop)             /* (the rest has room in MAIN again) */
+
 /* That box in characters on the screen, clipped to it (if none of it is
    on the screen, a corner of the screen: the copy is all that matters). */
 static void box_on_screen(void)
@@ -1048,7 +1214,6 @@ static void roof_check(void)
 
 /* The camera on the hero at engine square (x, y) of the new area, drawn,
    and on. */
-#pragma code-name (pop)
 
 static void show_area(unsigned char x, unsigned char y)
 {
@@ -1074,6 +1239,7 @@ static void go_town(unsigned char index)
 
     leave_area();
     area = index == TOWN_CASTLE ? AREA_CASTLE : AREA_TOWN;
+    play_for(area == AREA_CASTLE ? MUSIC_CASTLE : MUSIC_TOWN);
     if (index < NUM_TOWNS) {
         rle_unpack(src, town_map[index], LOCAL_W * LOCAL_H);
         for (y = 0; y < LOCAL_H; ++y, src += LOCAL_W) {
@@ -1118,6 +1284,7 @@ static void go_dungeon(unsigned char index)
 {
     leave_area();
     area = AREA_DUNGEON;
+    play_for(MUSIC_DUNGEON);
     dun_index = index;
     depth = 1;
     dungeon_level(1);
@@ -1133,11 +1300,13 @@ static void back_home(void)
     area_w = area_h = 64;
     wx = out_wx;
     wy = out_wy;
+    play_world();
 #ifdef OW_REU
     sm_reu_keep(0);             /* the window as it was, edges and all */
 #else
     fill_window();              /* (show_area works out the edges) */
 #endif
+    seek();
     show_ships();
     show_area(wx & 127, wy & 127);
 }
@@ -1246,6 +1415,14 @@ static unsigned char typed(void)
     switch (k) {
     case '1': speed = 1; break;
     case '2': speed = 2; break;
+    case 'm':                   /* the music off, or on from the top */
+        music ^= 1;
+        if (!music) {
+            ow_tune_stop();
+        } else if (song_now != NONE) {
+            ow_tune_play(song_now);
+        }
+        break;
     case 'n':                   /* the bootstrap builds the next world */
         sm_quit();
         OW->seed = seed + 1;
@@ -1319,6 +1496,7 @@ static unsigned char glide(void)
 static void step_world(void)
 {
     unsigned char s;
+    static unsigned char ashore;
 
     wx = wrapx(wx + WORLD_W + (signed char)dirdx[dir]);
     wy += dirdy[dir];
@@ -1330,6 +1508,7 @@ static void step_world(void)
             boat = s + 1;
             VIC.spr0_color = COLOR_BROWN;
             sm_sprite(hero_frame(dir, 0));
+            ashore = 1;
         }
     } else if (tile_at(hx, hy) == T_WATER) {
         ship_x[boat - 1] = wx;      /* the ship goes where you sail it */
@@ -1338,6 +1517,14 @@ static void step_world(void)
         boat = 0;                   /* ashore: it stays where it was */
         VIC.spr0_color = COLOR_RED;
         sm_sprite(hero_frame(dir, stride));
+        ashore = 1;
+    }
+    if (ashore) {
+        /* Aboard or ashore is the only way the overworld's music changes:
+           there is sea between any two lands. */
+        ashore = 0;
+        play_world();
+        sm_blank(0);                /* (if that had to load a tune) */
     }
     after = dir + 1;            /* and the rest next frame: see main() */
 }
@@ -1370,6 +1557,8 @@ int main(void)
     sm_show();
     show_ships();
     sm_npcs();
+    play_world();
+    sm_blank(0);
 
     while (kbhit()) {
         cgetc();
@@ -1382,7 +1571,9 @@ int main(void)
         /* The next frame after the last one handled: a step's build can
            run past an interrupt, and then this does not wait at all. */
         while (sm_frame == frame) {
-            if (moving) {
+            if (gen_state & 1) {
+                gen_run(frame); /* a continent's build has the rest of it */
+            } else if (moving) {
                 ++idle;         /* how much of the frame is left over */
             }
         }
@@ -1399,6 +1590,12 @@ int main(void)
             show_ships();
             sm_npcs();
             after = 0;
+            /* Which continent to have ready, every fourth step (it is 33
+               squares off when it changes: see kept), and here, not in the
+               frame the step ended in: on NTSC neither has time to spare. */
+            if (!(steps & 3)) {
+                seek();
+            }
         }
 
         if (moving) {

@@ -16,11 +16,14 @@
 ; milliseconds at the worst.
 ;
 ; (The generator builds home in place in the same mode. See isle_gen.s.)
+;
+; Getting there and back (vault_enter, vault_leave, vault_nmi) is in
+; vault_bank.s, which is all some programs want of this.
 
         .include "zeropage.inc"
 
         .export _vault_row, _vault_tile, _vault_park, _vault_unpark, _lair_clear
-        .export vault_enter, vault_leave, vault_nmi
+        .import vault_enter, vault_leave        ; vault_bank.s
         .import _local, popa
         .import _quest_stage, _home_fx, _home_fy
         .include "q4k/tiles.inc"
@@ -30,58 +33,9 @@ PLACE_LAIR = 3          ; game.h: home's places, in isle.h's order
 
 HOME_AT = $D000
 SLOTS   = $E000
-BANK    = $34           ; all RAM
 SLOT_SZ = 1984          ; 64 * 31: all of local[] but the row buffer
 
-        .segment "BSS"
-
-kept:   .res 1          ; $01 as it was
-
         .segment "HICODE"
-
-; Interrupts off, all RAM. Preserves X and Y.
-vault_enter:
-        sei
-        lda $01
-        sta kept
-        lda #BANK
-        sta $01
-        lda #<vault_nmi
-        sta $FFFA
-        lda #>vault_nmi
-        sta $FFFB
-        rts
-
-vault_leave:
-        lda kept
-        sta $01
-        cli
-        rts
-
-; An NMI while the KERNAL is banked out: its vector is read from the RAM
-; under it, which points here. Bank the KERNAL and I/O in, as cc65 keeps them
-; ($01 = %x110), run the KERNAL's handler through its vector at $0318 as if
-; the NMI had gone there, and come back here, by the return address pushed
-; for its RTI, to put $01 back. The modem's RS-232 is NMI-driven: without
-; this a byte arriving while a tune plays would be lost, or worse. The
-; RESTORE key gets the KERNAL's handling too, as it does anywhere else.
-vault_nmi:
-        pha
-        lda $01
-        pha
-        and #$F8
-        ora #$06
-        sta $01
-        lda #>@back             ; a frame for the handler's RTI to return to
-        pha
-        lda #<@back
-        pha
-        php
-        jmp ($0318)
-@back:  pla
-        sta $01
-        pla
-        rti
 
 ; ptr1 = HOME_AT + A * 64, from a row number in A.
 rowptr: ldx #0

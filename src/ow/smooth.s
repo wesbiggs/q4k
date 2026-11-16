@@ -65,6 +65,7 @@
         .export _sm_redraw_box, _sm_shores_rect, _sm_torus
         .export _sm_vcopy, _vc_src, _vc_dst, _vc_n, _vc_sstep, _vc_dstep
         .import vault_enter, vault_leave
+        .import ow_tune_irq, gen_on, gen_preempt
         .export _sm_sh_x0, _sm_sh_y0, _sm_sh_x1, _sm_sh_y1
         .export _sm_box_c0, _sm_box_c1, _sm_box_r0, _sm_box_r1
         .export _sm_ox, _sm_oy, _sm_fx, _sm_fy, _sm_front, _sm_frame
@@ -1736,7 +1737,11 @@ irq:
         lda     #0
         sta     spr_ready
 @nospr: inc     _sm_frame
-        jmp     $EA31
+        jsr     ow_tune_irq     ; the music (ow_tune.s)
+        lda     gen_on          ; a continent being built is put down until
+        beq     :+              ; the main loop has had its frame (ow_gen.s)
+        jmp     gen_preempt
+:       jmp     $EA31
 
 ; void sm_init(void) -- the hero into the VIC's bank. The display stays as
 ; it is until sm_show(); a tile set goes in with sm_tileset().

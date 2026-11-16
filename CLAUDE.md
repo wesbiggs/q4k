@@ -115,7 +115,8 @@ slot holds one engine at a time, loaded from the disk.
 - **The RAM under the ROMs** (`src/lib/vault.s`). `$D000-$DFFF`, under the I/O
   area, holds the home continent for the whole game, 64 by 64 bytes of tiles;
   `$E000-$E7BF`, under the KERNAL, holds a continent put away while a town or
-  a dungeon is in `local[]` (1984 bytes); the rest under the KERNAL is the
+  a dungeon is in `local[]` (1984 bytes; getting in and out of all-RAM is
+  `vault_bank.s`, apart so that a program can have it without the copies); the rest under the KERNAL is the
   music's, a tune's header at `$E7C0` and the tune at `$E800-$FFF9` (see
   Music). Reaching the vault takes the machine to all-RAM (`$01 = $34`), which
   takes the KERNAL and the I/O area away, so interrupts are off for as long as
@@ -397,17 +398,20 @@ characters), for the TeensyROM+/REU ideas. The game links none of it.
 
 **A disk of its own** (`dist/openworld.d64`, which `make` builds): a
 bootstrap, two engines and what the bootstrap loads for them. The first, `openworld` (`src/openworld.c`, `cfg/c64-owboot.cfg`),
-is a bootstrap: it looks for an REU (`ow_reu_detect()`, `src/lib/ow_run.s`:
+is a bootstrap: it looks for an REU (`ow_reu_detect()`, `src/lib/ow_boot.s`:
 the registers, a round trip, and that a transfer lands in colour RAM, in its
-last 24 bytes, which nothing shows -- the TeensyROM question), builds
-every land into the vault, moors the ships, leaves all of it in
+last 24 bytes, which nothing shows -- the TeensyROM question), loads the
+music a game starts with (a SID file of the game's, `m.*`, to `$E7C0`),
+builds home into the vault and each continent once, for where its places
+and its landing are, moors the ships, leaves all of it in
 the hand-off block at `$02A7` (`include/q4k/ow.h`) and loads an engine over
-itself (`ow_run()`, a loader copied into the tape buffer). The engines are
+itself (`ow_run()`, `src/lib/ow_run.s`, a loader copied into the tape
+buffer; what only the bootstrap uses is in `ow_boot.s` so that the engines
+do not carry it). The engines are
 `src/ow/engine.c` and `src/ow/smooth.s` built twice: `ow-reu` (`-DOW_REU`,
 `--asm-define OW_REU=1`) if the REU's transfers reach colour RAM, `ow-cpu`
-otherwise, each with only its own way of scrolling, and neither with the land
-generator (the towns' generator's random numbers are in `isle_rnd.s` so that
-it can be had without it). `N` goes back through the bootstrap with the next
+otherwise, each with only its own way of scrolling. Both link the land
+generator, to build a continent when it is wanted (below). `N` goes back through the bootstrap with the next
 seed in the block (`sm_quit()` gives the machine back to the KERNAL first).
 An engine has its own memory map (`cfg/c64-openworld.cfg`: VIC bank 1 at
 `$4000` for two screens, the charset and the sprites, a 64x64 window of the
@@ -444,24 +448,46 @@ must outlast the bootstrap; it stands still while the lands are built, with
 interrupts off). Only a failed load prints anything.
 
 **What both engines read and neither changes** is one file, `ow-data`
-(10.3K at `$7400-$9FFF`: the tile sets, in `OWDATA`, and the towns' maps and
-names), which the bootstrap loads once, after the splash, and which is still
+(10.7K at `$7400-$9FFF`: the tile sets, in `OWDATA`, the towns' maps and
+names, and every module's `RODATA`), which the bootstrap loads once, after the splash, and which is still
 there after `N`. ld65 writes it beside each engine (`COMMON` in the cfg,
 `%O.data`) and the Makefile fails if the two differ, so only bytes that are
 the same in both links can go there: data, not code (the engines' BSS
 differs). `local[]` (`HIDATA`, the game's font image) is at `$6C00` in an
-engine and in no file. An engine is 25K, not 37K; its HIGH, `$5400-$6BFF`,
-has 620 bytes free and COMMON 930.
+engine and in no file. An engine is 25K, not 37K, and **nearly full**:
+`ow-cpu` has 78 bytes free in HIGH (`$5400-$6BFF`) and 62 in MAIN, `ow-reu`
+235 and 731, and COMMON 518. Which of `engine.c`'s functions are in HIGH is
+a `#pragma code-name` in the middle of the roofs' code: move it to shift
+bytes between the two.
 
 **The world** is a torus of 6 by 4 cells of 64x64 squares (`grid[]`):
 Keldmarch in the middle of the second row, the four continents (64x31, at
 rows 16-46 of their cells) north, east, south and west of it two cells
-away, the rest open sea; it wraps both ways. Every land is built once, by
-the bootstrap (a few seconds), and kept in the vault: home at `$D000`, the
-continents parked at `$E000 + d * $800` (all four slots, so slots 1-3 are
-where the game keeps a tune, `$E7C0-$FFF9`: the prototype plays no music,
-and could not load one of the game's SID files without moving one or the
-other). `wx`, `wy` are the hero's world
+away, the rest open sea; it wraps both ways. Home is built once, by
+the bootstrap (a few seconds), and kept in the vault at `$D000`. **One
+continent is kept**, at `$E000-$E7BF`, because the rest under the KERNAL is
+the music's, as in the game: the one nearest the hero (`kept`, `seek()`,
+`nearest()` in `engine.c`). The window reaches 16 squares and no two
+continents are within 65 of each other, so only one is ever in reach, and
+when another becomes the nearest the one kept is at least 33 away. The
+other is then built by the game's generator into `local[]` (free on the
+overworld) and copied into the slot a row at a time, **as a second thread**
+(`src/lib/ow_gen.s`): the main loop calls `gen_run(frame)` while it waits
+for the next frame, and the frame's interrupt takes the machine back by
+pushing one more frame for `$EA31`'s RTI, so the scrolling never waits. The
+thread has the bottom half of the stack page and its own copy of the ten
+zero-page bytes the generator uses. If the window needs a continent before
+it is ready (those north and south are 17 squares off home's coasts),
+`need_isle()` runs the build out there and then and the world stands still
+for the rest of it, with the music playing; going into a place drops a
+build, since a place's map is in `local[]` too. `gen_run()` checks
+`sm_frame` with interrupts off before it starts: an interrupt between the
+caller's look and the switch would otherwise give the build a whole frame
+(that was 37 missed frames a voyage). And **nothing may be added to the
+frame a step ends in**: `seek()` and the scene check went there first and
+cost NTSC a missed frame every other step. Measured over the 59 steps of
+`openworld-sail`: `late` 0 on PAL and with the REU, 4 on NTSC without (1
+before any of this). `wx`, `wy` are the hero's world
 square; the engine's coordinates are those mod 128 (384 and 256 are both
 multiples of it, so the wrap is seamless), and `WORLD` is a window indexed
 `(Y & 63) * 64 + (X & 63)` (`sm_torus` makes `char_at` and the edges wrap
@@ -478,8 +504,23 @@ becomes the ship, frames 9 and 10); in it you sail open water and step off
 onto any land, where it stays; its position is kept as you sail. No
 permission is asked. The continents' places go in as they do in the game
 (the bootstrap works out `slot_of()` for each).
-**Memory**: each engine has what is said above free in HIGH, and in MAIN `ow-cpu`
-about 1.4K and `ow-reu` 2.1K: it has one colour copy, not two
+**The music** is the game's: the same SID files at the same place, and
+the game's scenes (`assets/music.txt`: home, isle, sea, town, castle,
+dungeon), through `play_for()` in `engine.c`. `src/lib/ow_tune.s` is the
+player: `music.s` without the effects, called from the raster interrupt
+after colour RAM is rewritten (so with the CPU scrolling a note can come 12
+ms late on the frames the screen flips), every frame for a tune made for the
+frame rate and six times in five frames on PAL for a 60 Hz one. `OW->tune`
+says which file is under the KERNAL, across `N` too. A scene whose file is
+another loads it in the engine, with the screen off and the sprites
+disabled, the interrupt still running; nothing does that today, since every
+scene plays the theme, but it was tried with a second file for the towns
+(the town goldens passed, in and out). `M` turns the music off and on.
+`--peek ow_tune_on`, `--peek '$02EB'` (the file) and `--vice=-sound
+--vice=-sounddev --vice=dump --vice=-soundarg --vice=FILE` show it playing.
+
+**Memory**: each engine has what is said above free: the REU's has more
+because it has one colour copy, not two
 (`colour_for` patches its hundred screen addresses for the screen a
 redraw or a roof's flip reads, in the main loop before the flip, about 2K
 cycles; every other flip is coloured from the REU).
@@ -968,7 +1009,12 @@ reachable from a test this way, and none of it ships.
 loads its engines from it: the `.cmd` files pass `--disk dist/q4k.d64` (the
 online cases swap in `dist/online/`), and the save tests start from a copy
 of that disk, not a blank one. Without it the game stops after the title
-screen with "Put the game disk back".
+screen with "Put the game disk back". **`make` relinks the game but does not
+rebuild its disk**: after any change that moves the core (a library module,
+say), `make d64 d64-online` before a single test, or the new PRG loads the
+old engines and a test fails with no output (`sail` did). And never
+`git stash` round a `make`: the objects built from the stashed tree are
+newer than the sources that come back, and stay.
 
 **The modem.** `tools/screendump.py --rs232 PORT` wires the user port to a TCP
 socket and drops warp mode. Without warp an emulated 1541 would take a minute
