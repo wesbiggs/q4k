@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include <q4k/isle.h>
+#include <q4k/music.h>
 #include <q4k/music_map.h>
 #include <q4k/ow.h>
 #include <q4k/sprite.h>
@@ -401,6 +402,14 @@ static unsigned char ship_at(unsigned int x, unsigned char y)
     return NONE;
 }
 
+/* Whether ship s will not sail yet: one at home's port d waits for the
+   story to reach continent d. The continents' own always sail home. */
+static unsigned char ship_held(unsigned char s)
+{
+    return s < 4 && ship_x[s] == OW->ship_x[s] && ship_y[s] == OW->ship_y[s]
+        && quest_stage < Q_EMBER + OW->slot[s];
+}
+
 /* The ships within sight, as sprites 1-7 (sm_npcs places them). */
 static void show_ships(void)
 {
@@ -457,7 +466,10 @@ static unsigned char world_ok(signed char dx, signed char dy)
     unsigned char y = wy + dy, t = tile_at(x, y);
 
     if (t == T_WATER && ship_at(x, y) != NONE) {
-        return !boat;           /* board it; a ship cannot sail into one */
+        /* Board it (a ship cannot sail into one), if it may sail: a home
+           port's opens when the story reaches its continent (the game's
+           captains: Q_EMBER + the continent's slot). */
+        return !boat && !ship_held(ship_at(x, y));
     }
     if (boat && t == T_WATER) {
         return 1;
@@ -618,6 +630,34 @@ void w_enter(void)
     back_home();
 }
 
+/* A step that could not be taken: a refusal, if it was a ship that will
+   not sail yet. */
+void __fastcall__ w_bump(unsigned char d)
+{
+    unsigned int x = wrapx(wx + WORLD_W + (signed char)dirdx[d]);
+    unsigned char y = wy + dirdy[d], s = ship_at(x, y);
+
+    if (s != NONE && ship_held(s)) {
+        sfx_play(SFX_NO);
+    }
+}
+
+/* Into dungeon n, if its seal is broken: the Sigil for the Hollow Crown,
+   the Tidal and Ashen Keys for the others. Else a refusal, and the hero
+   stays on the square. */
+static const unsigned char dungeon_key[NUM_DUNGEONS] = {
+    IT_SIGIL, IT_TIDAL, IT_ASHEN
+};
+
+static void to_dungeon_if(unsigned char n)
+{
+    if (items & dungeon_key[n]) {
+        to_dungeon(n);
+    } else {
+        sfx_play(SFX_NO);
+    }
+}
+
 /* At the end of a step: whatever the square does. Home's places are, in
    isle_fx's order, Millford, the castle, the Hollow Crown, Maldrath's lair
    (which is the dragon, and not here) and a town of its own. */
@@ -643,7 +683,7 @@ void w_arrived(void)
         switch (i) {
         case 0: to_town(TOWN_MILLFORD); break;
         case 1: to_town(TOWN_CASTLE);   break;
-        case 2: to_dungeon(0);          break;
+        case 2: to_dungeon_if(0);       break;
         case 4: to_town(TOWN_PROC);     break;
         }
     } else if (k) {
@@ -661,7 +701,7 @@ void w_arrived(void)
         if (i == 0) {
             d = OW->slot[k];  /* which story place */
             if (d & 1) {
-                to_dungeon(1 + (d >> 1));
+                to_dungeon_if(1 + (d >> 1));
             } else {
                 to_town(TOWN_WARDLOW + (d >> 1));
             }

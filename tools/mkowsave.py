@@ -6,8 +6,8 @@
 A save is the open world's game block (OwGame, include/q4k/owgame.h) as it
 is in memory, loaded back to $CE40. The game writes its own over this one
 (F1); until then the disk has the world of SEED (7) with a lone warrior,
-Alaric, at the castle's gate, the keys to every dungeon in hand (as the
-tests' quick start has it). The castle is found with the model of the land
+Alaric, at the castle's gate, the keys to every dungeon and the three
+stones in hand (as the tests' quick start has it). The castle is found with the model of the land
 generator, so this stays right when the generator changes.
 """
 import struct
@@ -21,8 +21,8 @@ HOME_X, HOME_Y = 128, 64
 CASTLE = 1              # home's places: Millford, the castle, ...
 ACTOR = 21              # sizeof(Actor), include/q4k/actor.h
 LOOTED = 5              # LOOTED_BYTES
-Q_QUESTED = 2
-KEYS = 0x01 | 0x02 | 0x04   # IT_SIGIL, IT_TIDAL, IT_ASHEN
+Q_HEART = 7
+KEYS = 0x3F             # IT_SIGIL ... IT_HEART: as the quick start
 AREA_HOME, ISLE_HOME, GATE = 0, 4, 0xFF
 
 
@@ -55,7 +55,7 @@ def main():
     b = actor("Alaric", 22) + bytes(ACTOR * 3)
     b += bytes([MAGIC, seed, 1, 1])                 # one member, level 1
     b += struct.pack("<HHH", 0, 9, 0)               # xp, gold, turn
-    b += bytes([1, 0, Q_QUESTED, KEYS]) + bytes(LOOTED)
+    b += bytes([1, 0, Q_HEART, KEYS]) + bytes(LOOTED)
     b += bytes([AREA_HOME, ISLE_HOME, 0, 0, GATE, 0])
     b += struct.pack("<HB", wx, wy)
     b += bytes([0, 0]) + bytes(16 + 8) + bytes([0])  # no boat, ships moored

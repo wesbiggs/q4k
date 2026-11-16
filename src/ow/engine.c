@@ -159,6 +159,7 @@ const unsigned char facing[8] = {
 };
 
 static unsigned int camx0, camy0;   /* the camera when the step began */
+static unsigned char bumped;        /* 1 + the way last bumped, while held */
 
 /* The back screen's build, in three parts a frame apart (see sm_build):
    which is still to do. */
@@ -794,11 +795,18 @@ int main(void)
                     if (!boat) {    /* a footstep, by what it lands on */
                         sfx_step(tile_at(hx + dirdx[d], hy + dirdy[d]));
                     }
-                } else {
-                    ov_bump(d); /* into a person: a talk, in a town */
+                    bumped = 0;
+                } else if (bumped != d + 1) {
+                    /* Into a person (a talk, in a town), or a way not open
+                       yet: once a press, not every frame it is held. */
+                    bumped = d + 1;
+                    ov_bump(d);
                 }
-            } else if (PEEK(0xC6) == 0 && steps != 0) {
-                probe_stage(2);
+            } else {
+                bumped = 0;
+                if (PEEK(0xC6) == 0 && steps != 0) {
+                    probe_stage(2);
+                }
             }
         }
         /* A frame with nothing built in it: the window's next job. */
