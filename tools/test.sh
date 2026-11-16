@@ -148,6 +148,31 @@ if [ -f tests/golden-save.txt ] && [ -f dist/q4k.prg ] && [ -f "$DISK" ]; then
     rm -f "$saves" "$base"
 fi
 
+# The open world saves the same way, its game block into OW-SAVE (F1), and
+# F3 goes back through the bootstrap to the saved game's world. Two steps
+# east of Millford, save, three more, restore: back at the first square.
+# On a copy of the disk, since the save writes it and openworld-load wants
+# the save the disk comes with.
+if [ -f dist/openworld.d64 ]; then
+    base=$(mktemp "${TMPDIR:-/tmp}/q4kow.XXXXXX")
+    saves=$base.d64
+    cp dist/openworld.d64 "$saves"
+    wxof() { sed -n 's/.*wx+0 @ .* = \([0-9]*\) .*/\1/p'; }
+    saved=$(tools/screendump.py dist/openworld.prg --disk "$saves" \
+        --splash quick --lbl build/ow-cpu.lbl --keys 'dd\x85ddd' \
+        --settle 20 --peek wx:2 2>&1 >/dev/null | wxof) || true
+    restored=$(tools/screendump.py dist/openworld.prg --disk "$saves" \
+        --splash quick --lbl build/ow-cpu.lbl --keys '\x86' \
+        --settle 40 --peek wx:2 2>&1 >/dev/null | wxof) || true
+    if [ -n "$saved" ] && [ "$restored" = $((saved - 3)) ]; then
+        echo "PASS  openworld-save"
+    else
+        echo "FAIL  openworld-save (left at ${saved:-?}, restored at ${restored:-?})"
+        fail=1
+    fi
+    rm -f "$saves" "$base"
+fi
+
 # Home is made from the game's seed, so the tests that go somewhere on it walk
 # there, with keys worked out from the model of the generator.
 SEED=0x5a

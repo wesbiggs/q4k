@@ -164,7 +164,15 @@ int main(void)
        game has it. */
     POKEW(0x0283, 0xCF00);
 
-    if (again) {
+    if (again && OWB->mode == OWB_LOAD) {
+        /* F3 in an engine: the saved game's world, if there is one. */
+        OWB->mode = OWB_NONE;
+        cbm_load("ow-save", 8, 0);     /* none: the game goes on as it was */
+        lore_seed = G->seed;
+        OW->saved = 1;
+        disk_resident();
+        ow_disk_on();
+    } else if (again) {
         OWB->mode = OWB_NONE;
         lore_seed = OW->seed;   /* N in an engine: the next world */
         OW->saved = 0;
