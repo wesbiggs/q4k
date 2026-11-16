@@ -136,7 +136,9 @@ static unsigned char on_map;      /* asking in the log, not the note rows */
 static unsigned char can[MAX_PARTY];
 static unsigned char taker;       /* who the last offer() went to, or NONE */
 static const char   *item_text;   /* what that was, for the note */
-static char          book_text[24];
+/* "Book of " and the longest spell, Sleep: 14 with the NUL. Only 20 bytes
+   of BSS are free in the online build (CLAUDE.md): keep this small. */
+static char          book_text[16];
 
 static void ask_line(unsigned char row, const char *petscii)
 {
