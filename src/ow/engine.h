@@ -121,6 +121,11 @@ void owg_where(void);
    ...), with OWB filled in: the game block first. Never returns. */
 void __fastcall__ ow_leave(const char *name);
 extern const char owtown[];     /* "owtown": the screens of text */
+/* A fight (OWF_* in ow.h; arg the ground or the dungeon), in owtown.
+   Never returns. */
+void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg);
+/* After a step onto that tile: a wandering monster, now and then. */
+void __fastcall__ wander(unsigned char tile);
 
 void next_frame(void);
 void play_for(unsigned char scene);

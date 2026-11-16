@@ -75,6 +75,12 @@ typedef struct {
 #define OWB_INN   6             /* an inn: arg is which (INN_PROC: ours) */
 #define OWB_PARTY 7             /* the party and what they carry */
 #define OWB_LOAD  8             /* (to the bootstrap) F3: the saved game */
+#define OWB_FIGHT 9             /* a fight: arg OWF_*, npc the ground (a
+                                   tile) or the dungeon */
+
+#define OWF_WANDER 0            /* what wanders out at you, on npc's ground */
+#define OWF_KEEPER 1            /* a dungeon's keeper: npc the dungeon */
+#define OWF_DRAGON 2            /* Maldrath, in his lair */
 
 typedef struct {
     unsigned char mode;         /* OWB_* */

@@ -667,7 +667,20 @@ void w_arrived(void)
 
     step_world();
     t = tile_at(hx, hy);
+    if (t == T_LAIR && grid[wy >> 6][wx >> 6] == CELL_HOME) {
+        /* Maldrath: with Dragonbane, until he is banished. */
+        if (quest_stage < Q_VICTORY) {
+            if (items & IT_BLADE) {
+                ow_fight_with(OWF_DRAGON, 0);
+            }
+            sfx_play(SFX_NO);   /* the heat drives you back */
+        }
+        return;
+    }
     if (t != T_TOWN && t != T_CASTLE && t != T_DUNGEON) {
+        if (!boat) {
+            wander(t);
+        }
         return;
     }
     k = grid[wy >> 6][wx >> 6];

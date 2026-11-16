@@ -24,6 +24,7 @@ LOOTED = 5              # LOOTED_BYTES
 Q_HEART = 7
 KEYS = 0x3F             # IT_SIGIL ... IT_HEART: as the quick start
 AREA_HOME, ISLE_HOME, GATE = 0, 4, 0xFF
+CALM = 4                # OWG_CALM: nothing wanders out (a test fixture)
 
 
 def petscii(s):
@@ -58,7 +59,8 @@ def main():
     b += bytes([1, 0, Q_HEART, KEYS]) + bytes(LOOTED)
     b += bytes([AREA_HOME, ISLE_HOME, 0, 0, GATE, 0])
     b += struct.pack("<HB", wx, wy)
-    b += bytes([0, 0]) + bytes(16 + 8) + bytes([0])  # no boat, ships moored
+    b += bytes([0, 0]) + bytes(16 + 8)  # no boat, ships moored
+    b += bytes([CALM])                   # music and effects on, no monsters
     with open(out, "wb") as f:
         f.write(struct.pack("<H", ADDR))
         f.write(b)

@@ -119,17 +119,44 @@ static void disk_resident(void)
     memcpy((void *)0xCF14, _OWDISK_LOAD__, (unsigned)_OWDISK_SIZE__);
 }
 
+/* A machine with no picture, or a disk without one (the NTSC picture is
+   left off the disk for room: the Makefile's OW_NTSC_SPLASH), is asked in
+   words instead. The tests' hook works here too. */
+static unsigned char title_text(void)
+{
+    unsigned char k = 0;
+
+    textcolor(COLOR_YELLOW);
+    cputsxy(11, 10, "Quest for the King");
+    textcolor(COLOR_GRAY3);
+    cputsxy(6, 13, "F1 a new game   F3 the saved one");
+    OW->hook = OW_HOOK_WAIT;
+    while (k != OW_KEY_F1 && k != OW_KEY_F3) {
+        ++ow_splash_ticks;
+        if (OW->hook != OW_HOOK_WAIT) {
+            k = OW->hook;           /* (OW_KEY_QUICK too) */
+            break;
+        }
+        if (kbhit()) {
+            k = cgetc();
+        }
+    }
+    OW->hook = 0;
+    clrscr();
+    return k;
+}
+
 static void splash(void)
 {
     unsigned char key = 0;
 
     OW->video = ow_video();
-    /* A machine with no picture, or a disk without one, starts a new
-       game. */
     if (OW->video <= OW_NTSC &&
         cbm_load(OW->video == OW_NTSC ? "splash-n" : "splash-p", 8,
                  (void *)OW_SPLASH_AT)) {
         key = ow_splash();
+    } else {
+        key = title_text();
     }
     disk_resident();
     ow_disk_on();
