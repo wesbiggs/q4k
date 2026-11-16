@@ -327,25 +327,54 @@ $(DIST)/arena.prg: $(BUILD)/arena.o $(BUILD)/lib/battle_bot.o $(LIB) $(wildcard 
 # has the splash screen's two pictures (PAL and NTSC), each with its text,
 # and a saved game to load, since nothing saves yet.
 OWENG := $(DIST)/ow-cpu.prg $(DIST)/ow-reu.prg
+OWOVL := $(foreach e,cpu reu,$(DIST)/ow-$(e).world $(DIST)/ow-$(e).town)
 OWFILES := $(DIST)/ow-data.prg $(DIST)/splash-p.prg $(DIST)/splash-n.prg \
            $(DIST)/ow-save.prg
 
-$(BUILD)/ow/engine-cpu.o $(BUILD)/ow/engine-reu.o: $(BUILD)/ow/engine-%.o: src/ow/engine.c
-	@mkdir -p $(dir $@)
-	$(CL65) $(filter-out -Osir,$(CFLAGS)) -Or $(if $(filter reu,$*),-DOW_REU) \
-	    $(DEPFLAGS) -c -o $@ $<
+# Each engine is a core (engine.c, smooth.s) and two overlays that take turns
+# in one slot (src/ow/engine.h): the world's (world.c, OVWCODE) and the
+# town's (town.c, OVTCODE), which ld65 writes beside it as %O.world and
+# %O.town, and tools/owslots.py checks that nothing calls into an overlay
+# but through its jump table (ovl.s).
+OWPARTS := engine world town
+
+$(BUILD)/ow/world-cpu.o $(BUILD)/ow/world-reu.o: OWSEG := --code-name OVWCODE
+$(BUILD)/ow/town-cpu.o $(BUILD)/ow/town-reu.o: OWSEG := --code-name OVTCODE
+
+define OWPART
+$(BUILD)/ow/$(1)-cpu.o $(BUILD)/ow/$(1)-reu.o: $(BUILD)/ow/$(1)-%.o: src/ow/$(1).c
+	@mkdir -p $$(dir $$@)
+	$$(CL65) $$(filter-out -Osir,$$(CFLAGS)) -Or $$(if $$(filter reu,$$*),-DOW_REU) \
+	    $$(OWSEG) $$(DEPFLAGS) -c -o $$@ $$<
+endef
+$(foreach p,$(OWPARTS),$(eval $(call OWPART,$(p))))
 
 $(BUILD)/ow/smooth-cpu.o $(BUILD)/ow/smooth-reu.o: $(BUILD)/ow/smooth-%.o: src/ow/smooth.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) --asm-define OW_REU=$(if $(filter reu,$*),1,0) -c -o $@ $<
 
-$(DIST)/ow-%.prg: $(BUILD)/ow/engine-%.o $(BUILD)/ow/smooth-%.o $(LIB) cfg/c64-openworld.cfg
+$(BUILD)/ow/ovl.o: src/ow/ovl.s
+	@mkdir -p $(dir $@)
+	$(CL65) $(ASFLAGS) -c -o $@ $<
+
+OWOBJ = $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-$*.o) $(BUILD)/ow/ovl.o
+
+# The overlays come out of the same link (ld65's %O.world, %O.town).
+$(DIST)/ow-%.world $(DIST)/ow-%.town: $(DIST)/ow-%.prg ;
+
+$(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/ow/ovl.o \
+	    $(LIB) cfg/c64-openworld.cfg tools/owslots.py
 	@mkdir -p $(DIST)
 	$(CL65) $(LDFLAGS) -C cfg/c64-openworld.cfg -m $(BUILD)/ow-$*.map \
-	    -Wl -Ln,$(BUILD)/ow-$*.lbl -o $@ $(BUILD)/ow/engine-$*.o \
-	    $(BUILD)/ow/smooth-$*.o $(LIB)
+	    -Wl -Ln,$(BUILD)/ow-$*.lbl -o $@ $(OWOBJ) $(LIB)
 	@mv $@.data $(BUILD)/ow-$*.data
-	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
+	@mv $@.world $(DIST)/ow-$*.world
+	@mv $@.town $(DIST)/ow-$*.town
+	tools/owslots.py $(BUILD)/ow-$*.map $(OWOBJ)
+	@printf '%-14s %6d bytes, world %d, town %d\n' "$@" \
+	    "$$(( $$(wc -c < $@) - 2 ))" \
+	    "$$(( $$(wc -c < $(DIST)/ow-$*.world) - 2 ))" \
+	    "$$(( $$(wc -c < $(DIST)/ow-$*.town) - 2 ))"
 
 $(DIST)/ow-data.prg: $(OWENG)
 	cmp $(BUILD)/ow-cpu.data $(BUILD)/ow-reu.data
@@ -368,18 +397,19 @@ $(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py
 # The conversations (src/owtalk.c, which the engine loads when the hero walks
 # into a townsperson): the program, and the talk's files, which tools/mktalk.py
 # makes for the game's disk too.
-$(DIST)/openworld.d64: $(DIST)/openworld.prg $(OWENG) $(OWFILES) $(DIST)/owtalk.prg \
+$(DIST)/openworld.d64: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST)/owtalk.prg \
 	    $(BUILD)/music/.stamp $(BUILD)/talk/.stamp
 	$(C1541) -format "openworld,01" d64 $@ >/dev/null
 	$(C1541) -attach $@ -write $(DIST)/openworld.prg openworld \
 	    -write $(DIST)/splash-p.prg splash-p -write $(DIST)/splash-n.prg splash-n \
 	    -write $(DIST)/ow-save.prg ow-save -write $(DIST)/ow-data.prg ow-data \
 	    -write $(DIST)/ow-cpu.prg ow-cpu -write $(DIST)/ow-reu.prg ow-reu \
+	    $(foreach f,$(OWOVL),-write $(f) $(notdir $(f))) \
 	    -write $(DIST)/owtalk.prg owtalk \
 	    $$(for f in $(BUILD)/music/m.*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/talk/[0-9]*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
 
--include $(BUILD)/ow/engine-cpu.d $(BUILD)/ow/engine-reu.d
+-include $(foreach p,$(OWPARTS),$(BUILD)/ow/$(p)-cpu.d $(BUILD)/ow/$(p)-reu.d)
 
 # The multicolour arena (src/owarena.c) and the fight it calls: a module
 # linked on its own (src/fight/, cfg/c64-fight.cfg, include/q4k/fight.h),

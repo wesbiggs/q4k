@@ -187,22 +187,45 @@ VIC bank switch — it stays at `$D800` regardless of where the screen matrix is
 
 **Conversations in the open world are a program loaded from disk, not a
 part of the engine.** Walking into a townsperson who has lines (an `ENT_NPC`,
-not a villager, who is a wall) makes the overworld engine write its hand-off
-block (`OWB` in `include/q4k/ow.h`, at `$02ED`) and load `owtalk`
-(`src/owtalk.c`, flat, the talk's own file as `talk.c` reads it) over itself
-with `ow_run()`. The talk reloads `ow-data` (which it overwrites), resets the
-machine as `sm_quit()` leaves it, and loads the engine back with `OWB_BACK`;
-the engine then starts in the same town with the hero where they stood. The
-talk's files are on `openworld.d64` beside it. The RUN/STOP that leaves a
-talk is still flagged when `ow-data` reloads, and the KERNAL's `LOAD` then
-fails with no drive error: `owtalk`'s `need_data()` waits for STOP to come up
-and sets `$91` to `$FF` (released). `$7F` in `$91` means STOP is held down,
-so clearing the bit with `& 0x7F` is the wrong fix. Only the engine's trigger and
-return are in the engine, and those are the bytes that do not fit: the CPU
-engine is 221 bytes over its MAIN with them, so the trigger is compiled for
-the REU engine only (`#ifdef OW_REU`) until something else moves out of
-ow-cpu. The idea of swapping banks of memory in and out, instead of whole
-programs, is still open.
+not a villager, who is a wall) makes the town's overlay (below) write the
+hand-off block (`OWB` in `include/q4k/ow.h`, at `$02ED`), copy the ships back
+into `OW` so they stay where they were left, and load `owtalk`
+(`src/owtalk.c`, flat, the talk's own file as `talk.c` reads it) over the
+engine with `ow_run()`. The talk reloads `ow-data` (which it overwrites),
+resets the machine as `sm_quit()` leaves it, and loads the engine back with
+`OWB_BACK`; the engine then loads the town's overlay straight away, with the
+hero where they stood, and builds the overworld afresh only on the way out
+(`fresh` in `world.c`, even with an REU, whose copy did not survive). Both
+engines have it. The talk's files are on `openworld.d64` beside it. The
+RUN/STOP that leaves a talk is still flagged when `ow-data` reloads, and the
+KERNAL's `LOAD` then fails with no drive error: `owtalk`'s `need_data()` waits
+for STOP to come up and sets `$91` to `$FF` (released). `$7F` in `$91` means
+STOP is held down, so clearing the bit with `& 0x7F` is the wrong fix. Golden
+`openworld-talk` talks to Old Tam in Millford, comes back and walks out; it
+leans on the harness typing its keys a bufferful at a time (the talk and the
+engine each empty the buffer as they start), hence the `x` padding.
+
+**The open world's engine is a core and two overlays** (`src/ow/engine.h`).
+The core (`engine.c`, `smooth.s`, and the library: the main loop, the
+scrolling, the music, what every area does, the generators) stays put; the
+world's overlay (`world.c`, `OVWCODE`: the overworld's window and streaming,
+the continent kept, the ships, the dungeons) and the town's (`town.c`,
+`OVTCODE`: towns and the castle, the roofs, the people, the talk's trigger)
+take turns in `SLOT` (`$5A00-$6BFF`), each a file of its own that ld65 writes
+beside the engine (`ow-cpu.world`, `ow-cpu.town`, and `ow-reu.*`, since each
+engine links its own). Stepping onto a town loads the town's over the
+world's, its way out loads the world's back (`ov_switch()` in `engine.c`:
+the music stopped, the sprites off, the screen already blank; the border
+flashes if the disk is gone). Their BSS stays where it is, so the world's
+window queue, the continent kept and so on are as they were left, and the
+REU's copy of the window is put back as before. The core calls an overlay
+only through the jump table at the start of the slot (`ovl.s`: `ov_enter`,
+`ov_can_step`, `ov_arrived`, `ov_bump`, `ov_after`, `ov_idle`), and an
+overlay asks for the other by setting `ov_want` and returning, never by
+loading it itself (it would load over its own code). `tools/owslots.py` runs
+after each link and fails it if anything else calls into an overlay's code.
+One link makes all three, so `ow-data` (COMMON) is still one file for both
+engines. Dungeons stay in the world's overlay: going down needs no load.
 
 **The open world's disk icon is resident at `$CF14`.** `src/lib/ow_disk.s`
 (segment `OWDISK`, `cfg/c64-owboot.cfg`) holds the code, the sprite's picture
@@ -484,11 +507,12 @@ there after `N`. ld65 writes it beside each engine (`COMMON` in the cfg,
 `%O.data`) and the Makefile fails if the two differ, so only bytes that are
 the same in both links can go there: data, not code (the engines' BSS
 differs). `local[]` (`HIDATA`, the game's font image) is at `$6C00` in an
-engine and in no file. An engine is 25K, not 37K, and **nearly full**:
-`ow-cpu` has 78 bytes free in HIGH (`$5400-$6BFF`) and 62 in MAIN, `ow-reu`
-235 and 731, and COMMON 518. Which of `engine.c`'s functions are in HIGH is
-a `#pragma code-name` in the middle of the roofs' code: move it to shift
-bytes between the two.
+engine and in no file. An engine is 19.7K and its overlays 4K each (see
+above). Free: about 880 bytes in MAIN (the generators' `MAPCODE` moved there
+from HIGH), 1.2K in HIGH (`$5400-$59FF`), 520 in the slot beside the world's
+overlay and 440 beside the town's, 200 in BSS, and COMMON 518. Which part a
+function belongs in is which file it is in: the core's if both kinds of area
+use it.
 
 **The world** is a torus of 6 by 4 cells of 64x64 squares (`grid[]`):
 Keldmarch in the middle of the second row, the four continents (64x31, at
@@ -554,9 +578,11 @@ because it has one colour copy, not two
 (`colour_for` patches its hundred screen addresses for the screen a
 redraw or a roof's flip reads, in the main loop before the flip, about 2K
 cycles; every other flip is coloured from the REU).
-Code that runs only after the start lives at `$0400` (`OWLOW`, the text
-screen's, loaded inside screen A's space and copied down then) and past the
-sprite blocks at `$52C0` (`OWTOP`); the C stack is moved to the tape buffer
+Past the sprite blocks at `$52C0` there is a little code (`OWTOP`).
+`OWLOW`, code run at `$0400` from inside screen A's space, is empty since the
+roofs went to the town's overlay, and nothing copies it down any more: ld65
+leaves an empty segment's `__OWLOW_LOAD__` undefined, so put the copy back
+with whatever goes there; the C stack is moved to the tape buffer
 by `sm_stack()`; `ow_chcol` is page aligned (`ALIGNBSS`). The CPU's sixteen
 shift routines are one, patched for each direction. **The quiet frame**: at
 speed 2, the frame after a step's second flip builds nothing, so it shifts
@@ -674,8 +700,7 @@ back, the box drawn over it, flipped to with its colour from the screen),
 about 8 jiffies; `--poke whole=1` redoes everything instead, and the two
 must give the same picture (they do, going in and out of the inn and into
 the throne room). Goldens `openworld-inn` and `openworld-throne` are text
-dumps, so they record who is visible. The engine's shift routines are in
-HICODE: MAIN was full. A town's way out is
+dumps, so they record who is visible. A town's way out is
 its exit square; the dungeon's stairs go down and
 up, and up from level 1 is out. The overworld is put away going in: in the
 REU when there is one (`sm_reu_keep`, 8K, so coming out takes a third of a

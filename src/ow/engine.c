@@ -9,7 +9,13 @@
  *
  * Step onto Millford, the castle, the Hollow Crown or a town to go in: each
  * has a tile set of its own (assets/town_tiles.txt and the rest), its people
- * are sprites, and its walls have faces.
+ * are sprites, and its walls have faces. Walk into someone with something to
+ * say and they say it (src/owtalk.c).
+ *
+ * This is the core: the main loop, the music, and what every area does. The
+ * overworld and the dungeons (world.c) and the towns (town.c) are overlays
+ * that take turns in one slot of memory, loaded from the disk as the hero
+ * goes in and out: engine.h.
  *
  * Built twice, as OW-REU (OW_REU: the REU shifts the screens and keeps the
  * overworld while you are in a place) and OW-CPU (the CPU does it all), and
@@ -44,161 +50,41 @@
 #include <q4k/isle.h>
 #include <q4k/music_map.h>
 #include <q4k/ow.h>
-#include <q4k/rle.h>
 #include <q4k/town_data.h>
-#include <q4k/town_gen.h>
 #include <q4k/probe.h>
 #include <q4k/sprite.h>
 #include <q4k/tiles.h>
-#include <q4k/vault.h>
 
-#define WORLD   ((unsigned char *)0xB000)
-#define BIAS    32              /* squares: smooth.s's 64 characters */
-
-/* Where the hero's square is on the screen when the camera is still, in
-   pixels from the top left of the character matrix (see smooth.s): the middle
-   of the 38 by 24 window, four pixels into a character. The sprite is put
-   there by sm_show(). */
-#define HERO_PX 148
-#define HERO_PY 84
-
-extern unsigned char sm_ox, sm_oy, sm_fx, sm_fy, sm_front, sm_colend;
-void sm_quit(void);
-extern volatile unsigned char sm_frame;
-void sm_init(void);
-void sm_show(void);
-void sm_draw_all(void);
-void sm_shores(void);
-void sm_animate(void);
-void __fastcall__ sm_build(unsigned char dir);
-void __fastcall__ sm_shift(unsigned char dir);
-void __fastcall__ sm_edge(unsigned char dir);
-void __fastcall__ sm_edge_row(unsigned char dir);
-void __fastcall__ sm_edge_col(unsigned char dir);
-void __fastcall__ sm_commit(unsigned char flip);
-void __fastcall__ sm_sprite(unsigned char frame);
-void __fastcall__ sm_tileset(const unsigned char *set);
-void __fastcall__ sm_blank(unsigned char on);
-void __fastcall__ sm_reu_keep(unsigned char out);
-extern unsigned char sm_offtile;
-extern unsigned char sm_npc_n, sm_npc_x[7], sm_npc_y[7];
-void sm_npcs(void);
-void sm_redraw_box(void);
-void sm_shores_rect(void);
-void sm_stack(void);
-extern unsigned char sm_sh_x0, sm_sh_y0, sm_sh_x1, sm_sh_y1;
-extern unsigned char sm_box_c0, sm_box_c1, sm_box_r0, sm_box_r1;
-extern unsigned char sm_torus;
-void sm_vcopy(void);
-extern unsigned char *vc_src, *vc_dst;
-extern unsigned char vc_n, vc_sstep, vc_dstep;
-
-/* A continent built behind the scrolling (src/lib/ow_gen.s). */
-void __fastcall__ gen_start(unsigned char d);
-void __fastcall__ gen_run(unsigned char frame);
-extern volatile unsigned char gen_state;    /* 1 building, 3 copying it into
-                                               the slot, 2 there, 0 nothing */
-
-/* The music (src/lib/ow_tune.s). */
-void __fastcall__ ow_tune_play(unsigned char song);
-void ow_tune_stop(void);
-
-/* The villager's sprite frame, after the hero's eight (assets/overworld.txt),
-   and the robes' colours, one a person. */
-#define NPC_FRAME  (64 + 8)
-#define SHIP_FRAME (64 + 9)     /* and the ship's, facing left and right */
-static const unsigned char robes[7] = {
-    COLOR_CYAN, COLOR_YELLOW, COLOR_PURPLE, COLOR_BLUE, COLOR_ORANGE,
-    COLOR_LIGHTBLUE, COLOR_WHITE
-};
-
-/* The tile sets (src/lib/ow_data.s, from the assets' tile files), and which
-   tiles can be walked onto, by tile code - $60. */
-extern const unsigned char ts_overworld[], ts_town[], ts_castle[],
-                           ts_dungeon[];
-extern const unsigned char ow_pass[64];
+#include "engine.h"
 
 /* Where you are: the overworld, or a place, each in its own tile set. A
    place is built the game's way (town_data.c's maps, town_gen(), and
    dungeon_build()) into local[], and copied into WORLD for the engine; the
    overworld is put away while you are in one -- in the REU (OW-REU), or
    else built again from the vault on the way out (OW-CPU). */
-#define AREA_HOME    0
-#define AREA_TOWN    1
-#define AREA_CASTLE  2
-#define AREA_DUNGEON 3
 unsigned char area;             /* (and game.c's depth: a dungeon's level) */
-static unsigned char area_w = 64, area_h = 64;
-static unsigned char ex, ey;            /* a town's way out */
-static unsigned char dun_index;         /* which dungeon */
+unsigned char area_w = 64, area_h = 64;
 
-/* The conversation's program (src/owtalk.c). Its name is data in both
-   engines, not only the REU's: OW-DATA must be the same bytes in both. */
-static const char owtalk_name[] = "owtalk";
-
-#ifdef OW_REU
-/* A conversation (ow.h's OWB): the town the engine is in (TOWN_*), which
-   entry each person's sprite is (npc_ent[n] indexes here_ents), and this
-   run's coming back from one, which takes the hero to where they stood.
-   Only the REU's engine has room for it: the CPU one's MAIN is 221 bytes
-   over with it, and its HIGH and OWTOP are full (see CLAUDE.md). */
-static unsigned char town_index;
-static unsigned char npc_ent[7];
-static unsigned char back;
-static unsigned char resuming, resume_x, resume_y;
-#endif
-
-/* --- The world -----------------------------------------------------------
-
-   Six cells across and four down, 64 squares each way, wrapping east to
-   west and north to south: 384 by 256 squares. Keldmarch fills its cell;
-   the four continents across the sea (64 by 31) lie across the middle of
-   theirs; the rest is open sea.
-
-        . . N . . .
-        W . K . E .
-        . . S . . .
-        . . . . . .
-
-   Keldmarch is built once, by the bootstrap, and kept in the RAM under the
-   I/O area, at $D000, where the game keeps it. Under the KERNAL there is
-   room for one continent, at $E000, since the rest is the music's (a SID
-   file at $E7C0-$FFF9, as in the game): the one nearest the hero, built
-   here with the game's generator as they come nearer it (kept, below).
-   WORLD is a window of 64
-   by 64 squares round the hero, which wraps: square (X, Y) of the world is
-   at WORLD[(Y & 63) * 64 + (X & 63)]. The engine's coordinates are the
-   world's taken round 128 squares, which 384 and 256 both divide, so a
-   square has the same coordinates, and the same variant, wherever it is
-   seen from. A step east brings in the column 32 squares ahead, over the
-   one now 33 behind, and works out the edges a column back: a column or a
-   row a step, done in frames with time to spare (the jobs, below). */
-
-#define WORLD_W   384u
-#define CELL_HOME 5
-static const unsigned char grid[4][6] = {
-    { 0, 0, 1, 0, 0, 0 },       /* the continents are d + 1, by compass */
-    { 4, 0, CELL_HOME, 0, 2, 0 },
-    { 0, 0, 3, 0, 0, 0 },
-    { 0, 0, 0, 0, 0, 0 },
-};
-#define ISLE_TOP 16             /* a continent's first row in its cell */
-
-unsigned int  wx;               /* the hero's square in the world */
-unsigned char wy;
-static unsigned int out_wx;     /* where you went into a place */
-static unsigned char out_wy;
-
-/* Each continent's places (its story place, then its town), its biome. */
-static unsigned char ipx[4][2], ipy[4][2], ibiome[4];
-
-/* Ships: one beside each of Keldmarch's ports and each continent's landing,
-   where they were left. Any can be taken (this is a demo); the hero becomes
-   one on the water and leaves it at the last water square on landing. */
-#define SHIPS 8
+unsigned int  out_wx;           /* where you went into a place */
+unsigned char out_wy;
 unsigned int  ship_x[SHIPS];
 unsigned char ship_y[SHIPS];
 unsigned char boat;             /* 1 + the ship you are in, or 0 */
+
+unsigned char town_index;       /* the town to go into, or that you are in */
+unsigned char resuming, resume_x, resume_y;     /* back from a talk */
+
+/* The overlays (engine.h): the files, by the engine's name, since each
+   engine has its own pair. In DATA, not RODATA, which is OW-DATA and must
+   be the same bytes in both engines. */
+#ifdef OW_REU
+static char world_file[] = "ow-reu.world";
+static char town_file[]  = "ow-reu.town";
+#else
+static char world_file[] = "ow-cpu.world";
+static char town_file[]  = "ow-cpu.town";
+#endif
+unsigned char ov_want, ov_have;
 
 /* What the game's own modules here (the town and dungeon generators, the
    vault) read and write of game.c's, actor.c's and the land generator's:
@@ -240,21 +126,20 @@ unsigned int  steps;
 unsigned long idle;             /* turns of the waiting loop while walking */
 unsigned int  walked;           /* ... over this many frames */
 
-#define NONE 0xFF
-
-static unsigned char moving, dir, moved, stride;
-static unsigned char pre_dir = 0xFF;   /* the back screen is shifted that way */
-static unsigned char frame;     /* the last frame the main loop handled */
+static unsigned char moving, moved;
+unsigned char dir, stride;
+unsigned char pre_dir = 0xFF;   /* the back screen is shifted that way */
+unsigned char frame;            /* the last frame the main loop handled */
+/* The step that ended last frame, + 1, until what it brings is seen to (the
+   world's ov_after). Not in the frame the step ended, which starts the next
+   one too, and has no room for it on a diagonal. */
+unsigned char after;
 
 /* Eight ways, a square at a time: sprite.h's four, then the diagonals,
    as smooth.s numbers them. A diagonal faces the way it goes across. */
-#define DIR_DL 4
-#define DIR_DR 5
-#define DIR_UL 6
-#define DIR_UR 7
-static const signed char dirdx[8] = { 0, 0, -1, 1, -1, 1, -1, 1 };
-static const signed char dirdy[8] = { 1, -1, 0, 0, 1, 1, -1, -1 };
-static const unsigned char facing[8] = {
+const signed char dirdx[8] = { 0, 0, -1, 1, -1, 1, -1, 1 };
+const signed char dirdy[8] = { 1, -1, 0, 0, 1, 1, -1, -1 };
+const unsigned char facing[8] = {
     DIR_DOWN, DIR_UP, DIR_LEFT, DIR_RIGHT,
     DIR_LEFT, DIR_RIGHT, DIR_LEFT, DIR_RIGHT
 };
@@ -278,375 +163,10 @@ static void build_some(void)
     }
 }
 
-/* --- The continent that is kept ------------------------------------------
-
-   One, in the slot under the KERNAL: `kept`. The window reaches LOAD (16)
-   squares from the hero and no two continents are within 65 of each other,
-   so only one is ever in reach, and when another becomes the nearest the
-   one kept is 33 squares away at least. That is when the other's build
-   starts (seek(), after every step), in the frames' spare time
-   (ow_gen.s), and it goes into the slot when it is done. If the window
-   comes to need it sooner -- the continents north and south are only 17
-   squares off Keldmarch's coasts -- need_isle() runs the build to its end
-   there and then, and the world stands still for what is left of it. */
-
-static unsigned char kept = NONE;       /* the continent in the slot */
-static unsigned char want;              /* the one being built */
-
-/* The middle of each continent: half its column, and its row. */
-static const unsigned char isle_mx[4] = { 80, 144, 80, 16 };
-static const unsigned char isle_my[4] = { 31, 95, 159, 95 };
-
-/* Which continent the hero is nearest, by the squares to its edge, across
-   or down, whichever is more (the world wraps: 192 half columns, and the
-   rows as a byte does). */
-static unsigned char nearest(void)
-{
-    unsigned char d, dx, dy, at = 0, best = 255, x = wx >> 1;
-
-    for (d = 0; d < 4; ++d) {
-        dx = x > isle_mx[d] ? x - isle_mx[d] : isle_mx[d] - x;
-        if (dx > 96) {
-            dx = 192 - dx;
-        }
-        dx = dx > 16 ? (dx - 16) << 1 : 0;
-        dy = wy - isle_my[d];
-        if (dy & 0x80) {
-            dy = -dy;
-        }
-        dy = dy > 15 ? dy - 15 : 0;
-        if (dy > dx) {
-            dx = dy;
-        }
-        if (dx < best) {
-            best = dx;
-            at = d;
-        }
-    }
-    return at;
-}
-
-/* A build that has finished is the continent kept. */
-static void settle(void)
-{
-    if (gen_state == 2) {
-        kept = want;
-        gen_state = 0;
-    }
-}
-
-/* After a step: the nearest continent on its way into the slot, unless it
-   is there or coming. (Not while one is being copied in: the next step
-   asks again.) */
-static void seek(void)
-{
-    unsigned char d = nearest();
-
-    settle();
-    if (d != kept && gen_state != 3 && !(gen_state == 1 && want == d)) {
-        want = d;
-        gen_start(d);
-    }
-}
-
-/* Continent d in the slot before this returns. */
-static void need_isle(unsigned char d)
-{
-    for (;;) {
-        settle();
-        if (gen_state != 3) {
-            if (kept == d) {
-                return;
-            }
-            if (gen_state != 1 || want != d) {
-                want = d;
-                gen_start(d);
-            }
-        }
-        gen_run(sm_frame);
-    }
-}
-
-/* Where square (x, y) of the world is kept, or 0 for the sea; and in `run`,
-   how many squares on from it, along its row (or down its column), are
-   kept the same way. */
-static unsigned char run;
-
-static unsigned char *kept_at(unsigned int x, unsigned char y,
-                              unsigned char down)
-{
-    unsigned char lx = x & 63, ly = y & 63, k = grid[y >> 6][x >> 6];
-
-    run = 64 - (down ? ly : lx);
-    if (k == CELL_HOME) {
-        return (unsigned char *)0xD000 + ((unsigned int)ly << 6) + lx;
-    }
-    if (!k || ly >= ISLE_TOP + ISLE_H) {
-        return 0;
-    }
-    if (ly < ISLE_TOP) {
-        if (down) {
-            run = ISLE_TOP - ly;
-        }
-        return 0;
-    }
-    if (down) {
-        run = ISLE_TOP + ISLE_H - ly;
-    }
-    --k;
-    if (gen_state >= 2 || kept != k) {
-        need_isle(k);
-    }
-    return (unsigned char *)0xE000 + ((unsigned int)(ly - ISLE_TOP) << 6) + lx;
-}
-
-/* n squares of the world from (x, y), along the row or down the column,
-   into the window. A run never crosses a cell, so never the window's
-   wrap either (both are at multiples of 64). */
-/* A column of the world, from one a world's width either side of it:
-   cheaper than %, which is a division. */
-static unsigned int wrapx(unsigned int x)
-{
-    return x >= WORLD_W * 2 ? x - WORLD_W * 2 : x >= WORLD_W ? x - WORLD_W : x;
-}
-
-static void load_run(unsigned int x, unsigned char y, unsigned char n,
-                     unsigned char down)
-{
-    while (n) {
-        vc_src = kept_at(x, y, down);
-        if (!vc_src) {
-            vc_src = (unsigned char *)T_WATER;  /* sm_vcopy fills with it */
-        }
-        vc_n = run < n ? run : n;
-        vc_dst = WORLD + ((unsigned int)(y & 63) << 6) + (x & 63);
-        vc_sstep = vc_dstep = down ? 64 : 1;
-        sm_vcopy();
-        n -= vc_n;
-        if (down) {
-            y += vc_n;
-        } else {
-            x = wrapx(x + vc_n);
-        }
-    }
-}
-
-/* The window is 64 by 64, but only what is LOAD round the hero is kept in
-   it: the edges need a square more than theirs (EDGE_X, EDGE_Y), and a few
-   steps' lag. */
-#define LOAD 16
-static void load_col(unsigned int x)
-{
-    load_run(x, wy - LOAD, LOAD * 2 + 1, 1);
-}
-
-static void load_row(unsigned char y)
-{
-    load_run(wrapx(wx + WORLD_W - LOAD), y, LOAD * 2 + 1, 0);
-}
-
-static void fill_window(void)
-{
-    unsigned char r;
-
-    for (r = 0; r < 64; ++r) {  /* all of it, for sm_shores() */
-        load_run(wrapx(wx + WORLD_W - 32), wy - 32 + r, 64, 0);
-    }
-}
-
-/* --- Streaming: what a step leaves to do ----------------------------------
-
-   Loading a column or a row, and working out the edges of the one behind
-   it (in two halves, each under a frame): done one a frame, in frames with
-   nothing else to build, in the order they were asked for. The window has
-   room to lag: what is loaded is 32 squares off, what is seen 10. */
-
-#define J_COL    0              /* a = the column, in the world */
-#define J_ROW    1              /* a = the row */
-#define J_ECOL   2              /* edges down column a, from row b: in */
-#define J_EROW   5              /* thirds; along row a, from column b */
-#define JOBS     32
-#define EDGE_X   14             /* the edges are kept this far round the */
-#define EDGE_Y   10             /* hero; the view needs 11 by 7 */
-static unsigned char job_kind[JOBS];
-static unsigned int  job_a[JOBS];
-static unsigned char job_b[JOBS];
-unsigned char job_head, job_tail;     /* not static: tests peek them */
-/* The step that ended last frame, + 1, until what it brings is seen to: the
-   window's jobs and the ships in view. Not in the frame the step ended,
-   which starts the next one too, and has no room for it on a diagonal. */
-static unsigned char after;
-/* How many raster lines each kind takes, at most: a guess to start with,
-   and then the most that jobs() has measured. Small jobs, so that they fit
-   what a frame has left. */
-unsigned char job_lines[8] = { 60, 60, 90, 90, 90, 90, 90, 90 };
-
-/* The edges of n squares of the window from (x, y) (each 0-63), down or
-   across, in as many pieces as the window's wrap cuts them into. */
-static void edges(unsigned char x, unsigned char y, unsigned char n,
-                  unsigned char down)
-{
-    unsigned char m;
-
-    while (n) {
-        m = 64 - (down ? y : x);
-        if (m > n) {
-            m = n;
-        }
-        sm_sh_x0 = x;
-        sm_sh_y0 = y;
-        if (down) {
-            sm_sh_x1 = x;
-            sm_sh_y1 = y + m - 1;
-            y = 0;
-        } else {
-            sm_sh_x1 = x + m - 1;
-            sm_sh_y1 = y;
-            x = 0;
-        }
-        sm_shores_rect();
-        n -= m;
-    }
-}
-
-/* One job of the window's, the oldest. A column or a row it takes in is
-   wherever the window is when it runs; the edges are where it was when they
-   were asked for, so that the thirds agree, and they are far enough ahead
-   of the view (EDGE_X, EDGE_Y) to be a few steps late. */
-static void job_run(void)
-{
-    unsigned char k, a, b;
-
-    k = job_kind[job_head];
-    a = (unsigned char)job_a[job_head] & 63;
-    b = job_b[job_head];
-    if (k == J_COL) {
-        load_col(job_a[job_head]);
-    } else if (k == J_ROW) {
-        load_row((unsigned char)job_a[job_head]);
-    } else if (k < J_EROW) {    /* 21 rows: 7 each */
-        k -= J_ECOL;
-        edges(a, (b + k * 7) & 63, 7, 1);
-    } else {                    /* 29 columns: 10, 10, 9 */
-        k -= J_EROW;
-        edges((b + k * 10) & 63, a, k == 2 ? 9 : 10, 0);
-    }
-    job_head = (job_head + 1) % JOBS;
-}
-
-static void job_add(unsigned char kind, unsigned int a, unsigned char b)
-{
-    if ((job_tail + 1) % JOBS == job_head) {
-        job_run();              /* behind by more than the queue holds */
-    }
-    job_kind[job_tail] = kind;
-    job_a[job_tail] = a;
-    job_b[job_tail] = b & 63;
-    job_tail = (job_tail + 1) % JOBS;
-}
-
-/* Whatever of the queue fits in what is left of this frame: the raster
-   lines before the interrupt at 250, which starts the next. */
-static void jobs(void)
-{
-    unsigned int r, t, n = PEEK(0x2A6) ? 312 : 263;     /* PAL or NTSC */
-    unsigned char k;
-
-    while (job_head != job_tail && sm_frame == frame) {
-        r = VIC.rasterline | ((VIC.ctrl1 & 0x80) << 1);
-        t = r <= 250 ? 250 - r : 250 + n - r;
-        k = job_kind[job_head];
-        if (t < job_lines[k]) {
-            return;
-        }
-        job_run();
-        /* What it took, if the interrupt did not come in the middle: the
-           most yet is what that kind is given from now on. */
-        t = VIC.rasterline | ((VIC.ctrl1 & 0x80) << 1);
-        t = t >= r ? t - r : t + n - r;
-        if (sm_frame == frame && t > job_lines[k] && t < 250) {
-            job_lines[k] = (unsigned char)t;
-        }
-    }
-}
-
-/* After a step of (dx, dy): the column and row it brings into the window,
-   and the edges of the ones inside them, whose neighbours they are. */
-static void stream(signed char dx, signed char dy)
-{
-    unsigned char k, e;
-
-    if (dx) {
-        job_add(J_COL, wrapx(dx > 0 ? wx + LOAD : wx + WORLD_W - LOAD), 0);
-    }
-    if (dy) {
-        job_add(J_ROW, (unsigned char)(dy > 0 ? wy + LOAD : wy - LOAD), 0);
-    }
-    if (dx) {
-        e = wx + (dx > 0 ? EDGE_X : 64 - EDGE_X);
-        for (k = 0; k < 3; ++k) {
-            job_add(J_ECOL + k, e, wy - EDGE_Y);
-        }
-    }
-    if (dy) {
-        e = wy + (dy > 0 ? EDGE_Y : 256 - EDGE_Y);
-        for (k = 0; k < 3; ++k) {
-            job_add(J_EROW + k, e, wx - EDGE_X);
-        }
-    }
-}
-
-/* --- Ships ----------------------------------------------------------------- */
-
-
-static unsigned char ship_at(unsigned int x, unsigned char y)
-{
-    unsigned char i;
-
-    for (i = 0; i < SHIPS; ++i) {
-        if (ship_y[i] == y && ship_x[i] == x && boat != i + 1) {
-            return i;
-        }
-    }
-    return NONE;
-}
-
-/* The ships within sight, as sprites 1-7 (sm_npcs places them). */
-static void show_ships(void)
-{
-    unsigned char i, n = 0;
-    int dx;
-    signed char dy;
-
-    for (i = 0; i < SHIPS && n < 7; ++i) {
-        if (boat == i + 1) {
-            continue;
-        }
-        dx = (int)(ship_x[i] - wx);
-        if (dx < -(int)WORLD_W / 2) {
-            dx += WORLD_W;
-        } else if (dx >= (int)WORLD_W / 2) {
-            dx -= WORLD_W;
-        }
-        dy = (signed char)(ship_y[i] - wy);
-        if (dx < -12 || dx > 12 || dy < -9 || dy > 9) {
-            continue;
-        }
-        sm_npc_x[n] = ship_x[i] & 127;
-        sm_npc_y[n] = ship_y[i] & 127;
-        POKE(0x43F9 + n, SHIP_FRAME + 1);
-        POKE(0x47F9 + n, SHIP_FRAME + 1);
-        POKE(0xD028 + n, COLOR_BROWN);
-        ++n;
-    }
-    VIC.spr_mcolor = 0xFF;
-    sm_npc_n = n;
-}
-
 /* The hero's frame: walking, or a ship facing the way it last went across. */
 static unsigned char ship_face = 1;
 
-static unsigned char hero_frame(unsigned char d, unsigned char st)
+unsigned char hero_frame(unsigned char d, unsigned char st)
 {
     if (!boat) {
         return facing[d] * 2 + st;
@@ -659,45 +179,7 @@ static unsigned char hero_frame(unsigned char d, unsigned char st)
     return 9 + ship_face;
 }
 
-/* --- The world, from the bootstrap ------------------------------------- */
-
-extern unsigned char _OWLOW_LOAD__[], _OWLOW_SIZE__[];
-
-/* What the bootstrap built and found (ow.h), into the engine's own: the
-   lands are in the vault already. The hero starts where it says: at
-   Millford in a new game, wherever a saved one left them. */
-static void take_world(void)
-{
-    seed = lore_seed = OW->seed;
-    land       = ISLE_HOME;
-    home_biome = OW->home_biome;
-    memcpy(home_fx, OW->home_fx, NUM_HOME_PLACES);
-    memcpy(home_fy, OW->home_fy, NUM_HOME_PLACES);
-    memcpy(ipx, OW->ipx, sizeof ipx);
-    memcpy(ipy, OW->ipy, sizeof ipy);
-    memcpy(ibiome, OW->ibiome, sizeof ibiome);
-    memcpy(ship_x, OW->ship_x, sizeof ship_x);
-    memcpy(ship_y, OW->ship_y, sizeof ship_y);
-    /* Where the hero starts, or where a talk found them: the window is
-       built round that, and so is the home the town is left to. */
-#ifdef OW_REU
-    wx = back ? OWB->out_x : OW->start_x;
-    wy = back ? OWB->out_y : OW->start_y;
-#else
-    wx = OW->start_x;
-    wy = OW->start_y;
-#endif
-    hx = wx & 127;
-    hy = wy & 127;
-    sm_torus = 1;
-    fill_window();
-    seek();
-    shore_time = PEEK(0xA2);
-    sm_shores();
-    shore_time = PEEK(0xA2) - shore_time;
-}
-
-static void place_camera(void)
+void place_camera(void)
 {
     /* The square's top left at (148, 84) on the screen: 2 * square - 18.5
        characters, so four pixels into one. */
@@ -709,7 +191,7 @@ static void place_camera(void)
 
 /* What is really at a square: in a place, local[], where it was built
    (WORLD has its roofs drawn over it); on the overworld, the window. */
-static unsigned char tile_at(unsigned char x, unsigned char y)
+unsigned char tile_at(unsigned char x, unsigned char y)
 {
     if (area != AREA_HOME) {
         return local[LOCAL_AT(x - BIAS, y - BIAS)];
@@ -717,7 +199,7 @@ static unsigned char tile_at(unsigned char x, unsigned char y)
     return WORLD[((unsigned int)(y & 63) << 6) | (x & 63)];
 }
 
-static unsigned char passable(unsigned char x, unsigned char y)
+unsigned char passable(unsigned char x, unsigned char y)
 {
     unsigned char i;
 
@@ -733,34 +215,10 @@ static unsigned char passable(unsigned char x, unsigned char y)
     return ow_pass[(tile_at(x, y) - 0x60) & 63];
 }
 
-/* On the overworld, the square dx, dy from the hero: on foot, land, or a
-   ship to board; in a ship, open water, or land to step off onto. */
-static unsigned char world_ok(signed char dx, signed char dy)
-{
-    unsigned int x = wrapx(wx + WORLD_W + dx);
-    unsigned char y = wy + dy, t = tile_at(x, y);
-
-    if (t == T_WATER && ship_at(x, y) != NONE) {
-        return !boat;           /* board it; a ship cannot sail into one */
-    }
-    if (boat && t == T_WATER) {
-        return 1;
-    }
-    return ow_pass[(t - 0x60) & 63];
-}
-
-/* Whether a step that way can be taken: onto open ground, and on a
-   diagonal not squeezing between two corners, of sea or of mountain. */
-static unsigned char can_step(unsigned char d)
+unsigned char __fastcall__ place_step(unsigned char d)
 {
     signed char dx = dirdx[d], dy = dirdy[d];
 
-    if (area == AREA_HOME) {
-        if (!world_ok(dx, dy)) {
-            return 0;
-        }
-        return !dx || !dy || world_ok(dx, 0) || world_ok(0, dy);
-    }
     if (!passable(hx + dx, hy + dy)) {
         return 0;
     }
@@ -787,7 +245,15 @@ static unsigned char held(void)
     return NONE;
 }
 
-/* --- The music ------------------------------------------------------------
+void next_frame(void)
+{
+    unsigned char f = sm_frame;
+
+    while (sm_frame == f) {
+    }
+}
+
+/* --- The music and the disk -----------------------------------------------
 
    The game's scenes and its SID files (assets/music.txt, music_map.h): a
    scene plays a song of a file. The bootstrap loaded the file a game starts
@@ -797,29 +263,42 @@ static unsigned char held(void)
 static unsigned char song_now = NONE;   /* the song playing, or that would be */
 static unsigned char music = 1;         /* the M key */
 
-static void next_frame(void);
+/* Before the disk: the music stopped (silence has to reach VICE's sound
+   buffer before the drive works, or it plays its last one for as long as
+   that takes: CLAUDE.md), and the sprites, which take cycles the serial bus
+   needs. Returns the sprites to put back. */
+static unsigned char disk_on(void)
+{
+    unsigned char i;
 
-static void play_for(unsigned char s)
+    ow_tune_stop();
+    song_now = NONE;
+    for (i = 0; i < 12; ++i) {
+        next_frame();
+    }
+    i = VIC.spr_ena;
+    VIC.spr_ena = 0;
+    return i;
+}
+
+static void disk_off(unsigned char sprites)
+{
+    VIC.spr_ena = sprites;
+    frame = sm_frame;           /* those frames were not missed */
+}
+
+void play_for(unsigned char s)
 {
     unsigned char f = tune_file[s], i;
 
     if (f != OW->tune) {
-        ow_tune_stop();
         OW->tune = OW_NO_TUNE;
-        song_now = NONE;
         sm_blank(1);
-        /* Silence has to reach VICE's sound buffer before the drive works,
-           or it plays its last one for as long as that takes (CLAUDE.md). */
-        for (i = 0; i < 12; ++i) {
-            next_frame();
-        }
-        i = VIC.spr_ena;
-        VIC.spr_ena = 0;        /* sprites take cycles the serial bus needs */
+        i = disk_on();
         if (cbm_load(tune_name[f], 8, 0)) {
             OW->tune = f;
         }
-        VIC.spr_ena = i;
-        frame = sm_frame;       /* those frames were not missed */
+        disk_off(i);
     }
     if (OW->tune == f && tune_song[s] != song_now) {
         song_now = tune_song[s];
@@ -829,64 +308,42 @@ static void play_for(unsigned char s)
     }
 }
 
-/* The overworld's: the sea in a ship, else the land you are on. */
-static void play_world(void)
+/* The overlay ov_want asks for, into the slot (the screen is off), and
+   started. The game's disk is needed: the border flashes until it is back.
+   An overlay's ov_enter() may ask for the other in turn. */
+static void ov_switch(void)
 {
-    play_for(boat ? MUSIC_SEA :
-          grid[wy >> 6][wx >> 6] == CELL_HOME ? MUSIC_HOME : MUSIC_ISLE);
+    unsigned char s;
+
+    while (ov_want != ov_have) {
+        s = disk_on();
+        while (!cbm_load(ov_want == OV_TOWN ? town_file : world_file, 8, 0)) {
+            ++VIC.bordercolor;
+        }
+        VIC.bordercolor = COLOR_BLACK;
+        disk_off(s);
+        ov_have = ov_want;
+        ov_enter();
+    }
 }
 
 /* --- Going in and out of places --------------------------------------- */
 
-static void next_frame(void)
-{
-    unsigned char f = sm_frame;
-
-    while (sm_frame == f) {
-    }
-}
-
-/* The screen off, and the overworld put away if that is where you are. A
-   continent on its way into the slot is seen in or dropped: a place's map
-   is built in local[], where a continent is too. */
-#pragma code-name (push, "HICODE")  /* places, roofs, arriving: MAIN is full */
-static void leave_area(void)
+/* The screen off. (The world's overlay puts the overworld away too.) */
+void leave_area(void)
 {
     switch_time = PEEK(0xA2);
     sm_blank(1);
     next_frame();               /* the blank has reached the screen */
-    if (area == AREA_HOME) {
-        /* The window finished first: what the REU keeps, it puts back,
-           and a place's map must not get the overworld's jobs. */
-        if (after) {
-            stream(dirdx[after - 1], dirdy[after - 1]);
-            after = 0;
-        }
-        while (job_head != job_tail) {
-            job_run();
-        }
-        out_wx = wx;
-        out_wy = wy;
-        while (gen_state == 3) {
-            gen_run(sm_frame);
-        }
-        if (gen_state == 1) {
-            gen_state = 0;      /* seek() starts it again, back outside */
-        }
-#ifdef OW_REU
-        sm_reu_keep(1);         /* the window, edges and all, into the REU */
-#endif
-    }
 }
 
 /* A place's map, from local[], into WORLD, with the people in it, in the
    tile set `set` (which says what is beyond the map's edge). */
-static void build_area(const unsigned char *set, unsigned char w,
-                       unsigned char h)
+void build_area(const unsigned char *set, unsigned char w, unsigned char h)
 {
     unsigned char y;
 
-    sm_npc_n = 0;               /* nobody, until add_people() */
+    sm_npc_n = 0;               /* nobody, until the people are shown */
     sm_torus = 0;               /* a place has edges */
     sm_tileset(set);
     memset(WORLD, sm_offtile, 64 * 64);
@@ -897,356 +354,18 @@ static void build_area(const unsigned char *set, unsigned char w,
     area_h = h;
 }
 
-/* --- Roofs -------------------------------------------------------------
-
-   In a town or the castle, a building you are not in shows only its roof,
-   as in Ultima VI. A building is a closed area with a door: found once on
-   the way in, by filling from where you stand (the outside, region 1)
-   through everything that is not a wall or a door, then again from each
-   square not yet reached. Its roof covers it and the walls round it, with a
-   ridge along its middle row, and hides the people in it; the doors stay.
-   Stepping into its doorway (or onto its floor) takes its roof off and puts
-   back whichever came off before, drawn into the hidden screen and flipped
-   to, so it changes between one frame and the next. A door between two
-   rooms keeps open the one already open. What you can walk on is read from local[],
-   which has no roofs. */
-
-#define T_ROOF   0x92           /* the tile sets' own codes (mkoverworld.py) */
-#define T_RIDGE  0x93
-#define MAX_BLD  32
-#define AT(x, y) ((unsigned int)(y) * LOCAL_W + (x))
-
-static unsigned char region[LOCAL_W * LOCAL_H];        /* 0 a wall or door */
-/* For a wall, the buildings beside it (up to two, 0 for none): it is under
-   a roof if either is. Worked out once, so that a roof changing is a pass
-   over the town and no more. */
-static unsigned char owner1[LOCAL_W * LOCAL_H], owner2[LOCAL_W * LOCAL_H];
-static unsigned char has_door[MAX_BLD], ridge_y[MAX_BLD];
-static unsigned char top_y[MAX_BLD], bot_y[MAX_BLD];
-static unsigned char left_x[MAX_BLD], right_x[MAX_BLD];
-static unsigned char inside;    /* the building you are in, or 0 */
-
-static unsigned char is_door(unsigned char t)
-{
-    return t == T_DOOR || t == T_LOCKEDDOOR;
-}
-
-static unsigned char barrier(unsigned char t)
-{
-    return t == T_WALL || t == T_SECRETDOOR || is_door(t);
-}
-
-/* Everything joined to (x, y) that is not a wall or a door, as `r`. The
-   queue is in SHORE, which sm_shores() fills afresh afterwards. */
-#pragma code-name (push, "OWLOW")   /* run at $0400: see main() */
-static void flood(unsigned char x, unsigned char y, unsigned char r)
-{
-    static const signed char fx[4] = { 1, -1, 0, 0 };
-    static const signed char fy[4] = { 0, 0, 1, -1 };
-    unsigned char *qx = (unsigned char *)0xA000, *qy = qx + 512;
-    unsigned int head = 0, tail = 0;
-    unsigned char d, nx, ny;
-
-    region[AT(x, y)] = r;
-    qx[tail] = x;
-    qy[tail++] = y;
-    while (head < tail) {
-        x = qx[head];
-        y = qy[head++];
-        if (y < top_y[r]) top_y[r] = y;
-        if (y > bot_y[r]) bot_y[r] = y;
-        if (x < left_x[r]) left_x[r] = x;
-        if (x > right_x[r]) right_x[r] = x;
-        for (d = 0; d < 4; ++d) {
-            nx = x + fx[d];
-            ny = y + fy[d];
-            if (nx >= LOCAL_W || ny >= LOCAL_H || region[AT(nx, ny)] ||
-                barrier(local[LOCAL_AT(nx, ny)])) {
-                continue;
-            }
-            region[AT(nx, ny)] = r;
-            qx[tail] = nx;
-            qy[tail++] = ny;
-        }
-    }
-}
-
-#pragma code-name (pop)
-
-static void find_owners(void);
-
-static void find_buildings(void)
-{
-    unsigned char x, y, r = 2, t;
-
-    memset(region, 0, sizeof(region));
-    memset(has_door, 0, sizeof(has_door));
-    memset(top_y, 0xFF, sizeof(top_y));
-    memset(bot_y, 0, sizeof(bot_y));
-    memset(left_x, 0xFF, sizeof(left_x));
-    memset(right_x, 0, sizeof(right_x));
-    flood(hero.x, hero.y, 1);                   /* the outside */
-    for (y = 0; y < LOCAL_H; ++y) {
-        for (x = 0; x < LOCAL_W; ++x) {
-            if (!region[AT(x, y)] && !barrier(local[LOCAL_AT(x, y)]) &&
-                r < MAX_BLD) {
-                flood(x, y, r++);
-            }
-        }
-    }
-    for (y = 0; y < LOCAL_H; ++y) {              /* which have a door */
-        for (x = 0; x < LOCAL_W; ++x) {
-            t = local[LOCAL_AT(x, y)];
-            if (!is_door(t)) {
-                continue;
-            }
-            if (x > 0)            has_door[region[AT(x - 1, y)]] = 1;
-            if (x + 1 < LOCAL_W)  has_door[region[AT(x + 1, y)]] = 1;
-            if (y > 0)            has_door[region[AT(x, y - 1)]] = 1;
-            if (y + 1 < LOCAL_H)  has_door[region[AT(x, y + 1)]] = 1;
-        }
-    }
-    has_door[0] = has_door[1] = 0;              /* walls; the outside */
-    for (r = 2; r < MAX_BLD; ++r) {
-        ridge_y[r] = (top_y[r] + bot_y[r] + 1) / 2;
-    }
-    inside = 0;
-    find_owners();
-}
-
-static unsigned char roofed(unsigned char r)
-{
-    return has_door[r] && r != inside;
-}
-
-/* Each wall's buildings: those with a door among the eight round it. */
-static void find_owners(void)
-{
-    unsigned char x, y, dx, dy, nx, ny, r;
-    unsigned int i = 0;
-
-    for (y = 0; y < LOCAL_H; ++y) {
-        for (x = 0; x < LOCAL_W; ++x, ++i) {
-            owner1[i] = owner2[i] = 0;
-            if (region[i] || is_door(local[LOCAL_AT(x, y)])) {
-                continue;
-            }
-            for (dy = 0; dy < 3; ++dy) {
-                for (dx = 0; dx < 3; ++dx) {
-                    nx = x + dx - 1;
-                    ny = y + dy - 1;
-                    if (nx >= LOCAL_W || ny >= LOCAL_H) {
-                        continue;
-                    }
-                    r = region[AT(nx, ny)];
-                    if (!has_door[r] || r == owner1[i]) {
-                        continue;
-                    }
-                    if (!owner1[i]) {
-                        owner1[i] = r;
-                    } else {
-                        owner2[i] = r;
-                    }
-                }
-            }
-        }
-    }
-}
-
-/* WORLD from local[], with a roof on every building you are not in: the
-   squares bx0-bx1 by by0-by1 of it (the whole town, or where a roof came
-   off and went on). */
-static unsigned char bx0, by0, bx1, by1;
-
-#pragma code-name (push, "OWLOW")
-static void put_roofs(void)
-{
-    unsigned char x, y, t, r;
-    unsigned char *w = WORLD + (unsigned int)by0 * 64;
-    unsigned char *l = local + LOCAL_AT(0, by0);
-    unsigned int i;
-
-    for (y = by0; y <= by1; ++y, w += 64, l += LOCAL_STRIDE) {
-        i = AT(bx0, y);
-        for (x = bx0; x <= bx1; ++x, ++i) {
-            t = l[x];
-            r = region[i];
-            if (!r) {                   /* a wall: either building's roof */
-                r = owner1[i];
-                if (!roofed(r)) {
-                    r = owner2[i];
-                }
-            }
-            if (!roofed(r)) {
-                w[x] = t;
-            } else {
-                w[x] = y == ridge_y[r] ? T_RIDGE : T_ROOF;
-            }
-        }
-    }
-}
-
-/* The people, as sprites 1 to 7, but for those under a roof: where they
-   stand, and a robe each (by who they are, so it stays theirs). */
-#pragma code-name (pop)
-
-static void show_people(void)
-{
-    const TownEnt *e = here_ents;
-    unsigned char i, n = 0;
-
-    for (i = 0; i < here_n && n < 7; ++i, ++e) {
-        if (roofed(region[AT(e->x, e->y)])) {
-            continue;
-        }
-#ifdef OW_REU
-        npc_ent[n] = i;
-#endif
-        sm_npc_x[n] = e->x + BIAS;
-        sm_npc_y[n] = e->y + BIAS;
-        POKE(0x43F9 + n, NPC_FRAME);    /* both screens' sprite pointers */
-        POKE(0x47F9 + n, NPC_FRAME);
-        POKE(0xD028 + n, robes[i % 7]);
-        ++n;
-    }
-    VIC.spr_mcolor = 0xFF;
-    sm_npc_n = n;
-}
-
-/* The box of squares building r decides, grown to take it in: the
-   building, its walls, and a square more. */
-static void grow_box(unsigned char r)
-{
-    unsigned char a;
-
-    if (!r) {
-        return;
-    }
-    a = left_x[r] < 2 ? 0 : left_x[r] - 2;
-    if (a < bx0) bx0 = a;
-    a = top_y[r] < 2 ? 0 : top_y[r] - 2;
-    if (a < by0) by0 = a;
-    a = right_x[r] + 2 >= LOCAL_W ? LOCAL_W - 1 : right_x[r] + 2;
-    if (a > bx1) bx1 = a;
-    a = bot_y[r] + 2 >= LOCAL_H ? LOCAL_H - 1 : bot_y[r] + 2;
-    if (a > by1) by1 = a;
-}
-
-#pragma code-name (pop)             /* (the rest has room in MAIN again) */
-
-/* That box in characters on the screen, clipped to it (if none of it is
-   on the screen, a corner of the screen: the copy is all that matters). */
-static void box_on_screen(void)
-{
-    int c0 = (bx0 + BIAS) * 2 - sm_ox, c1 = (bx1 + BIAS) * 2 + 1 - sm_ox;
-    int r0 = (by0 + BIAS) * 2 - sm_oy, r1 = (by1 + BIAS) * 2 + 1 - sm_oy;
-
-    if (c0 < 0) c0 = 0;
-    if (r0 < 0) r0 = 0;
-    if (c1 > 39) c1 = 39;
-    if (r1 > 24) r1 = 24;
-    if (c0 > c1 || r0 > r1) {
-        c0 = c1 = r0 = r1 = 0;
-    }
-    if (whole) {
-        c0 = r0 = 0;
-        c1 = 39;
-        r1 = 24;
-    }
-    sm_box_c0 = c0;
-    sm_box_c1 = c1;
-    sm_box_r0 = r0;
-    sm_box_r1 = r1;
-}
-
-/* At the end of a step in a town: in or out of a building? */
-/* The building a door at (x, y) opens into: one beside it with a roof, or
-   the one already open if it joins two (a door between rooms); 0 if none. */
-static unsigned char door_opens(unsigned char x, unsigned char y)
-{
-    static const signed char dx[4] = { 1, -1, 0, 0 };
-    static const signed char dy[4] = { 0, 0, 1, -1 };
-    unsigned char d, nx, ny, r, found = 0;
-
-    for (d = 0; d < 4; ++d) {
-        nx = x + dx[d];
-        ny = y + dy[d];
-        if (nx >= LOCAL_W || ny >= LOCAL_H) {
-            continue;
-        }
-        r = region[AT(nx, ny)];
-        if (!has_door[r]) {
-            continue;
-        }
-        if (r == inside) {
-            return r;
-        }
-        if (!found) {
-            found = r;
-        }
-    }
-    return found;
-}
-
-static void roof_check(void)
-{
-    unsigned char x = hx - BIAS, y = hy - BIAS;
-    unsigned char r = region[AT(x, y)];
-
-    if (!r) {
-        if (!is_door(local[LOCAL_AT(x, y)])) {
-            return;             /* (a wall: never stood on) */
-        }
-        r = door_opens(x, y);   /* standing in a doorway opens the building */
-        if (!r) {
-            return;
-        }
-    }
-    if (!has_door[r]) {
-        r = 0;                  /* outside, or nowhere with a roof */
-    }
-    if (r == inside) {
-        return;
-    }
-    roof_time = PEEK(0xA2);
-    /* What changes: the building you left and the one you went into, with
-       their walls and a square more, whose edges they decide. */
-    bx0 = by0 = 0xFF;
-    bx1 = by1 = 0;
-    grow_box(inside);
-    grow_box(r);
-    if (whole) {
-        bx0 = by0 = 0;
-        bx1 = LOCAL_W - 1;
-        by1 = LOCAL_H - 1;
-    }
-    inside = r;
-    put_roofs();
-    sm_sh_x0 = bx0;             /* their edges ... */
-    sm_sh_y0 = by0;
-    sm_sh_x1 = bx1;
-    sm_sh_y1 = by1;
-    sm_shores_rect();
-    box_on_screen();            /* ... and their characters, into the hidden */
-    sm_redraw_box();            /* screen, the rest copied from the front */
-    pre_dir = NONE;             /* (over any shift made for the next step) */
-    show_people();
-    sm_npcs();
-    sm_commit(1);               /* ... and flipped to at the next frame */
-    next_frame();
-    roof_time = PEEK(0xA2) - roof_time;
-    frame = sm_frame;
-}
-
 /* The camera on the hero at engine square (x, y) of the new area, drawn,
    and on. */
-
-static void show_area(unsigned char x, unsigned char y)
+void __fastcall__ show_area(unsigned char x, unsigned char y)
 {
 #ifdef OW_REU
     if (area != AREA_HOME)      /* (the REU kept the overworld's) */
 #endif
-    sm_shores();
+    {
+        shore_time = PEEK(0xA2);
+        sm_shores();
+        shore_time = PEEK(0xA2) - shore_time;
+    }
     hx = x;
     hy = y;
     pre_dir = NONE;
@@ -1258,228 +377,8 @@ static void show_area(unsigned char x, unsigned char y)
     frame = sm_frame;           /* that took frames, which were not missed */
 }
 
-static void go_town(unsigned char index)
-{
-    unsigned char *src = local + sizeof(local) - LOCAL_W * LOCAL_H;
-    unsigned char y;
-
-    leave_area();
-#ifdef OW_REU
-    town_index = index;
-#endif
-    area = index == TOWN_CASTLE ? AREA_CASTLE : AREA_TOWN;
-    play_for(area == AREA_CASTLE ? MUSIC_CASTLE : MUSIC_TOWN);
-    if (index < NUM_TOWNS) {
-        rle_unpack(src, town_map[index], LOCAL_W * LOCAL_H);
-        for (y = 0; y < LOCAL_H; ++y, src += LOCAL_W) {
-            memmove(local + LOCAL_AT(0, y), src, LOCAL_W);
-        }
-        here_ents = town_ents + town_ent_first[index];
-        here_n    = town_ent_first[index + 1] - town_ent_first[index];
-        here_ex   = town_ex[index];
-        here_ey   = town_ey[index];
-        hero.x    = town_sx[index];
-        hero.y    = town_sy[index];
-    } else {
-        town_gen();             /* the people, the way out and where to stand */
-    }
-    build_area(area == AREA_CASTLE ? ts_castle : ts_town, LOCAL_W, LOCAL_H);
-    find_buildings();
-    bx0 = by0 = 0;
-    bx1 = LOCAL_W - 1;
-    by1 = LOCAL_H - 1;
-    put_roofs();
-    show_people();
-    ex = here_ex;
-    ey = here_ey;
-#ifdef OW_REU
-    if (resuming) {             /* back from a talk: where they stood */
-        resuming = 0;
-        hero.x = resume_x;
-        hero.y = resume_y;
-    }
-#endif
-    show_area(hero.x + BIAS, hero.y + BIAS);
-}
-
-#ifdef OW_REU
-/* The person in the square d from the hero, as their sprite's index, or
-   NONE: a step into one is a conversation, not a wall. */
-static unsigned char npc_at(unsigned char d)
-{
-    unsigned char i, x = hx + dirdx[d], y = hy + dirdy[d];
-
-    for (i = 0; i < sm_npc_n; ++i) {
-        if (sm_npc_x[i] == x && sm_npc_y[i] == y) {
-            return i;
-        }
-    }
-    return NONE;
-}
-
-/* Talk to sprite n's person. The engine goes; src/owtalk.c has the talk,
-   and loads the engine back when it ends (back_to_town). Never returns. */
-static void talk_to(unsigned char n)
-{
-    const TownEnt *e = &here_ents[npc_ent[n]];
-
-    OWB->mode = OWB_TALK;
-    OWB->npc = e->param;
-    OWB->town = town_index;
-    OWB->land = land;
-    OWB->x = hx - BIAS;
-    OWB->y = hy - BIAS;
-    OWB->out_x = out_wx;
-    OWB->out_y = out_wy;
-    sm_quit();
-    memset((void *)0x0400, 0x20, 1000);     /* the load shows a clear screen, */
-    memset((void *)0xD800, 0, 1000);        /* black, colour RAM too */
-    VIC.bgcolor0 = COLOR_BLACK;             /* and the background, which is
-                                               green on the map */
-    VIC.bordercolor = COLOR_BLACK;
-    ow_run(owtalk_name);
-}
-
-/* The town the talk began in, with the hero where they stood. The world
-   was built round where they came in from (take_world), so going in
-   again is as going in from the map. */
-static void back_to_town(void)
-{
-    resuming = 1;
-    resume_x = OWB->x;
-    resume_y = OWB->y;
-    land = OWB->land;
-    if (land != ISLE_HOME) {
-        isle_biome = ibiome[land];
-    }
-    go_town(OWB->town);
-}
-#endif /* OW_REU */
-
-/* Level `depth` of dungeon dun_index (the Hollow Crown at home, the
-   Drowned Stair or Blackpit across the sea), standing on the stairs you
-   came by: up if you came down, down if you came up. */
-static void dungeon_level(unsigned char came_down)
-{
-    dungeon_build(dun_index, depth);
-    build_area(ts_dungeon, DUN_W, DUN_H);
-    if (came_down) {
-        show_area(dun_up_x + BIAS, dun_up_y + BIAS);
-    } else {
-        show_area(dun_dn_x + BIAS, dun_dn_y + BIAS);
-    }
-}
-
-static void go_dungeon(unsigned char index)
-{
-    leave_area();
-    area = AREA_DUNGEON;
-    play_for(MUSIC_DUNGEON);
-    dun_index = index;
-    depth = 1;
-    dungeon_level(1);
-}
-
-static void back_home(void)
-{
-    leave_area();
-    area = AREA_HOME;
-    sm_npc_n = 0;               /* the town's people stay in the town */
-    sm_tileset(ts_overworld);
-    sm_torus = 1;
-    area_w = area_h = 64;
-    wx = out_wx;
-    wy = out_wy;
-    play_world();
-#ifdef OW_REU
-    sm_reu_keep(0);             /* the window as it was, edges and all */
-#else
-    fill_window();              /* (show_area works out the edges) */
-#endif
-    seek();
-    show_ships();
-    show_area(wx & 127, wy & 127);
-}
-
-/* At the end of a step: whatever the square does. Home's places are, in
-   isle_fx's order, Millford, the castle, the Hollow Crown, Maldrath's lair
-   (which is the dragon, and not here) and a town of its own. */
-static void arrived(void)
-{
-    unsigned char t = tile_at(hx, hy), i, k, lx, ly, d;
-
-    switch (area) {
-    case AREA_HOME:
-        if (t != T_TOWN && t != T_CASTLE && t != T_DUNGEON) {
-            return;
-        }
-        k = grid[wy >> 6][wx >> 6];
-        lx = wx & 63;
-        ly = wy & 63;
-        if (k == CELL_HOME) {
-            for (i = 0; i < 5; ++i) {
-                if (home_fx[i] == lx && home_fy[i] == ly) {
-                    break;
-                }
-            }
-            land = ISLE_HOME;
-            switch (i) {
-            case 0: go_town(TOWN_MILLFORD); break;
-            case 1: go_town(TOWN_CASTLE);   break;
-            case 2: go_dungeon(0);          break;
-            case 4: go_town(TOWN_PROC);     break;
-            }
-        } else if (k) {
-            /* A continent's: its story place (a town or a dungeon, by the
-               seed's shuffle), or its own town. */
-            k -= 1;
-            ly -= ISLE_TOP;
-            for (i = 0; i < 2; ++i) {
-                if (ipx[k][i] == lx && ipy[k][i] == ly) {
-                    break;
-                }
-            }
-            land = k;
-            isle_biome = ibiome[k];
-            if (i == 0) {
-                d = OW->slot[k];  /* which story place */
-                if (d & 1) {
-                    go_dungeon(1 + (d >> 1));
-                } else {
-                    go_town(TOWN_WARDLOW + (d >> 1));
-                }
-            } else if (i == 1) {
-                go_town(TOWN_PROC);
-            }
-        }
-        break;
-    case AREA_DUNGEON:
-        if (t == T_STAIRDN && depth < dungeon_deep[dun_index]) {
-            leave_area();
-            ++depth;
-            dungeon_level(1);
-        } else if (t == T_STAIRUP) {
-            if (depth == 1) {
-                back_home();
-            } else {
-                leave_area();
-                --depth;
-                dungeon_level(0);
-            }
-        }
-        break;
-    default:
-        if (hx - BIAS == ex && hy - BIAS == ey) {
-            back_home();
-        } else {
-            roof_check();
-        }
-        break;
-    }
-}
-
 /* Something typed: a step, or a setting. PETSCII. */
-#pragma code-name (push, "OWTOP")  /* past the sprite blocks: MAIN is full */
+#pragma code-name (push, "OWTOP")  /* past the sprite blocks */
 static unsigned char key_dir(unsigned char k)
 {
     switch (k) {
@@ -1580,95 +479,66 @@ static unsigned char glide(void)
     return flip;
 }
 
-/* The end of a step on the overworld: where the hero is in the world;
-   on to a ship, or off one onto land, leaving it at the last of the water;
-   and what the window has to take in. */
-static void step_world(void)
+/* The bootstrap's hand-off (ow.h), or a talk's: what the core keeps of it.
+   The overlays take the rest. A new game starts on the overworld, where the
+   bootstrap says; the end of a talk in the town it began in. */
+static void take_block(void)
 {
-    unsigned char s;
-    static unsigned char ashore;
-
-    wx = wrapx(wx + WORLD_W + (signed char)dirdx[dir]);
-    wy += dirdy[dir];
-    hx = wx & 127;
-    hy = wy & 127;
-    if (!boat) {
-        s = ship_at(wx, wy);
-        if (s != NONE) {
-            boat = s + 1;
-            VIC.spr0_color = COLOR_BROWN;
-            sm_sprite(hero_frame(dir, 0));
-            ashore = 1;
+    seed = lore_seed = OW->seed;
+    land       = ISLE_HOME;
+    home_biome = OW->home_biome;
+    memcpy(home_fx, OW->home_fx, NUM_HOME_PLACES);
+    memcpy(home_fy, OW->home_fy, NUM_HOME_PLACES);
+    memcpy(ship_x, OW->ship_x, sizeof ship_x);
+    memcpy(ship_y, OW->ship_y, sizeof ship_y);
+    if (OWB->mode == OWB_BACK) {
+        out_wx = OWB->out_x;
+        out_wy = OWB->out_y;
+        land = OWB->land;
+        if (land != ISLE_HOME) {
+            isle_biome = OW->ibiome[land];
         }
-    } else if (tile_at(hx, hy) == T_WATER) {
-        ship_x[boat - 1] = wx;      /* the ship goes where you sail it */
-        ship_y[boat - 1] = wy;
+        town_index = OWB->town;
+        resuming = 1;
+        resume_x = OWB->x;
+        resume_y = OWB->y;
+        ov_want = OV_TOWN;
     } else {
-        boat = 0;                   /* ashore: it stays where it was */
-        VIC.spr0_color = COLOR_RED;
-        sm_sprite(hero_frame(dir, stride));
-        ashore = 1;
+        out_wx = OW->start_x;
+        out_wy = OW->start_y;
+        ov_want = OV_WORLD;
     }
-    if (ashore) {
-        /* Aboard or ashore is the only way the overworld's music changes:
-           there is sea between any two lands. */
-        ashore = 0;
-        play_world();
-        sm_blank(0);                /* (if that had to load a tune) */
-    }
-    after = dir + 1;            /* and the rest next frame: see main() */
+    OWB->mode = OWB_NONE;
 }
 
 int main(void)
 {
     unsigned char d, flipped;
-#ifdef OW_REU
-    unsigned char n;
-#endif
 
     /* The C stack, which cc65 starts at the top of MAIN, into the tape
        buffer instead ($0334-$03FF, down from $0400), which nothing else
-       here uses: MAIN is full to the last byte. (main() keeps nothing on
-       it, and never returns.) */
+       here uses. (main() keeps nothing on it, and never returns.) */
     sm_stack();                 /* (the screen is off: the loader's doing) */
-#ifdef OW_REU
-    back = OWB->mode == OWB_BACK;
-    OWB->mode = OWB_NONE;
-#endif
 
     if (OW->magic != OW_MAGIC) {
         cputs("\r\nLoad OPENWORLD: it builds the world.");
         for (;;) {
         }
     }
-    sm_tileset(ts_overworld);
-    take_world();
-    /* The text screen is done with: the code that runs at $0400 comes out
-       of screen A's space, which nothing has drawn on yet. */
-    memcpy((void *)0x0400, _OWLOW_LOAD__, (unsigned)_OWLOW_SIZE__);
+    take_block();
+    /* (Nothing is in OWLOW now, the code run at $0400 that was copied out of
+       screen A's space here: the roofs' flood and drawing were, and are in
+       the town's overlay. Put some there and the copy has to come back.) */
 
+    /* The interrupt going, with the screen off, before the first overlay:
+       the disk waits for frames. The overlay draws its area and turns the
+       screen on. */
     sm_init();
-    place_camera();
-    sm_draw_all();
     sm_sprite(0);
-#ifdef OW_REU
-    if (back) {
-        VIC.bgcolor0 = COLOR_BLACK;     /* the overworld's green (sm_tileset) */
-    }
-#endif
-    sm_blank(1);                /* hidden until drawn: see the top of main() */
+    VIC.bgcolor0 = COLOR_BLACK;
+    sm_blank(1);
     sm_show();
-    show_ships();
-    sm_npcs();
-#ifdef OW_REU
-    if (back) {
-        back_to_town();         /* (its own music, and the screen on) */
-    } else
-#endif
-    {
-        play_world();
-        sm_blank(0);
-    }
+    ov_switch();
 
     while (kbhit()) {
         cgetc();
@@ -1696,16 +566,8 @@ int main(void)
         frame = sm_frame;
         PROBE_COUNTER = frame;
         if (after) {
-            stream(dirdx[after - 1], dirdy[after - 1]);
-            show_ships();
-            sm_npcs();
+            ov_after();
             after = 0;
-            /* Which continent to have ready, every fourth step (it is 33
-               squares off when it changes: see kept), and here, not in the
-               frame the step ended in: on NTSC neither has time to spare. */
-            if (!(steps & 3)) {
-                seek();
-            }
         }
 
         if (moving) {
@@ -1752,14 +614,13 @@ int main(void)
             }
             if (moved == 16) {
                 moving = 0;
-                if (area == AREA_HOME) {
-                    step_world();
-                } else {
+                if (area != AREA_HOME) {
                     hx += dirdx[dir];
                     hy += dirdy[dir];
                 }
                 ++steps;
-                arrived();
+                ov_arrived();   /* (the overworld's step is the world's) */
+                ov_switch();    /* into a town, or out of one */
                 publish();
             }
         } else if ((frame & 15) == 0 && !still) {
@@ -1778,7 +639,7 @@ int main(void)
             }
             if (d != NONE) {
                 sm_sprite(hero_frame(d, stride));
-                if (can_step(d)) {
+                if (ov_can_step(d)) {
                     dir = d;
                     moving = 1;
                     moved = 0;
@@ -1791,15 +652,8 @@ int main(void)
                         build_some();   /* the edges in the next frames */
                     }
                     sm_sprite(hero_frame(dir, stride ^= 1));
-#ifdef OW_REU
-                } else if (area == AREA_TOWN || area == AREA_CASTLE) {
-                    /* Into a person: talk to them (the engine goes). Only
-                       the ones who talk: a villager is a wall. */
-                    n = npc_at(d);
-                    if (n != NONE && here_ents[npc_ent[n]].kind == ENT_NPC) {
-                        talk_to(n);
-                    }
-#endif
+                } else {
+                    ov_bump(d); /* into a person: a talk, in a town */
                 }
             } else if (PEEK(0xC6) == 0 && steps != 0) {
                 probe_stage(2);
@@ -1807,7 +661,7 @@ int main(void)
         }
         /* A frame with nothing built in it: the window's next job. */
         if (area == AREA_HOME) {
-            jobs();
+            ov_idle();
         }
         flipped = 0;
     }

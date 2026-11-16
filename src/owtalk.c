@@ -2,7 +2,8 @@
  * Quest for the King -- a conversation in the open world.
  *
  * The smooth-scrolling prototype's engine (src/ow/engine.c) has no room for
- * the talk, so when the hero walks into a townsperson it goes: its hand-off
+ * the talk, so when the hero walks into a townsperson it goes (the town's
+ * overlay, src/ow/town.c, sees to it): its hand-off
  * block (ow.h's OWB) says who, and in which town, and this program is loaded
  * over it (ow_run). It is the offline talk (src/lib/talk.c, which reads each
  * person's lines from the disk, one file per person), with the character
