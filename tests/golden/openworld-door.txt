@@ -21,7 +21,7 @@
  19 |...............i~................i^abefe|
  20 |%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%Dcdghg|
  21 |befefefababefababefefefefabefefefefefabe|
- 22 |dghghghcdcdghcdcdghghghghcdghghghghghcdg|
- 23 |befefefefabefefefefefabefababefefababefe|
- 24 |dghghghghcdghghghghghcdghcdcdghghcdcdghg|
+ 22 |                                        |
+ 23 |                                        |
+ 24 |                                        |
     +----------------------------------------+

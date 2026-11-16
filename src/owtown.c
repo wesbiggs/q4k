@@ -16,9 +16,13 @@
  *   OWB_INN             an inn (src/lib/inn.c): ale and a rumour from the
  *                       inn's file on the disk, or beds; arg which inn
  *   OWB_PARTY           I: the party, what they carry, a wizard's spells
+ *   OWB_HELP            ?: the open world's keys, and what to do next
  *   OWB_FIGHT           a fight (src/lib/ow_fight.c, with the multicolour
  *                       fight module, which loads over this program's code
  *                       above $4000: what runs after it is below)
+ *
+ * The music the engine was playing carries on here where it paused
+ * (src/lib/ow_play.s), but for a fight, which has none yet.
  *
  * It reads and writes the game through the game block (q4k/owgame.h), and
  * when it is done the engine is loaded back (ow_back()) and carries on from
@@ -45,6 +49,7 @@
 #include <q4k/town_gen.h>
 #include <q4k/ow.h>
 #include <q4k/owgame.h>
+#include <q4k/help.h>
 #include <q4k/tiles.h>
 #include <q4k/town_data.h>
 
@@ -93,12 +98,24 @@ void sprite_hide(void)
     VIC.spr_ena = 0;
 }
 
+/* The music the engine left paused, carried on (src/lib/ow_play.s). */
+void owt_music_on(void);
+void owt_music_pause(void);
+void owt_music_resume(void);
+void owt_music_off(void);
+
 /* And of savegame.c's, music.s's and view.c's, for the same reason: the
-   drive is unit 8, there is no music here to pause (the engine's player is
-   not running), and no map to put a message under. */
+   drive is unit 8, the music is ow_play.s's (the talk pauses it round the
+   disk), and there is no map to put a message under. */
 unsigned char save_device = 8;
-void music_pause(void) {}
-void music_resume(void) {}
+void music_pause(void)
+{
+    owt_music_pause();
+}
+void music_resume(void)
+{
+    owt_music_resume();
+}
 void __fastcall__ view_message(const char *s)
 {
     (void)s;
@@ -133,11 +150,50 @@ static void talk(unsigned char npc)
     }
 }
 
+/* ?: the open world's keys (the game's help.c has the game's), and what
+   the quest wants next (quest.c's, as the game's help screen has it). */
+static void help(void)
+{
+    unsigned char stage = quest_stage > Q_VICTORY ? Q_VICTORY : quest_stage;
+
+    textcolor(COLOR_YELLOW);
+    cputsxy(1, 0, "Quest for the King");
+    textcolor(COLOR_GRAY1);
+    chlinexy(0, 1, 40);
+    chlinexy(0, 19, 40);
+    textcolor(COLOR_LIGHTBLUE);
+    cputsxy(1, 2, "Moving");
+    cputsxy(1, 7, "Commands");
+    cputsxy(1, 15, "In a fight");
+    cputsxy(1, 20, "Your task");
+    textcolor(COLOR_WHITE);
+    cputsxy(3, 3, "W A S D, the cursor keys or a stick");
+    cputsxy(3, 4, "Q E Z C  diagonally; 1 2  slow, fast");
+    cputsxy(3, 5, "Walk into people to talk or trade");
+    cputsxy(3, 6, "Step onto a ship, a town, a dungeon");
+    cputsxy(3, 8, "P  The worst hurt drinks a draught");
+    cputsxy(3, 9, "L  Look: a chest, something hidden");
+    cputsxy(3, 10, "I  The party, what they carry");
+    cputsxy(3, 11, "F1 Save          F3 Restore");
+    cputsxy(3, 12, "M  Music         X  Effects");
+    cputsxy(3, 13, "?  This screen");
+    cputsxy(3, 14, "RUN/STOP  Quit to the title");
+    cputsxy(3, 16, "Each in turn: walk into foe to strike");
+    cputsxy(3, 17, "F+dir shoots a bow, C casts a spell");
+    cputsxy(3, 18, "SPACE guards; flee by a side gap");
+    textcolor(COLOR_LIGHTGREEN);
+    cputsxy(1, 21, quest_task[stage][0]);
+    cputsxy(1, 22, quest_task[stage][1]);
+    textcolor(COLOR_GRAY2);
+    cputsxy(1, 24, "Press any key");
+    cgetc();
+}
+
 int main(void)
 {
     unsigned char mode = OWB->mode;
 
-    if (mode < OWB_TALK || mode > OWB_FIGHT || mode == OWB_BACK ||
+    if (mode < OWB_TALK || mode > OWB_HELP || mode == OWB_BACK ||
         mode == OWB_NEW || mode == OWB_QUICK || mode == OWB_LOAD) {
         cputs("Load OPENWORLD: it builds the world.");
         for (;;) {
@@ -161,6 +217,11 @@ int main(void)
        and seed make it another one each time, and the same in a test. */
     srand(game_turn ^ ((unsigned int)lore_seed << 8));
     land = G->land;             /* the shops' tiers, a made town's inn */
+    if (mode == OWB_FIGHT) {
+        OWB->song = 0;          /* (none in a fight yet: the theme again after) */
+    } else {
+        owt_music_on();
+    }
     switch (mode) {
     case OWB_TALK:
         talk(OWB->npc);
@@ -181,7 +242,11 @@ int main(void)
         eng_a = SHOP_PARTY;
         shop_entry();
         break;
+    case OWB_HELP:
+        help();
+        break;
     }
+    owt_music_off();            /* paused, for the engine to carry on with */
     owg_out();
     ow_back();                  /* the engine, which carries on from the
                                    game block (owgame.h) */

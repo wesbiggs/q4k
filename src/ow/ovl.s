@@ -10,14 +10,14 @@
 ;
 
         .export _ov_enter, _ov_can_step, _ov_arrived, _ov_bump, _ov_after
-        .export _ov_idle
+        .export _ov_idle, _ov_look
         .import __SLOTW_START__, __SLOTT_START__, __SLOTD_START__
         .assert __SLOTW_START__ = __SLOTT_START__, lderror, "ovl: the overlays must share the slot"
         .assert __SLOTW_START__ = __SLOTD_START__, lderror, "ovl: the overlays must share the slot"
 
         .import _w_enter, _w_can_step, _w_arrived, _w_after, _w_idle
         .import _t_enter, _t_arrived, _t_bump, _t_can_step, _place_step
-        .import _w_bump
+        .import _w_bump, _w_look, _t_look, _d_look
         .import _d_enter, _d_arrived
 
 _ov_enter       = __SLOTW_START__ + 0
@@ -26,6 +26,7 @@ _ov_arrived     = __SLOTW_START__ + 6
 _ov_bump        = __SLOTW_START__ + 9
 _ov_after       = __SLOTW_START__ + 12
 _ov_idle        = __SLOTW_START__ + 15
+_ov_look        = __SLOTW_START__ + 18
 
         .import __VICTOP_START__
         .segment "OWHIADDR"     ; the engine's code past the screens: %O.hi
@@ -40,8 +41,7 @@ _ov_idle        = __SLOTW_START__ + 15
         jmp     _w_bump
         jmp     _w_after
         jmp     _w_idle
-w_nothing:
-        rts
+        jmp     _w_look
 
         .segment "OVTADDR"
         .word   __SLOTW_START__
@@ -51,8 +51,10 @@ w_nothing:
         jmp     _t_arrived
         jmp     _t_bump
         jmp     t_nothing       ; no window to stream: never called
+        jmp     t_nothing       ; (ov_idle: nor is this)
+        jmp     _t_look
 t_nothing:
-        rts                     ; (ov_idle: nor is this)
+        rts
 
         .segment "OVDADDR"
         .word   __SLOTW_START__
@@ -62,5 +64,7 @@ t_nothing:
         jmp     _d_arrived
         jmp     d_nothing       ; a step into anything is only a wall
         jmp     d_nothing       ; (never called: as the town's)
+        jmp     d_nothing
+        jmp     _d_look
 d_nothing:
         rts

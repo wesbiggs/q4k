@@ -7,7 +7,7 @@
  * party's level, a dungeon's depth, and over the sea a quarter of the time
  * the land's own), on the field for the ground it happened on; a keeper
  * is fought in a dungeon room and Maldrath in his lair, with no gap in the
- * sides. The pay, the levels, the stones and waking in Millford are the
+ * sides; the dead, when L wakes them, as battle_undead() has them. The pay, the levels, the stones and waking in Millford are the
  * game's too (battle.c's award(), q4k.c's keeper_beaten() and died()).
  *
  * The module is loaded at $5400 and its field and sprites below it, over
@@ -198,6 +198,16 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
         pick(&maldrath, 1);
         ground = T_LAIR;
         break;
+    case OWF_UNDEAD:
+        /* battle_undead(): the skeletons, or past level 5 a wraith (fixed
+           places in wanderers[]), woken by a grave robber. */
+        if (party_level >= 6) {
+            pick(&wanderers[9].m, 1);
+        } else {
+            pick(&wanderers[6].m, (unsigned char)(1 + rand() % 2));
+        }
+        ground = G->area == AREA_DUNGEON ? T_FLOOR : arg;
+        break;
     default:
         pick_wanderer(G->area == AREA_DUNGEON);
         ground = G->area == AREA_DUNGEON ? T_FLOOR : arg;
@@ -229,7 +239,7 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
     f->reach  = foe.reach;
     f->kind   = foe.kind;
     f->count  = foes;
-    f->flee   = kind == OWF_WANDER;
+    f->flee   = kind == OWF_WANDER || kind == OWF_UNDEAD;
     f->seed   = rand();
     strcpy(f->field, field_of(ground));
     strcpy(f->sprite, sprite_of(foe.glyph));

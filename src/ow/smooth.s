@@ -69,7 +69,8 @@
         .export _sm_sh_x0, _sm_sh_y0, _sm_sh_x1, _sm_sh_y1
         .export _sm_box_c0, _sm_box_c1, _sm_box_r0, _sm_box_r1
         .export _sm_ox, _sm_oy, _sm_fx, _sm_fy, _sm_front, _sm_frame
-        .export _sm_colend, _sm_irqline
+        .export _sm_colend, _sm_irqline, _sm_irqend, _sm_splitline
+        .export _sm_say, _sm_ink, _sm_text_clear, _sm_guard, sm_guard
         .export _sm_quit
 .if OW_REU
         .export _sm_reu_keep
@@ -92,6 +93,15 @@ SHORE    = $A000                ; the same, for water: land round it (below)
 D018_A   = ((SCRA & $3FFF) / $400) * 16 + ((CHARS & $3FFF) / $800) * 2
 D018_B   = ((SCRB & $3FFF) / $400) * 16 + ((CHARS & $3FFF) / $800) * 2
 IRQLINE  = 250
+; The text window (sm_say): the map is rows 0-21 of the screens, and rows
+; 22 and 23 are two lines of text that stay put while the map scrolls. See
+; "The text window", below the interrupt.
+MAPROWS  = 22
+MAPLEN   = MAPROWS * 40
+TEXTROW  = 22
+SPLITLINE = $DC                 ; ECM on, fine scroll 7: the map ends
+TEXTLINE  = $E5                 ; the line before the line before the text
+FONT     = $A0                  ; the text's characters: screen codes 0-$5F
 
 ; The REU (a 1700/1750, or one emulated: VICE's, a TeensyROM's), at $DF00.
 REU_STATUS = $DF00
@@ -162,6 +172,10 @@ _sm_front:  .res 1              ; 0: screen A is shown, 1: B
 _sm_frame:  .res 1              ; counts the interrupts
 _sm_colend: .res 1              ; the raster line the last colour copy ended on
 _sm_irqline: .res 1             ; the line the interrupt began on
+_sm_irqend: .res 1              ; and ended on
+_sm_splitline: .res 1           ; the latest line a split's write came in
+irqstep:    .res 1              ; 0 the flip's next, 1 the split's, 2 the text's
+_sm_ink:    .res 1              ; sm_say's colour
 
 built_dir:  .res 1              ; the way the back screen was built
 .if OW_REU
@@ -586,9 +600,9 @@ fill_n: lda     #0
         bne     @l
         rts
 
-; A column of 25 from (cx, cy) down into ptr1.
+; A column of the map's rows from (cx, cy) down into ptr1.
 fill_col:
-        lda     #25
+        lda     #MAPROWS
         sta     cnt
 @l:     jsr     char_at
         ldy     #0
@@ -606,11 +620,12 @@ fill_col:
 
 ; ---------------------------------------------------------------------------
 ; Colour RAM from a screen: four bytes a pass, ten passes a row, row by row
-; from the top so the beam never overtakes it. About 570 cycles a row.
+; from the top so the beam never overtakes it. About 570 cycles a row. The
+; map's rows only: the text's colours are its own (sm_say).
 
 .macro COLCOPY scr
         .local row
-        .repeat 25, R
+        .repeat MAPROWS, R
         ldx     #9
 :
         .repeat 4, K
@@ -636,7 +651,7 @@ colour_b:
 colour_a:
         COLCOPY SCRA
 CC_ROW = 2 + 4 * 9 + 3          ; a row's code: ldx, four ldy-lda-sta, dex, bpl
-        .assert * - colour_a = 25 * CC_ROW + 1, error, "colour_for's layout"
+        .assert * - colour_a = MAPROWS * CC_ROW + 1, error, "colour_for's layout"
 
 ; colour_a, made to read the screen whose page is in A: the high byte of
 ; each of its hundred ldy's, flipped if it reads the other one. About 2K
@@ -649,7 +664,7 @@ colour_for:
         sta     ptr1
         lda     #>(colour_a + 4)
         sta     ptr1+1
-        ldx     #25
+        ldx     #MAPROWS
 @row:   ldy     #0
 @ldy:   lda     (ptr1),y
         eor     #(>SCRA) ^ (>SCRB)
@@ -678,18 +693,19 @@ cc_page: .byte  >SCRA           ; the screen colour_a reads
 ; ---------------------------------------------------------------------------
 .if !OW_REU
 ; The back screen as the front moved one character. Column by column, each
-; column all 25 rows unrolled: nine cycles a byte. One copy for every
+; column all the map's rows unrolled: nine cycles a byte. One copy for every
 ; direction and screen, 2.2K less than sixteen copies: sm_shift patches its
 ; fifty addresses for a new direction (about 2K cycles), or for the same one
 ; from the other screen only flips their high bytes (about 900), which is
-; every shift of a straight walk. The first pair is row 24: a direction that
-; moves rows copies 24 and starts past it.
+; every shift of a straight walk. The first pair is the map's last row: a
+; direction that moves rows copies it and starts past it (it is the new edge,
+; or it would land on the text).
         .segment "HICODE"
 shiftcopy:
 sc_ldx: ldx     #38
 sc_go:  jmp     sc_body
 sc_body:
-        .repeat 25, R
+        .repeat MAPROWS, R
         lda     $FFFF, x
         sta     $FFFF, x
         .endrep
@@ -704,7 +720,7 @@ sc_loop: jmp    sc_body
         .segment "CODE"
 sh_soff: .byte 40, 0, 0, 1, 40, 41, 0, 1
 sh_doff: .byte 0, 40, 1, 0, 1, 0, 41, 40
-sh_skip: .byte 6, 6, 0, 0, 6, 6, 6, 6   ; past row 24 if it moves rows
+sh_skip: .byte 6, 6, 0, 0, 6, 6, 6, 6   ; past the last row if it moves rows
 sh_cnt:  .byte 39, 39, 38, 38, 38, 38, 38, 38
 
         .segment "DATA"
@@ -768,7 +784,7 @@ patch:  cmp     sc_dir
         clc
         adc     #6
         tay
-        cpy     #25*6
+        cpy     #MAPROWS*6
         bne     @flip
 @go:    rts
 
@@ -799,11 +815,11 @@ patch:  cmp     sc_dir
         ldy     #>SCRA
 :       sta     ptr1+1
         sty     ptr2+1
-        ldy     #7              ; rows 0-23 into pairs 1-24 ...
-        ldx     #25
+        ldy     #7              ; rows 0-20 into pairs 1-21 ...
+        ldx     #MAPROWS
 @pair:  dex
         bne     :+
-        ldy     #1              ; ... and row 24 into pair 0
+        ldy     #1              ; ... and row 21 into pair 0
 :       lda     ptr1
         sta     sc_body,y
         lda     ptr1+1
@@ -854,15 +870,15 @@ _sm_edge_row:
         lda     dirdy,x
         beq     @none
         bmi     @top
-        lda     #<(24*40)       ; the bottom row, from the new origin's
-        sta     ptr1
+        lda     #<((MAPROWS-1)*40)      ; the bottom row, from the new
+        sta     ptr1                    ; origin's
         lda     backhi
         clc
-        adc     #>(24*40)
+        adc     #>((MAPROWS-1)*40)
         sta     ptr1+1
         lda     _sm_oy
         clc
-        adc     #25             ; (oy + 1) + 24
+        adc     #MAPROWS        ; (oy + 1) + the last row
         bne     @go             ; (never 0 on the map)
 @top:   lda     #0
         sta     ptr1
@@ -997,14 +1013,14 @@ _sm_redraw_box:
 .endif
         rts
 
-; All 25 rows from the map into the screen whose page is in A.
+; The map's rows from the map into the screen whose page is in A.
 draw_page:
         sta     ptr1+1
         lda     #0
         sta     ptr1
         lda     _sm_oy
         sta     cy
-        lda     #25
+        lda     #MAPROWS
         sta     dir             ; a row count, here
 @row:   lda     _sm_ox
         sta     cx
@@ -1178,7 +1194,7 @@ reu_go: ldx     r_c64
         sta     REU_CMD
         rts
 
-; r_addr = base + max(off, 0), r_c64 = c64 + max(-off, 0), r_len = 1000 -
+; r_addr = base + max(off, 0), r_c64 = c64 + max(-off, 0), r_len = MAPLEN -
 ; |off|, for the direction in X: what a shifted transfer needs. The bases
 ; come in r_addr and r_c64.
 shifted:
@@ -1191,11 +1207,11 @@ shifted:
         lda     r_addr+1
         adc     #0
         sta     r_addr+1
-        lda     #<1000
+        lda     #<MAPLEN
         sec
         sbc     offlo,x
         sta     r_len
-        lda     #>1000
+        lda     #>MAPLEN
         sbc     #0
         sta     r_len+1
         rts
@@ -1206,11 +1222,11 @@ shifted:
         lda     r_c64+1
         sbc     #$FF
         sta     r_c64+1
-        lda     #<1000          ; 1000 + off
+        lda     #<MAPLEN        ; MAPLEN + off
         clc
         adc     offlo,x
         sta     r_len
-        lda     #>1000
+        lda     #>MAPLEN
         adc     #$FF
         sta     r_len+1
         rts
@@ -1228,6 +1244,7 @@ frontpage:
 ; (the interrupt uses the REU and these variables too), and no longer: a
 ; thousand cycles at most, so a flip is never held up past the border.
 reu_shift:
+        jsr     sm_guard
         sei
         lda     #0              ; the front screen out ...
         sta     r_c64
@@ -1240,6 +1257,7 @@ reu_shift:
         jsr     reu_go
         cli
 
+        jsr     sm_guard
         sei
         lda     #<$D800         ; ... and its colour, for the flip ...
         sta     r_c64
@@ -1254,6 +1272,7 @@ reu_shift:
         jsr     reu_go
         cli
 
+        jsr     sm_guard
         sei
         lda     #0              ; ... and into the back screen, shifted
         sta     r_c64
@@ -1269,10 +1288,10 @@ reu_shift:
         cli
         rts
 
-len1000:
-        lda     #<1000
+len1000:                        ; (the map's rows: not the text's)
+        lda     #<MAPLEN
         sta     r_len
-        lda     #>1000
+        lda     #>MAPLEN
         sta     r_len+1
         rts
 
@@ -1299,7 +1318,7 @@ reu_colour:
         ldy     #0              ; the top row ...
         lda     dirdy,x
         bmi     :+
-        ldy     #24             ; ... or the bottom
+        ldy     #MAPROWS-1      ; ... or the bottom
 :       lda     rowlo40,y
         sta     @rs+1
         sta     @rc+1
@@ -1331,7 +1350,7 @@ reu_colour:
         sta     @cs+2
         lda     #>$D800
         sta     @cc+2
-        ldx     #25
+        ldx     #MAPROWS
 @cs:    ldy     $FFFF
         lda     ow_chcol,y
 @cc:    sta     $FFFF
@@ -1377,7 +1396,10 @@ _sm_vcopy:
 @vault: sta     ptr1+1
         lda     _vc_src
         sta     ptr1
+@chunk: jsr     sm_guard        ; sixteen at a time, clear of the split
         jsr     vault_enter
+        lda     #16
+        sta     cnt
 @l:     lda     (ptr1),y
         sta     (ptr2),y
         lda     ptr1
@@ -1393,8 +1415,12 @@ _sm_vcopy:
         bcc     :+
         inc     ptr2+1
 :       dex
+        beq     @end
+        dec     cnt
         bne     @l
-        jmp     vault_leave
+        jsr     vault_leave
+        jmp     @chunk
+@end:   jmp     vault_leave
 
 .if OW_REU
 ; void __fastcall__ sm_reu_keep(unsigned char out) -- the overworld's map
@@ -1508,6 +1534,8 @@ _sm_npcs:
         sbc     camy+1
         and     #7
         bne     @off            ; above the screen, or below it
+        cpx     #NPC_YMAX + 1
+        bcs     @off            ; over the text window
         tya                     ; on: x, y and the bits
         asl     a
         sta     dmask           ; (two bytes a sprite)
@@ -1533,6 +1561,10 @@ _sm_npcs:
         rts
 
 bit_of: .byte   1, 2, 4, 8, 16, 32, 64, 128
+
+; The lowest a person's sprite may stand: its sixteen lines end above the
+; band (from $DD) and the text.
+NPC_YMAX = SPLITLINE - 15
 
 ; ---------------------------------------------------------------------------
 ; void __fastcall__ sm_tileset(const unsigned char *set) -- a tile set in:
@@ -1694,7 +1726,10 @@ _sm_blank:
 ; The raster interrupt, from the KERNAL's vector at $0314.
 
 irq:
-        lda     $D012
+        lda     irqstep         ; the text window's two (below)?
+        beq     :+
+        jmp     irq_text
+:       lda     $D012
         sta     _sm_irqline
         lda     #$01
         sta     $D019
@@ -1702,7 +1737,14 @@ irq:
         sta     $D016
         lda     pend11
         sta     $D011
-        lda     pendswap
+        lda     ts_bg           ; (the text window made it black)
+        sta     $D021
+        lda     den             ; and its split, unless the screen is off
+        beq     :+
+        lda     #SPLITLINE
+        sta     $D012
+        inc     irqstep
+:       lda     pendswap
         beq     @tail
         lda     #0
         sta     pendswap
@@ -1738,10 +1780,192 @@ irq:
         sta     spr_ready
 @nospr: inc     _sm_frame
         jsr     ow_tune_irq     ; the music (ow_tune.s)
+        lda     $D012           ; (how late a split could be, for --peek)
+        sta     _sm_irqend
         lda     gen_on          ; a continent being built is put down until
         beq     :+              ; the main loop has had its frame (ow_gen.s)
         jmp     gen_preempt
 :       jmp     $EA31
+
+; ---------------------------------------------------------------------------
+; The text window: two lines that stay put under a map that scrolls.
+;
+; The map is rows 0-21 of the screens and the text rows 22 and 23. Across,
+; that is only the fine scroll, which can change anywhere on the screen. Down,
+; the VIC starts a character row on each line whose low three bits are the
+; fine scroll (a "bad line"), so with the map's fine scroll (0-7) row 22 would
+; start anywhere in eight lines, and the text would bob as the map moves. So
+; round line $DD, once row 20 has begun whatever the fine scroll, this sets
+; it to 7: row 22 starts at $E7 every frame, and 22 and 23 are $E7-$F6, just
+; above the bottom border. (Row 21 starts where it would have, or, if the
+; write came before its bad line, at $DF; or starts again at $DF; in every
+; case the VIC has counted it once by $E7.) What it shows between the map
+; and the text depends on all that, so the same write turns on extended
+; colour, which with multicolour is a mode with no colours at all: black,
+; whatever the characters, from here to line $E6, where the second interrupt
+; turns it off again just before the text. Black on black: a band below the
+; map, always the same.
+;
+; The first write must come after row 20's last possible bad line ($D7) and
+; before cycle 58 of line $DF: later than that, with the map's fine scroll
+; at 0, the VIC would count row 21 twice and show row 23 in row 22's place.
+; The interrupt at $DC writes in $DD (--peek sm_splitline is the latest
+; line seen just after the write), so that holds unless something keeps
+; interrupts off for longer than a couple of lines round there: see
+; sm_guard. Later is not much worse: row 22 then starts at $E0 and is drawn
+; again from $E7, so the text is right and a few lines of the band show it
+; early, for a frame. Measured over openworld-sail's 59 steps, with a
+; continent built on the way: $E1 on PAL, $E2 on NTSC and with the REU. The second write has to land at the end of line $E6, in the
+; right border, after the last of its pixels and before $E7's bad line.
+;
+; The flip's interrupt at 250 puts the map's own scroll back for the next
+; frame. Each of these is a few dozen cycles and leaves by $EA81: only the
+; flip's goes on to the KERNAL's keyboard scan.
+irq_text:
+        lda     #$01
+        sta     $D019
+        lda     irqstep
+        cmp     #2
+        beq     @text
+        lda     den             ; extended colour, multicolour: black; and
+        ora     #$40 | $07      ; the fine scroll 7, 24 rows
+        sta     $D011
+        lda     #0
+        sta     $D021
+        lda     #$18            ; text: no fine scroll, 40 columns
+        sta     $D016
+        lda     $D012           ; (the latest yet, for --peek)
+        cmp     _sm_splitline
+        bcc     :+
+        sta     _sm_splitline
+:       lda     #TEXTLINE
+        sta     $D012
+        inc     irqstep
+        jmp     $EA81
+@text:  lda     den             ; the text's, ready
+        ora     #$07
+        tax
+        lda     #TEXTLINE
+@line:  cmp     $D012           ; to the start of the line after
+        beq     @line
+        ldy     #10             ; and into its right border: about 55 cycles
+@wait:  dey
+        bne     @wait
+        nop
+        stx     $D011
+        lda     #IRQLINE
+        sta     $D012
+        lda     #0
+        sta     irqstep
+        jmp     $EA81
+
+; void sm_guard(void) -- wait while the split is near: from about twenty
+; lines before it until it is done. For whatever is about to keep interrupts
+; off for up to sixteen lines (a row copied out of the vault, an REU
+; transfer), which would hold the split back past where it works. Clobbers A.
+GUARD0 = SPLITLINE - 17
+sm_guard:
+_sm_guard:
+:       lda     $D012
+        cmp     #GUARD0
+        bcc     @ok
+        cmp     #TEXTLINE + 3
+        bcc     :-
+@ok:    rts
+
+        .segment "HICODE"       ; (the rest of the window: MAIN is full)
+
+; void __fastcall__ sm_say(const char *s) -- a line of text: the window's
+; bottom line moves up into the top one, and s (PETSCII, up to 40) is the
+; new bottom line, in the colour sm_ink (0-7), in both screens.
+_sm_say:
+        sta     ptr1
+        stx     ptr1+1
+        ldx     #39
+@up:    lda     SCRA + (TEXTROW+1)*40,x
+        sta     SCRA + TEXTROW*40,x
+        sta     SCRB + TEXTROW*40,x
+        lda     $D800 + (TEXTROW+1)*40,x
+        sta     $D800 + TEXTROW*40,x
+        dex
+        bpl     @up
+        ldy     #0
+@ch:    lda     (ptr1),y
+        beq     @pad
+        jsr     font_of
+        sta     SCRA + (TEXTROW+1)*40,y
+        sta     SCRB + (TEXTROW+1)*40,y
+        lda     _sm_ink
+        sta     $D800 + (TEXTROW+1)*40,y
+        iny
+        cpy     #40
+        bne     @ch
+        rts
+@pad:   lda     #FONT + $20
+        sta     SCRA + (TEXTROW+1)*40,y
+        sta     SCRB + (TEXTROW+1)*40,y
+        iny
+        cpy     #40
+        bne     @pad
+        rts
+
+; PETSCII in A to the text's character: its screen code in the lowercase
+; set, from FONT. What has none is a space.
+font_of:
+        cmp     #$20
+        bcc     @sp
+        cmp     #$40
+        bcc     @add            ; $20-$3F: the same
+        cmp     #$60
+        bcc     @low            ; $40-$5F: a-z and @[£]^<-
+        cmp     #$C0
+        bcc     @sp
+        cmp     #$E0
+        bcs     @sp
+        and     #$7F            ; $C0-$DF: A-Z
+        bne     @add            ; (always)
+@low:   and     #$1F
+        .byte   $2C             ; (skips the two-byte lda)
+@sp:    lda     #$20
+@add:   clc
+        adc     #FONT
+        rts
+
+; void sm_text_clear(void) -- both lines blank (and row 24, which is under
+; the border, with them).
+_sm_text_clear:
+        ldx     #3*40 - 1
+        lda     #FONT + $20
+:       sta     SCRA + TEXTROW*40,x
+        sta     SCRB + TEXTROW*40,x
+        dex
+        bpl     :-
+        rts
+
+; The font: the character ROM's lowercase set, its first 96 (screen codes
+; 0-$5F), into the character set from FONT. Above anything a tile set has
+; (mkoverworld.py keeps them under it), so it is done once.
+font_copy:
+        sei
+        lda     $01
+        pha
+        lda     #$33            ; the character ROM in, at $D000
+        sta     $01
+        ldx     #0
+:       lda     $D800,x
+        sta     CHARS + FONT*8,x
+        lda     $D900,x
+        sta     CHARS + FONT*8 + $100,x
+        lda     $DA00,x
+        sta     CHARS + FONT*8 + $200,x
+        inx
+        bne     :-
+        pla
+        sta     $01
+        cli
+        rts
+
+        .segment "CODE"
 
 ; void sm_init(void) -- the hero into the VIC's bank. The display stays as
 ; it is until sm_show(); a tile set goes in with sm_tileset().
@@ -1769,7 +1993,13 @@ _sm_init:
         sta     pend11
         lda     #0
         sta     pendswap
-        rts
+        sta     irqstep
+        lda     #COLOR_WHITE
+        sta     _sm_ink
+        jsr     font_copy
+        jmp     _sm_text_clear
+
+COLOR_WHITE = 1
 
 ; Copy cnt lots of 8 bytes from ptr1 to ptr2.
 copy8s:

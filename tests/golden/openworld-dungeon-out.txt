@@ -21,7 +21,7 @@
  19 |xwxststwxststwxwxwxwxstwxwxwxwxwxstwxsts|
  20 |zyzuvuvyzuvuvyzyzyzyzuvyzyzyzyzyzuvyzuvu|
  21 |twxwxwxwxstststwxstwxstwxwxstwxstststwxs|
- 22 |vyzyzyzyzuvuvuvyzuvyzuvyzyzuvyzuvuvuvyzu|
- 23 |xwxstwxstststwxststwxwxwxstststwxstststs|
- 24 |zyzuvyzuvuvuvyzuvuvyzyzyzuvuvuvyzuvuvuvu|
+ 22 |                                        |
+ 23 |                                        |
+ 24 |                                        |
     +----------------------------------------+

@@ -22,6 +22,7 @@ SRC = os.path.join(ROOT, "assets", "overworld.txt")
 TILES = os.path.join(ROOT, "assets", "tiles.txt")
 # The sets, in the order the engine numbers them (openworld.c's TS_*).
 SETS = ["overworld", "town", "castle", "dungeon"]
+FONT = 0xA0             # smooth.s's: the text window's characters
 SET_FILE = {"overworld": "overworld.txt", "town": "town_tiles.txt",
             "castle": "castle_tiles.txt", "dungeon": "dungeon_tiles.txt"}
 OUT = os.path.join(ROOT, "src", "lib", "ow_data.s")
@@ -460,6 +461,12 @@ def build(setname):
 
 def main():
     sets = {name: build(name) for name in SETS}
+    # The engine's text window has the character set from FONT up for its
+    # letters (src/ow/smooth.s), so a set must stay below it.
+    for name in SETS:
+        if sets[name]["chars"] > FONT:
+            sys.exit("mkoverworld: %s: %d characters, %d at most (the text's "
+                     "font is above)" % (name, sets[name]["chars"], FONT))
     ow = sets["overworld"]
     sprites, sprcols = ow["sprites"], ow["sprcols"]
     codes = tile_codes()
