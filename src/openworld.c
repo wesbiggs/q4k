@@ -1,7 +1,7 @@
 /*
  * Open world: the bootstrap of the smooth-scrolling prototype.
  *
- * Run from its disk (dist/openworld.d64, the first file). It shows the
+ * Run from its disk (dist/openworld.d81, the first file). It shows the
  * splash screen, the picture for the machine's video system, until F1 (a
  * new game) or F3 (a saved one); looks for an REU; loads what the two
  * engines share (OW-DATA) and the music (a SID file, to under the KERNAL);
@@ -119,9 +119,8 @@ static void disk_resident(void)
     memcpy((void *)0xCF14, _OWDISK_LOAD__, (unsigned)_OWDISK_SIZE__);
 }
 
-/* A machine with no picture, or a disk without one (the NTSC picture is
-   left off the disk for room: the Makefile's OW_NTSC_SPLASH), is asked in
-   words instead. The tests' hook works here too. */
+/* A machine with no picture (neither PAL nor NTSC), or a disk without one,
+   is asked in words instead. The tests' hook works here too. */
 static unsigned char title_text(void)
 {
     unsigned char k = 0;

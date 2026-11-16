@@ -257,6 +257,10 @@ def launch(prg, port, rs232=None, disk=None, extra=()):
         "-jamaction", "5",   # a CPU jam quits rather than popping a dialog
     ]
     if disk:
+        # A D81 (the open world's) wants a 1581 in unit 8; anything else the
+        # 1541 VICE starts with.
+        if disk.lower().endswith(".d81"):
+            argv += ["-drive8type", "1581"]
         argv += ["-8", disk]
     argv += list(extra)
     if not rs232:

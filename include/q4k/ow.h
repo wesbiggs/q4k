@@ -1,7 +1,7 @@
 /*
  * Quest for the King -- the smooth-scrolling prototype's hand-off.
  *
- * The prototype is a disk (dist/openworld.d64): the bootstrap, OPENWORLD
+ * The prototype is a disk (dist/openworld.d81): the bootstrap, OPENWORLD
  * (src/openworld.c), two engines built from one source (src/ow/engine.c and
  * smooth.s), OW-CPU and OW-REU, and what the bootstrap loads for them. It
  * shows the splash screen (SPLASH-P or SPLASH-N, by the machine's video

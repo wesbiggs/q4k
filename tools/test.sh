@@ -153,10 +153,10 @@ fi
 # east of Millford, save, three more, restore: back at the first square.
 # On a copy of the disk, since the save writes it and openworld-load wants
 # the save the disk comes with.
-if [ -f dist/openworld.d64 ]; then
+if [ -f dist/openworld.d81 ]; then
     base=$(mktemp "${TMPDIR:-/tmp}/q4kow.XXXXXX")
-    saves=$base.d64
-    cp dist/openworld.d64 "$saves"
+    saves=$base.d81
+    cp dist/openworld.d81 "$saves"
     wxof() { sed -n 's/.*wx+0 @ .* = \([0-9]*\) .*/\1/p'; }
     saved=$(tools/screendump.py dist/openworld.prg --disk "$saves" \
         --splash quick --lbl build/ow-cpu.lbl --keys 'dd\x85ddd' \
@@ -174,7 +174,7 @@ if [ -f dist/openworld.d64 ]; then
 
     # P: Alaric, hurt to 5, drinks the quick start's one draught (12 back,
     # its floor) and the second P finds none.
-    hp=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d64 \
+    hp=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
         --splash quick --lbl build/ow-cpu.lbl --poke party+2=5 --keys pp \
         --settle 4 --peek party+2 2>&1 >/dev/null \
         | sed -n 's/.*party+2 @ .* = \([0-9]*\) .*/\1/p') || true
@@ -190,7 +190,7 @@ if [ -f dist/openworld.d64 ]; then
     # the screen that says what came of it, and the engine is back. The
     # dice come from the game's turn, so it goes the same way every time:
     # won, 4 experience, 6 marks, 6 health left.
-    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d64 \
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
         --splash quick --lbl build/ow-cpu.lbl --poke enc_always=1 \
         --keys "ddkkkkkkkkkkkkkkkkkkkk$(printf 'w%.0s' $(seq 44))" \
         --settle 30 --peek party+2 --peek party+88:2 --peek party+90:2 \

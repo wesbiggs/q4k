@@ -149,7 +149,7 @@ endif
         online d64-online run-online
 .SECONDARY: $(BUILD)/$(PROG).o $(BUILD)/q4k.o
 
-all: dirs assets $(PRGS) $(DIST)/openworld.d64 $(DIST)/owarena.d64 \
+all: dirs assets $(PRGS) $(DIST)/openworld.d81 $(DIST)/owarena.d64 \
      $(DIST)/theme.sid $(BUILD)/music/.stamp
 
 # Assembly cannot see tiles.h; it has its own generated copy of the codes.
@@ -325,13 +325,10 @@ $(DIST)/arena.prg: $(BUILD)/arena.o $(BUILD)/lib/battle_bot.o $(LIB) $(wildcard 
 # (cfg/c64-openworld.cfg's COMMON), and the disk has it once, as OW-DATA,
 # which the bootstrap loads: the two must be the same bytes. The disk also
 # has the splash screen's two pictures (PAL and NTSC), each with its text,
-# and a saved game to load, since nothing saves yet.
+# and a saved game to load until the player saves one. It is a D81 (a 1581,
+# 3160 blocks): with the fights a 1541's disk was full.
 OWENG := $(DIST)/ow-cpu.prg $(DIST)/ow-reu.prg
 OWOVL := $(foreach e,cpu reu,$(foreach o,world town dungeon hi,$(DIST)/ow-$(e).$(o)))
-# The NTSC splash picture (83 blocks) is left off the disk, which the
-# fights fill: an NTSC machine is asked in words (src/openworld.c's
-# title_text()). OW_NTSC_SPLASH=1 puts it back, with something else off.
-OW_NTSC_SPLASH ?= 0
 OWFILES := $(DIST)/ow-data.prg $(DIST)/splash-p.prg $(DIST)/splash-n.prg \
            $(DIST)/ow-save.prg
 
@@ -423,13 +420,12 @@ $(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py
 # makes for the game's disk too.
 # And the fights (src/lib/ow_fight.c): the module and its fields and sprites,
 # as the arena's disk has them.
-$(DIST)/openworld.d64: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST)/owtown.prg \
+$(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST)/owtown.prg \
 	    $(BUILD)/music/.stamp $(BUILD)/talk/.stamp $(DIST)/fight.prg \
 	    $(BUILD)/fight/disk/.stamp
-	$(C1541) -format "openworld,01" d64 $@ >/dev/null
+	$(C1541) -format "openworld,01" d81 $@ >/dev/null
 	$(C1541) -attach $@ -write $(DIST)/openworld.prg openworld \
-	    -write $(DIST)/splash-p.prg splash-p \
-	    $(if $(filter 1,$(OW_NTSC_SPLASH)),-write $(DIST)/splash-n.prg splash-n) \
+	    -write $(DIST)/splash-p.prg splash-p -write $(DIST)/splash-n.prg splash-n \
 	    -write $(DIST)/ow-save.prg ow-save -write $(DIST)/ow-data.prg ow-data \
 	    -write $(DIST)/ow-cpu.prg ow-cpu -write $(DIST)/ow-reu.prg ow-reu \
 	    $(foreach f,$(OWOVL),-write $(f) $(notdir $(f))) \
@@ -532,9 +528,9 @@ endif
 # smooth-scrolling prototype (its bootstrap loads an engine).
 DISKPROGS := q4k openworld owarena
 run: dirs $(DIST)/$(PROG).prg $(if $(filter q4k,$(PROG)),d64) \
-     $(if $(filter openworld,$(PROG)),$(DIST)/openworld.d64) \
+     $(if $(filter openworld,$(PROG)),$(DIST)/openworld.d81) \
      $(if $(filter owarena,$(PROG)),$(DIST)/owarena.d64)
-	tools/run.sh $(DIST)/$(PROG).$(if $(filter $(DISKPROGS),$(PROG)),d64,prg)
+	tools/run.sh $(DIST)/$(PROG).$(if $(filter openworld,$(PROG)),d81,$(if $(filter $(DISKPROGS),$(PROG)),d64,prg))
 
 # Play the networked build with NPC dialogue: starts host/npcd.py and wires
 # it to the modem port. Q4K_MOCK=1 make play  uses canned replies instead of
