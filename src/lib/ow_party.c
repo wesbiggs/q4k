@@ -2,7 +2,7 @@
  * Quest for the King -- the open world's party, made.
  *
  * F1 on the splash screen is a new game: the bootstrap builds the world and
- * then loads OWTOWN (src/owtown.c) over itself with OWB_NEW, which calls
+ * then loads OWPARTY (src/owparty.c) over itself with OWB_NEW, which calls
  * this. It tells the story and asks who answered the king's letter, as the
  * game's title screen does -- up to three, each a name and a class -- and
  * puts the new game in the game block (q4k/owgame.h), at Millford's gate;

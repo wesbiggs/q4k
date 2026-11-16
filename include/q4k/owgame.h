@@ -72,7 +72,7 @@ void owg_in(void);
 void owg_out(void);
 
 /* A new game into the block: the party asked for and made, at Millford's
-   gate, or (quick) the tests' lone warrior outside it (src/lib/ow_party.c). */
+   gate, or (quick) the tests' lone warrior outside it (src/lib/ow_party.c, for src/owparty.c). */
 void ow_new_game(unsigned char quick);
 
 /* A fight (OWF_*, as OWB has it) with the fight module (q4k/fight.h),

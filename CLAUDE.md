@@ -247,8 +247,7 @@ splash picture is asked F1 or F3 in words (`title_text()` in
 engine**: `owtown` (`src/owtown.c`, linked with `cfg/c64-owtown.cfg`, the
 flat layout with the shop's code below the charset, where it would be 6K
 of padding in the file). The hand-off block (`OWB` in `include/q4k/ow.h`,
-at `$02ED`) says what for: `OWB_NEW`/`OWB_QUICK` the party's making
-(`src/lib/ow_party.c`), `OWB_TALK` a conversation, `OWB_SHOP` and
+at `$02ED`) says what for: `OWB_TALK` a conversation, `OWB_SHOP` and
 `OWB_INN` the game's own `shop.c` and `inn.c` (walking into a keeper, as a
 townsperson), `OWB_PARTY` the game's party screen (`I`). It defines the
 few variables and functions of `game.c`, `sprite.c`, `savegame.c`,
@@ -261,7 +260,12 @@ game's turn (the engine counts its steps into `game_turn`) and seed, or
 every visit would hear the same rumour. The rumours are the inns' own
 files, which the offline talk already reads whole (a few hundred bytes
 each): a REL file would let one rumour be read without the rest, which
-nothing here needs. Golden `openworld-ale` buys a mug at Millford's inn. The engine
+nothing here needs. Golden `openworld-ale` buys a mug at Millford's inn. **The party's
+making is a program of its own**, `owparty` (`src/owparty.c`, 7K, with
+`cfg/c64-tool.cfg`: it all fits below the charset), which the bootstrap
+loads after F1 (`OWB_NEW`) or the tests' quick start (`OWB_QUICK`): the
+title screen's story and questions (`src/lib/ow_party.c`), the new game
+into the block, and the engine over it at Millford. The engine
 leaves with `ow_leave()` (the block out, the machine as `sm_quit()` leaves
 it, `ow_run()`); `owtown` comes back with `ow_back()` (`src/lib/ow_back.c`:
 reloads `ow-data`, which it overwrites, resets the machine and loads the
@@ -568,7 +572,7 @@ of `assets/splash-kit`, which is vic2orious's output: do not edit `lib/` or
 (`ow_video()`), loads `splash-p` or `splash-n` at `$4000` (the kit's `.v2t`
 in a page and then its `.v2i`, joined by `tools/mksplash.py`) and shows it
 until F1, a new game (its seed is 1 plus the frames the player took: the
-lands are built, then `owtown` makes the party and the game starts at
+lands are built, then `owparty` makes the party and the game starts at
 Millford's gate), or F3, a saved one: `ow-save`, the game block, which the
 disk comes with one of from `tools/mkowsave.py` (seed 7, a lone warrior at
 the castle). The tests' `--splash quick` (`OW_KEY_QUICK`, `$87`, no key on
