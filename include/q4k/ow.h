@@ -60,7 +60,7 @@ typedef struct {
 
 #define OW ((OwWorld *)0x02A7)
 
-/* The open world's other programs -- the party's making (src/lib/ow_party.c),
+/* The open world's other programs -- the party's making (src/owparty.c),
    the talk, the shops and the inns, all in src/owtown.c -- take the engine's place
    for a while and load it back when they are done, and the engine carries
    on from the game block (owgame.h), which says where it was. This block

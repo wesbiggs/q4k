@@ -421,6 +421,7 @@ $(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py
 # And the fights (src/lib/ow_fight.c): the module and its fields and sprites,
 # as the arena's disk has them.
 $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST)/owtown.prg \
+	    $(DIST)/owparty.prg \
 	    $(BUILD)/music/.stamp $(BUILD)/talk/.stamp $(DIST)/fight.prg \
 	    $(BUILD)/fight/disk/.stamp
 	$(C1541) -format "openworld,01" d81 $@ >/dev/null
@@ -429,7 +430,8 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 	    -write $(DIST)/ow-save.prg ow-save -write $(DIST)/ow-data.prg ow-data \
 	    -write $(DIST)/ow-cpu.prg ow-cpu -write $(DIST)/ow-reu.prg ow-reu \
 	    $(foreach f,$(OWOVL),-write $(f) $(notdir $(f))) \
-	    -write $(DIST)/owtown.prg owtown -write $(DIST)/fight.prg fight \
+	    -write $(DIST)/owtown.prg owtown -write $(DIST)/owparty.prg owparty \
+	    -write $(DIST)/fight.prg fight \
 	    $$(for f in $(BUILD)/fight/disk/[fs].*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/music/m.*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/talk/[0-9]*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null

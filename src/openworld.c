@@ -260,7 +260,7 @@ int main(void)
         if (OWB->mode != OWB_QUICK) {
             OWB->mode = OWB_NEW;
         }
-        ow_run("owtown");
+        ow_run("owparty");
     }
     ow_run(OW->reu == OW_REU_OK ? "ow-reu" : "ow-cpu");
     return 0;

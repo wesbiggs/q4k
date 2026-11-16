@@ -4,10 +4,9 @@
  * The smooth-scrolling prototype's engine (src/ow/engine.c) has no room for
  * anything but the map, so the screens of text are this program, loaded
  * over the engine when they are wanted (ow_run), with the hand-off block
- * (q4k/ow.h's OWB) saying what for:
+ * (q4k/ow.h's OWB) saying what for (the party's making, after the splash
+ * screen's F1, is a program of its own: src/owparty.c):
  *
- *   OWB_NEW, OWB_QUICK  the party's making, after the splash screen's F1
- *                       (src/lib/ow_party.c), which ends in Millford
  *   OWB_TALK            a conversation, when the hero walks into a
  *                       townsperson: the offline talk (src/lib/talk.c,
  *                       which reads each person's lines from the disk),
@@ -26,8 +25,8 @@
  * there: in the same town, where the hero stood. Everything the engine
  * keeps is rebuilt from the disk on the way (OW-DATA, which this program
  * writes over, is loaded again), or is still in memory: the vault under the
- * I/O area and the music under the KERNAL are not reached. Linked like the
- * test programs, with cfg/c64-flat.cfg (one load).
+ * I/O area and the music under the KERNAL are not reached. Linked with
+ * cfg/c64-owtown.cfg (one load).
  */
 
 #include <cbm.h>
@@ -139,7 +138,7 @@ int main(void)
     unsigned char mode = OWB->mode;
 
     if (mode < OWB_TALK || mode > OWB_FIGHT || mode == OWB_BACK ||
-        mode == OWB_LOAD) {
+        mode == OWB_NEW || mode == OWB_QUICK || mode == OWB_LOAD) {
         cputs("Load OPENWORLD: it builds the world.");
         for (;;) {
         }
@@ -182,13 +181,8 @@ int main(void)
         eng_a = SHOP_PARTY;
         shop_entry();
         break;
-    default:
-        ow_new_game(mode == OWB_QUICK);
-        break;
     }
-    if (G->magic == OWG_MAGIC) {
-        owg_out();
-    }
+    owg_out();
     ow_back();                  /* the engine, which carries on from the
                                    game block (owgame.h) */
     return 0;
