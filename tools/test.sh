@@ -171,6 +171,19 @@ if [ -f dist/openworld.d64 ]; then
         fail=1
     fi
     rm -f "$saves" "$base"
+
+    # P: Alaric, hurt to 5, drinks the quick start's one draught (12 back,
+    # its floor) and the second P finds none.
+    hp=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d64 \
+        --splash quick --lbl build/ow-cpu.lbl --poke party+2=5 --keys pp \
+        --settle 4 --peek party+2 2>&1 >/dev/null \
+        | sed -n 's/.*party+2 @ .* = \([0-9]*\) .*/\1/p') || true
+    if [ "$hp" = 17 ]; then
+        echo "PASS  openworld-quaff"
+    else
+        echo "FAIL  openworld-quaff (health ${hp:-?}, not 17)"
+        fail=1
+    fi
 fi
 
 # Home is made from the game's seed, so the tests that go somewhere on it walk

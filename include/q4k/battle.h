@@ -141,6 +141,8 @@ unsigned char battle_dragon(void);
  * a health bar at level one and nothing at level ten -- Maldrath hits for
  * about that much through plate, so drinking cost you a turn to stand still.
  * Damage scales with the game; the cure has to as well. */
+#define POTION_SHARE 40   /* per cent of full health */
+#define POTION_FLOOR 12   /* ...but never less than the old flat amount */
 unsigned char potion_heal(unsigned char who);
 
 /* Member `who` drinks one, if the party has one and it would do them any

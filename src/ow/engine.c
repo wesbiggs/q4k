@@ -29,6 +29,9 @@
  *   1 / 2                                        one or two pixels a frame
  *   M                                            the music off and on
  *   X                                            the sound effects off and on
+ *   P                                            the worst hurt drinks a
+ *                                                draught (a gulp, or a
+ *                                                refusal if nobody can)
  *   F1                                           save (OW-SAVE): the border is
  *                                                light blue while the drive
  *                                                works, red if it would not
@@ -51,6 +54,7 @@
 #include <string.h>
 
 #include <q4k/actor.h>
+#include <q4k/battle.h>
 #include <q4k/dungeon.h>
 #include <q4k/game.h>
 #include <q4k/isle.h>
@@ -362,6 +366,35 @@ static void save_game(void)
     play_for(scene_now);
 }
 
+/* P: a draught for whoever of the party is worst hurt, as the game has it
+   (arms.c's most_hurt() and drink_potion()): a gulp if someone drank, a
+   refusal if there is none to drink or nobody hurt. */
+static void quaff(void)
+{
+    unsigned char i, who = NONE, lack = 0, amount;
+    Actor *a;
+
+    for (i = 0; i < G->party_count; ++i) {
+        a = &party[i];
+        if (a->hp && a->hp_max - a->hp > lack) {
+            lack = a->hp_max - a->hp;
+            who = i;
+        }
+    }
+    if (who == NONE || !G->potions) {
+        sfx_play(SFX_NO);
+        return;
+    }
+    --G->potions;
+    a = &party[who];
+    amount = (unsigned char)(((unsigned int)a->hp_max * POTION_SHARE) / 100);
+    if (amount < POTION_FLOOR) {
+        amount = POTION_FLOOR;
+    }
+    a->hp = amount < lack ? a->hp + amount : a->hp_max;
+    sfx_play(SFX_DRINK);
+}
+
 /* Back through the bootstrap, which builds a world: the saved game's
    (OWB_LOAD, F3), or the next seed's (N), with the party in it. The game
    block first, which is what goes on if there is no save. */
@@ -482,6 +515,9 @@ static unsigned char typed(void)
         break;
     case 'x':                   /* the effects off and on */
         sfx_toggle();
+        break;
+    case 'p':                   /* a draught */
+        quaff();
         break;
     case 0x85:                  /* F1: save */
         save_game();
