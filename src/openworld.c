@@ -109,6 +109,17 @@ static void need(const char *name, void *at)
 /* The splash screen and what the player chose there: the seed, and whether
    it is a saved game, with `save` loaded if so. The screen is black until
    the picture is ready, and from the key on it shows the disk. */
+/* The disk icon (src/lib/ow_disk.s): its code is in the bootstrap's OWDISK
+   segment, which runs at $CF14, where no program loaded later reaches. It is
+   copied there before the icon is first shown, and not before the splash:
+   the picture is unpacked into $C000-$FFFF, which is where the code is. */
+extern unsigned char _OWDISK_LOAD__[], _OWDISK_SIZE__[];
+
+static void disk_resident(void)
+{
+    memcpy((void *)0xCF14, _OWDISK_LOAD__, (unsigned)_OWDISK_SIZE__);
+}
+
 static void splash(void)
 {
     unsigned char key = 0;
@@ -121,6 +132,7 @@ static void splash(void)
                  (void *)OW_SPLASH_AT)) {
         key = ow_splash();
     }
+    disk_resident();
     ow_disk_on();
     /* A new world for a new game, from how long the player took. */
     lore_seed = 1 + ow_splash_ticks;
@@ -139,6 +151,7 @@ int main(void)
 {
     unsigned char d, again = OW->magic == OW_MAGIC;
 
+    OWB->mode = OWB_NONE;       /* nothing to come back to: see ow.h */
     bgcolor(COLOR_BLACK);
     bordercolor(COLOR_BLACK);
     textcolor(COLOR_GRAY3);     /* for the one thing that may be said */
@@ -150,6 +163,7 @@ int main(void)
     if (again) {
         lore_seed = OW->seed;   /* N in an engine: the next world */
         OW->saved = 0;
+        disk_resident();
         ow_disk_on();
     } else {
         splash();

@@ -60,6 +60,26 @@ typedef struct {
 
 #define OW ((OwWorld *)0x02A7)
 
+/* A conversation (src/owtalk.c) takes the engine away, and the engine comes
+   back to the town it was in, where the conversation began, as the
+   bootstrap leaves it for it. Its own block, past the bootstrap's (which
+   ends at $02EC), so that the bootstrap's layout does not move. */
+#define OWB_NONE 0
+#define OWB_TALK 1              /* the engine asks: a conversation */
+#define OWB_BACK 2              /* the conversation ends: back to the town */
+
+typedef struct {
+    unsigned char mode;         /* OWB_NONE, OWB_TALK or OWB_BACK */
+    unsigned char npc;          /* the person (NPC_* in town_data.h) */
+    unsigned char town;         /* the town (TOWN_* in town_data.h) */
+    unsigned char land;         /* a continent's index, or ISLE_HOME */
+    unsigned char x, y;         /* the hero, in the town */
+    unsigned int  out_x;        /* the world square they came in from */
+    unsigned char out_y;
+} OwBack;
+
+#define OWB ((OwBack *)0x02ED)
+
 /* Load a program from unit 8 over whatever is running and start it at
    $080D, from a loader copied into the tape buffer first. The screen and
    the interrupts must be the KERNAL's again before it is called. Does not

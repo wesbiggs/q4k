@@ -132,6 +132,22 @@ static unsigned char area_w = 64, area_h = 64;
 static unsigned char ex, ey;            /* a town's way out */
 static unsigned char dun_index;         /* which dungeon */
 
+/* The conversation's program (src/owtalk.c). Its name is data in both
+   engines, not only the REU's: OW-DATA must be the same bytes in both. */
+static const char owtalk_name[] = "owtalk";
+
+#ifdef OW_REU
+/* A conversation (ow.h's OWB): the town the engine is in (TOWN_*), which
+   entry each person's sprite is (npc_ent[n] indexes here_ents), and this
+   run's coming back from one, which takes the hero to where they stood.
+   Only the REU's engine has room for it: the CPU one's MAIN is 221 bytes
+   over with it, and its HIGH and OWTOP are full (see CLAUDE.md). */
+static unsigned char town_index;
+static unsigned char npc_ent[7];
+static unsigned char back;
+static unsigned char resuming, resume_x, resume_y;
+#endif
+
 /* --- The world -----------------------------------------------------------
 
    Six cells across and four down, 64 squares each way, wrapping east to
@@ -662,8 +678,15 @@ static void take_world(void)
     memcpy(ibiome, OW->ibiome, sizeof ibiome);
     memcpy(ship_x, OW->ship_x, sizeof ship_x);
     memcpy(ship_y, OW->ship_y, sizeof ship_y);
+    /* Where the hero starts, or where a talk found them: the window is
+       built round that, and so is the home the town is left to. */
+#ifdef OW_REU
+    wx = back ? OWB->out_x : OW->start_x;
+    wy = back ? OWB->out_y : OW->start_y;
+#else
     wx = OW->start_x;
     wy = OW->start_y;
+#endif
     hx = wx & 127;
     hy = wy & 127;
     sm_torus = 1;
@@ -1076,6 +1099,9 @@ static void show_people(void)
         if (roofed(region[AT(e->x, e->y)])) {
             continue;
         }
+#ifdef OW_REU
+        npc_ent[n] = i;
+#endif
         sm_npc_x[n] = e->x + BIAS;
         sm_npc_y[n] = e->y + BIAS;
         POKE(0x43F9 + n, NPC_FRAME);    /* both screens' sprite pointers */
@@ -1238,6 +1264,9 @@ static void go_town(unsigned char index)
     unsigned char y;
 
     leave_area();
+#ifdef OW_REU
+    town_index = index;
+#endif
     area = index == TOWN_CASTLE ? AREA_CASTLE : AREA_TOWN;
     play_for(area == AREA_CASTLE ? MUSIC_CASTLE : MUSIC_TOWN);
     if (index < NUM_TOWNS) {
@@ -1263,8 +1292,69 @@ static void go_town(unsigned char index)
     show_people();
     ex = here_ex;
     ey = here_ey;
+#ifdef OW_REU
+    if (resuming) {             /* back from a talk: where they stood */
+        resuming = 0;
+        hero.x = resume_x;
+        hero.y = resume_y;
+    }
+#endif
     show_area(hero.x + BIAS, hero.y + BIAS);
 }
+
+#ifdef OW_REU
+/* The person in the square d from the hero, as their sprite's index, or
+   NONE: a step into one is a conversation, not a wall. */
+static unsigned char npc_at(unsigned char d)
+{
+    unsigned char i, x = hx + dirdx[d], y = hy + dirdy[d];
+
+    for (i = 0; i < sm_npc_n; ++i) {
+        if (sm_npc_x[i] == x && sm_npc_y[i] == y) {
+            return i;
+        }
+    }
+    return NONE;
+}
+
+/* Talk to sprite n's person. The engine goes; src/owtalk.c has the talk,
+   and loads the engine back when it ends (back_to_town). Never returns. */
+static void talk_to(unsigned char n)
+{
+    const TownEnt *e = &here_ents[npc_ent[n]];
+
+    OWB->mode = OWB_TALK;
+    OWB->npc = e->param;
+    OWB->town = town_index;
+    OWB->land = land;
+    OWB->x = hx - BIAS;
+    OWB->y = hy - BIAS;
+    OWB->out_x = out_wx;
+    OWB->out_y = out_wy;
+    sm_quit();
+    memset((void *)0x0400, 0x20, 1000);     /* the load shows a clear screen, */
+    memset((void *)0xD800, 0, 1000);        /* black, colour RAM too */
+    VIC.bgcolor0 = COLOR_BLACK;             /* and the background, which is
+                                               green on the map */
+    VIC.bordercolor = COLOR_BLACK;
+    ow_run(owtalk_name);
+}
+
+/* The town the talk began in, with the hero where they stood. The world
+   was built round where they came in from (take_world), so going in
+   again is as going in from the map. */
+static void back_to_town(void)
+{
+    resuming = 1;
+    resume_x = OWB->x;
+    resume_y = OWB->y;
+    land = OWB->land;
+    if (land != ISLE_HOME) {
+        isle_biome = ibiome[land];
+    }
+    go_town(OWB->town);
+}
+#endif /* OW_REU */
 
 /* Level `depth` of dungeon dun_index (the Hollow Crown at home, the
    Drowned Stair or Blackpit across the sea), standing on the stairs you
@@ -1532,12 +1622,19 @@ static void step_world(void)
 int main(void)
 {
     unsigned char d, flipped;
+#ifdef OW_REU
+    unsigned char n;
+#endif
 
     /* The C stack, which cc65 starts at the top of MAIN, into the tape
        buffer instead ($0334-$03FF, down from $0400), which nothing else
        here uses: MAIN is full to the last byte. (main() keeps nothing on
        it, and never returns.) */
-    sm_stack();
+    sm_stack();                 /* (the screen is off: the loader's doing) */
+#ifdef OW_REU
+    back = OWB->mode == OWB_BACK;
+    OWB->mode = OWB_NONE;
+#endif
 
     if (OW->magic != OW_MAGIC) {
         cputs("\r\nLoad OPENWORLD: it builds the world.");
@@ -1554,11 +1651,24 @@ int main(void)
     place_camera();
     sm_draw_all();
     sm_sprite(0);
+#ifdef OW_REU
+    if (back) {
+        VIC.bgcolor0 = COLOR_BLACK;     /* the overworld's green (sm_tileset) */
+    }
+#endif
+    sm_blank(1);                /* hidden until drawn: see the top of main() */
     sm_show();
     show_ships();
     sm_npcs();
-    play_world();
-    sm_blank(0);
+#ifdef OW_REU
+    if (back) {
+        back_to_town();         /* (its own music, and the screen on) */
+    } else
+#endif
+    {
+        play_world();
+        sm_blank(0);
+    }
 
     while (kbhit()) {
         cgetc();
@@ -1681,6 +1791,15 @@ int main(void)
                         build_some();   /* the edges in the next frames */
                     }
                     sm_sprite(hero_frame(dir, stride ^= 1));
+#ifdef OW_REU
+                } else if (area == AREA_TOWN || area == AREA_CASTLE) {
+                    /* Into a person: talk to them (the engine goes). Only
+                       the ones who talk: a villager is a wall. */
+                    n = npc_at(d);
+                    if (n != NONE && here_ents[npc_ent[n]].kind == ENT_NPC) {
+                        talk_to(n);
+                    }
+#endif
                 }
             } else if (PEEK(0xC6) == 0 && steps != 0) {
                 probe_stage(2);

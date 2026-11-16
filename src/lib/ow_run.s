@@ -7,6 +7,11 @@
         .export _ow_run
         .importzp ptr1
 
+; The resident disk icon (ow_disk.s, in the bootstrap's OWDISK segment): the
+; bootstrap copies it there once, and no program loaded over it reaches it.
+DISK_ON  = $CF14
+DISK_OFF = $CF17
+
 SETLFS  = $FFBA
 SETNAM  = $FFBD
 LOAD    = $FFD5
@@ -48,6 +53,7 @@ stub:   ldx     #$FF            ; nothing returns here: a fresh stack
         lda     #$CF
         sta     $0284
         cli
+        jsr     DISK_ON         ; the disk icon, while it loads (ow_disk.s)
         lda     #1
         ldx     #8
         ldy     #1              ; to the file's own address
@@ -59,6 +65,7 @@ stub:   ldx     #$FF            ; nothing returns here: a fresh stack
         lda     #0              ; load, not verify
         jsr     LOAD
         bcs     fail
+        jsr     DISK_OFF        ; the KERNAL's interrupt, and no disk
         jmp     $080D           ; the program's start, past its BASIC line
 fail:   inc     $D020
         jmp     fail

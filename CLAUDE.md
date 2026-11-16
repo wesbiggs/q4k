@@ -185,6 +185,36 @@ place game data there (bar BSS2, above).
 **Colour RAM is write-only-ish nybbles at `$D800`** and is *not* covered by the
 VIC bank switch — it stays at `$D800` regardless of where the screen matrix is.
 
+**Conversations in the open world are a program loaded from disk, not a
+part of the engine.** Walking into a townsperson who has lines (an `ENT_NPC`,
+not a villager, who is a wall) makes the overworld engine write its hand-off
+block (`OWB` in `include/q4k/ow.h`, at `$02ED`) and load `owtalk`
+(`src/owtalk.c`, flat, the talk's own file as `talk.c` reads it) over itself
+with `ow_run()`. The talk reloads `ow-data` (which it overwrites), resets the
+machine as `sm_quit()` leaves it, and loads the engine back with `OWB_BACK`;
+the engine then starts in the same town with the hero where they stood. The
+talk's files are on `openworld.d64` beside it. The RUN/STOP that leaves a
+talk is still flagged when `ow-data` reloads, and the KERNAL's `LOAD` then
+fails with no drive error: `owtalk`'s `need_data()` waits for STOP to come up
+and sets `$91` to `$FF` (released). `$7F` in `$91` means STOP is held down,
+so clearing the bit with `& 0x7F` is the wrong fix. Only the engine's trigger and
+return are in the engine, and those are the bytes that do not fit: the CPU
+engine is 221 bytes over its MAIN with them, so the trigger is compiled for
+the REU engine only (`#ifdef OW_REU`) until something else moves out of
+ow-cpu. The idea of swapping banks of memory in and out, instead of whole
+programs, is still open.
+
+**The open world's disk icon is resident at `$CF14`.** `src/lib/ow_disk.s`
+(segment `OWDISK`, `cfg/c64-owboot.cfg`) holds the code, the sprite's picture
+and the interrupt, and the loader stub (`ow_run.s`) calls it at fixed
+addresses `$CF14` (show) and `$CF17` (stop) before and after every `LOAD`. The
+bootstrap copies the block there, and it must do so after the splash, not at
+the start of `main()`: the splash unpacks its picture into `$C000-$FFFF`,
+which covers `$CF14`. The sprite lives at `$0380`, the only place in bank 0
+no program's code is. The interrupt stops itself after about thirty seconds,
+so a soft reset during a load cannot leave it blinking at READY. The talk
+program's BSS2 starts at `$CF14` too, but nothing there writes it.
+
 ## Treasure maps
 
 A fight won on the overworld drops a map one time in `treasure_odds` (10;
