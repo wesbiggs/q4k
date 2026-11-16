@@ -762,8 +762,12 @@ Past the sprite blocks at `$52C0` there is a little code (`OWTOP`).
 `OWLOW`, code run at `$0400` from inside screen A's space, is empty since the
 roofs went to the town's overlay, and nothing copies it down any more: ld65
 leaves an empty segment's `__OWLOW_LOAD__` undefined, so put the copy back
-with whatever goes there; the C stack is moved to the tape buffer
-by `sm_stack()`; `ow_chcol` is page aligned (`ALIGNBSS`). The CPU's sixteen
+with whatever goes there (and it would meet the C stack, which
+`sm_stack()` moves to `$07C0-$07FF`, the top of the KERNAL's screen, unseen
+in bank 1: not the tape buffer, where it was, because a TeensyROM's drive
+driver works there during a load, and cc65's `cbm_load()` keeps the load
+address on the C stack, so the first load of each file failed with the
+drive saying OK; the engine also tries every load three times, `load3()`); `ow_chcol` is page aligned (`ALIGNBSS`). The CPU's sixteen
 shift routines are one, patched for each direction. **The quiet frame**: at
 speed 2, the frame after a step's second flip builds nothing, so it shifts
 the back screen for the next step if its direction can be seen coming (a
@@ -1295,8 +1299,10 @@ about why. VICE's binary monitor does, and `tools/screendump.py`'s
 Things these found: the `make -j` race on `src/ow/NAME.s` (see "cl65
 makes `foo.s`"); an interrupt arriving with the KERNAL banked out, which
 reads its vector from the RAM under it and runs anything; the C stack
-pointer past `$0400` in an engine (its stack is the tape buffer, down from
-there), which `memcpy` then copies from forever. And one about the tests
+pointer past its top in an engine (`$0800` now), which `memcpy` then copies
+from forever. On real hardware, anything kept in the tape buffer can be a
+cartridge drive's scratch space during a load: only `ow_run()`'s loader
+(which works there) and the disk icon's sprite are kept in it now. And one about the tests
 themselves: a `.cmd` file is read with `set -- $(cat NAME.cmd)`, never
 `eval`, which turns `\x03` into `x03` (no RUN/STOP) and `\r` into `r`.
 

@@ -354,6 +354,21 @@ static void disk_off(unsigned char sprites)
 
 static unsigned char scene_now;         /* the scene play_for() was told */
 
+/* A file from unit 8 to its own address, tried three times: a drive that
+   says no and then yes (a TeensyROM's did, the first time each file was
+   asked for) is not worth stopping for. Nonzero if it loaded. */
+static unsigned char __fastcall__ load3(const char *name)
+{
+    unsigned char i;
+
+    for (i = 0; i < 3; ++i) {
+        if (cbm_load(name, 8, 0)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 void play_for(unsigned char s)
 {
     unsigned char f = tune_file[s], i;
@@ -365,7 +380,7 @@ void play_for(unsigned char s)
         i = disk_on();
         ow_tune_stop();         /* (another tune: nothing to carry on with) */
         carry_on = 0;
-        if (cbm_load(tune_name[f], 8, 0)) {
+        if (load3(tune_name[f])) {
             OW->tune = f;
         }
         disk_off(i);
@@ -685,7 +700,7 @@ static void ov_switch(void)
         s = disk_on();
         name = ov_want == OV_TOWN ? town_file :
                ov_want == OV_DUNGEON ? dungeon_file : world_file;
-        while (!cbm_load(name, 8, 0)) {
+        while (!load3(name)) {
             load_failed(name, 1);
         }
         VIC.bordercolor = COLOR_BLACK;
@@ -955,7 +970,8 @@ void __fastcall__ ow_leave(const char *name)
     disk_on();                  /* the music paused where it is, and ... */
     OWB->song = carry_on;       /* ... the next program may carry on */
     sm_quit();
-    memset((void *)0x0400, 0x20, 1000);     /* the load shows a clear screen, */
+    memset((void *)0x0400, 0x20, 960);      /* the load shows a clear screen
+                                               (above the C stack, sm_stack), */
     memset((void *)0xD800, 0, 1000);        /* black, colour RAM too */
     VIC.bgcolor0 = COLOR_BLACK;             /* and the background, which is
                                                green on the map */
@@ -980,7 +996,7 @@ int main(void)
     /* The engine's code past the screens, $52C0-$59FF (OWTOP, HICODE): a
        file of its own, so that this one is not 5K of empty screens longer.
        Nothing in it may run before this. */
-    while (!cbm_load(hi_file, 8, 0)) {
+    while (!load3(hi_file)) {
         load_failed(hi_file, 0);
     }
     VIC.bordercolor = COLOR_BLACK;
