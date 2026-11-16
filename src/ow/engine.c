@@ -58,6 +58,7 @@
 
 #include <c64.h>
 #include <cbm.h>
+#include <errno.h>
 #include <conio.h>
 #include <peekpoke.h>
 #include <stdlib.h>
@@ -355,12 +356,16 @@ static void disk_off(unsigned char sprites)
 static unsigned char scene_now;         /* the scene play_for() was told */
 
 /* A file from unit 8 to its own address, tried three times: a drive that
-   says no and then yes (a TeensyROM's did, the first time each file was
-   asked for) is not worth stopping for. Nonzero if it loaded. */
+   says no and then yes is not worth stopping for. Nonzero if it loaded.
+   _oserror is cleared first, so that after a failure it says how: the
+   KERNAL's error code if LOAD came back with carry set, or 0 if it came
+   back with carry clear but an end address of $0000 (cc65's cbm_load()
+   returns the end address, and 0 is failure). */
 static unsigned char __fastcall__ load3(const char *name)
 {
     unsigned char i;
 
+    _oserror = 0;
     for (i = 0; i < 3; ++i) {
         if (cbm_load(name, 8, 0)) {
             return 1;
@@ -672,7 +677,10 @@ static void __fastcall__ load_failed(const char *name, unsigned char up)
     memset(row, ' ', 40);
     strcpy((char *)row, name);  /* (PETSCII as screen codes: readable) */
     row += strlen(name);
-    *row++ = ' ';
+    row[0] = ' ';
+    row[1] = 0x45;              /* E, and the KERNAL's code (load3()) */
+    row[2] = '0' + _oserror;
+    row += 4;
     if (cbm_open(15, 8, 15, "") == 0) {
         cbm_read(15, row, 24);
         cbm_close(15);
@@ -970,8 +978,7 @@ void __fastcall__ ow_leave(const char *name)
     disk_on();                  /* the music paused where it is, and ... */
     OWB->song = carry_on;       /* ... the next program may carry on */
     sm_quit();
-    memset((void *)0x0400, 0x20, 960);      /* the load shows a clear screen
-                                               (above the C stack, sm_stack), */
+    memset((void *)0x0400, 0x20, 1000);     /* the load shows a clear screen, */
     memset((void *)0xD800, 0, 1000);        /* black, colour RAM too */
     VIC.bgcolor0 = COLOR_BLACK;             /* and the background, which is
                                                green on the map */
