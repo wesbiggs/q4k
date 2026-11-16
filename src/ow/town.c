@@ -4,7 +4,7 @@
  * Towns and the castle: built the game's way (town_data.c's maps, or
  * town_gen()) into local[] and copied into WORLD, their buildings roofed
  * until the hero goes in, their people sprites; and walking into one of them
- * who has lines is a conversation (src/owtalk.c, loaded over the engine).
+ * who has lines is a conversation (src/owtown.c, loaded over the engine).
  * Loaded into the slot over the world's when the hero steps onto a town
  * (world.c's to_town()), or at the start when a talk is over; its way out
  * asks for the world's back (engine.h). Built with --code-name OVTCODE.
@@ -33,8 +33,8 @@ static const unsigned char robes[7] = {
     COLOR_LIGHTBLUE, COLOR_WHITE
 };
 
-/* The conversation's program (src/owtalk.c). */
-static const char owtalk_name[] = "owtalk";
+/* The conversation's program (src/owtown.c). */
+static const char owtown_name[] = "owtown";
 
 static unsigned char ex, ey;            /* the way out */
 static unsigned char npc_ent[7];        /* which of here_ents each sprite is */
@@ -422,30 +422,14 @@ void t_arrived(void)
     }
 }
 
-/* Talk to sprite n's person. The engine goes; src/owtalk.c has the talk,
+/* Talk to sprite n's person. The engine goes; src/owtown.c has the talk,
    and loads the engine back when it ends, which comes straight back here
    (engine.c's main()). Never returns. */
 static void talk_to(unsigned char n)
 {
-    const TownEnt *e = &here_ents[npc_ent[n]];
-
     OWB->mode = OWB_TALK;
-    OWB->npc = e->param;
-    OWB->town = town_index;
-    OWB->land = land;
-    OWB->x = hx - BIAS;
-    OWB->y = hy - BIAS;
-    OWB->out_x = out_wx;
-    OWB->out_y = out_wy;
-    memcpy(OW->ship_x, ship_x, sizeof ship_x);  /* where they were left */
-    memcpy(OW->ship_y, ship_y, sizeof ship_y);
-    sm_quit();
-    memset((void *)0x0400, 0x20, 1000);     /* the load shows a clear screen, */
-    memset((void *)0xD800, 0, 1000);        /* black, colour RAM too */
-    VIC.bgcolor0 = COLOR_BLACK;             /* and the background, which is
-                                               green on the map */
-    VIC.bordercolor = COLOR_BLACK;
-    ow_run(owtalk_name);
+    OWB->npc = here_ents[npc_ent[n]].param;
+    ow_leave(owtown_name);
 }
 
 /* A step into someone: a conversation, if they have lines (a villager is a

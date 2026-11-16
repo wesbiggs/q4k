@@ -20,6 +20,7 @@
 #define OW_ENGINE_H
 
 #include <q4k/game.h>
+#include <q4k/owgame.h>
 
 #define WORLD   ((unsigned char *)0xB000)
 #define BIAS    32              /* squares: smooth.s's 64 characters */
@@ -78,10 +79,7 @@ extern const unsigned char ow_pass[64];
 
 /* --- The core (engine.c) ------------------------------------------------ */
 
-#define AREA_HOME    0          /* the overworld */
-#define AREA_TOWN    1
-#define AREA_CASTLE  2
-#define AREA_DUNGEON 3
+/* AREA_HOME ... are owgame.h's. */
 extern unsigned char area, area_w, area_h;
 
 /* Eight ways, a square at a time: sprite.h's four, then the diagonals. */
@@ -111,6 +109,17 @@ extern unsigned char boat;
    overlay; and, coming back from a talk, where the hero stood in it. */
 extern unsigned char town_index, resuming, resume_x, resume_y;
 extern unsigned char dun_index;         /* the dungeon to go into, or in */
+
+/* The world overlay's: the hero's square in the world, on the overworld. */
+extern unsigned int  wx;
+extern unsigned char wy;
+
+/* Where the party is, and what the engine keeps of the game, into the game
+   block (owgame.h): before a save, or before another program takes over. */
+void owg_where(void);
+/* Another program of the open world's over the engine (the talk, a shop
+   ...), with OWB filled in: the game block first. Never returns. */
+void __fastcall__ ow_leave(const char *name);
 
 void next_frame(void);
 void play_for(unsigned char scene);

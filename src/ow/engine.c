@@ -10,7 +10,7 @@
  * Step onto Millford, the castle, the Hollow Crown or a town to go in: each
  * has a tile set of its own (assets/town_tiles.txt and the rest), its people
  * are sprites, and its walls have faces. Walk into someone with something to
- * say and they say it (src/owtalk.c).
+ * say and they say it (src/owtown.c).
  *
  * This is the core: the main loop, the music, and what every area does. The
  * overworld and the dungeons (world.c) and the towns (town.c) are overlays
@@ -84,10 +84,12 @@ unsigned char dun_index;        /* the dungeon to go into, or that you are in */
 static char world_file[]   = "ow-reu.world";
 static char town_file[]    = "ow-reu.town";
 static char dungeon_file[] = "ow-reu.dungeon";
+static char hi_file[]      = "ow-reu.hi";
 #else
 static char world_file[]   = "ow-cpu.world";
 static char town_file[]    = "ow-cpu.town";
 static char dungeon_file[] = "ow-cpu.dungeon";
+static char hi_file[]      = "ow-cpu.hi";
 #endif
 unsigned char ov_want, ov_have;
 
@@ -106,9 +108,11 @@ const unsigned char dungeon_deep[NUM_DUNGEONS] = { 3, 3, 4 };
 const unsigned char dungeon_prize[NUM_DUNGEONS] = { IT_EMBER, IT_TEAR, IT_HEART };
 unsigned char has(unsigned char item)
 {
-    return items & item;        /* nothing is carried: the keeper is there */
+    return items & item;
 }
-Actor party[MAX_PARTY];
+/* (party[] is the game block's: cfg/c64-openworld.cfg names it.) */
+typedef char owgame_is_what_mkowsave_writes[2 * (sizeof(OwGame) == OWG_SIZE) - 1];
+typedef char owgame_fits_below_the_probe[2 * (OWG_ADDR + OWG_SIZE <= 0xCF00) - 1];
 
 /* Poke-able. */
 unsigned char seed;             /* lore_seed for the land (the bootstrap's) */
@@ -266,7 +270,7 @@ void next_frame(void)
    interrupt left with nothing to do but the keyboard. */
 
 static unsigned char song_now = NONE;   /* the song playing, or that would be */
-static unsigned char music = 1;         /* the M key */
+unsigned char music = 1;                /* the M key */
 
 /* Before the disk: the music stopped (silence has to reach VICE's sound
    buffer before the drive works, or it plays its last one for as long as
@@ -489,36 +493,96 @@ static unsigned char glide(void)
     return flip;
 }
 
-/* The bootstrap's hand-off (ow.h), or a talk's: what the core keeps of it.
-   The overlays take the rest. A new game starts on the overworld, where the
-   bootstrap says; the end of a talk in the town it began in. */
+/* The game block (owgame.h), which the bootstrap, the party's making or
+   another program left: the game, and where it is. The overlays take the
+   rest of the bootstrap's hand-off (ow.h). */
 static void take_block(void)
 {
     seed = lore_seed = OW->seed;
-    land       = ISLE_HOME;
+    quest_stage = G->quest_stage;
+    items       = G->items;
+    memcpy(looted, G->looted, sizeof looted);
     home_biome = OW->home_biome;
     memcpy(home_fx, OW->home_fx, NUM_HOME_PLACES);
     memcpy(home_fy, OW->home_fy, NUM_HOME_PLACES);
-    memcpy(ship_x, OW->ship_x, sizeof ship_x);
-    memcpy(ship_y, OW->ship_y, sizeof ship_y);
-    if (OWB->mode == OWB_BACK) {
-        out_wx = OWB->out_x;
-        out_wy = OWB->out_y;
-        land = OWB->land;
-        if (land != ISLE_HOME) {
-            isle_biome = OW->ibiome[land];
-        }
-        town_index = OWB->town;
-        resuming = 1;
-        resume_x = OWB->x;
-        resume_y = OWB->y;
-        ov_want = OV_TOWN;
+    if (G->ships) {
+        memcpy(ship_x, G->ship_x, sizeof ship_x);
+        memcpy(ship_y, G->ship_y, sizeof ship_y);
+        boat = G->boat;
     } else {
-        out_wx = OW->start_x;
-        out_wy = OW->start_y;
+        memcpy(ship_x, OW->ship_x, sizeof ship_x);
+        memcpy(ship_y, OW->ship_y, sizeof ship_y);
+    }
+    land = G->land;
+    if (land != ISLE_HOME) {
+        isle_biome = OW->ibiome[land];
+    }
+    out_wx = G->wx;
+    out_wy = G->wy;
+    depth  = G->depth;
+    if (G->x != OWG_GATE) {
+        resuming = 1;
+        resume_x = G->x;
+        resume_y = G->y;
+    }
+    switch (G->area) {
+    case AREA_HOME:
         ov_want = OV_WORLD;
+        break;
+    case AREA_DUNGEON:
+        dun_index = G->place;
+        ov_want = OV_DUNGEON;
+        break;
+    default:
+        town_index = G->place;
+        ov_want = OV_TOWN;
+        break;
+    }
+    if (G->quiet & 1) {
+        music = 0;
+    }
+    if (G->quiet & 2) {
+        sfx_toggle();
     }
     OWB->mode = OWB_NONE;
+}
+
+void owg_where(void)
+{
+    G->quest_stage = quest_stage;
+    G->items       = items;
+    memcpy(G->looted, looted, sizeof looted);
+    G->area  = area;
+    G->land  = land;
+    G->depth = depth;
+    G->place = area == AREA_DUNGEON ? dun_index : town_index;
+    G->boat  = boat;
+    G->ships = 1;
+    memcpy(G->ship_x, ship_x, sizeof ship_x);
+    memcpy(G->ship_y, ship_y, sizeof ship_y);
+    if (area == AREA_HOME) {
+        G->wx = wx;
+        G->wy = wy;
+        G->x  = OWG_GATE;
+    } else {
+        G->wx = out_wx;
+        G->wy = out_wy;
+        G->x  = hx - BIAS;
+        G->y  = hy - BIAS;
+    }
+    G->quiet = !music | (sfx_on() ? 0 : 2);
+}
+
+void __fastcall__ ow_leave(const char *name)
+{
+    owg_where();
+    sm_quit();
+    memset((void *)0x0400, 0x20, 1000);     /* the load shows a clear screen, */
+    memset((void *)0xD800, 0, 1000);        /* black, colour RAM too */
+    VIC.bgcolor0 = COLOR_BLACK;             /* and the background, which is
+                                               green on the map */
+    VIC.bordercolor = COLOR_BLACK;
+    ow_run(name);
 }
 
 int main(void)
@@ -535,6 +599,13 @@ int main(void)
         for (;;) {
         }
     }
+    /* The engine's code past the screens, $52C0-$59FF (OWTOP, HICODE): a
+       file of its own, so that this one is not 5K of empty screens longer.
+       Nothing in it may run before this. */
+    while (!cbm_load(hi_file, 8, 0)) {
+        ++VIC.bordercolor;
+    }
+    VIC.bordercolor = COLOR_BLACK;
     take_block();
     /* (Nothing is in OWLOW now, the code run at $0400 that was copied out of
        screen A's space here: the roofs' flood and drawing were, and are in

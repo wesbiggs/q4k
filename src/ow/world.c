@@ -596,6 +596,10 @@ static void back_home(void)
     fill_window();              /* (show_area works out the edges) */
 #endif
     fresh = 0;
+    if (boat) {                 /* (started in one: a save, a fight) */
+        VIC.spr0_color = COLOR_BROWN;
+        sm_sprite(hero_frame(DIR_RIGHT, 0));
+    }
     seek();
     show_ships();
     show_area(wx & 127, wy & 127);

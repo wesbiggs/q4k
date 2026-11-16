@@ -74,7 +74,7 @@ DEPFLAGS  = -Wc --create-full-dep,$(@:.o=.d) -Wc --dep-target,$@
 # rule below). dungeontest links the maps and the font, arena the fights and
 # isletest the land, so they need the game's charset and probe page as well,
 # with everything in one load (cfg/c64-flat.cfg).
-LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest owtalk,$*),flat,$(if $(filter openworld,$*),owboot,$(if $(filter owarena,$*),owarena,tool))).cfg
+LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest owtown,$*),flat,$(if $(filter openworld,$*),owboot,$(if $(filter owarena,$*),owarena,tool))).cfg
 
 MAINS    := $(wildcard src/*.c)
 PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
@@ -327,7 +327,7 @@ $(DIST)/arena.prg: $(BUILD)/arena.o $(BUILD)/lib/battle_bot.o $(LIB) $(wildcard 
 # has the splash screen's two pictures (PAL and NTSC), each with its text,
 # and a saved game to load, since nothing saves yet.
 OWENG := $(DIST)/ow-cpu.prg $(DIST)/ow-reu.prg
-OWOVL := $(foreach e,cpu reu,$(foreach o,world town dungeon,$(DIST)/ow-$(e).$(o)))
+OWOVL := $(foreach e,cpu reu,$(foreach o,world town dungeon hi,$(DIST)/ow-$(e).$(o)))
 OWFILES := $(DIST)/ow-data.prg $(DIST)/splash-p.prg $(DIST)/splash-n.prg \
            $(DIST)/ow-save.prg
 
@@ -380,7 +380,7 @@ OWOBJ = $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-$*.o) $(BUILD)/ow/ovl.o \
         $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o
 
 # The overlays come out of the same link (ld65's %O.world, ...).
-$(DIST)/ow-%.world $(DIST)/ow-%.town $(DIST)/ow-%.dungeon: $(DIST)/ow-%.prg ;
+$(DIST)/ow-%.world $(DIST)/ow-%.town $(DIST)/ow-%.dungeon $(DIST)/ow-%.hi: $(DIST)/ow-%.prg ;
 
 $(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/ow/ovl.o \
 	    $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o \
@@ -392,6 +392,7 @@ $(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/o
 	@mv $@.world $(DIST)/ow-$*.world
 	@mv $@.town $(DIST)/ow-$*.town
 	@mv $@.dungeon $(DIST)/ow-$*.dungeon
+	@mv $@.hi $(DIST)/ow-$*.hi
 	tools/owslots.py $(BUILD)/ow-$*.map $(OWOBJ)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
@@ -413,10 +414,10 @@ $(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py
 # (and the game's music, m.*: the bootstrap loads the tune a game starts
 # with, an engine any other. MUSIC_STAMP is set further down, with the
 # game's own disk, so its file is spelled out here.)
-# The conversations (src/owtalk.c, which the engine loads when the hero walks
+# The conversations (src/owtown.c, which the engine loads when the hero walks
 # into a townsperson): the program, and the talk's files, which tools/mktalk.py
 # makes for the game's disk too.
-$(DIST)/openworld.d64: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST)/owtalk.prg \
+$(DIST)/openworld.d64: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST)/owtown.prg \
 	    $(BUILD)/music/.stamp $(BUILD)/talk/.stamp
 	$(C1541) -format "openworld,01" d64 $@ >/dev/null
 	$(C1541) -attach $@ -write $(DIST)/openworld.prg openworld \
@@ -424,7 +425,7 @@ $(DIST)/openworld.d64: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 	    -write $(DIST)/ow-save.prg ow-save -write $(DIST)/ow-data.prg ow-data \
 	    -write $(DIST)/ow-cpu.prg ow-cpu -write $(DIST)/ow-reu.prg ow-reu \
 	    $(foreach f,$(OWOVL),-write $(f) $(notdir $(f))) \
-	    -write $(DIST)/owtalk.prg owtalk \
+	    -write $(DIST)/owtown.prg owtown \
 	    $$(for f in $(BUILD)/music/m.*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/talk/[0-9]*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
 
