@@ -57,6 +57,7 @@ SFX_TERRAINS = 30
 sfx_off: .byte sfx_floor - sfx_data, sfx_grass - sfx_data, sfx_forest - sfx_data
          .byte sfx_sand - sfx_data, sfx_swamp - sfx_data, sfx_rock - sfx_data
          .byte sfx_wood - sfx_data, sfx_melee - sfx_data, sfx_bow - sfx_data
+         .byte sfx_no - sfx_data, sfx_drink - sfx_data
 sfx_terrain:
          .byte 1, 2, 0, 5, 0, 3, 4, 0, 0, 0, 6, 0, 0, 6, 0, 0   ; $60 grass...
          .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0       ; $70 ...the drawbridge
@@ -85,6 +86,10 @@ sfx_wood:   .byte $00, $16,  3, $11, $20, <-3,  3, $10, $10, 0,  0
 sfx_melee:  .byte $05, $00,  3, $81, $24, <-3,  8, $81, $12, <-1,  2, $80, $0C, 0,  0
 ; a bow hit: a tick of noise, then a woody thump falling in pitch
 sfx_bow:    .byte $03, $04,  1, $81, $60, 0,  3, $41, $0C, <-2,  5, $40, $06, <-1,  0
+; no way through: two low, dull buzzes (the open world's word for "not yet")
+sfx_no:     .byte $00, $46,  5, $41, $05, 0,  3, $40, $05, 0,  5, $41, $04, 0,  3, $40, $04, 0,  0
+; a draught: three rising gulps of triangle
+sfx_drink:  .byte $00, $56,  4, $11, $0C, <1,  2, $10, $0C, 0,  4, $11, $10, <1,  2, $10, $10, 0,  4, $11, $14, <1,  3, $10, $14, 0,  0
 
 .ifdef OW_SFX
         .segment "CODE"

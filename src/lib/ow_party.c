@@ -9,8 +9,9 @@
  * the engine is loaded over it after, so nothing of this stays in memory.
  *
  * OWB_QUICK, the tests' start (screendump.py --splash quick), makes a lone
- * warrior called Alaric without asking, with the keys to every dungeon, on
- * the overworld outside Millford: where the prototype always began.
+ * warrior called Alaric without asking, with the keys to every dungeon and
+ * the three stones (so every ship sails), on the overworld outside Millford:
+ * where the prototype always began, with nothing shut.
  */
 
 #include <c64.h>
@@ -194,8 +195,10 @@ void ow_new_game(unsigned char quick)
     memset(looted, 0, sizeof looted);
     party_init();               /* Alaric, a warrior, alone */
     if (quick) {
-        quest_stage = Q_QUESTED;
-        items = IT_SIGIL | IT_TIDAL | IT_ASHEN;
+        /* Everything open but the last of it: every dungeon's key, every
+           port's ship (the stones are what open them), Dragonbane unmade. */
+        quest_stage = Q_HEART;
+        items = IT_SIGIL | IT_TIDAL | IT_ASHEN | IT_EMBER | IT_TEAR | IT_HEART;
     } else {
         make_party();
         G->area  = AREA_TOWN;   /* at Millford's gate (the bootstrap */

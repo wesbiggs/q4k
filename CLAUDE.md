@@ -205,6 +205,20 @@ builds its world (the game goes on as it was if there is no save). The
 copy of the disk. Every engine start resumes from it: the overworld, a town (at
 its gate when `x` is `OWG_GATE`) or a dungeon level, where it was left.
 
+**The story in the open world** is the game's: `owtown`'s conversations
+hand over what `gift.c`'s `quest_after_talk()` says (Garrett's arms, the
+Sigil, the keys, Dragonbane, the reward), with the quest stage and the
+items in the game block. The engine has no line for words, so its gates
+say no with a sound (`SFX_NO`, `sfx.s`, once a press: `bumped` in
+`engine.c`): Millford's gate before Garrett has armed the party
+(`t_can_step()` in `town.c`), a dungeon without its key (`to_dungeon_if()`
+in `world.c`), and a ship at one of home's ports before the story reaches
+its continent (`ship_held()`: `Q_EMBER` + its slot, as the game's captains
+have it; one moved, or at a continent, always sails). Golden
+`openworld-garrett` asks Garrett for arms with the story at `Q_START` and
+walks out. The quick start and the disk's save are at `Q_HEART` with every
+key and stone, so that nothing is shut for the other goldens.
+
 **The screens of text are a program loaded from disk, not a part of the
 engine**: `owtown` (`src/owtown.c`, flat, linked with `cfg/c64-flat.cfg`).
 The hand-off block (`OWB` in `include/q4k/ow.h`, at `$02ED`) says what for

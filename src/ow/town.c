@@ -16,6 +16,7 @@
 
 #include <q4k/actor.h>
 #include <q4k/isle.h>
+#include <q4k/music.h>
 #include <q4k/music_map.h>
 #include <q4k/ow.h>
 #include <q4k/rle.h>
@@ -410,6 +411,19 @@ void t_enter(void)
     show_area(hero.x + BIAS, hero.y + BIAS);
 }
 
+/* Whether a step that way can be taken: as anywhere in a place, except
+   out of Millford before Garrett has armed the party (the game's rule:
+   nobody leaves without a weapon). */
+unsigned char __fastcall__ t_can_step(unsigned char d)
+{
+    if (quest_stage == Q_START && town_index == TOWN_MILLFORD &&
+        (unsigned char)(hx + dirdx[d] - BIAS) == ex &&
+        (unsigned char)(hy + dirdy[d] - BIAS) == ey) {
+        return 0;               /* (t_bump says no) */
+    }
+    return place_step(d);
+}
+
 /* At the end of a step: out by the way out, to the world's overlay, or in
    or out of a building. */
 void t_arrived(void)
@@ -433,11 +447,15 @@ static void talk_to(unsigned char n)
 }
 
 /* A step into someone: a conversation, if they have lines (a villager is a
-   wall). */
+   wall); into Millford's gate too soon, a refusal. */
 void __fastcall__ t_bump(unsigned char d)
 {
     unsigned char i, x = hx + dirdx[d], y = hy + dirdy[d];
 
+    if (x - BIAS == ex && y - BIAS == ey) {
+        sfx_play(SFX_NO);
+        return;
+    }
     for (i = 0; i < sm_npc_n; ++i) {
         if (sm_npc_x[i] == x && sm_npc_y[i] == y) {
             if (here_ents[npc_ent[i]].kind == ENT_NPC) {

@@ -10,7 +10,9 @@
  *                       (src/lib/ow_party.c), which ends in Millford
  *   OWB_TALK            a conversation, when the hero walks into a
  *                       townsperson: the offline talk (src/lib/talk.c,
- *                       which reads each person's lines from the disk)
+ *                       which reads each person's lines from the disk),
+ *                       and what it hands over (src/lib/gift.c), which
+ *                       moves the quest on
  *
  * It reads and writes the game through the game block (q4k/owgame.h), and
  * when it is done the engine is loaded back (ow_back()) and carries on from
@@ -28,20 +30,39 @@
 
 #include <q4k/charset.h>
 #include <q4k/dialog.h>
+#include <q4k/gift.h>
 #include <q4k/ow.h>
 #include <q4k/owgame.h>
 #include <q4k/tiles.h>
 #include <q4k/town_data.h>
 
-/* What the offline talk reads of the game, which the prototype does not
-   have: no quest, so every line is at the stage it starts at, and no save
-   device of its own but the disk. */
-
-/* Nothing is handed over here (see above). */
-static const char *no_gift(unsigned char granted)
+/* A line said on a screen of its own: what a person handed over when
+   there was nothing to read of theirs. Any key goes on. */
+static void note_screen(const char *s)
 {
-    (void)granted;
-    return 0;
+    clrscr();
+    textcolor(COLOR_YELLOW);
+    cputsxy(1, 10, s);
+    textcolor(COLOR_GRAY2);
+    cputsxy(1, 12, "Press a key.");
+    cgetc();
+}
+
+/* A conversation, and whatever it hands over (the game's quest_after_talk(),
+   gift.c): the Sigil, the keys, Garrett's arms and Dragonbane, the king's
+   reward. With nothing on the disk for the person, what they would have
+   given is given all the same, as the game does. */
+static void talk(unsigned char npc)
+{
+    const char *note;
+
+    talking_to = npc;
+    if (dialog_talk(npc, npc_names[npc], quest_after_talk) != DIALOG_OK) {
+        note = quest_after_talk(GRANT_OPEN);
+        if (note) {
+            note_screen(note);
+        }
+    }
 }
 
 int main(void)
@@ -67,7 +88,7 @@ int main(void)
 
     if (mode == OWB_TALK) {
         owg_in();
-        dialog_talk(OWB->npc, npc_names[OWB->npc], no_gift);
+        talk(OWB->npc);
         owg_out();
     } else {
         ow_new_game(mode == OWB_QUICK);
