@@ -1414,6 +1414,31 @@ static unsigned char fight(void)
     }
 }
 
+/* A field, packed (tools/mkfields.py's pack(): a byte n < 128 and n + 1
+   bytes as they are, n >= 128 and the next byte n - 125 times), from where
+   it loads to its place at $4000. */
+#define F_PACKED ((const unsigned char *)0xC000)
+#define F_SIZE   0x0C00
+
+static void unpack(void)
+{
+    const unsigned char *src = F_PACKED;
+    unsigned char *dst = F_SCREEN;
+    unsigned char n;
+
+    while (dst < F_SCREEN + F_SIZE) {
+        n = *src++;
+        if (n < 128) {
+            memcpy(dst, src, ++n);
+            src += n;
+        } else {
+            n -= 125;
+            memset(dst, *src++, n);
+        }
+        dst += n;
+    }
+}
+
 /* The module's way in (head.s): load what the block names, fight, and
    leave the machine as it was. */
 unsigned char fight_run(void)
@@ -1426,6 +1451,7 @@ unsigned char fight_run(void)
     if (!cbm_load(fq_field, dev, 0) || !cbm_load(fq_sprite, dev, 0)) {
         return FIGHT_NODISK;
     }
+    unpack();
     srand(fq_seed);
     mx_font();
     set_up();

@@ -419,6 +419,56 @@ def preview(path, fields, tiles, sprites, order):
     img.save(path)
 
 
+# A field is 3K at SCREEN, mostly runs of the same few bytes, and the open
+# world's disk is full: the files are packed, PackBits-style (a byte n < 128
+# and n + 1 bytes as they are; n >= 128 and the next byte n - 125 times),
+# loaded to PACKED and unpacked by the module (src/fight/fight.c's
+# unpack()), about a third of the size.
+PACKED = 0xC000
+FIELD_SIZE = 0x0C00
+
+
+def pack(d):
+    out = bytearray()
+    lit = bytearray()
+
+    def flush():
+        nonlocal lit
+        while lit:
+            out.append(len(lit[:128]) - 1)
+            out.extend(lit[:128])
+            lit = lit[128:]
+
+    i = 0
+    while i < len(d):
+        j = i
+        while j < len(d) and d[j] == d[i] and j - i < 130:
+            j += 1
+        if j - i >= 3:
+            flush()
+            out += bytes([0x80 + j - i - 3, d[i]])
+            i = j
+        else:
+            lit.append(d[i])
+            i += 1
+    flush()
+    return bytes(out)
+
+
+def unpack(p, size):
+    out = bytearray()
+    i = 0
+    while len(out) < size:
+        n = p[i]
+        if n < 128:
+            out += p[i + 1:i + 2 + n]
+            i += 2 + n
+        else:
+            out += bytes([p[i + 1]]) * (n - 125)
+            i += 2
+    return bytes(out)
+
+
 def main():
     tiles = tile_table()
     fields = read_fields()
@@ -441,8 +491,14 @@ def main():
             os.remove(os.path.join(out, old))
     for fd in fields:
         blob, p = compose(fd, tiles)
+        blob = bytes(blob).ljust(FIELD_SIZE, b"\0")
+        if len(blob) != FIELD_SIZE:
+            die("field %s is %d bytes, not %d" % (fd["name"], len(blob),
+                                                  FIELD_SIZE))
+        packed = pack(blob)
+        assert unpack(packed, FIELD_SIZE) == blob
         open(os.path.join(out, "f." + fd["name"]), "wb").write(
-            bytes([SCREEN & 255, SCREEN >> 8]) + bytes(blob))
+            bytes([PACKED & 255, PACKED >> 8]) + packed)
         print("mkfields: f.%-9s %3d characters" % (fd["name"], len(p["glyphs"])))
     for name in monsters(sprites, order):
         size, frames = sprites[name]
