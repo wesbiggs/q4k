@@ -237,10 +237,11 @@ and the disk's save have it, so the goldens meet nothing); `--poke
 enc_always=1` makes every roll a fight, which `openworld-fight` in
 `tools/test.sh` uses to win against a goblin. The fields are packed on
 the disk (`tools/mkfields.py`'s `pack()`, unpacked by the module from
-`$C000`), and **the NTSC splash picture is left off the open world's disk**
-for the room (an NTSC machine asks in words: `title_text()` in
-`src/openworld.c`; `make OW_NTSC_SPLASH=1` puts it back, if something else
-comes off). The disk has 2 blocks free.
+`$C000`). **The open world's disk is a D81** (a 1581's, 3160 blocks): a
+1541's was full once the fights were on it. `screendump.py` and
+`tools/run.sh` put a 1581 in unit 8 for a `.d81`. A machine with no
+splash picture is asked F1 or F3 in words (`title_text()` in
+`src/openworld.c`).
 
 **The screens of text are a program loaded from disk, not a part of the
 engine**: `owtown` (`src/owtown.c`, linked with `cfg/c64-owtown.cfg`, the
@@ -267,8 +268,8 @@ reloads `ow-data`, which it overwrites, resets the machine and loads the
 engine), and the engine loads the area's overlay straight away, with the
 hero where they stood, and builds the overworld afresh only on the way out
 (`fresh` in `world.c`, even with an REU, whose copy did not survive). The
-talk's files are on `openworld.d64` beside it (which is full: the disk
-is the limit for more programs). The RUN/STOP that leaves
+talk's files are on `openworld.d81` beside it (a D81, with about 2400
+blocks free). The RUN/STOP that leaves
 a talk is still flagged when `ow-data` reloads, and the KERNAL's `LOAD`
 then fails with no drive error: `ow_back()` waits for STOP to come up and
 sets `$91` to `$FF` (released). `$7F` in `$91` means STOP is held down, so
@@ -532,10 +533,10 @@ characters), for the TeensyROM+/REU ideas. The game links none of it.
 
 **It is made for VICE and the TeensyROM, not a real 1541.** Loads are
 cheap there, so loading another overlay or program from the disk is a fair
-price for memory; how long a stock 1541 would take is not a reason against a
+price for memory; how long a stock drive would take is not a reason against a
 design here.
 
-**A disk of its own** (`dist/openworld.d64`, which `make` builds): a
+**A disk of its own** (`dist/openworld.d81`, a 1581's, which `make` builds): a
 bootstrap, two engines and what the bootstrap loads for them. The first, `openworld` (`src/openworld.c`, `cfg/c64-owboot.cfg`),
 is a bootstrap: it looks for an REU (`ow_reu_detect()`, `src/lib/ow_boot.s`:
 the registers, a round trip, and that a transfer lands in colour RAM, in its
@@ -557,7 +558,7 @@ An engine has its own memory map (`cfg/c64-openworld.cfg`: VIC bank 1 at
 map at `$B000` and its edges at `$A000`) and its own raster interrupt, which
 chains to `$EA31` with the CIA's timer interrupt off. **Tests** start the
 bootstrap with the disk and read the engine's labels:
-`screendump.py dist/openworld.prg --disk dist/openworld.d64 --splash quick
+`screendump.py dist/openworld.prg --disk dist/openworld.d81 --splash quick
 --lbl build/ow-cpu.lbl` (`ow-reu.lbl` with `--vice=-reu`); the bootstrap and
 the loads take about fifteen seconds.
 
