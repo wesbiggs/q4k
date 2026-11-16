@@ -65,7 +65,9 @@ static void say(unsigned char y, unsigned char color, const char *s)
 static void ask(const char *s)
 {
     textcolor(COLOR_YELLOW);
-    cclearxy(1, ASK_Y, LINE_W);
+    /* The whole row: "1 Warrior, 2 Archer or 3 Wizard?" is longer than
+       LINE_W, and what it leaves past that edge stays on screen. */
+    cclearxy(1, ASK_Y, SCR_W - 2);
     cputsxy(1, ASK_Y, s);
 }
 

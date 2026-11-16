@@ -134,6 +134,9 @@ static unsigned char item(unsigned char row)
 
 static unsigned char on_map;      /* asking in the log, not the note rows */
 static unsigned char can[MAX_PARTY];
+static unsigned char taker;       /* who the last offer() went to, or NONE */
+static const char   *item_text;   /* what that was, for the note */
+static char          book_text[24];
 
 static void ask_line(unsigned char row, const char *petscii)
 {
@@ -201,6 +204,7 @@ static unsigned char offer(unsigned char idx)
         can[i] = gear_better(i, gear, idx);
     }
     i = choose(names[idx]);
+    taker = i;
     if (i != NONE) {
         *gear_slot(i, gear) = idx;
         if (gear == GEAR_BOW && !had) {
@@ -208,6 +212,26 @@ static unsigned char offer(unsigned char idx)
         }
     }
     return i;
+}
+
+/* The note for a sale: who took it, even when there was no one to ask. */
+static void fair_trade(void)
+{
+    if (taker == NONE) {
+        note("A fair trade.", COLOR_LIGHTGREEN);
+        return;
+    }
+    text_clear(0, NOTE_Y, SCR_W);
+    text_clear(0, NOTE_Y + 1, SCR_W);
+    eng_text[0] = '\0';
+    strcat(eng_text, party[taker].name);
+    strcat(eng_text, " takes the ");
+    strcat(eng_text, item_text);
+    strcat(eng_text, ".");
+    textcolor(COLOR_LIGHTGREEN);
+    cputsxy(0, NOTE_Y, eng_text);
+    str_lit(line, "A fair trade.");
+    text_put(0, NOTE_Y + 1, line, COLOR_LIGHTGREEN);
 }
 
 /* One beaten monster in this many that carries anything leaves a blade, mail
@@ -353,6 +377,7 @@ static unsigned char magic_buy(unsigned char pick)
             note("Nobody has need of robes.", COLOR_GRAY2);
             return 0;
         }
+        item_text = armour_names[ARM_ROBES];
         return 1;
     }
     s = SP_HEAL + pick - 2;
@@ -371,13 +396,15 @@ static unsigned char magic_buy(unsigned char pick)
         note("It is past you yet. Come back wiser.", COLOR_GRAY2);
         return 0;
     }
-    strcpy(eng_text, "Book of ");
-    strcat(eng_text, spell_names[s]);
-    i = choose(eng_text);
+    strcpy(book_text, "Book of ");
+    strcat(book_text, spell_names[s]);
+    i = choose(book_text);
     if (i == NONE) {
         note("You know that spell already.", COLOR_GRAY2);
         return 0;
     }
+    taker = i;
+    item_text = book_text;
     party[i].known |= 1 << s;
     /* Prepared at once, while there is a slot for it: the party screen
        changes which are. */
@@ -440,11 +467,13 @@ void shop_open(unsigned char kind)
             }
             continue;
         }
+        taker = NONE;
         if (magic) {
             if (!magic_buy(pick)) {
                 continue;
             }
         } else if (gear != NONE) {
+            item_text = names[pick];
             if (offer(pick) == NONE) {
                 note("None of you would be better for it.", COLOR_GRAY2);
                 continue;
@@ -453,7 +482,7 @@ void shop_open(unsigned char kind)
             ++potions;
         }
         gold -= cost;
-        note("A fair trade.", COLOR_LIGHTGREEN);
+        fair_trade();
     }
 }
 
