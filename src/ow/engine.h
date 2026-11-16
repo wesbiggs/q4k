@@ -120,6 +120,7 @@ void owg_where(void);
 /* Another program of the open world's over the engine (the talk, a shop
    ...), with OWB filled in: the game block first. Never returns. */
 void __fastcall__ ow_leave(const char *name);
+extern const char owtown[];     /* "owtown": the screens of text */
 
 void next_frame(void);
 void play_for(unsigned char scene);

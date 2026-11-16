@@ -220,17 +220,31 @@ walks out. The quick start and the disk's save are at `Q_HEART` with every
 key and stone, so that nothing is shut for the other goldens.
 
 **The screens of text are a program loaded from disk, not a part of the
-engine**: `owtown` (`src/owtown.c`, flat, linked with `cfg/c64-flat.cfg`).
-The hand-off block (`OWB` in `include/q4k/ow.h`, at `$02ED`) says what for
-(`OWB_NEW`/`OWB_QUICK` the party's making, `src/lib/ow_party.c`; `OWB_TALK`
-a conversation; shops, inns and the party's screen to come). The engine
+engine**: `owtown` (`src/owtown.c`, linked with `cfg/c64-owtown.cfg`, the
+flat layout with the shop's code below the charset, where it would be 6K
+of padding in the file). The hand-off block (`OWB` in `include/q4k/ow.h`,
+at `$02ED`) says what for: `OWB_NEW`/`OWB_QUICK` the party's making
+(`src/lib/ow_party.c`), `OWB_TALK` a conversation, `OWB_SHOP` and
+`OWB_INN` the game's own `shop.c` and `inn.c` (walking into a keeper, as a
+townsperson), `OWB_PARTY` the game's party screen (`I`). It defines the
+few variables and functions of `game.c`, `sprite.c`, `savegame.c`,
+`music.s` and `view.c` that those modules use (as the engine does), so
+that none of those is linked, nor the map, the land generator and the
+vault behind them: adding a module that references one of them can pull
+8K back in, so read `build/owtown.map`'s module list after. `rand()`
+starts from the same seed in every program, so `owtown` seeds it from the
+game's turn (the engine counts its steps into `game_turn`) and seed, or
+every visit would hear the same rumour. The rumours are the inns' own
+files, which the offline talk already reads whole (a few hundred bytes
+each): a REL file would let one rumour be read without the rest, which
+nothing here needs. Golden `openworld-ale` buys a mug at Millford's inn. The engine
 leaves with `ow_leave()` (the block out, the machine as `sm_quit()` leaves
 it, `ow_run()`); `owtown` comes back with `ow_back()` (`src/lib/ow_back.c`:
 reloads `ow-data`, which it overwrites, resets the machine and loads the
 engine), and the engine loads the area's overlay straight away, with the
 hero where they stood, and builds the overworld afresh only on the way out
 (`fresh` in `world.c`, even with an REU, whose copy did not survive). The
-talk's files are on `openworld.d64` beside it (which has about 57 blocks
+talk's files are on `openworld.d64` beside it (which has about 50 blocks
 free: the disk is the limit for more programs). The RUN/STOP that leaves
 a talk is still flagged when `ow-data` reloads, and the KERNAL's `LOAD`
 then fails with no drive error: `ow_back()` waits for STOP to come up and

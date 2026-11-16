@@ -29,6 +29,8 @@
  *   1 / 2                                        one or two pixels a frame
  *   M                                            the music off and on
  *   X                                            the sound effects off and on
+ *   I                                            the party, what they carry
+ *                                                and a wizard's spells
  *   P                                            the worst hurt drinks a
  *                                                draught (a gulp, or a
  *                                                refusal if nobody can)
@@ -366,6 +368,10 @@ static void save_game(void)
     play_for(scene_now);
 }
 
+/* The text screens' program (src/owtown.c): the talk, the shops, the
+   inns, the party. */
+const char owtown[] = "owtown";
+
 /* P: a draught for whoever of the party is worst hurt, as the game has it
    (arms.c's most_hurt() and drink_potion()): a gulp if someone drank, a
    refusal if there is none to drink or nobody hurt. */
@@ -519,6 +525,10 @@ static unsigned char typed(void)
     case 'p':                   /* a draught */
         quaff();
         break;
+    case 'i':                   /* the party's screen (owtown) */
+        OWB->mode = OWB_PARTY;
+        ow_leave(owtown);
+        break;
     case 0x85:                  /* F1: save */
         save_game();
         break;
@@ -529,6 +539,8 @@ static unsigned char typed(void)
     }
     return NONE;
 }
+
+#pragma code-name (pop)
 
 static void publish(void)
 {
@@ -541,7 +553,6 @@ static void publish(void)
     PROBE_SCRATCH[6] = area;
     PROBE_SCRATCH[7] = depth;
 }
-#pragma code-name (pop)
 
 /* The frame's camera, `moved` pixels into the step, and the screen
    flipped if that takes it into another character. Returns whether it
@@ -644,6 +655,10 @@ static void take_block(void)
 
 void owg_where(void)
 {
+    static unsigned int counted;
+
+    G->game_turn += steps - counted;    /* a step is a turn, as in the game */
+    counted = steps;
     G->quest_stage = quest_stage;
     G->items       = items;
     memcpy(G->looted, looted, sizeof looted);
