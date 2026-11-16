@@ -73,16 +73,19 @@ unsigned char boat;             /* 1 + the ship you are in, or 0 */
 
 unsigned char town_index;       /* the town to go into, or that you are in */
 unsigned char resuming, resume_x, resume_y;     /* back from a talk */
+unsigned char dun_index;        /* the dungeon to go into, or that you are in */
 
 /* The overlays (engine.h): the files, by the engine's name, since each
-   engine has its own pair. In DATA, not RODATA, which is OW-DATA and must
+   engine has its own set. In DATA, not RODATA, which is OW-DATA and must
    be the same bytes in both engines. */
 #ifdef OW_REU
-static char world_file[] = "ow-reu.world";
-static char town_file[]  = "ow-reu.town";
+static char world_file[]   = "ow-reu.world";
+static char town_file[]    = "ow-reu.town";
+static char dungeon_file[] = "ow-reu.dungeon";
 #else
-static char world_file[] = "ow-cpu.world";
-static char town_file[]  = "ow-cpu.town";
+static char world_file[]   = "ow-cpu.world";
+static char town_file[]    = "ow-cpu.town";
+static char dungeon_file[] = "ow-cpu.dungeon";
 #endif
 unsigned char ov_want, ov_have;
 
@@ -317,7 +320,9 @@ static void ov_switch(void)
 
     while (ov_want != ov_have) {
         s = disk_on();
-        while (!cbm_load(ov_want == OV_TOWN ? town_file : world_file, 8, 0)) {
+        while (!cbm_load(ov_want == OV_TOWN ? town_file :
+                         ov_want == OV_DUNGEON ? dungeon_file : world_file,
+                         8, 0)) {
             ++VIC.bordercolor;
         }
         VIC.bordercolor = COLOR_BLACK;
@@ -620,7 +625,7 @@ int main(void)
                 }
                 ++steps;
                 ov_arrived();   /* (the overworld's step is the world's) */
-                ov_switch();    /* into a town, or out of one */
+                ov_switch();    /* into a town or a dungeon, or out */
                 publish();
             }
         } else if ((frame & 15) == 0 && !still) {

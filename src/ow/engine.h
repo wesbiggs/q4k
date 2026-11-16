@@ -4,11 +4,12 @@
  * The engine is a core (engine.c and smooth.s: the main loop, the scrolling,
  * the music, what every area does) and two overlays that take turns in one
  * slot of memory (cfg/c64-openworld.cfg's SLOT): the world's (world.c: the
- * overworld, the ships, the continents and the dungeons) and the town's
- * (town.c: towns and the castle, their roofs and their people, and the
- * conversations). Stepping into a town loads the town's over the world's,
- * and its way out loads the world's back; what each keeps in BSS stays put
- * while the other is in, so the overworld comes back as it was left.
+ * overworld, the ships and the continents), the town's (town.c: towns and
+ * the castle, their roofs and their people, and the conversations) and the
+ * dungeon's (dungeon.c, with the dungeon generator). Stepping into a town or
+ * a dungeon loads its overlay over the world's, and its way out loads the
+ * world's back; what each keeps in BSS stays put while another is in, so
+ * the overworld comes back as it was left.
  *
  * The core reaches an overlay only through the jump table at the start of
  * the slot (ovl.s), and an overlay may call the core and itself, nothing
@@ -109,6 +110,7 @@ extern unsigned char boat;
 /* Which town to go into (TOWN_*), set before asking for the town's
    overlay; and, coming back from a talk, where the hero stood in it. */
 extern unsigned char town_index, resuming, resume_x, resume_y;
+extern unsigned char dun_index;         /* the dungeon to go into, or in */
 
 void next_frame(void);
 void play_for(unsigned char scene);
@@ -129,6 +131,7 @@ void __fastcall__ show_area(unsigned char x, unsigned char y);
 #define OV_NONE  0
 #define OV_WORLD 1
 #define OV_TOWN  2
+#define OV_DUNGEON 3
 extern unsigned char ov_want;
 
 /* --- The jump table at the start of the slot (ovl.s) -------------------- */

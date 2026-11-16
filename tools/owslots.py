@@ -3,8 +3,9 @@
 
     tools/owslots.py MAP OBJ...
 
-The engine (src/ow/engine.h) is a core and two overlays, the world's
-(world-*.o) and the town's (town-*.o), that take turns in one slot. Code in
+The engine (src/ow/engine.h) is a core and three overlays, the world's
+(world-*.o), the town's (town-*.o) and the dungeon's (dungeon-*.o, and
+ow_dungeon.o, the generator's copy), that take turns in one slot. Code in
 an overlay is only there while that overlay is loaded, so the core may reach
 it only through the jump table at the start of the slot (ovl.s, the only
 module allowed to name both), and an overlay may not reach the other's. This
@@ -18,7 +19,8 @@ import re
 import subprocess
 import sys
 
-SEGS = {"world": ("OVWHEAD", "OVWCODE"), "town": ("OVTHEAD", "OVTCODE")}
+SEGS = {"world": ("OVWHEAD", "OVWCODE"), "town": ("OVTHEAD", "OVTCODE"),
+        "dungeon": ("OVDHEAD", "OVDCODE")}
 
 
 def od65(obj, what):
@@ -29,6 +31,8 @@ def od65(obj, what):
 
 def part_of(obj):
     base = os.path.basename(obj)
+    if base == "ow_dungeon.o":
+        return "dungeon"
     for p in SEGS:
         if base.startswith(p + "-"):
             return p

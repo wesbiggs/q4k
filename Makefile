@@ -327,19 +327,32 @@ $(DIST)/arena.prg: $(BUILD)/arena.o $(BUILD)/lib/battle_bot.o $(LIB) $(wildcard 
 # has the splash screen's two pictures (PAL and NTSC), each with its text,
 # and a saved game to load, since nothing saves yet.
 OWENG := $(DIST)/ow-cpu.prg $(DIST)/ow-reu.prg
-OWOVL := $(foreach e,cpu reu,$(DIST)/ow-$(e).world $(DIST)/ow-$(e).town)
+OWOVL := $(foreach e,cpu reu,$(foreach o,world town dungeon,$(DIST)/ow-$(e).$(o)))
 OWFILES := $(DIST)/ow-data.prg $(DIST)/splash-p.prg $(DIST)/splash-n.prg \
            $(DIST)/ow-save.prg
 
-# Each engine is a core (engine.c, smooth.s) and two overlays that take turns
-# in one slot (src/ow/engine.h): the world's (world.c, OVWCODE) and the
-# town's (town.c, OVTCODE), which ld65 writes beside it as %O.world and
-# %O.town, and tools/owslots.py checks that nothing calls into an overlay
-# but through its jump table (ovl.s).
-OWPARTS := engine world town
+# Each engine is a core (engine.c, smooth.s) and three overlays that take
+# turns in one slot (src/ow/engine.h): the world's (world.c, OVWCODE), the
+# town's (town.c, OVTCODE) and the dungeon's (dungeon.c, OVDCODE), which
+# ld65 writes beside it as %O.world, %O.town and %O.dungeon, and
+# tools/owslots.py checks that nothing calls into an overlay but through its
+# jump table (ovl.s).
+OWPARTS := engine world town dungeon
 
 $(BUILD)/ow/world-cpu.o $(BUILD)/ow/world-reu.o: OWSEG := --code-name OVWCODE
 $(BUILD)/ow/town-cpu.o $(BUILD)/ow/town-reu.o: OWSEG := --code-name OVTCODE
+$(BUILD)/ow/dungeon-cpu.o $(BUILD)/ow/dungeon-reu.o: OWSEG := --code-name OVDCODE
+
+# The dungeon generator, src/lib/dungeon.c, again, in the dungeon's overlay:
+# the library's copy is the game's map engine's (MAPCODE), which here is the
+# core. Linked ahead of the library, so the library's is not pulled in. Its
+# constants stay in COMMON (MAPDATA), the same bytes in both engines. After
+# the library's, never beside it: cl65 writes src/lib/dungeon.s on the way
+# to either.
+$(BUILD)/ow/ow_dungeon.o: src/lib/dungeon.c | $(BUILD)/lib/dungeon.o
+	@mkdir -p $(dir $@)
+	$(CL65) $(filter-out -Osir,$(CFLAGS)) -Or --code-name OVDCODE \
+	    --rodata-name MAPDATA $(DEPFLAGS) -c -o $@ $<
 
 define OWPART
 $(BUILD)/ow/$(1)-cpu.o $(BUILD)/ow/$(1)-reu.o: $(BUILD)/ow/$(1)-%.o: src/ow/$(1).c
@@ -357,12 +370,14 @@ $(BUILD)/ow/ovl.o: src/ow/ovl.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) -c -o $@ $<
 
-OWOBJ = $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-$*.o) $(BUILD)/ow/ovl.o
+OWOBJ = $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-$*.o) $(BUILD)/ow/ovl.o \
+        $(BUILD)/ow/ow_dungeon.o
 
-# The overlays come out of the same link (ld65's %O.world, %O.town).
-$(DIST)/ow-%.world $(DIST)/ow-%.town: $(DIST)/ow-%.prg ;
+# The overlays come out of the same link (ld65's %O.world, ...).
+$(DIST)/ow-%.world $(DIST)/ow-%.town $(DIST)/ow-%.dungeon: $(DIST)/ow-%.prg ;
 
 $(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/ow/ovl.o \
+	    $(BUILD)/ow/ow_dungeon.o \
 	    $(LIB) cfg/c64-openworld.cfg tools/owslots.py
 	@mkdir -p $(DIST)
 	$(CL65) $(LDFLAGS) -C cfg/c64-openworld.cfg -m $(BUILD)/ow-$*.map \
@@ -370,11 +385,9 @@ $(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/o
 	@mv $@.data $(BUILD)/ow-$*.data
 	@mv $@.world $(DIST)/ow-$*.world
 	@mv $@.town $(DIST)/ow-$*.town
+	@mv $@.dungeon $(DIST)/ow-$*.dungeon
 	tools/owslots.py $(BUILD)/ow-$*.map $(OWOBJ)
-	@printf '%-14s %6d bytes, world %d, town %d\n' "$@" \
-	    "$$(( $$(wc -c < $@) - 2 ))" \
-	    "$$(( $$(wc -c < $(DIST)/ow-$*.world) - 2 ))" \
-	    "$$(( $$(wc -c < $(DIST)/ow-$*.town) - 2 ))"
+	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
 $(DIST)/ow-data.prg: $(OWENG)
 	cmp $(BUILD)/ow-cpu.data $(BUILD)/ow-reu.data

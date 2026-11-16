@@ -205,27 +205,34 @@ STOP is held down, so clearing the bit with `& 0x7F` is the wrong fix. Golden
 leans on the harness typing its keys a bufferful at a time (the talk and the
 engine each empty the buffer as they start), hence the `x` padding.
 
-**The open world's engine is a core and two overlays** (`src/ow/engine.h`).
+**The open world's engine is a core and three overlays** (`src/ow/engine.h`).
 The core (`engine.c`, `smooth.s`, and the library: the main loop, the
-scrolling, the music, what every area does, the generators) stays put; the
-world's overlay (`world.c`, `OVWCODE`: the overworld's window and streaming,
-the continent kept, the ships, the dungeons) and the town's (`town.c`,
+scrolling, the music, what every area does, the land and town generators)
+stays put; the world's overlay (`world.c`, `OVWCODE`: the overworld's window
+and streaming, the continent kept, the ships), the town's (`town.c`,
 `OVTCODE`: towns and the castle, the roofs, the people, the talk's trigger)
-take turns in `SLOT` (`$5A00-$6BFF`), each a file of its own that ld65 writes
-beside the engine (`ow-cpu.world`, `ow-cpu.town`, and `ow-reu.*`, since each
-engine links its own). Stepping onto a town loads the town's over the
-world's, its way out loads the world's back (`ov_switch()` in `engine.c`:
-the music stopped, the sprites off, the screen already blank; the border
-flashes if the disk is gone). Their BSS stays where it is, so the world's
+and the dungeon's (`dungeon.c`, `OVDCODE`: the levels and their stairs, with
+its own copy of the game's `dungeon_build()`, `build/ow/ow_dungeon.o`,
+linked ahead of the library so the library's `MAPCODE` copy is not) take
+turns in `SLOT` (`$5A00-$6BFF`), each a file of its own that ld65 writes
+beside the engine (`ow-cpu.world`, `.town`, `.dungeon`, and `ow-reu.*`,
+since each engine links its own). Stepping onto a town or a dungeon loads
+its overlay over the world's, and its way out loads the world's back
+(`ov_switch()` in `engine.c`: the music stopped, the sprites off, the screen
+already blank; the border flashes if the disk is gone); a dungeon's stairs
+between levels load nothing. Their BSS stays where it is, so the world's
 window queue, the continent kept and so on are as they were left, and the
 REU's copy of the window is put back as before. The core calls an overlay
 only through the jump table at the start of the slot (`ovl.s`: `ov_enter`,
 `ov_can_step`, `ov_arrived`, `ov_bump`, `ov_after`, `ov_idle`), and an
-overlay asks for the other by setting `ov_want` and returning, never by
+overlay asks for another by setting `ov_want` and returning, never by
 loading it itself (it would load over its own code). `tools/owslots.py` runs
 after each link and fails it if anything else calls into an overlay's code.
-One link makes all three, so `ow-data` (COMMON) is still one file for both
-engines. Dungeons stay in the world's overlay: going down needs no load.
+One link makes them all, so `ow-data` (COMMON) is still one file for both
+engines. A new overlay is a file in `OWPARTS`, a code segment and a memory
+area in the cfg, a table in `ovl.s` and a line in `owslots.py`'s `SEGS`.
+Goldens `openworld-dungeon-out` and `openworld-out` go in and out of a
+dungeon and a town.
 
 **The open world's disk icon is resident at `$CF14`.** `src/lib/ow_disk.s`
 (segment `OWDISK`, `cfg/c64-owboot.cfg`) holds the code, the sprite's picture
@@ -449,6 +456,11 @@ the game: a world from the game's generator, walked with a camera that
 glides a pixel or two a frame over 16x16 multicolour metatiles (2x2
 characters), for the TeensyROM+/REU ideas. The game links none of it.
 
+**It is made for VICE and the TeensyROM, not a real 1541.** Loads are
+cheap there, so loading another overlay or program from the disk is a fair
+price for memory; how long a stock 1541 would take is not a reason against a
+design here.
+
 **A disk of its own** (`dist/openworld.d64`, which `make` builds): a
 bootstrap, two engines and what the bootstrap loads for them. The first, `openworld` (`src/openworld.c`, `cfg/c64-owboot.cfg`),
 is a bootstrap: it looks for an REU (`ow_reu_detect()`, `src/lib/ow_boot.s`:
@@ -507,12 +519,14 @@ there after `N`. ld65 writes it beside each engine (`COMMON` in the cfg,
 `%O.data`) and the Makefile fails if the two differ, so only bytes that are
 the same in both links can go there: data, not code (the engines' BSS
 differs). `local[]` (`HIDATA`, the game's font image) is at `$6C00` in an
-engine and in no file. An engine is 19.7K and its overlays 4K each (see
-above). Free: about 880 bytes in MAIN (the generators' `MAPCODE` moved there
-from HIGH), 1.2K in HIGH (`$5400-$59FF`), 520 in the slot beside the world's
-overlay and 440 beside the town's, 200 in BSS, and COMMON 518. Which part a
-function belongs in is which file it is in: the core's if both kinds of area
-use it.
+engine and in no file. An engine is 19.7K (the file runs to HIGH, so MAIN's
+spare bytes are in it as filler). The overlays are 3.9K (world), 4.1K
+(town) and 1.8K (dungeon) of the slot's 4.5K. Free: about 2.4K in MAIN
+(the land and town generators' `MAPCODE` moved there from HIGH), 1.2K in
+HIGH (`$5400-$59FF`), 700 bytes beside the world's overlay, 440 beside the
+town's and 2.7K beside the dungeon's, 200 in BSS, and COMMON 518. Which
+part a function belongs in is which file it is in: the core's if more than
+one kind of area uses it.
 
 **The world** is a torus of 6 by 4 cells of 64x64 squares (`grid[]`):
 Keldmarch in the middle of the second row, the four continents (64x31, at

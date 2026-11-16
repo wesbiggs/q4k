@@ -2,9 +2,9 @@
  * Open world: the world's overlay.
  *
  * The overworld -- Keldmarch and the continents across the sea, streamed
- * into a window round the hero as they walk and sail -- the ships, and the
- * dungeons, which are entered from it and left to it. Loaded into the slot
- * at the start, and again on the way out of a town (engine.h); its BSS is
+ * into a window round the hero as they walk and sail -- and the ships.
+ * Loaded into the slot at the start, and again on the way out of a town or
+ * a dungeon (engine.h); its BSS is
  * the overworld as it was left, so coming back is putting the window back
  * (from the REU, or built again from the vault) round where the hero went
  * in. Built with --code-name OVWCODE.
@@ -14,7 +14,6 @@
 #include <peekpoke.h>
 #include <string.h>
 
-#include <q4k/dungeon.h>
 #include <q4k/isle.h>
 #include <q4k/music_map.h>
 #include <q4k/ow.h>
@@ -72,8 +71,6 @@ static unsigned char ipx[4][2], ipy[4][2], ibiome[4];
 /* This run of the engine has the bootstrap's world (take_world()), and the
    window is to be built afresh, not put back: the first time in. */
 static unsigned char taken, fresh;
-
-static unsigned char dun_index;         /* which dungeon */
 
 /* --- The continent that is kept ------------------------------------------
 
@@ -474,9 +471,6 @@ unsigned char __fastcall__ w_can_step(unsigned char d)
 {
     signed char dx = dirdx[d], dy = dirdy[d];
 
-    if (area != AREA_HOME) {
-        return place_step(d);   /* a dungeon */
-    }
     if (!world_ok(dx, dy)) {
         return 0;
     }
@@ -562,7 +556,8 @@ static void w_leave(void)
 #endif
 }
 
-/* Into a town: the town's overlay takes over (town.c's go_town()). */
+/* Into a town or a dungeon: its overlay takes over (town.c's t_enter(),
+   dungeon.c's d_enter()). */
 static void to_town(unsigned char index)
 {
     w_leave();
@@ -570,32 +565,14 @@ static void to_town(unsigned char index)
     ov_want = OV_TOWN;
 }
 
-/* Level `depth` of dungeon dun_index (the Hollow Crown at home, the
-   Drowned Stair or Blackpit across the sea), standing on the stairs you
-   came by: up if you came down, down if you came up. */
-static void dungeon_level(unsigned char came_down)
-{
-    dungeon_build(dun_index, depth);
-    build_area(ts_dungeon, DUN_W, DUN_H);
-    if (came_down) {
-        show_area(dun_up_x + BIAS, dun_up_y + BIAS);
-    } else {
-        show_area(dun_dn_x + BIAS, dun_dn_y + BIAS);
-    }
-}
-
-static void go_dungeon(unsigned char index)
+static void to_dungeon(unsigned char index)
 {
     w_leave();
-    area = AREA_DUNGEON;
-    play_for(MUSIC_DUNGEON);
     dun_index = index;
-    depth = 1;
-    dungeon_level(1);
+    ov_want = OV_DUNGEON;
 }
 
-/* Back on the overworld where the hero went in, from a dungeon or a town
-   (the screen is off): the window as it was, edges and all, from the REU,
+/* Back on the overworld where the hero went in (the screen is off): the window as it was, edges and all, from the REU,
    or built again from the vault. The first time in, from the bootstrap's
    world. */
 static void back_home(void)
@@ -644,69 +621,48 @@ void w_arrived(void)
 {
     unsigned char t, i, k, lx, ly, d;
 
-    if (area == AREA_HOME) {
-        step_world();
-    }
+    step_world();
     t = tile_at(hx, hy);
-    switch (area) {
-    case AREA_HOME:
-        if (t != T_TOWN && t != T_CASTLE && t != T_DUNGEON) {
-            return;
-        }
-        k = grid[wy >> 6][wx >> 6];
-        lx = wx & 63;
-        ly = wy & 63;
-        if (k == CELL_HOME) {
-            for (i = 0; i < 5; ++i) {
-                if (home_fx[i] == lx && home_fy[i] == ly) {
-                    break;
-                }
-            }
-            land = ISLE_HOME;
-            switch (i) {
-            case 0: to_town(TOWN_MILLFORD); break;
-            case 1: to_town(TOWN_CASTLE);   break;
-            case 2: go_dungeon(0);          break;
-            case 4: to_town(TOWN_PROC);     break;
-            }
-        } else if (k) {
-            /* A continent's: its story place (a town or a dungeon, by the
-               seed's shuffle), or its own town. */
-            k -= 1;
-            ly -= ISLE_TOP;
-            for (i = 0; i < 2; ++i) {
-                if (ipx[k][i] == lx && ipy[k][i] == ly) {
-                    break;
-                }
-            }
-            land = k;
-            isle_biome = ibiome[k];
-            if (i == 0) {
-                d = OW->slot[k];  /* which story place */
-                if (d & 1) {
-                    go_dungeon(1 + (d >> 1));
-                } else {
-                    to_town(TOWN_WARDLOW + (d >> 1));
-                }
-            } else if (i == 1) {
-                to_town(TOWN_PROC);
+    if (t != T_TOWN && t != T_CASTLE && t != T_DUNGEON) {
+        return;
+    }
+    k = grid[wy >> 6][wx >> 6];
+    lx = wx & 63;
+    ly = wy & 63;
+    if (k == CELL_HOME) {
+        for (i = 0; i < 5; ++i) {
+            if (home_fx[i] == lx && home_fy[i] == ly) {
+                break;
             }
         }
-        break;
-    case AREA_DUNGEON:
-        if (t == T_STAIRDN && depth < dungeon_deep[dun_index]) {
-            leave_area();
-            ++depth;
-            dungeon_level(1);
-        } else if (t == T_STAIRUP) {
-            leave_area();
-            if (depth == 1) {
-                back_home();
+        land = ISLE_HOME;
+        switch (i) {
+        case 0: to_town(TOWN_MILLFORD); break;
+        case 1: to_town(TOWN_CASTLE);   break;
+        case 2: to_dungeon(0);          break;
+        case 4: to_town(TOWN_PROC);     break;
+        }
+    } else if (k) {
+        /* A continent's: its story place (a town or a dungeon, by the
+           seed's shuffle), or its own town. */
+        k -= 1;
+        ly -= ISLE_TOP;
+        for (i = 0; i < 2; ++i) {
+            if (ipx[k][i] == lx && ipy[k][i] == ly) {
+                break;
+            }
+        }
+        land = k;
+        isle_biome = ibiome[k];
+        if (i == 0) {
+            d = OW->slot[k];  /* which story place */
+            if (d & 1) {
+                to_dungeon(1 + (d >> 1));
             } else {
-                --depth;
-                dungeon_level(0);
+                to_town(TOWN_WARDLOW + (d >> 1));
             }
+        } else if (i == 1) {
+            to_town(TOWN_PROC);
         }
-        break;
     }
 }
