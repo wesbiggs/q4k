@@ -425,6 +425,7 @@ static void save_game(void)
    inns, the party. */
 const char owtown[] = "owtown";
 
+#pragma code-name (push, "HICODE")    /* (MAIN is full) */
 /* A fight: owtown (src/lib/ow_fight.c) calls the fight module, and the
    engine comes back to where it was, or to Millford. Never returns. */
 void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg)
@@ -459,6 +460,8 @@ void __fastcall__ wander(unsigned char tile)
         ow_fight_with(OWF_WANDER, tile);
     }
 }
+
+#pragma code-name (pop)
 
 /* --- What is said, and L ------------------------------------------------
    In the engine's spare memory past the screens (HICODE), strings and all:
@@ -642,19 +645,48 @@ static void rebuild(unsigned char mode)
     ow_run("openworld");
 }
 
+/* A file that would not load: its name and what the drive says, on the
+   KERNAL's text screen (row 12), until a key; then it is tried again.
+   `up` is whether the engine's screen is going, to be put back after.
+   (On VICE every load works; this is for a drive that says no.) */
+static void __fastcall__ load_failed(const char *name, unsigned char up)
+{
+    unsigned char *row = (unsigned char *)0x0400 + 40 * 12;
+
+    sm_quit();
+    memset(row, ' ', 40);
+    strcpy((char *)row, name);  /* (PETSCII as screen codes: readable) */
+    row += strlen(name);
+    *row++ = ' ';
+    if (cbm_open(15, 8, 15, "") == 0) {
+        cbm_read(15, row, 24);
+        cbm_close(15);
+    }
+    memset((void *)(0xD800 + 40 * 12), COLOR_WHITE, 40);
+    VIC.bordercolor = COLOR_RED;
+    while (!cbm_k_getin()) {
+    }
+    VIC.bordercolor = COLOR_BLACK;
+    if (up) {
+        sm_show();
+    }
+}
+
 /* The overlay ov_want asks for, into the slot (the screen is off), and
-   started. The game's disk is needed: the border flashes until it is back.
+   started. The game's disk is needed: load_failed() says what the drive
+   said, and it is tried again after a key.
    An overlay's ov_enter() may ask for the other in turn. */
 static void ov_switch(void)
 {
     unsigned char s;
+    const char *name;
 
     while (ov_want != ov_have) {
         s = disk_on();
-        while (!cbm_load(ov_want == OV_TOWN ? town_file :
-                         ov_want == OV_DUNGEON ? dungeon_file : world_file,
-                         8, 0)) {
-            ++VIC.bordercolor;
+        name = ov_want == OV_TOWN ? town_file :
+               ov_want == OV_DUNGEON ? dungeon_file : world_file;
+        while (!cbm_load(name, 8, 0)) {
+            load_failed(name, 1);
         }
         VIC.bordercolor = COLOR_BLACK;
         disk_off(s);
@@ -949,7 +981,7 @@ int main(void)
        file of its own, so that this one is not 5K of empty screens longer.
        Nothing in it may run before this. */
     while (!cbm_load(hi_file, 8, 0)) {
-        ++VIC.bordercolor;
+        load_failed(hi_file, 0);
     }
     VIC.bordercolor = COLOR_BLACK;
     take_block();

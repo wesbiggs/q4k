@@ -374,7 +374,9 @@ beside the engine (`ow-cpu.world`, `.town`, `.dungeon`, and `ow-reu.*`,
 since each engine links its own). Stepping onto a town or a dungeon loads
 its overlay over the world's, and its way out loads the world's back
 (`ov_switch()` in `engine.c`: the music stopped, the sprites off, the screen
-already blank; the border flashes if the disk is gone); a dungeon's stairs
+already blank; if a load fails, `load_failed()` shows the file and the
+drive's error message on the KERNAL's screen, red border, and tries again
+after a key; the same for the engine's `.hi` file at the start); a dungeon's stairs
 between levels load nothing. Their BSS stays where it is, so the world's
 window queue, the continent kept and so on are as they were left, and the
 REU's copy of the window is put back as before. The core calls an overlay
