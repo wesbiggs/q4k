@@ -58,6 +58,15 @@ void sm_stack(void);
 extern unsigned char sm_sh_x0, sm_sh_y0, sm_sh_x1, sm_sh_y1;
 extern unsigned char sm_box_c0, sm_box_c1, sm_box_r0, sm_box_r1;
 extern unsigned char sm_torus;
+/* The text window: two lines under the map (smooth.s). sm_say() moves the
+   bottom one up and writes s (PETSCII, up to 40) under it in sm_ink (0-7);
+   sm_guard() waits while the split that makes the window is near, for
+   whatever is about to keep interrupts off for long. */
+void __fastcall__ sm_say(const char *s);
+void sm_text_clear(void);
+void sm_guard(void);
+extern unsigned char sm_ink;
+extern unsigned char sm_irqend, sm_splitline;
 void sm_vcopy(void);
 extern unsigned char *vc_src, *vc_dst;
 extern unsigned char vc_n, vc_sstep, vc_dstep;
@@ -70,7 +79,10 @@ extern volatile unsigned char gen_state;    /* 1 building, 3 copying it into
 
 /* The music (src/lib/ow_tune.s). */
 void __fastcall__ ow_tune_play(unsigned char song);
+void __fastcall__ ow_tune_resume(unsigned char song);   /* where it paused */
+void ow_tune_pause(void);
 void ow_tune_stop(void);
+extern unsigned char ow_tune_on;
 
 /* The tile sets (src/lib/ow_data.s), and which tiles can be walked onto. */
 extern const unsigned char ts_overworld[], ts_town[], ts_castle[],
@@ -127,6 +139,17 @@ void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg);
 /* After a step onto that tile: a wandering monster, now and then. */
 void __fastcall__ wander(unsigned char tile);
 
+/* L, the overlays' (ov_look): what they found, said and taken -- gold or
+   draughts -- and a looted[] bit taken (0, and said, if it was before); or
+   nothing, when the dead may rise from `ground` (NONE: never, as in a
+   town). Neither returns from a fight. */
+void __fastcall__ loot_found(unsigned char draughts, unsigned int amount);
+unsigned char __fastcall__ take_bit(unsigned char bit);
+void __fastcall__ look_nothing(unsigned char ground);
+extern unsigned char grave_odds;
+/* A way that is shut: the refusal's sound, and why, in grey. */
+void __fastcall__ refuse(const char *why);
+
 void next_frame(void);
 void play_for(unsigned char scene);
 unsigned char tile_at(unsigned char x, unsigned char y);
@@ -157,5 +180,6 @@ void ov_arrived(void);          /* a step has ended: hx, hy are past it */
 void __fastcall__ ov_bump(unsigned char d);  /* a step that could not be */
 void ov_after(void);            /* the frame after a step (after != 0) */
 void ov_idle(void);             /* what is left of a frame */
+void ov_look(void);             /* L: what is on the hero's square */
 
 #endif /* OW_ENGINE_H */

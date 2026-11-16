@@ -15,6 +15,10 @@
 
 #include <q4k/ow.h>
 
+/* lda #1, rts: STOP's answer, "not pressed" (Z clear). Below $3800 in
+   every program that comes back this way, where OW-DATA does not reach. */
+static const unsigned char nostop[3] = { 0xA9, 0x01, 0x60 };
+
 void ow_back(void)
 {
     /* RUN/STOP, which may have left the talk, may still be down, or still
@@ -26,6 +30,10 @@ void ow_back(void)
     }
     POKE(0xDC00, 0xFF);
     POKE(0x91, 0xFF);           /* released: $7F is STOP held down */
+    /* And the KERNAL's STOP never pressed from here on, for this load and
+       the engine's (ow_run.s's loader does the same): a RUN/STOP pressed
+       again now would break it too. */
+    POKEW(0x0328, (unsigned)nostop);
 
     OWB->mode = OWB_BACK;
     /* Where OW-DATA was: the tile sets and the towns' maps. */

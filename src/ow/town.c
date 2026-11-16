@@ -16,6 +16,7 @@
 
 #include <q4k/actor.h>
 #include <q4k/isle.h>
+#include <q4k/loot_data.h>
 #include <q4k/music.h>
 #include <q4k/music_map.h>
 #include <q4k/ow.h>
@@ -273,14 +274,14 @@ static void box_on_screen(void)
     if (c0 < 0) c0 = 0;
     if (r0 < 0) r0 = 0;
     if (c1 > 39) c1 = 39;
-    if (r1 > 24) r1 = 24;
+    if (r1 > 21) r1 = 21;       /* (the map's rows: the text is below) */
     if (c0 > c1 || r0 > r1) {
         c0 = c1 = r0 = r1 = 0;
     }
     if (whole) {
         c0 = r0 = 0;
         c1 = 39;
-        r1 = 24;
+        r1 = 21;
     }
     sm_box_c0 = c0;
     sm_box_c1 = c1;
@@ -316,25 +317,31 @@ static unsigned char door_opens(unsigned char x, unsigned char y)
     return found;
 }
 
-/* At the end of a step in a town: in or out of a building? */
-static void roof_check(void)
+/* The building the hero stands in at (x, y) -- on its floor or in its
+   doorway -- or 0 outside; or NONE where that cannot be told (a wall, or a
+   door to nothing with a roof), when whatever is open stays open. */
+static unsigned char building_at(unsigned char x, unsigned char y)
 {
-    unsigned char x = hx - BIAS, y = hy - BIAS;
     unsigned char r = region[AT(x, y)];
 
     if (!r) {
         if (!is_door(local[LOCAL_AT(x, y)])) {
-            return;             /* (a wall: never stood on) */
+            return NONE;        /* (a wall: never stood on) */
         }
         r = door_opens(x, y);   /* standing in a doorway opens the building */
         if (!r) {
-            return;
+            return NONE;
         }
     }
-    if (!has_door[r]) {
-        r = 0;                  /* outside, or nowhere with a roof */
-    }
-    if (r == inside) {
+    return has_door[r] ? r : 0; /* 0: outside, or nowhere with a roof */
+}
+
+/* At the end of a step in a town: in or out of a building? */
+static void roof_check(void)
+{
+    unsigned char r = building_at(hx - BIAS, hy - BIAS);
+
+    if (r == NONE || r == inside) {
         return;
     }
     roof_time = PEEK(0xA2);
@@ -393,19 +400,23 @@ void t_enter(void)
         town_gen();             /* the people, the way out and where to stand */
     }
     build_area(area == AREA_CASTLE ? ts_castle : ts_town, LOCAL_W, LOCAL_H);
-    find_buildings();
+    find_buildings();           /* (from the gate: the outside is region 1) */
+    ex = here_ex;
+    ey = here_ey;
+    if (resuming) {             /* back from a talk: where they stood, ... */
+        resuming = 0;
+        hero.x = resume_x;
+        hero.y = resume_y;
+        inside = building_at(hero.x, hero.y);
+        if (inside == NONE) {
+            inside = 0;
+        }                       /* ... and the roof off what they stand in */
+    }
     bx0 = by0 = 0;
     bx1 = LOCAL_W - 1;
     by1 = LOCAL_H - 1;
     put_roofs();
     show_people();
-    ex = here_ex;
-    ey = here_ey;
-    if (resuming) {             /* back from a talk: where they stood */
-        resuming = 0;
-        hero.x = resume_x;
-        hero.y = resume_y;
-    }
     show_area(hero.x + BIAS, hero.y + BIAS);
 }
 
@@ -434,6 +445,24 @@ void t_arrived(void)
     }
 }
 
+/* L: the town's hidden gold (assets/loot.txt, the game's), on the hero's
+   square, once; anywhere else nothing, and no dead rise in a town. */
+void t_look(void)
+{
+    const Loot *l = loot_table;
+    unsigned char i, x = hx - BIAS, y = hy - BIAS;
+
+    for (i = 0; i < NUM_LOOT; ++i, ++l) {
+        if (l->map == town_index && l->x == x && l->y == y) {
+            if (take_bit(DUN_LOOT + i)) {
+                loot_found(l->kind == LOOT_DRAUGHT, l->amount);
+            }
+            return;
+        }
+    }
+    look_nothing(NONE);
+}
+
 /* Talk, or trade, with sprite n's person: a conversation, a shop or an
    inn. The engine goes; src/owtown.c has the screens,
    and loads the engine back when it ends, which comes straight back here
@@ -452,6 +481,10 @@ static void talk_to(unsigned char n)
     ow_leave(owtown);
 }
 
+#pragma rodata-name (push, "OVTCODE")
+static const char unarmed[] = "Garrett would see you armed first.";
+#pragma rodata-name (pop)
+
 /* A step into someone: a conversation, a shop or an inn (a villager is a
    wall); into Millford's gate too soon, a refusal. */
 void __fastcall__ t_bump(unsigned char d)
@@ -459,7 +492,7 @@ void __fastcall__ t_bump(unsigned char d)
     unsigned char i, x = hx + dirdx[d], y = hy + dirdy[d];
 
     if (x - BIAS == ex && y - BIAS == ey) {
-        sfx_play(SFX_NO);
+        refuse(unarmed);
         return;
     }
     for (i = 0; i < sm_npc_n; ++i) {

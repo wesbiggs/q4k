@@ -4,6 +4,34 @@ Grid-based RPG roguelike for the Commodore 64 (Ultima III lineage).
 cc65 + VICE on macOS. See DEVELOPERS.md for the workflow and README.md for
 the story and how to play.
 
+## Where to look
+
+This file is long; search it for the **bold** lead-ins named here.
+
+- **Two games share the code.** The game proper (`q4k.prg`, `dist/q4k.d64`:
+  sections Memory, Music, The land, The party, Testing) and the open world
+  (`openworld.prg`, `dist/openworld.d81`), the smooth-scrolling one, which is
+  where most work happens now even though its section still calls it a
+  prototype. The open world borrows the game's modules but none of its
+  memory map.
+- **The open world**, in the order a session usually needs it: "The
+  smooth-scrolling prototype" (the disk, the bootstrap, the world, streaming,
+  the REU, places and roofs); "The open world's engine is a core and three
+  overlays" (`src/ow/`, the slot, `ovl.s`'s jump table, what fits where);
+  "The text window, and `L`" (the two lines under the map, `sm_say()`);
+  "The music carries on"; "The screens of text are a program" (`owtown`:
+  talk, shops, inns, party, help, and `ow_back()`); "Fights in the open
+  world"; "The open world's game lives in a block" (`OwGame`, saves); "The
+  story in the open world" (gates and refusals). Keys are listed at the top
+  of `src/ow/engine.c`; how the screen is built is at the top of
+  `src/ow/smooth.s`.
+- **Space** is the usual constraint: free bytes per region are in each
+  section ("Memory" for the game, the open world's "Memory" and the engine's
+  overlay paragraph). Read the `.map` after a change; `make` prints
+  `owslots:` and `mkengines:` lines with the slot sizes.
+- **Tests**: "Testing" (twice: the rules, then the harness), and "Debugging
+  a hang in VICE" for when a screen test just times out.
+
 ## Conventions
 
 - C for game logic; assembly only where profiling says it matters.
@@ -154,7 +182,12 @@ That is why the small tools use `cfg/c64-tool.cfg` instead: without it a
 `foo.o`, and deletes it afterwards.** An assembly module whose name matches a C
 module's is overwritten and then deleted, with no complaint. The continent
 land generator is `isle_gen.s` (next to `isle.c`) for that reason, and the
-towns' is `tgen.s` (next to `town_gen.c`).
+towns' is `tgen.s` (next to `town_gen.c`). The same goes for one `.c` compiled
+twice: the open world's parts (`src/ow/*.c`, once for each engine) raced on
+`src/ow/NAME.s` under `make -j`, and an engine linked the other's code or
+did not assemble, with nothing said (it hung at start with the stack
+pointer past its top). Those are now `cc65` and `ca65` through
+`build/ow/NAME-cpu.s` and `-reu.s` (`OWPART` in the Makefile).
 
 **Screen codes are not ASCII and not PETSCII.** They index the active charset.
 q4k runs the lowercase/mixed set (`VIC.addr = 0x17`, i.e. `$D018 = $17`) because
@@ -198,7 +231,7 @@ the game's own `actor.c`/`game.c` uses `owg_in()`/`owg_out()`
 bytes, `OWG_SIZE`, which `tools/mkowsave.py` writes too and the engine
 checks): F1 in an engine writes it (scratching the old file first, as
 `savegame.c` does; the border is light blue while the drive works, red
-for a second if it would not, since the engine has no line for words), and
+for a second if it would not, and the text window says which), and
 F3 goes back through the bootstrap with `OWB_LOAD`, which loads it and
 builds its world (the game goes on as it was if there is no save). The
 `openworld-save` case in `tools/test.sh` saves, walks on and restores, on a
@@ -208,9 +241,9 @@ its gate when `x` is `OWG_GATE`) or a dungeon level, where it was left.
 **The story in the open world** is the game's: `owtown`'s conversations
 hand over what `gift.c`'s `quest_after_talk()` says (Garrett's arms, the
 Sigil, the keys, Dragonbane, the reward), with the quest stage and the
-items in the game block. The engine has no line for words, so its gates
-say no with a sound (`SFX_NO`, `sfx.s`, once a press: `bumped` in
-`engine.c`): Millford's gate before Garrett has armed the party
+items in the game block. Its gates say no with a sound (`SFX_NO`,
+`sfx.s`, once a press: `bumped` in `engine.c`) and why, in the text window
+(`refuse()`): Millford's gate before Garrett has armed the party
 (`t_can_step()` in `town.c`), a dungeon without its key (`to_dungeon_if()`
 in `world.c`), and a ship at one of home's ports before the story reaches
 its continent (`ship_held()`: `Q_EMBER` + its slot, as the game's captains
@@ -231,7 +264,7 @@ over everything of `owtown`'s above `$4000` (so whatever runs after the
 fight, and the C library, must be in MAIN: `cfg/c64-owtown.cfg`), and then
 pays, levels, hands over a keeper's stone, or wakes the party in Millford
 with half the purse, and says so on a screen of text. Not yet: gear and
-treasure maps dropped, the undead of `L`, music in the fight. `OWG_CALM` in
+treasure maps dropped, music in the fight. `OWG_CALM` in
 the game block's `quiet` keeps anything from wandering out (the quick start
 and the disk's save have it, so the goldens meet nothing); `--poke
 enc_always=1` makes every roll a fight, which `openworld-fight` in
@@ -243,13 +276,49 @@ the disk (`tools/mkfields.py`'s `pack()`, unpacked by the module from
 splash picture is asked F1 or F3 in words (`title_text()` in
 `src/openworld.c`).
 
+**The text window, and `L`.** The engine's map is rows 0-21 of its screens;
+rows 22 and 23 are two lines of text that stay put while the map scrolls
+(`sm_say()`, `sm_ink`, in `smooth.s`, which explains the raster split: at
+line `$DC` the fine scroll is forced to 7 and extended colour turned on,
+which with multicolour is black, so the text rows always start at `$E7`
+behind a seven-line black band; a second interrupt turns it off in the
+right border of line `$E6`). Its letters are the character ROM's
+lowercase set, copied to codes `$A0-$FF` of the engine's character set, so
+no tile set may have more than 160 characters (`mkoverworld.py` checks).
+Anything that keeps interrupts off for long calls `sm_guard()` first (the
+vault copies in `sm_vcopy` and `ow_gen.s`, the REU's transfers), or the
+split comes too late to work and the window shows rubbish for a frame;
+`--peek sm_splitline` is the line just after the last split's write
+(`$DD`; it must have been written by cycle 58 of `$DF`). People's sprites below the
+map's last row are not shown. `screendump.py --vicshot PNG` saves VICE's
+own picture of the frame, which is the only way to see the split: `--shot`
+draws from memory. `L` (`ov_look`, a fourth jump in each overlay's table)
+is the game's `look()`: a town's hidden gold (`loot_table`), a dungeon's
+chests (`dun_cx`/`dun_cy`, even odds gold or a draught), and elsewhere
+nothing, or one time in `grave_odds` the dead (`OWF_UNDEAD`, the game's
+`battle_undead()`); never in a town or with `OWG_CALM`. No treasure maps
+yet. RUN/STOP asks to quit (Y or N, in the window) and goes back through
+the bootstrap with the world block empty, which shows the splash again.
+`?` is `owtown`'s `OWB_HELP`, the open world's keys and the quest's next
+step.
+
+**The music carries on** across the programs: leaving, the engine pauses
+the tune where it is (`ow_tune_pause()`, the volume only) and says which
+song in `OWB->song`; `owtown` plays it on from the KERNAL's interrupt
+(`src/lib/ow_play.s`, which the talk's `music_pause()` pauses round the
+disk), pauses it again before `ow_back()`, and the engine's `play_for()`
+carries on with it (`ow_tune_resume()`) if its scene plays that song. The
+same goes for a town's gate, an overlay's load and a save inside the
+engine. A fight starts the theme again afterwards.
+
 **The screens of text are a program loaded from disk, not a part of the
 engine**: `owtown` (`src/owtown.c`, linked with `cfg/c64-owtown.cfg`, the
 flat layout with the shop's code below the charset, where it would be 6K
 of padding in the file). The hand-off block (`OWB` in `include/q4k/ow.h`,
 at `$02ED`) says what for: `OWB_TALK` a conversation, `OWB_SHOP` and
 `OWB_INN` the game's own `shop.c` and `inn.c` (walking into a keeper, as a
-townsperson), `OWB_PARTY` the game's party screen (`I`). It defines the
+townsperson), `OWB_PARTY` the game's party screen (`I`), `OWB_HELP` the
+keys (`?`). It defines the
 few variables and functions of `game.c`, `sprite.c`, `savegame.c`,
 `music.s` and `view.c` that those modules use (as the engine does), so
 that none of those is linked, nor the map, the land generator and the
@@ -277,7 +346,14 @@ blocks free). The RUN/STOP that leaves
 a talk is still flagged when `ow-data` reloads, and the KERNAL's `LOAD`
 then fails with no drive error: `ow_back()` waits for STOP to come up and
 sets `$91` to `$FF` (released). `$7F` in `$91` means STOP is held down, so
-clearing the bit with `& 0x7F` is the wrong fix. Golden `openworld-talk`
+clearing the bit with `& 0x7F` is the wrong fix. That was not enough (a
+second press during the load broke it again, over and over), so from
+`ow_back()` on, and in every program `ow_run()` loads, the KERNAL's STOP
+vector (`$0328`) points at a routine that says it is never pressed
+(`nostop` in `ow_run.s`'s loader, in the tape buffer): no load can be
+broken. RUN/STOP still comes through `GETIN` as `$03`, which is how the
+shops and the engine read it. The loader retries a failed load instead
+of flashing the border for good. Golden `openworld-talk`
 talks to Old Tam in Millford, comes back and walks out; it leans on the
 harness typing its keys a bufferful at a time (the talk and the engine
 each empty the buffer as they start), hence the `x` padding. **Never
@@ -605,11 +681,14 @@ differs). `local[]` (`HIDATA`, the game's font image) is at `$6C00` in an
 engine and in no file. An engine is 12.6K, MAIN only: what it has past the
 screens (`VICTOP` and `HIGH`, `$52C0-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
-that the engine's file does not carry 5K of empty screens to the disk. The overlays are 3.9K (world), 4.1K
-(town) and 1.8K (dungeon) of the slot's 4.5K. Free: about 2.4K in MAIN
-(the land and town generators' `MAPCODE` moved there from HIGH), 1.2K in
-HIGH (`$5400-$59FF`), 700 bytes beside the world's overlay, 440 beside the
-town's and 2.7K beside the dungeon's, 200 in BSS, and COMMON 518. Which
+that the engine's file does not carry 5K of empty screens to the disk. The overlays are 4.4K (world), 4.4K
+(town) and 2.1K (dungeon) of the slot's 4.5K. Free, OW-CPU's (OW-REU has a
+little more): 175 bytes in MAIN (the land and town generators' `MAPCODE`
+moved there from HIGH), 150 in HIGH (`$5400-$59FF`, where the text window's
+routines and the engine's words are), 125 beside the world's overlay and
+the town's, 2.5K beside the dungeon's, 48 in BSS, and COMMON 250. String
+literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
+says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than
 one kind of area uses it.
 
@@ -1098,7 +1177,7 @@ title screen, before the game starts, so `lore_seed` and `quest_stage` stay
 unreachable. `tools/checkmap.py` checks this; run `make test` after editing
 `assets/towns.txt`.
 
-## Testing
+## Testing: the harness
 
 `tools/screendump.py --keys "..."` types into the KERNAL's keyboard buffer
 (`$0277`/`$C6`) directly — VICE's own key injection proved unreliable — which
@@ -1184,3 +1263,43 @@ sends; the protocol carries no prompt text. Small models need the output
 policed rather than requested — see `for_c64()`, which enforces the sentence
 cap, strips stage directions and speaker labels, and clamps to ASCII. That
 policing applies to model output only; authored mock lines pass through.
+
+## Debugging a hang in VICE
+
+A screen test that times out ("probe never reached stage N") says nothing
+about why. VICE's binary monitor does, and `tools/screendump.py`'s
+`Monitor` class (with `launch`, `connect`, `press_splash`,
+`wait_for_stage`) is easy to drive from a throwaway script that does
+`sys.path.insert(0, "tools"); import screendump as sd`. What has worked:
+
+- **Where is it?** Registers are command `0x31` (body: one byte, 0): a
+  count, then for each a size, an id and a 16-bit value; id 3 is PC, 4 is
+  S. Sample PC a few times a second and name it from the `.lbl` file (the
+  nearest label below). A static C function has no label, so assemble the
+  module with a listing to place an address: `cc65 <same flags> -o x.s
+  file.c; ca65 -l x.lst x.s`, then the module's CODE offset from the
+  `.map`.
+- **Breakpoints**: checkpoint set is `0x12` (start, end, stop when hit,
+  enabled, operation: 4 exec or 2 store, temporary), so a store checkpoint
+  on `$02-$03` watches cc65's C stack pointer and one on `$0001` the
+  banking. Then step with `0x71` (step over, count). An exec checkpoint at
+  each return point of `main()`'s calls finds which call never comes back.
+- **The picture**: `--vicshot PNG` (display get, `0x84`) is what the raster
+  drew; `--shot` and the text dump are drawn from memory and know nothing
+  of raster splits.
+- **Compare against the last commit** in a scratch `git worktree` built
+  there: it settles "was this already broken" in a few minutes.
+
+Things these found: the `make -j` race on `src/ow/NAME.s` (see "cl65
+makes `foo.s`"); an interrupt arriving with the KERNAL banked out, which
+reads its vector from the RAM under it and runs anything; the C stack
+pointer past `$0400` in an engine (its stack is the tape buffer, down from
+there), which `memcpy` then copies from forever. And one about the tests
+themselves: a `.cmd` file is read with `set -- $(cat NAME.cmd)`, never
+`eval`, which turns `\x03` into `x03` (no RUN/STOP) and `\r` into `r`.
+
+To run only the open world's goldens, four VICEs at a time, loop over
+`tests/golden/openworld*.cmd` doing `set -- $(cat $f); tools/screendump.py
+"$@"` and diff against the `.txt` (about six minutes for all of them).
+Don't edit `screendump.py` while such a run is going: the cases that start
+afterwards load the half-edited file.

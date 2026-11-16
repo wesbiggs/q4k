@@ -77,15 +77,21 @@ typedef struct {
 #define OWB_LOAD  8             /* (to the bootstrap) F3: the saved game */
 #define OWB_FIGHT 9             /* a fight: arg OWF_*, npc the ground (a
                                    tile) or the dungeon */
+#define OWB_HELP  10            /* ?: the keys, and what to do next */
 
 #define OWF_WANDER 0            /* what wanders out at you, on npc's ground */
 #define OWF_KEEPER 1            /* a dungeon's keeper: npc the dungeon */
 #define OWF_DRAGON 2            /* Maldrath, in his lair */
+#define OWF_UNDEAD 3            /* the dead, woken by L: npc the ground */
 
 typedef struct {
     unsigned char mode;         /* OWB_* */
     unsigned char npc;          /* the person (NPC_* in town_data.h) */
     unsigned char arg;
+    unsigned char song;         /* 1 + the song of the tune under the KERNAL
+                                   that was playing, paused where it was (so
+                                   that the next program carries on with it),
+                                   or 0: start the scene's from the top */
 } OwBack;
 
 #define OWB ((OwBack *)0x02ED)

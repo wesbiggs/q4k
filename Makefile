@@ -355,11 +355,16 @@ $(BUILD)/ow/ow_dungeon.o: src/lib/dungeon.c | $(BUILD)/lib/dungeon.o
 	$(CL65) $(filter-out -Osir,$(CFLAGS)) -Or --code-name OVDCODE \
 	    --rodata-name MAPDATA $(DEPFLAGS) -c -o $@ $<
 
+# Each part is compiled twice, and cl65 would write both compilations'
+# assembly to the same src/ow/NAME.s: under make -j the two raced, and an
+# object could come out of the other engine's code, or not assemble. So
+# cc65 and ca65 separately, each through a .s of its own in build/.
 define OWPART
 $(BUILD)/ow/$(1)-cpu.o $(BUILD)/ow/$(1)-reu.o: $(BUILD)/ow/$(1)-%.o: src/ow/$(1).c
 	@mkdir -p $$(dir $$@)
-	$$(CL65) $$(filter-out -Osir,$$(CFLAGS)) -Or $$(if $$(filter reu,$$*),-DOW_REU) \
-	    $$(OWSEG) $$(DEPFLAGS) -c -o $$@ $$<
+	cc65 $$(filter-out -Osir,$$(CFLAGS)) -Or $$(if $$(filter reu,$$*),-DOW_REU) \
+	    $$(OWSEG) --create-full-dep $$(@:.o=.d) --dep-target $$@ -o $$(@:.o=.s) $$<
+	ca65 -t c64 -o $$@ $$(@:.o=.s)
 endef
 $(foreach p,$(OWPARTS),$(eval $(call OWPART,$(p))))
 

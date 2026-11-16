@@ -630,6 +630,13 @@ void w_enter(void)
     back_home();
 }
 
+/* The refusals' words, in the overlay (OW-DATA has little room). */
+#pragma rodata-name (push, "OVWCODE")
+static const char not_yet[]  = "The captain will not sail yet.";
+static const char sealed[]   = "The way in is sealed.";
+static const char the_heat[] = "The heat drives you back.";
+#pragma rodata-name (pop)
+
 /* A step that could not be taken: a refusal, if it was a ship that will
    not sail yet. */
 void __fastcall__ w_bump(unsigned char d)
@@ -638,8 +645,14 @@ void __fastcall__ w_bump(unsigned char d)
     unsigned char y = wy + dirdy[d], s = ship_at(x, y);
 
     if (s != NONE && ship_held(s)) {
-        sfx_play(SFX_NO);
+        refuse(not_yet);
     }
+}
+
+/* L: nothing out here (no treasure maps yet), or now and then the dead. */
+void w_look(void)
+{
+    look_nothing(boat ? NONE : tile_at(hx, hy));
 }
 
 /* Into dungeon n, if its seal is broken: the Sigil for the Hollow Crown,
@@ -654,7 +667,7 @@ static void to_dungeon_if(unsigned char n)
     if (items & dungeon_key[n]) {
         to_dungeon(n);
     } else {
-        sfx_play(SFX_NO);
+        refuse(sealed);
     }
 }
 
@@ -673,7 +686,7 @@ void w_arrived(void)
             if (items & IT_BLADE) {
                 ow_fight_with(OWF_DRAGON, 0);
             }
-            sfx_play(SFX_NO);   /* the heat drives you back */
+            refuse(the_heat);   /* the heat drives you back */
         }
         return;
     }

@@ -21,7 +21,7 @@
  19 |twxstststwxstwxstsA:·@adede@a@ade@a@aded|
  20 |vyzuvuvuvyzuvyzuvuKDJbcfafabcbcfabcbcfaf|
  21 |xwxwxwxstststwxsts>=a@a@adededede@a@aded|
- 22 |zyzyzyzuvuvuvyzuvuHbcbcbcfafafafabcbcfaf|
- 23 |tstwxwxwxwxstwxsts>@adedede@a@adedededed|
- 24 |vuvyzyzyzyzuvyzuvuHbcfafafabcbcfafafafaf|
+ 22 |                                        |
+ 23 |                                        |
+ 24 |                                        |
     +----------------------------------------+

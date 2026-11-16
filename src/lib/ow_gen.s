@@ -32,7 +32,7 @@
         .export _gen_start, _gen_run, _gen_state
         .export gen_on, gen_preempt
         .import _isle_begin, _isle_work, _local
-        .import vault_enter, vault_leave, _sm_frame
+        .import vault_enter, vault_leave, _sm_frame, sm_guard
         .importzp sreg, ptr1, ptr2, ptr4, tmp1, tmp3
 
 SLOT    = $E000                 ; the one continent kept (vault.s's slot 0)
@@ -162,7 +162,8 @@ entry:  lda     gen_d
         sta     ptr2+1
         lda     #ROWS
         sta     rows
-@row:   jsr     vault_enter     ; interrupts off for a row: half a millisecond
+@row:   jsr     sm_guard        ; not over the text window's split (smooth.s)
+        jsr     vault_enter     ; interrupts off for a row: half a millisecond
         ldy     #63
 :       lda     (ptr1),y
         sta     (ptr2),y

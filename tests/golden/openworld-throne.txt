@@ -21,7 +21,7 @@
  19 |vvvvvvvvDpqpqpqpqtututupqpqpqpq,vvvvvvvv|
  20 |vvvvvvvvDrsrsrsrstututursrsrsrs,vvvvvvvv|
  21 |vvvvvvvvDpqpqpqpqtututupqpqpqpq,vvvvvvvv|
- 22 |________>rsrWPUPUtututuPUPURsrs+________|
- 23 |qpqpqpqpqpqpJIcbctututubcbNEqpqpqpqpqpqp|
- 24 |srsrsrsrsrWPVdedetututudedeQURsrsrsrsrsr|
+ 22 |                                        |
+ 23 |                                        |
+ 24 |                                        |
     +----------------------------------------+

@@ -42,6 +42,10 @@ _ow_run:
         cpy     #16
         bne     :-
 :       sty     namelen
+        lda     #<nostop        ; RUN/STOP cannot break a load from here on
+        sta     $0328           ; (the KERNAL's STOP vector: see nostop)
+        lda     #>nostop
+        sta     $0329
         jmp     stub
 
 stub_src:
@@ -54,7 +58,7 @@ stub:   ldx     #$FF            ; nothing returns here: a fresh stack
         sta     $0284
         cli
         jsr     DISK_ON         ; the disk icon, while it loads (ow_disk.s)
-        lda     #1
+retry:  lda     #1
         ldx     #8
         ldy     #1              ; to the file's own address
         jsr     SETLFS
@@ -67,8 +71,15 @@ stub:   ldx     #$FF            ; nothing returns here: a fresh stack
         bcs     fail
         jsr     DISK_OFF        ; the KERNAL's interrupt, and no disk
         jmp     $080D           ; the program's start, past its BASIC line
-fail:   inc     $D020
-        jmp     fail
+fail:   inc     $D020           ; (no disk: try again until there is)
+        jmp     retry
+; The KERNAL's STOP, as every program after this one has it: never pressed.
+; LOAD gives up when it sees RUN/STOP held ($91), with no drive error, and
+; the key that leaves a talk or a shop can still be down, or pressed again,
+; while the next program loads. The open world reads RUN/STOP as a key
+; ($03 from GETIN), which this does not touch.
+nostop: lda     #1              ; Z clear: not pressed
+        rts
 namelen: .byte  0
 name:   .res    16
         .reloc

@@ -10,7 +10,10 @@
  * --code-name OVDCODE.
  */
 
+#include <stdlib.h>
+
 #include <q4k/dungeon.h>
+#include <q4k/game.h>
 #include <q4k/music_map.h>
 #include <q4k/ow.h>
 #include <q4k/tiles.h>
@@ -71,4 +74,29 @@ void d_arrived(void)
     } else {
         wander(t);
     }
+}
+
+/* L: a chest on the hero's square, taken once (its looted[] bit, by the
+   dungeon, the level and which chest, as the game counts them): even odds a
+   draught or gold, the gold worth more with the story and the depth, as the
+   game's look() has it. Anywhere else nothing, or now and then the dead. */
+void d_look(void)
+{
+    unsigned char i, x = hx - BIAS, y = hy - BIAS;
+
+    for (i = 0; i < dun_chests; ++i) {
+        if (dun_cx[i] == x && dun_cy[i] == y) {
+            if (take_bit((dun_index * MAX_DEEP + depth - 1) * DUN_CHESTS + i)) {
+                if (rand() & 1) {
+                    loot_found(1, 1);
+                } else {
+                    loot_found(0, (quest_stage << 2) + quest_stage
+                                  + ((depth - 1) << 2)
+                                  + 1 + (unsigned char)(rand() % 10));
+                }
+            }
+            return;
+        }
+    }
+    look_nothing(T_FLOOR);
 }

@@ -26,6 +26,7 @@ API_VERSION = 0x02
 
 CMD_MEM_GET = 0x01
 CMD_MEM_SET = 0x02
+CMD_DISPLAY_GET = 0x84
 CMD_EXIT = 0xAA
 CMD_QUIT = 0xBB
 
@@ -151,6 +152,21 @@ class Monitor:
                 self.resume()
             else:
                 raise TimeoutError("program never consumed typed input")
+
+    def display(self):
+        """VICE's own picture of the last frame: (width, height, pixels),
+        a palette index (0-15) a pixel, border and all. What the raster
+        really drew -- splits, sprites past eight -- which --shot, drawn
+        from memory, cannot know."""
+        body = self._await(self._send(CMD_DISPLAY_GET, bytes([1, 0])))
+        (head,) = struct.unpack("<I", body[:4])
+        width, height, x0, y0, iw, ih = struct.unpack("<6H", body[4:16])
+        (length,) = struct.unpack("<I", body[4 + head - 4:4 + head])
+        pixels = body[4 + head:4 + head + length]
+        # The part a monitor shows (the debug picture has the blanking too).
+        rows = [pixels[(y0 + y) * width + x0:(y0 + y) * width + x0 + iw]
+                for y in range(ih)]
+        return iw, ih, b"".join(rows)
 
     def resume(self):
         """Let the CPU run again.
@@ -519,6 +535,8 @@ def draw_sprites(px, size, margin, vic, sprites, fetch):
 # hero any more -- the VIC draws it over the square -- so without this the
 # goldens would stop recording where the hero is standing.
 SPRITE_MARK = "@"
+OW_FONT = 0xA0          # the open world's text window: its letters' first code
+OW_TEXT_ROW = 22        # and its first row (src/ow/smooth.s)
 SPRITE_CODE = 0x100
 
 
@@ -548,11 +566,14 @@ def sprite_cells(sprites, fetch, square=False):
     return cells
 
 
-def grid(rows, render, gutter=""):
-    out = ["    +" + "-" * (len(render(0)) * SCR_W) + "+"]
+def grid(rows, render, gutter="", by_row=False):
+    """by_row: render takes the row as well as the code."""
+    width = len(render(0, 0) if by_row else render(0))
+    out = ["    +" + "-" * (width * SCR_W) + "+"]
     for y, row in enumerate(rows):
-        out.append("%3d |%s|" % (y, "".join(render(c) for c in row)))
-    out.append("    +" + "-" * (len(render(0)) * SCR_W) + "+")
+        out.append("%3d |%s|" % (y, "".join(
+            render(c, y) if by_row else render(c) for c in row)))
+    out.append("    +" + "-" * (width * SCR_W) + "+")
     return "\n".join(out) + gutter
 
 
@@ -591,6 +612,9 @@ def main():
                     default=[], help="print a global by name")
     ap.add_argument("--shot", metavar="PNG",
                     help="also render the screen to a PNG from emulated memory")
+    ap.add_argument("--vicshot", metavar="PNG",
+                    help="also save VICE's own picture of the last frame "
+                         "(the real raster: splits and all)")
     ap.add_argument("--mux", metavar="LBL",
                     help="show the sprites the multicolour fight asks its "
                          "multiplexer for, from its label file "
@@ -645,6 +669,9 @@ def main():
         rom_charset = bank in (0, 0x8000) and charset_base in (0x1000, 0x1800)
         charset_base += bank
         colors = mon.mem_get(COLOR_RAM, COLOR_RAM + SCR_W * SCR_H - 1)
+        # The open world's engine is the one thing in VIC bank 1 with a
+        # text window (the fight module's is bank 1 too, but --mux).
+        ow_engine = bank == 0x4000 and not args.mux
         if args.peek:
             syms = load_symbols(args.prg, args.lbl)
             if args.mux:
@@ -659,6 +686,15 @@ def main():
             sprites = hw_sprites(vic, pointers)
         sprite_data = {p * 64: mon.mem_get(bank + p * 64, bank + p * 64 + 62)
                        for p in {sp[2] for sp in sprites}}
+        if args.vicshot:
+            from PIL import Image
+            mon.resume()            # a frame or two drawn since the last stop
+            time.sleep(0.1)
+            w, h, pixels = mon.display()
+            img = Image.new("RGB", (w, h))
+            img.putdata([PALETTE[p & 0x0F] for p in pixels])
+            img.save(args.vicshot)
+            print("screendump: wrote %s" % args.vicshot, file=sys.stderr)
         if args.shot:
             if rom_charset:
                 print("screendump: charset is in ROM; --shot needs a RAM "
@@ -696,8 +732,15 @@ def main():
             for cx, cy in sprite_cells(sprites, sprite_data.__getitem__,
                                        bool(args.mux)):
                 rows[cy][cx] = SPRITE_CODE
-        print(grid(rows, lambda c: SPRITE_MARK if c == SPRITE_CODE
-                   else to_text(c, lowercase, legend)))
+        # The open world's engine: rows 22-23 are its text window (smooth.s),
+        # whose letters are screen codes from OW_FONT. As text, not tiles.
+        def cell(c, y):
+            if c == SPRITE_CODE:
+                return SPRITE_MARK
+            if ow_engine and y >= OW_TEXT_ROW and c >= OW_FONT:
+                return to_text(c - OW_FONT, True)
+            return to_text(c, lowercase, legend)
+        print(grid(rows, cell, by_row=True))
 
     if args.color:
         crows = [colors[y * SCR_W : (y + 1) * SCR_W] for y in range(SCR_H)]

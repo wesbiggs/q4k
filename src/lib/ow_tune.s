@@ -16,6 +16,7 @@
 ; scrolling. It uses A, X and Y and no zero page, as that interrupt promises.
 
         .export _ow_tune_play, _ow_tune_stop, _ow_tune_on, ow_tune_irq
+        .export _ow_tune_pause, _ow_tune_resume
         .import vault_nmi, sfx_tick
 
 SID_CTRL = $D404                ; voice 1's control register
@@ -26,6 +27,7 @@ PALFLAG  = $02A6                ; the KERNAL's own: 0 NTSC, 1 PAL
 TUNE_HDR = $E7C0
 HDR_INIT = TUNE_HDR
 HDR_PLAY = TUNE_HDR + 2
+HDR_VOL  = TUNE_HDR + 5         ; the volume to put back after a pause
 HDR_CIA  = TUNE_HDR + 6         ; a byte a song: 1 if it is called at 60 Hz
 NO_KERNAL = $35                 ; RAM under the KERNAL, I/O in
 
@@ -33,12 +35,22 @@ NO_KERNAL = $35                 ; RAM under the KERNAL, I/O in
 _ow_tune_on: .res 1             ; 1 while a tune plays
 t_extra: .res 1                 ; nonzero: a sixth call every five frames
 t_tick:  .res 1
+t_resume: .res 1                ; ow_tune_resume, not ow_tune_play
 
         .segment "CODE"
 
+; void __fastcall__ ow_tune_resume(unsigned char song): carry on with that
+; song where it was paused (ow_tune_pause, here or in another program of
+; the open world's: the tune keeps its place in its own memory, under the
+; KERNAL), at its own volume.
+_ow_tune_resume:
+        ldy     #1
+        .byte   $2C             ; (skips the ldy)
 ; void __fastcall__ ow_tune_play(unsigned char song): start that song (from
 ; 0) of the tune under the KERNAL, from the top.
 _ow_tune_play:
+        ldy     #0
+        sty     t_resume
         tax
         lda     #0
         sta     _ow_tune_on     ; the interrupt leaves it alone from here
@@ -67,11 +79,25 @@ _ow_tune_play:
         sta     t_tick
         txa
         cld
+        ldy     t_resume
+        beq     @init
+        lda     HDR_VOL         ; carrying on: only the volume back
+        sta     SID_VOL
+        jmp     @on
 @init:  jsr     $FFFF           ; the tune's init, song in A
-        pla
+@on:    pla
         sta     $01
         plp
         inc     _ow_tune_on
+        rts
+
+; void ow_tune_pause(void): no more calls, and silence by the volume alone,
+; so that the notes can carry on (ow_tune_resume). The caller waits for the
+; silence to reach VICE's sound buffer (engine.c's disk_on).
+_ow_tune_pause:
+        lda     #0
+        sta     _ow_tune_on
+        sta     SID_VOL
         rts
 
 ; void ow_tune_stop(void): no more calls, and silence.

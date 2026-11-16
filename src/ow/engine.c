@@ -39,8 +39,15 @@
  *                                                works, red if it would not
  *   F3                                           the saved game (back through
  *                                                the bootstrap, for its world)
+ *   L                                            look: a chest, the town's
+ *                                                hidden gold, or the dead
+ *   ?                                            the keys, and the quest
+ *   RUN/STOP                                     quit, to the title (Y or N)
  *   N                                            the next seed's world (back
  *                                                through the bootstrap)
+ *
+ * What is said is said in the two lines of text under the map (smooth.s's
+ * text window, sm_say()).
  *
  * For tests, through tools/screendump.py: steps can be typed (w, a, s, d),
  * stage 2 is published whenever the hero stands still with nothing typed
@@ -125,6 +132,34 @@ unsigned char has(unsigned char item)
 /* (party[] is the game block's: cfg/c64-openworld.cfg names it.) */
 typedef char owgame_is_what_mkowsave_writes[2 * (sizeof(OwGame) == OWG_SIZE) - 1];
 typedef char owgame_fits_below_the_probe[2 * (OWG_ADDR + OWG_SIZE <= 0xCF00) - 1];
+
+/* Everything said, in the engine's spare memory past the screens (HICODE):
+   OW-DATA, where constants go, has little room left, and cc65 puts string
+   literals there whatever the rodata pragma says, so they are arrays. */
+#pragma rodata-name (push, "HICODE")
+#pragma data-name (push, "HICODE")
+static char said[41] = { 0 };
+static const char s_draught[] = "You find a draught.";
+static const char s_find[] = "You find ";
+static const char s_draughts[] = " draughts.";
+static const char s_gold[] = " gold.";
+static const char s_taken[] = "You've already taken everything.";
+static const char s_dead[] = "The ground stirs. The dead rise!";
+static const char s_nothing[] = "You see nothing.";
+static const char s_quit[] = "Quit to the title? Y or N";
+static const char s_onwith[] = "On with the quest, then.";
+static const char s_mon[] = "Music on.";
+static const char s_moff[] = "Music off.";
+static const char s_xon[] = "Sound effects on.";
+static const char s_xoff[] = "Sound effects off.";
+static const char s_saved[] = "The game is saved.";
+static const char s_unsaved[] = "The save failed.";
+static const char s_nobody[] = "Nobody needs a draught.";
+static const char s_nodraughts[] = "No draughts left.";
+static const char s_drinks[] = " drinks a draught.";
+static const char s_boot[] = "openworld";
+#pragma data-name (pop)
+#pragma rodata-name (pop)
 
 /* Poke-able. */
 unsigned char seed;             /* lore_seed for the land (the bootstrap's) */
@@ -285,8 +320,12 @@ void next_frame(void)
 
 static unsigned char song_now = NONE;   /* the song playing, or that would be */
 unsigned char music = 1;                /* the M key */
+/* 1 + the song paused where it was, to carry on with if the next scene
+   plays it (the next program's, if this one is leaving: OWB->song), or 0.
+   So the theme plays on through a town's gate, a save and a talk. */
+static unsigned char carry_on;
 
-/* Before the disk: the music stopped (silence has to reach VICE's sound
+/* Before the disk: the music paused (silence has to reach VICE's sound
    buffer before the drive works, or it plays its last one for as long as
    that takes: CLAUDE.md), and the sprites, which take cycles the serial bus
    needs. Returns the sprites to put back. */
@@ -294,7 +333,10 @@ static unsigned char disk_on(void)
 {
     unsigned char i;
 
-    ow_tune_stop();
+    if (ow_tune_on) {
+        carry_on = song_now + 1;    /* (play_for() clears it) */
+    }
+    ow_tune_pause();
     song_now = NONE;
     for (i = 0; i < 12; ++i) {
         next_frame();
@@ -321,6 +363,8 @@ void play_for(unsigned char s)
         OW->tune = OW_NO_TUNE;
         sm_blank(1);
         i = disk_on();
+        ow_tune_stop();         /* (another tune: nothing to carry on with) */
+        carry_on = 0;
         if (cbm_load(tune_name[f], 8, 0)) {
             OW->tune = f;
         }
@@ -329,9 +373,14 @@ void play_for(unsigned char s)
     if (OW->tune == f && tune_song[s] != song_now) {
         song_now = tune_song[s];
         if (music) {
-            ow_tune_play(song_now);
+            if (carry_on == song_now + 1) {
+                ow_tune_resume(song_now);
+            } else {
+                ow_tune_play(song_now);
+            }
         }
     }
+    carry_on = 0;
 }
 
 /* F1: the game block (owgame.h) into OW-SAVE, over the one there. The
@@ -368,6 +417,8 @@ static void save_game(void)
     VIC.bordercolor = COLOR_BLACK;
     disk_off(s);
     play_for(scene_now);
+    sm_ink = ok ? COLOR_WHITE : COLOR_LIGHTRED;
+    sm_say(ok ? s_saved : s_unsaved);
 }
 
 /* The text screens' program (src/owtown.c): the talk, the shops, the
@@ -409,6 +460,141 @@ void __fastcall__ wander(unsigned char tile)
     }
 }
 
+/* --- What is said, and L ------------------------------------------------
+   In the engine's spare memory past the screens (HICODE), strings and all:
+   OW-DATA, where constants go, has little room left. */
+#pragma code-name (push, "HICODE")
+#pragma rodata-name (push, "HICODE")
+#pragma data-name (push, "HICODE")
+
+
+
+/* A line in the text window, in white. */
+static void __fastcall__ say_what(const char *s)
+{
+    sm_ink = COLOR_WHITE;
+    sm_say(s);
+}
+
+/* L found something: draughts or gold, said, and a turn spent. */
+void __fastcall__ loot_found(unsigned char draughts, unsigned int amount)
+{
+    ++G->game_turn;
+    if (draughts) {
+        G->potions += (unsigned char)amount;
+        if (amount == 1) {
+            say_what(s_draught);
+            return;
+        }
+    } else {
+        G->gold += amount;
+    }
+    strcpy(said, s_find);
+    utoa(amount, said + 9, 10);
+    strcat(said, draughts ? s_draughts : s_gold);
+    sm_ink = COLOR_YELLOW;
+    sm_say(said);
+}
+
+/* Bit `bit` of looted[]: 1 if it was not yet, and it is now; 0, said, if
+   it was. */
+unsigned char __fastcall__ take_bit(unsigned char bit)
+{
+    unsigned char mask = 1 << (bit & 7);
+
+    bit >>= 3;
+    if (looted[bit] & mask) {
+        say_what(s_taken);
+        return 0;
+    }
+    looted[bit] |= mask;
+    return 1;
+}
+
+/* L where nothing is: one time in grave_odds the dead rise from the
+   ground (none in a town, where `ground` is NONE, nor with OWG_CALM), as
+   the game's look() has it. Poke-able: 0 is never (and enc_always, the
+   tests', is always). */
+unsigned char grave_odds = 5;
+
+void __fastcall__ look_nothing(unsigned char ground)
+{
+    unsigned char i;
+
+    if (ground != NONE && (enc_always || (grave_odds &&
+        !(G->quiet & OWG_CALM) && !(rand() % grave_odds)))) {
+        sm_ink = COLOR_LIGHTRED;
+        sm_say(s_dead);
+        for (i = 0; i < 60; ++i) {
+            next_frame();       /* time to read it */
+        }
+        ow_fight_with(OWF_UNDEAD, ground);
+    }
+    say_what(s_nothing);
+}
+
+void __fastcall__ refuse(const char *why)
+{
+    sfx_play(SFX_NO);
+    sm_ink = COLOR_GRAY3;
+    sm_say(why);
+}
+
+/* A question, Y or N (RUN/STOP is no), waited for with the music playing. */
+static unsigned char __fastcall__ yes(const char *q)
+{
+    unsigned char k;
+
+    sm_ink = COLOR_YELLOW;
+    sm_say(q);
+    do {
+        k = cbm_k_getin();
+    } while (k != 'y' && k != 'n' && k != 0x03);
+    return k == 'y';
+}
+
+/* RUN/STOP: back to the title, through the bootstrap, which shows it again
+   when it finds the world block empty; or, at N, on with the game. */
+static void quit(void)
+{
+    if (!yes(s_quit)) {
+        say_what(s_onwith);
+        return;
+    }
+    ow_tune_stop();
+    OW->magic = 0;
+    OWB->mode = OWB_NONE;
+    ow_leave(s_boot);
+}
+
+/* The text screens' program for the keys (?) and the party (I). */
+static void __fastcall__ screen(unsigned char mode)
+{
+    OWB->mode = mode;
+    ow_leave(owtown);
+}
+
+/* M and X, said. */
+static void toggles(unsigned char k)
+{
+    if (k == 'm') {             /* the music off, or on from the top */
+        music ^= 1;
+        if (!music) {
+            ow_tune_stop();
+        } else if (song_now != NONE) {
+            ow_tune_play(song_now);
+        }
+        say_what(music ? s_mon : s_moff);
+    } else {                    /* the effects off and on */
+        sfx_toggle();
+        say_what(sfx_on() ? s_xon : s_xoff);
+    }
+}
+
+#pragma data-name (pop)
+#pragma rodata-name (pop)
+#pragma code-name (pop)
+
 /* P: a draught for whoever of the party is worst hurt, as the game has it
    (arms.c's most_hurt() and drink_potion()): a gulp if someone drank, a
    refusal if there is none to drink or nobody hurt. */
@@ -426,6 +612,7 @@ static void quaff(void)
     }
     if (who == NONE || !G->potions) {
         sfx_play(SFX_NO);
+        say_what(who == NONE ? s_nobody : s_nodraughts);
         return;
     }
     --G->potions;
@@ -436,6 +623,9 @@ static void quaff(void)
     }
     a->hp = amount < lack ? a->hp + amount : a->hp_max;
     sfx_play(SFX_DRINK);
+    strcpy(said, a->name);
+    strcat(said, s_drinks);
+    say_what(said);
 }
 
 /* Back through the bootstrap, which builds a world: the saved game's
@@ -444,6 +634,8 @@ static void quaff(void)
 static void rebuild(unsigned char mode)
 {
     owg_where();
+    ow_tune_stop();
+    OWB->song = 0;
     sm_quit();
     OWB->mode = mode;
     OW->seed = seed + 1;
@@ -548,23 +740,22 @@ static unsigned char typed(void)
     switch (k) {
     case '1': speed = 1; break;
     case '2': speed = 2; break;
-    case 'm':                   /* the music off, or on from the top */
-        music ^= 1;
-        if (!music) {
-            ow_tune_stop();
-        } else if (song_now != NONE) {
-            ow_tune_play(song_now);
-        }
-        break;
-    case 'x':                   /* the effects off and on */
-        sfx_toggle();
+    case 'm':
+    case 'x':
+        toggles(k);
         break;
     case 'p':                   /* a draught */
         quaff();
         break;
+    case 'l':                   /* look (the overlay's) */
+        ov_look();
+        break;
     case 'i':                   /* the party's screen (owtown) */
-        OWB->mode = OWB_PARTY;
-        ow_leave(owtown);
+        screen(OWB_PARTY);      /* (neither returns) */
+    case '?':                   /* the keys (owtown) */
+        screen(OWB_HELP);
+    case 0x03:                  /* RUN/STOP: quit */
+        quit();
         break;
     case 0x85:                  /* F1: save */
         save_game();
@@ -684,6 +875,8 @@ static void take_block(void)
     if (G->quiet & 1) {
         music = 0;
     }
+    carry_on = OWB->song;       /* the music another program paused */
+    OWB->song = 0;
     if (G->quiet & 2) {
         sfx_toggle();
     }
@@ -727,6 +920,8 @@ void owg_where(void)
 void __fastcall__ ow_leave(const char *name)
 {
     owg_where();
+    disk_on();                  /* the music paused where it is, and ... */
+    OWB->song = carry_on;       /* ... the next program may carry on */
     sm_quit();
     memset((void *)0x0400, 0x20, 1000);     /* the load shows a clear screen, */
     memset((void *)0xD800, 0, 1000);        /* black, colour RAM too */
