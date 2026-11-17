@@ -28,6 +28,13 @@
  *
  * For the tests, poked: auto_seed makes the next fight's dice the same
  * every time, and auto_hp starts everyone on that much health.
+ *
+ *   *        play by itself, for tools/balance.py --ow: the fight poked
+ *            (auto_mon, level, group, ground, and a party of auto_n with
+ *            classes and arms auto_cls/w/a/b), auto_runs times, with the
+ *            module's autoplayer (FIGHTBOT: the module built with
+ *            FIGHT_BOT), counting what happened in res_*, then probe
+ *            stage 5 for good.
  */
 
 #include <cbm.h>
@@ -66,10 +73,21 @@ unsigned int  game_turn;
 unsigned int  auto_seed;
 unsigned char auto_hp;
 
-static unsigned char level = 1, ground, group = 1, members = 3;
+/* The autoplayer's fight (all poked by tools/balance.py --ow). */
+unsigned char auto_mon, auto_runs = 20, auto_n = 1, auto_draughts = 10;
+unsigned char auto_cls[MAX_MADE] = { CL_WARRIOR, CL_ARCHER, CL_WIZARD };
+unsigned char auto_w[MAX_MADE], auto_a[MAX_MADE], auto_b[MAX_MADE];
+unsigned int  res_won, res_lost, res_stall, res_draughts, res_rounds;
+
+#define FIGHT_BOT_FILE "fightbot"
+#define STAGE_DONE     5
+
+unsigned char level = 1, ground, group = 1;
+static unsigned char members = 3;
 static unsigned char tier_w = WPN_SHORT, tier_a = 2, tier_b = BOW_SHORT;
 static unsigned char count;      /* monsters on the menu */
-static unsigned char loaded;     /* the module is in memory */
+static unsigned char loaded;     /* which module is in memory: 1 the
+                                    fight, 2 the autoplayer's */
 static unsigned char fought;
 
 static const char *const ground_names[NUM_GROUNDS] = {
@@ -245,22 +263,13 @@ static unsigned char device(void)
     return dev < 8 ? 8 : dev;
 }
 
-static void fight(unsigned char n)
+/* Fight menu entry n with the party as it is, and take back what the
+   fight left of it. */
+static unsigned char fight_with(unsigned char n)
 {
     const Monster *m = entry(n);
     Fight *f = FIGHT;
     unsigned char i, g, r;
-    char buf[6];
-
-    if (!loaded) {
-        say("Loading the fight ...");
-        if (!cbm_load(FIGHT_FILE, device(), 0)) {
-            say("No FIGHT on the disk in the drive.");
-            return;
-        }
-        loaded = 1;
-    }
-    say("To arms ...");
 
     /* Wanderers on the ground chosen; keepers in a dungeon room, Maldrath
        in his lair, as in the game. */
@@ -296,18 +305,39 @@ static void fight(unsigned char n)
 
     r = fight_call();
 
-    /* What came of it; the pay is the caller's to give. */
     memcpy(party, f->party, sizeof(party));
     potions = f->potions;
     arrows  = f->arrows;
+    return r;
+}
+
+static void fight(unsigned char n)
+{
+    const Monster *m = entry(n);
+    unsigned char i, r;
+    char buf[6];
+
+    if (loaded != 1) {
+        say("Loading the fight ...");
+        if (!cbm_load(FIGHT_FILE, device(), 0)) {
+            say("No FIGHT on the disk in the drive.");
+            loaded = 0;
+            return;
+        }
+        loaded = 1;
+    }
+    say("To arms ...");
+    r = fight_with(n);
+
+    /* What came of it; the pay is the caller's to give. */
     cclearxy(0, 23, 40);
     switch (r) {
         case BATTLE_WON:
             say("Won: ");
-            utoa(m->xp * f->foes, buf, 10);
+            utoa(m->xp * FIGHT->foes, buf, 10);
             cputs(buf);
             cputs(" experience, ");
-            utoa(m->gold * f->foes, buf, 10);
+            utoa(m->gold * FIGHT->foes, buf, 10);
             cputs(buf);
             cputs(" marks.");
             break;
@@ -330,6 +360,68 @@ static void fight(unsigned char n)
         cputs("  ");
     }
     fought = 1;
+}
+
+/* The poked party: auto_n of them, classes and arms as poked, the rest as
+   kit_out() makes them. */
+static void auto_kit(void)
+{
+    unsigned char i, k, n;
+    Actor *a;
+
+    party_count = 0;
+    party_level = level;
+    for (i = 0; i < auto_n; ++i) {
+        party_make(i, made_names[i], auto_cls[i]);
+        a = &party[i];
+        a->weapon = auto_w[i];
+        a->armour = auto_a[i];
+        a->bow    = auto_b[i];
+        if (a->cls == CL_WIZARD) {
+            a->known = a->ready = 0;
+            for (k = 0, n = 0; k < NUM_SPELLS; ++k) {
+                if (book_level[book_pick[k]] <= level) {
+                    a->known |= 1 << book_pick[k];
+                    if (n < spell_slots()) {
+                        a->ready |= 1 << book_pick[k];
+                        ++n;
+                    }
+                }
+            }
+        }
+    }
+    party_rest();
+    potions = auto_draughts;
+    arrows  = ARROW_MAX;
+}
+
+static void autoplay(void)
+{
+    unsigned char r, run;
+
+    say("Loading the autoplayer ...");
+    if (!cbm_load(FIGHT_BOT_FILE, device(), 0)) {
+        say("No FIGHTBOT on the disk in the drive.");
+        loaded = 0;
+        return;
+    }
+    loaded = 2;
+    for (run = 0; run < auto_runs; ++run) {
+        auto_kit();
+        r = fight_with(auto_mon);
+        if (r == BATTLE_WON) {
+            ++res_won;
+        } else if (r == BATTLE_DEAD) {
+            ++res_lost;
+        } else {
+            ++res_stall;
+        }
+        res_draughts += auto_draughts - potions;
+        res_rounds   += FIGHT->rounds;
+    }
+    probe_stage(STAGE_DONE);
+    for (;;) {
+    }
 }
 
 int main(void)
@@ -372,7 +464,9 @@ int main(void)
             k -= 0x80;               /* fold SHIFTed letters onto unshifted */
         }
 
-        if (k >= K_A && k < K_A + count) {
+        if (k == 0x2A) {             /* * */
+            autoplay();
+        } else if (k >= K_A && k < K_A + count) {
             fight(k - K_A);
         } else if (k >= K_1 && k < K_1 + NUM_GROUNDS) {
             ground = k - K_1;

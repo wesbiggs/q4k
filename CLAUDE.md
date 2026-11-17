@@ -934,7 +934,7 @@ and no startup, loaded at `$5400` and entered by a jump at `$5800`
 many, whether the sides are a way out, a seed, and the names of two files);
 `block.c` lays the same bytes down under the game's own names (`party`,
 `potions`, ...) so that `arms.c` links unchanged, and `head.s` refuses to
-link if the block moved or changed length (149 bytes: change both). The
+link if the block moved or changed length (151 bytes: change both). The
 module shares its caller's zero page and C stack (so the caller must be a
 cc65 program, with BASIC switched out: its BSS runs past `$A000`), clears
 its own BSS on every call and keeps nothing between fights; it returns
@@ -1004,14 +1004,69 @@ eight ways, a monster strikes from any of the eight squares round someone
 between two corners of wall. Shots fly eight ways too, the party's
 arrows and spells and the monsters' (a big one shoots diagonally from its
 corner), and stop where they would pass between two corners of wall
-(`pinched()`). **The arrow is one sprite block** (`SPR_ARROW`), which
+(`pinched()`). **A shot does not fly over the party**, as `battle.c`'s
+does: whoever of them is in its way takes it (`loose()`, through
+`bitten()`, at the attack it would have had), and the autoplayer will not
+shoot through one. **Ground is slow**: each square's flag has a cost in
+bits 2-3 (`FF_COST`: 10 tenths for grass and floors, 15 for sand and
+forest, 20 for swamp, from `SLOW` in `mkfields.py`); a monster spends it
+out of its pace, and a member owes what a step costs past 10 (`mire[]`)
+and loses a turn for every 10 owed ("is slowed by the ground"). **The
+fields scatter more than boulders**: `assets/fields.txt`'s `scatter=`
+names up to three more things drawn `on` the tile set's ground (in
+`field_tiles.txt`, on codes `$92-$94` of that set's own: `oak` blocks,
+`puddle` costs 20, `thicket` 15), which `mkfields.py` writes as four
+characters and a flag each at `FI_SCAT`; `scatter()` puts down two to four
+things that block, boulders or trees, and one to three patches of slow
+ground where it is quicker. **What those cost** (`balance.py --ow`, 40
+runs; the autoplayer steps aside for a clear line): the keepers, fought
+on floors that scatter nothing new, got harder for every party with a
+ranged member, since their shots wait for the warrior to be out of the
+way: W+A+Z drank 3.2, 3.5, 6.1 (3% lost) and 6.2 at the Gaoler, the
+Drowned King, the Warden and Maldrath, against 1.9, 1.5, 4.7 and 4.0
+before; three wizards won 42% against the Warden. A lone warrior and W+Z
+hardly moved. The wanderers stayed easy (ogres the worst: 1.4 draughts
+for W+A+Z, 2.7 for three archers). So **the party starts fanned out**
+(`party_start()`, `form_x/form_y`): the leader two squares toward the
+monster from the field's `@`, the second and third two squares either
+side of it (a fourth between them), each falling back to an open square
+round theirs, and nothing that blocks is scattered in that 5 by 3 box;
+and **`ARCHER_EYE` is `5 + level / 2`**, two more than `battle.c`'s. With
+both, W+A+Z drinks 2.6, 3.1, 6.5 and 5.0 at the four keepers and wins
+every time (the game's own fight: 2.1, 1.5, 4.9, 4.6), and three archers
+6.0, 8.8, 7.7, 5.7. The formation alone was worth about half a draught to
+W+A+Z; the eye at 3, 4 or 5 moved W+A+Z by no more than the noise of 40
+runs, and three archers by a draught and a half at the Gaoler.
+**The arrow is one sprite block** (`SPR_ARROW`), which
 `arrow_to()` fills for the way it is about to fly from `fight_arrow[]`:
 eight pictures of 32 bytes, by `DIR_*`, that `mkfields.py` makes from
 three drawn in `assets/monsters.txt` (`arrow`, `arrow_r`, `arrow_ur`) by
 mirroring; `$5700-$57FF` (four blocks) are free. `owarena-arrow-ur` in
 `tools/test.sh` checks the block after a shot up-right, and golden
-`owarena-dragon` casts a spark up-left into Maldrath. The balance was measured four ways, so
-`tools/balance.py` (the game's fight) says nothing about this one. The
+`owarena-dragon` casts a spark up-left into Maldrath. **`tools/balance.py --ow`** measures
+this fight: `owarena`'s `*` loads `FIGHTBOT` (the module built with
+`-DFIGHT_BOT`: `battle.c`'s autoplayer, eight ways, which waits for no
+frame) and fights the poked fight `auto_runs` times, counting into `res_*`
+and the block's `rounds`, then probe stage 5. `--disk` points it at another
+copy of the arena's disk, so variants of the module can run side by side.
+`ARCHER_EYE` and `WIZ_GUARD` are `#ifndef` for such a sweep (`-D`).
+**Measured against the game's own fight** (40 runs a fight, the keepers,
+`balance.py` and `balance.py --ow`): eight ways, a lone warrior, W+Z and
+W+A+Z drank what they do in the game, give or take half a draught, but
+three archers drank up to 2.5 more (7.1 at the Gaoler against 4.6): a foe
+that closes in diagonally reaches them as fast as they back off. And three
+wizards against the Warden won 80% with 7.8 draughts, against 85% and 5.5.
+**The tuning was then left as `battle.c`'s, on purpose** (until friendly
+fire, above, made the archers' eye 5): the mixed party of
+three, which most players will have, is what it should match, and the
+extremes and the smaller parties are meant to be harder. An `ARCHER_EYE`
+of `6 + level / 2` put three archers on the game's figures but made W+A+Z
+about a draught easier than the game (1.2, 1.1, 3.2, 3.6 against 2.1, 1.5,
+4.9, 4.6), and a bigger `WIZ_GUARD` lost more often (52 to 57% won against
+the Warden at three quarters of the level and seven eighths: the
+autoplayer counts it in deciding who is in danger, drinks later and dies
+with draughts left) and made Maldrath easy at level 10. The wanderers are
+no threat in either fight. The
 music and the effects are the open world's: `ow_tune.s` and `ow_sfx.o`,
 ticked by `mux.s`'s frame interrupt; the block says which song (none from
 `owarena`, which loads no tune) and whether to carry on with it, and `M`

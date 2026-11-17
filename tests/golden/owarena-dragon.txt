@@ -7,21 +7,21 @@
   5 |adfhjhrsrsjhjhjhrsrsjhjhjhrsrsjhjhjhrkla|
   6 |adyvuvigigigu@u@igigiguvuvigigiguvuvikla|
   7 |adfsrsjhjhjhrsrsjhjhjhrsrsjhjhjhrsrsjkla|
-  8 |adfguviguvigiguviguvigiguviguvigiguvikla|
+  8 |adfguviguvigiguvigu@igiguviguvigiguvikla|
   9 |adfhrsjhrsjhjhrsjhrsjhjhrsjhrsjhjhrsjkla|
- 10 |adfgigigigigigigi@igigigigigigigigigikla|
+ 10 |adfgigigigigigigigigigigigigigigigigikla|
  11 |adz[£hjhjhjhjhjhjhjhjhjhjhjhjhjhjhj][^la|
- 12 |a_ !fguvigiguviguvi@i@uviguvigiguvik" #a|
+ 12 |a_ !fguvigiguviguvigigu@iguvigiguvik" #a|
  13 |aaadz[£sjhjhrsjhrsjhjhrsjhrsjhjhr][^laaa|
  14 |aaa_ !yvuvigigiguvuvigigiguvuvigik" #aaa|
  15 |aaaaadz$$$£hjhjhrsrsjhjhjhrsr][[[^laaaaa|
  16 |aaaaa_   !fguvuvigigiguvuvigik"   #aaaaa|
  17 |aaaaaaaaadfhrsrsjhjhjhrsrsjhjklaaaaaaaaa|
  18 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|
- 19 |Mg@srgtQ███████████KP█611███████████████|
+ 19 |Mg@srgtQ███████████KP█625███████████████|
  20 |>A@grRb████MRrg██████ZOs██████DrgudQt█3█|
- 21 |█85/85█████63/63█████13/61█31█ArrYws█39█|
- 22 |WQRbQ█wgy?██████████████████████████████|
- 23 |TQO█szgrU█QRts█WYr█14.██████████████████|
- 24 |F@gvO█sOgrs█ZOs█WYr█16.█████████████████|
+ 21 |█63/85█████0/63██████61/61█31█ArrYws█39█|
+ 22 |TQO█szgrU█QRts█A@grRb█WYr█22.███████████|
+ 23 |F@gvO█sOgrs█MRrg█WYr█21.████████████████|
+ 24 |MRrg█Wg@@s!█████████████████████████████|
     +----------------------------------------+

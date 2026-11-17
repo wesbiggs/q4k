@@ -63,9 +63,10 @@ typedef struct {
     unsigned char quiet;                /* bit 0 music off, bit 1 effects
                                            off (OwGame's); M and X change
                                            it */
+    unsigned int  rounds;               /* out: how many rounds it took */
 } Fight;
 
-/* 149 bytes; src/fight/block.c lays the same things down in the same order
+/* 151 bytes; src/fight/block.c lays the same things down in the same order
    for the module, and head.s refuses to link if that is not as long. */
 
 #define FIGHT        ((Fight *)(FIGHT_BASE + 3))
@@ -91,12 +92,18 @@ typedef struct {
 #define FI_MY        6
 #define FI_ROCK      7          /* a boulder's four characters */
 #define FI_NCHARS    11
+#define FI_NSCAT     12         /* how many kinds of scatter, 0-3 ... */
+#define FI_SCAT      13         /* ... five bytes each: four characters and
+                                   the flag of the square it makes */
 #define FI_COLOUR    32         /* each character's colour RAM value, 128 */
 #define FI_FLAGS     160        /* each square: FF_* */
 
 #define FF_OPEN      0
 #define FF_WATER     1          /* nothing walks on it; a shot crosses it */
 #define FF_BLOCK     2
+#define FF_KIND      3          /* which of those three */
+#define FF_SLOW      0x0C       /* and what a step onto it costs, in tenths */
+#define FF_COST(f)   (10 + 5 * (((f) >> 2) & 3))     /* 10, 15 or 20 */
 
 /* Sprite blocks, as the VIC counts them in bank 1. */
 #define SPR_MONSTER  0x40       /* $5000: the monster's file */

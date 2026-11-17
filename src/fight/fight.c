@@ -55,6 +55,13 @@ extern unsigned int  fq_seed;
 extern char          fq_field[FIGHT_FNAME], fq_sprite[FIGHT_FNAME];
 extern unsigned char fq_foes;
 extern unsigned char fq_song, fq_carry, fq_quiet;
+extern unsigned int  fq_rounds;
+
+#ifdef FIGHT_BOT
+#define FIGHT_BOT_ON 1
+#else
+#define FIGHT_BOT_ON 0
+#endif
 
 /* The music (src/lib/ow_tune.s, called by mux.s's interrupt once a frame,
    with the effects): the tune under the KERNAL that the caller says. */
@@ -99,12 +106,19 @@ extern unsigned char ow_tune_on;
 #define PROBE_STAGE (*(unsigned char *)0xCF02)
 #define KEYS_AHEAD  (*(unsigned char *)0x00C6)
 
-/* battle.c's tuning, unchanged: see there. */
-#define ARCHER_EYE  (3 + (party_level >> 1))
+/* battle.c's tuning (see there), but for an archer's eye, which is two
+   more: with shots stopping at the party, the archers lose turns waiting
+   for a clear line (CLAUDE.md has what tools/balance.py --ow measured).
+   (Overridable with -D for a sweep.) */
+#ifndef ARCHER_EYE
+#define ARCHER_EYE  (5 + (party_level >> 1))
+#endif
 #define LONE_HP     3
 #define LONE_ATK    2
 #define WARD        4
+#ifndef WIZ_GUARD
 #define WIZ_GUARD   ((party_level << 1) / 3)
+#endif
 
 /* Text colours: 0-7 only. */
 #define C_WHITE  1
@@ -203,6 +217,12 @@ static unsigned char hx, hy, mx, my;
 static unsigned char size;
 
 static unsigned char mem_x[MAX_PARTY], mem_y[MAX_PARTY], guard[MAX_PARTY];
+/* What each of the party owes for slow ground, in tenths of a turn: a step
+   onto a square costs FF_COST of it, of which a turn pays 10, and a turn
+   is lost for every 10 owed. */
+static unsigned char mire[MAX_PARTY];
+/* ... and what the monster's last step cost past 10 (foe_step()). */
+static unsigned char slow;
 static unsigned char act, ward, sleep;
 static unsigned char rel, lone, lone_bank, fury;
 
@@ -288,7 +308,9 @@ static void frame(void)
         poses();
     }
     mx_plan();
-    mx_wait();
+#ifndef FIGHT_BOT
+    mx_wait();                  /* (the autoplayer does not wait to see) */
+#endif
 }
 
 static void pause(unsigned char frames)
@@ -569,6 +591,285 @@ static unsigned char bitten(unsigned char who, unsigned char atk)
 
 static unsigned char held;      /* frames the stick has been held */
 
+#ifdef FIGHT_BOT
+/* --- the autoplayer -------------------------------------------------------
+ *
+ * Only in FIGHTBOT, the module compiled a second time with FIGHT_BOT, which
+ * the multicolour arena's `*` (src/owarena.c) loads to fight a poked fight
+ * many times over for tools/balance.py --ow: battle.c's autoplayer, eight
+ * ways. It feeds next_key() what a careful player would press, and knows
+ * nothing the player could not see.
+ *
+ * Each turn: a draught for whoever is worst hurt, if they are badly hurt; a
+ * wizard heals, wards against something big, burns a crowd, or bolts what
+ * is in line; whoever has a bow shoots what is in line, any of eight ways;
+ * whoever is beside it strikes; otherwise each closes in, the ranged ones to
+ * get in a line without standing beside it, the rest to get beside it. */
+static unsigned char bot_q[4], bot_n, bot_i;
+
+static const unsigned char dir_key[8] = {
+    K_S, K_W, K_A, K_D, K_Z, K_X, K_Q, K_E,
+};
+
+static unsigned char pinched(unsigned char px, unsigned char py,
+                             unsigned char x, unsigned char y);
+
+static void bot_push(unsigned char k)
+{
+    bot_q[bot_n++] = k;
+}
+
+/* Is a foe in line `dir` of the active member, within `range`, with nothing
+   solid and none of the party between? (A shot hits whoever is in the way,
+   as loose() has it.) */
+static unsigned char bot_line(unsigned char dir, unsigned char range)
+{
+    unsigned char x = hx, y = hy, n;
+
+    for (n = 0; n < range; ++n) {
+        x += dir_dx[dir];
+        y += dir_dy[dir];
+        if (x >= FW || y >= FH
+            || pinched(x - dir_dx[dir], y - dir_dy[dir], x, y)) {
+            return 0;
+        }
+        if (foe_at(x, y) != NONE) {
+            return 1;
+        }
+        if (member_at(x, y) != NONE
+            || (flag_at(x, y) & FF_KIND) == FF_BLOCK) {
+            return 0;                   /* (a shot would hit them) */
+        }
+    }
+    return 0;
+}
+
+static unsigned char bot_aim(unsigned char range)
+{
+    unsigned char d;
+
+    for (d = 0; d < 8; ++d) {
+        if (bot_line(d, range)) {
+            return d;
+        }
+    }
+    return NONE;
+}
+
+/* Could the active member step `d` from (hx,hy), as fight() allows? */
+static unsigned char bot_open(unsigned char d)
+{
+    unsigned char x = hx + dir_dx[d], y = hy + dir_dy[d];
+
+    return x < FW && y < FH && !wall_at(x, y)
+        && member_at(x, y) == NONE && foe_at(x, y) == NONE
+        && !(d > DIR_RIGHT && wall_at(x, hy) && wall_at(hx, y));
+}
+
+/* Is any foe beside (x,y), any of eight ways? */
+static unsigned char bot_beside(unsigned char x, unsigned char y)
+{
+    unsigned char k;
+
+    for (k = 0; k < 8; ++k) {
+        if (foe_at(x + dir_dx[k], y + dir_dy[k]) != NONE) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static unsigned char bot_alive(void)
+{
+    unsigned char i, n = 0;
+
+    for (i = 0; i < party_count; ++i) {
+        n += party[i].hp != 0;
+    }
+    return n;
+}
+
+/* Cast spell `s` at `arg`: a direction (kind 1), a member (2), or nothing. */
+static void bot_cast(unsigned char s, unsigned char arg, unsigned char kind)
+{
+    bot_push(K_CAST);
+    bot_push(0x31 + s);
+    if (kind == 1) {
+        bot_push(dir_key[arg]);
+    } else if (kind == 2 && bot_alive() > 1) {
+        bot_push(0x31 + arg);
+    }
+}
+
+/* How good a square (x,y) is to stand on, against a foe at (tx,ty): lower
+   is better. The rest want to be beside it, by the eight-way distance; the
+   ranged want to be in one of its eight lines with none of the party (but
+   whoever moves) or anything solid in between, and nearer along it. */
+static unsigned char tx, ty, ranged;
+
+static unsigned char bot_clear(unsigned char x, unsigned char y)
+{
+    signed char dx = tx > x ? 1 : tx < x ? -1 : 0;
+    signed char dy = ty > y ? 1 : ty < y ? -1 : 0;
+
+    for (;;) {
+        x += dx;
+        y += dy;
+        if (x == tx && y == ty) {
+            return 1;
+        }
+        if ((member_at(x, y) != NONE && (x != hx || y != hy))
+            || (flag_at(x, y) & FF_KIND) == FF_BLOCK) {
+            return 0;
+        }
+    }
+}
+
+static unsigned char bot_score(unsigned char x, unsigned char y)
+{
+    unsigned char ax = x > tx ? x - tx : tx - x;
+    unsigned char ay = y > ty ? y - ty : ty - y;
+    unsigned char dist = ax > ay ? ax : ay, off;
+
+    if (!ranged) {
+        return (dist << 4) + ax + ay;
+    }
+    off = ax < ay ? ax : ay;                     /* off the row or column */
+    if ((unsigned char)(dist - off) < off) {
+        off = dist - off;                         /* ... or the diagonal */
+    }
+    if (!off && dist && !bot_clear(x, y)) {
+        off = 1;                                  /* in line, but blocked */
+    }
+    return (off << 4) + dist;
+}
+
+static void bot_plan(void)
+{
+    Actor *a = &party[act];
+    unsigned char i, low = NONE, d, best, s, nx, ny, dist;
+
+    for (i = 0; i < party_count; ++i) {
+        if (party[i].hp && (low == NONE
+            || (unsigned int)party[i].hp * party[low].hp_max
+               < (unsigned int)party[low].hp * party[i].hp_max)) {
+            low = i;
+        }
+    }
+    /* In danger: the hardest blow it has could fell them, or they are under
+       a third of their health. */
+    i = (fq_shot > fq_atk ? fq_shot : fq_atk) + 2;
+    d = armour_def[party[low].armour] + ward
+      + (party[low].cls == CL_WIZARD ? WIZ_GUARD : 0);
+    s = party[low].hp <= (i > d ? i - d : 1)
+     || party[low].hp * 3 < party[low].hp_max;
+
+    if (a->cls == CL_WIZARD && (a->ready & (1 << SP_HEAL))
+        && a->mp >= spell_cost[SP_HEAL] && s) {
+        bot_cast(SP_HEAL, low, 2);
+        return;
+    }
+    if (potions && s && party[low].hp < party[low].hp_max) {
+        bot_push(K_POTION);
+        if (bot_alive() > 1) {
+            bot_push(0x31 + low);
+        }
+        return;
+    }
+    if (a->cls == CL_WIZARD) {
+        if ((a->ready & (1 << SP_WARD)) && !ward && fq_hp >= 40
+            && a->mp >= spell_cost[SP_WARD]) {
+            bot_cast(SP_WARD, 0, 0);
+            return;
+        }
+        if ((a->ready & (1 << SP_BLAZE)) && alive >= 3
+            && a->mp >= spell_cost[SP_BLAZE]) {
+            bot_cast(SP_BLAZE, 0, 0);
+            return;
+        }
+        if ((a->ready & (1 << SP_SLEEP)) && !sleep && alive >= 3
+            && a->mp >= spell_cost[SP_SLEEP]) {
+            bot_cast(SP_SLEEP, 0, 0);
+            return;
+        }
+        if ((a->ready & (1 << SP_BOLT)) && a->mp >= spell_cost[SP_BOLT]
+            && (d = bot_aim(14)) != NONE) {
+            bot_cast(SP_BOLT, d, 1);
+            return;
+        }
+        if ((a->ready & (1 << SP_SPARK)) && a->mp >= spell_cost[SP_SPARK]
+            && (d = bot_aim(8)) != NONE) {
+            bot_cast(SP_SPARK, d, 1);
+            return;
+        }
+    }
+    if (a->bow && arrows && (d = bot_aim(bow_range[a->bow])) != NONE) {
+        bot_push(K_FIRE);
+        bot_push(dir_key[d]);
+        return;
+    }
+    for (d = 0; d < 8; ++d) {
+        if (foe_at(hx + dir_dx[d], hy + dir_dy[d]) != NONE) {
+            bot_push(dir_key[d]);
+            return;
+        }
+    }
+
+    /* The nearest, by the nearest square of its body. */
+    best = 255;
+    tx = hx;
+    ty = hy;
+    for (i = 0; i < foes; ++i) {
+        if (!foe_hp[i]) {
+            continue;
+        }
+        nx = foe_x[i] + (hx > foe_x[i] ? (hx - foe_x[i] < size ? hx - foe_x[i]
+                                                                : size - 1) : 0);
+        ny = foe_y[i] + (hy > foe_y[i] ? (hy - foe_y[i] < size ? hy - foe_y[i]
+                                                                : size - 1) : 0);
+        s = nx > hx ? nx - hx : hx - nx;
+        dist = ny > hy ? ny - hy : hy - ny;
+        if (dist > s) {
+            s = dist;
+        }
+        if (s < best) {
+            best = s;
+            tx = nx;
+            ty = ny;
+        }
+    }
+    ranged = (a->bow && arrows)
+          || (a->cls == CL_WIZARD && a->mp >= spell_cost[SP_SPARK]
+              && (a->ready & (1 << SP_SPARK)));
+
+    /* The step that does best, if any does better than standing. */
+    best = bot_score(hx, hy);
+    i = NONE;
+    for (d = 0; d < 8; ++d) {
+        nx = hx + dir_dx[d];
+        ny = hy + dir_dy[d];
+        if (!bot_open(d) || (ranged && bot_beside(nx, ny))) {
+            continue;
+        }
+        s = bot_score(nx, ny);
+        if (s < best) {
+            best = s;
+            i = d;
+        }
+    }
+    bot_push(i == NONE ? K_SPACE : dir_key[i]);
+}
+
+static unsigned char bot_key(void)
+{
+    if (bot_i == bot_n) {
+        bot_i = bot_n = 0;
+        bot_plan();
+    }
+    return bot_q[bot_i++];
+}
+#endif
+
 /* The next key, with SHIFTed letters folded onto unshifted ones, or the
    stick in port 2: its directions as the cursor keys and its diagonals as
    Q, E, Z and X, repeating while held, and its button alone as the up
@@ -585,6 +886,9 @@ static unsigned char next_key(void)
     };
     unsigned char key, j;
 
+#ifdef FIGHT_BOT
+    return bot_key();
+#endif
     v_put(V_CUR, hx, hy);
     vs_ptr[V_CUR] = SPR_CURSOR;
     for (;;) {
@@ -826,11 +1130,13 @@ found:
     return 1;
 }
 
-/* The monster one square nearer, gliding there. */
+/* The monster one square nearer, gliding there; `slow` is what the square
+   costs past 10 (by its top left square, for a big one). */
 static void foe_step(void)
 {
     unsigned char dir, k;
 
+    slow = 0;
     if (flood() && member_at(step_x - 1, step_y - 1) == NONE) {
         --step_x;
         --step_y;
@@ -838,6 +1144,7 @@ static void foe_step(void)
                      step_y > my ? 1 : step_y < my ? -1 : 0);
         mx = foe_x[cur] = step_x;
         my = foe_y[cur] = step_y;
+        slow = FF_COST(flag_at(mx, my)) - 10;
         foe_sprites(cur);
         for (k = 0; k < 4; ++k) {
             v_nudge(fv, fn, dir, 4);
@@ -871,26 +1178,61 @@ static unsigned char foe_start(void)
     return 1;
 }
 
-static const signed char beside_x[] = { -1, 1,  0, -1, 1, -2, 2, 0 };
-static const signed char beside_y[] = {  0, 0,  1,  1, 1,  0, 0, -1 };
+/* The party starts fanned out, the leader two squares toward the monster
+   and the other two two squares to either side of where the field puts
+   the leader, so that whoever is at the back has a turn or two to find a
+   line, or the way out, before anything reaches them:
+
+       ..1..
+       .....
+       2...3
+
+   A square that is walled, or taken, gives way to the first open one
+   round it, and failing that round the field's own start. */
+static const signed char form_x[MAX_PARTY] = { 0, -2, 2, 0 };  /* (a fourth: */
+static const signed char form_y[MAX_PARTY] = { -2, 0, 0, 0 };  /* between) */
+
+static unsigned char stand_ok(unsigned char x, unsigned char y,
+                              unsigned char placed)
+{
+    unsigned char j;
+
+    if (x >= FW || y >= FH || wall_at(x, y)) {
+        return 0;
+    }
+    for (j = 0; j < placed; ++j) {
+        if (mem_x[j] == x && mem_y[j] == y) {
+            return 0;
+        }
+    }
+    return 1;
+}
 
 static void party_start(void)
 {
-    unsigned char i, k = 0, x, y;
+    unsigned char i, k, x, y, cx, cy, hx0 = F_INFO[FI_HX], hy0 = F_INFO[FI_HY];
 
-    mem_x[0] = F_INFO[FI_HX];
-    mem_y[0] = F_INFO[FI_HY];
-    for (i = 1; i < party_count; ++i) {
-        for (; k < sizeof(beside_x); ++k) {
-            x = mem_x[0] + beside_x[k];
-            y = mem_y[0] + beside_y[k];
-            if (x < FW && y < FH && !wall_at(x, y)) {
-                break;
+    for (i = 0; i < party_count; ++i) {
+        cx = hx0 + form_x[i];
+        cy = hy0 + form_y[i];
+        x = cx;
+        y = cy;
+        for (k = 0; !stand_ok(x, y, i) && k < 16; ++k) {
+            if (k < 8) {
+                x = cx + dir_dx[k];
+                y = cy + dir_dy[k];
+            } else {
+                x = hx0 + dir_dx[k - 8];
+                y = hy0 + dir_dy[k - 8];
             }
+        }
+        if (k == 16 && !stand_ok(x, y, i)) {
+            x = hx0;                    /* (never: the field's start is
+                                           open, and so is round it) */
+            y = hy0;
         }
         mem_x[i] = x;
         mem_y[i] = y;
-        ++k;
     }
     for (i = 0; i < party_count; ++i) {
         guard[i] = 0;
@@ -911,7 +1253,7 @@ static unsigned char pinched(unsigned char px, unsigned char py,
                              unsigned char x, unsigned char y)
 {
     return px != x && py != y
-        && flag_at(x, py) == FF_BLOCK && flag_at(px, y) == FF_BLOCK;
+        && (flag_at(x, py) & FF_KIND) == FF_BLOCK && (flag_at(px, y) & FF_KIND) == FF_BLOCK;
 }
 
 /* Something flies from the member whose turn it is: battle.c's loose(). */
@@ -919,7 +1261,7 @@ static unsigned char loose(unsigned char dir, unsigned char range,
                            unsigned char atk, unsigned char kind,
                            const char *what)
 {
-    unsigned char x = hx, y = hy, flew = 0, hit = 0;
+    unsigned char x = hx, y = hy, flew = 0, hit = 0, ally = NONE;
 
     while (flew < range) {
         x += dir_dx[dir];
@@ -933,13 +1275,27 @@ static unsigned char loose(unsigned char dir, unsigned char range,
             hit = 1;
             break;
         }
-        if (flag_at(x, y) == FF_BLOCK) {
+        /* Nor does it fly over the party: whoever is in the way takes it,
+           as hard as a foe would have. */
+        if ((ally = member_at(x, y)) != NONE) {
+            break;
+        }
+        if ((flag_at(x, y) & FF_KIND) == FF_BLOCK) {
             break;
         }
     }
 
     shoot(hx, hy, dir, flew, kind);
     strcpy(msg, what);
+    if (ally != NONE) {
+        sfx_play(SFX_BOW);
+        strcat(msg, " hits ");
+        strcat(msg, party[ally].name);
+        strcat(msg, " for ");
+        bitten(ally, atk + party_level);   /* (never the last: the one
+                                              who loosed it stands) */
+        return 0;
+    }
     if (hit) {
         sfx_play(SFX_BOW);
         strcat(msg, " hits for ");
@@ -1000,7 +1356,7 @@ static unsigned char aim_at(unsigned char tx, unsigned char ty)
         if ((victim = member_at(x, y)) != NONE) {
             return dir;
         }
-        if (flag_at(x, y) == FF_BLOCK || foe_at(x, y) != NONE) {
+        if ((flag_at(x, y) & FF_KIND) == FF_BLOCK || foe_at(x, y) != NONE) {
             break;
         }
     }
@@ -1033,27 +1389,74 @@ static unsigned char open9(const unsigned char *w)
            | w[2 * RIM_W] | w[2 * RIM_W + 1] | w[2 * RIM_W + 2]);
 }
 
-/* No two fights are fought on the same ground: a few boulders go down
-   where the ground is open all round (so nothing is cut off), never on the
-   leader's square. On a field less than half the old one's size, two to
-   four of them. */
+/* No two fights are fought on the same ground: two to four things that
+   block go down -- boulders, or what else the field may scatter that blocks
+   (a tree) -- where the ground is open all round (so nothing is cut off),
+   never on the leader's square; then, where the field has some, one to
+   three patches of slow ground (a puddle, a thicket) on open squares that
+   are quicker to cross than they would be. The field's file says what it
+   may scatter (FI_SCAT, from assets/fields.txt). */
+static unsigned char rock5[5];
+
+static void put(unsigned char x, unsigned char y, const unsigned char *e)
+{
+    unsigned char *s = F_SCREEN + (unsigned int)y * 80 + (x << 1);
+
+    s[0]  = e[0];
+    s[1]  = e[1];
+    s[40] = e[2];
+    s[41] = e[3];
+    flag_at(x, y) = e[4];
+}
+
 static void scatter(void)
 {
-    unsigned char n, tries, x, y, q;
-    unsigned char *w, *s;
+    const unsigned char *blk[1 + 3], *slw[3], *e;
+    unsigned char n, nb = 0, ns = 0, tries, x, y, f;
+    unsigned char *w;
+
+    memcpy(rock5, F_INFO + FI_ROCK, 4);
+    rock5[4] = FF_BLOCK;
+    blk[nb++] = rock5;
+    for (n = 0; n < F_INFO[FI_NSCAT]; ++n) {
+        e = F_INFO + FI_SCAT + n * 5;
+        if (e[4] == FF_BLOCK) {
+            blk[nb++] = e;
+        } else {
+            slw[ns++] = e;
+        }
+    }
 
     n = 2 + (unsigned char)(rand() % 3);
     for (tries = 0; tries < 40; ++tries) {
         x = 2 + ((unsigned char)rand() & 15);
         y = 1 + (unsigned char)(rand() % 7);
         w = &wall_at(x, y);
-        if ((x != F_INFO[FI_HX] || y != F_INFO[FI_HY]) && open9(w)) {
-            *w = 1;
-            flag_at(x, y) = FF_BLOCK;
-            s = F_SCREEN + (unsigned int)y * 80 + (x << 1);
-            for (q = 0; q < 4; ++q) {
-                s[(q >> 1) * 40 + (q & 1)] = F_INFO[FI_ROCK + q];
+        if ((unsigned char)(x - F_INFO[FI_HX] + 2) > 4
+            || (unsigned char)(y - F_INFO[FI_HY] + 2) > 2) {
+            /* (not in the party's starting box: party_start()) */
+            if (open9(w)) {
+                *w = 1;
+                put(x, y, blk[(unsigned char)rand() % nb]);
+                if (!--n) {
+                    break;
+                }
             }
+        }
+    }
+
+    if (!ns) {
+        return;
+    }
+    n = 1 + (unsigned char)(rand() % 3);
+    for (tries = 0; tries < 40; ++tries) {
+        x = 1 + (unsigned char)(rand() % (FW - 2));
+        y = (unsigned char)(rand() % FH);
+        e = slw[(unsigned char)rand() % ns];
+        f = flag_at(x, y);
+        if ((f & FF_KIND) == FF_OPEN && (f & FF_SLOW) < (e[4] & FF_SLOW)
+            && (x != F_INFO[FI_HX] || y != F_INFO[FI_HY])) {
+            put(x, y, e);
             if (!--n) {
                 break;
             }
@@ -1251,7 +1654,14 @@ static unsigned char their_turn(void)
                 pace %= 10;
                 break;
             } else {
+                /* Slow ground spends more of its pace: what is left of it
+                   may not be enough for another move this round. */
                 foe_step();
+                if (pace >= 10 + slow) {
+                    pace -= slow;
+                } else {
+                    pace = 10;          /* (and the loop takes that) */
+                }
             }
         }
         foe_pace[cur] = pace;
@@ -1284,10 +1694,12 @@ static unsigned char won(void)
 static unsigned char lost(void)
 {
     say("The party has fallen.");
+#ifndef FIGHT_BOT
     say("Press a key.");
     while (!cbm_k_getin()) {
         frame();
     }
+#endif
     return BATTLE_DEAD;
 }
 
@@ -1304,7 +1716,7 @@ static void set_up(void)
     }
     for (y = 0; y < FH; ++y) {
         for (x = 0; x < FW; ++x) {
-            wall_at(x, y) = flag_at(x, y) != FF_OPEN;
+            wall_at(x, y) = (flag_at(x, y) & FF_KIND) != FF_OPEN;
         }
     }
     if (size == 1) {
@@ -1362,6 +1774,11 @@ static unsigned char fight(void)
                 : "Walk into it to strike.");
 
     for (;;) {
+        /* A round. One the autoplayer cannot finish (shut out of reach) is
+           called off: battle.c's, too. */
+        if (++fq_rounds > 300 && FIGHT_BOT_ON) {
+            return BATTLE_FLED;
+        }
         for (i = 0; i < party_count; ++i) {
             if (!party[i].hp) {
                 continue;
@@ -1370,6 +1787,15 @@ static unsigned char fight(void)
             guard[i] = 0;
             if (party[i].mp < party[i].mp_max) {
                 ++party[i].mp;
+            }
+            if (mire[i] >= 10) {
+                /* Slow ground: this turn goes on getting through it. */
+                mire[i] -= 10;
+                show_party();
+                say_who(i, " is slowed by the ground.");
+                say(msg);
+                pause(20);
+                goto turn_done;
             }
             for (;;) {
                 show_party();
@@ -1487,6 +1913,7 @@ static unsigned char fight(void)
                         }
                         hx = mem_x[act] = nx;
                         hy = mem_y[act] = ny;
+                        mire[act] += FF_COST(flag_at(nx, ny)) - 10;
                     }
                 }
                 break;
@@ -1503,6 +1930,7 @@ static unsigned char fight(void)
                     return won();
                 }
             }
+turn_done:
             /* Alone, it has (n + 1) / 2 turns a round for a party of n,
                spread between theirs: battle.c. */
             if (lone) {
@@ -1582,6 +2010,7 @@ unsigned char fight_run(void)
     }
     unpack();
     srand(fq_seed);
+    fq_rounds = 0;
     mx_font();
     set_up();
     mx_colour();

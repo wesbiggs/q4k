@@ -42,8 +42,13 @@ MAXCHARS = 128
 FONT_SPACE = 0xA0           # the ROM's space, where the fight puts the letters
 # The facts, from INFO: fight.h's FI_*.
 FI_PAL, FI_HX, FI_HY, FI_MX, FI_MY, FI_ROCK, FI_NCHARS = 0, 3, 4, 5, 6, 7, 11
+FI_NSCAT, FI_SCAT, SCAT_MAX = 12, 13, 3
 FI_COLOUR, FI_FLAGS = 32, 160
 FLAG = {"pass": 0, "enter": 0, "water": 1, "block": 2}
+# What a step onto a square costs, past the 10 tenths of grass: bits 2-3 of
+# its flag, a level of 5 tenths each (fight.h's FF_COST).
+SLOW = {"shore": 1, "forest": 1, "swamp": 2}
+SLOW_LEVEL = {15: 1, 20: 2}
 
 # The sprites linked into the fight, in the order of fight.h's SPR_*; each
 # class has two frames. The arrow is one block, which the fight fills when
@@ -84,9 +89,21 @@ def read_fields():
         if len(rows) != FH or any(len(r) != FW for r in rows):
             die("%s:%d: %s: want %d rows of %d" % (FIELDS, i, f[1], FH, FW))
         i += FH
+        # scatter=<overlay>[:<cost>],...: what the fight may put down
+        # besides boulders: a block, or ground that costs 15 or 20 a step.
+        scat = []
+        for w in f:
+            if w.startswith("scatter="):
+                for item in w[8:].split(","):
+                    n, _, c = item.partition(":")
+                    if c and int(c) not in SLOW_LEVEL:
+                        die("%s: %s: a cost of 15 or 20" % (f[1], n))
+                    scat.append((n, int(c) if c else 0))
+        if len(scat) > SCAT_MAX:
+            die("%s: %d kinds of scatter at most" % (f[1], SCAT_MAX))
         fields.append({"name": f[1], "set": f[2], "ground": f[3],
                        "size": 2 if "size" in f else 1,
-                       "shut": "shut" in f, "rows": rows})
+                       "shut": "shut" in f, "rows": rows, "scatter": scat})
     return fields
 
 
@@ -179,23 +196,32 @@ def compose(fd, tiles):
     # A character has one colour of its own, so either the boulder has its
     # colour and the ground's own-colour pixels under it go -- or, where the
     # ground is mostly that colour (sand), which would leave a square hole
-    # in it, the boulder's lit side takes the ground's colour instead.
-    if "boulder" not in st["overlays"]:
-        die("%s: %s has no boulder drawn `on` anything" % (name, fd["set"]))
-    bcols, brows = st["overlays"]["boulder"]
+    # in it, the boulder's lit side takes the ground's colour instead. The
+    # rest of what the fight scatters is drawn the same way.
     ground = st["art"][st["by_name"][fd["ground"]][0]]
     gcols = st["cols"][st["by_name"][fd["ground"]][0]]
     mostly = sum(r.count("c") for r in ground) * 4 > 16 * 8
-    rock = []
-    for q in range(4):
-        col = gcols[q] if mostly else bcols[q]
-        rows = ["".join((g if g != "c" or col == gcols[q] else ".")
-                        if o == "-" else o
-                        for o, g in zip(orow[(q & 1) * 4:(q & 1) * 4 + 4],
-                                        grow[(q & 1) * 4:(q & 1) * 4 + 4]))
-                for orow, grow in zip(brows[(q >> 1) * 8:(q >> 1) * 8 + 8],
-                                      ground[(q >> 1) * 8:(q >> 1) * 8 + 8])]
-        rock.append(char((art_glyph(rows), 8 | col)))
+
+    def overlay(oname):
+        if oname not in st["overlays"]:
+            die("%s: %s has no %s drawn `on` anything"
+                % (name, fd["set"], oname))
+        ocols, orows_ = st["overlays"][oname]
+        out = []
+        for q in range(4):
+            col = gcols[q] if mostly else ocols[q]
+            rows = ["".join((g if g != "c" or col == gcols[q] else ".")
+                            if o == "-" else o
+                            for o, g in zip(orow[(q & 1) * 4:(q & 1) * 4 + 4],
+                                            grow[(q & 1) * 4:(q & 1) * 4 + 4]))
+                    for orow, grow in zip(orows_[(q >> 1) * 8:(q >> 1) * 8 + 8],
+                                          ground[(q >> 1) * 8:(q >> 1) * 8 + 8])]
+            out.append(char((art_glyph(rows), 8 | col)))
+        return out
+
+    rock = overlay("boulder")
+    scat = [(overlay(n), FLAG["block"] if not c else SLOW_LEVEL[c] << 2)
+            for n, c in fd["scatter"]]
     for x, y in rocks:
         for q in range(4):
             screen[y * 2 + (q >> 1)][x * 2 + (q & 1)] = rock[q]
@@ -204,6 +230,7 @@ def compose(fd, tiles):
         die("%s: %d characters, %d at most" % (name, len(glyphs), MAXCHARS))
 
     flags = [[FLAG.get(next(t[2] for t in tiles.values() if t[0] == n), 2)
+              | SLOW.get(n, 0) << 2
               for n in row] for row in grid]
     for x, y in rocks:
         flags[y][x] = 2
@@ -219,6 +246,10 @@ def compose(fd, tiles):
     blob[info + FI_PAL:info + FI_PAL + 3] = bytes(st["palette"])
     blob[info + FI_HX:info + FI_HX + 4] = bytes([hx, hy, mx, my])
     blob[info + FI_ROCK:info + FI_ROCK + 4] = bytes(rock)
+    blob[info + FI_NSCAT] = len(scat)
+    for k, (chars, flag) in enumerate(scat):
+        at_ = info + FI_SCAT + k * 5
+        blob[at_:at_ + 5] = bytes(chars + [flag])
     blob[info + FI_NCHARS] = len(glyphs)
     for i, (g, col) in enumerate(glyphs):
         blob[info + FI_COLOUR + i] = col
@@ -235,6 +266,7 @@ def check(fd, flags, hx, hy, mx, my):
     """The way out is where the fight looks for it, and the monster can
     reach the party: its whole body, if it is two squares by two."""
     name, size = fd["name"], fd["size"]
+    flags = [[f & 3 for f in row] for row in flags]    # the kind, not the cost
     mid = FH // 2
     for y in range(FH):
         for x in (0, FW - 1):
