@@ -1016,7 +1016,21 @@ this fight: `owarena`'s `*` loads `FIGHTBOT` (the module built with
 frame) and fights the poked fight `auto_runs` times, counting into `res_*`
 and the block's `rounds`, then probe stage 5. `--disk` points it at another
 copy of the arena's disk, so variants of the module can run side by side.
-`ARCHER_EYE` and `WIZ_GUARD` are `#ifndef` for such a sweep (`-D`). The
+`ARCHER_EYE` and `WIZ_GUARD` are `#ifndef` for such a sweep (`-D`).
+**Measured against the game's own fight** (40 runs a fight, the keepers,
+`balance.py` and `balance.py --ow`): eight ways, a lone warrior, W+Z and
+W+A+Z drank what they do in the game, give or take half a draught, but
+three archers drank up to 2.5 more (7.1 at the Gaoler against 4.6): a foe
+that closes in diagonally reaches them as fast as they back off. So the
+module's `ARCHER_EYE` is `6 + level / 2`, not `battle.c`'s 3, which puts
+three archers on the game's figures (4.7, 4.2, 5.5, 4.4 against 4.6, 4.4,
+5.1, 4.5) and leaves W+A+Z about a draught easier than the game. Three
+wizards against the Warden are still harder than in the game (80% won and
+7.8 draughts, against 85% and 5.5); a bigger `WIZ_GUARD` did not help (52
+to 57% won at three quarters of the level and seven eighths, because the
+autoplayer counts it in deciding who is in danger, drinks later and dies
+with draughts left), and made Maldrath easy at level 10. The wanderers are
+no threat in either fight. The
 music and the effects are the open world's: `ow_tune.s` and `ow_sfx.o`,
 ticked by `mux.s`'s frame interrupt; the block says which song (none from
 `owarena`, which loads no tune) and whether to carry on with it, and `M`
