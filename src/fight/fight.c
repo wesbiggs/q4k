@@ -23,7 +23,9 @@
  *
  * Unlike battle.c it goes eight ways, as the open world walks: the party
  * steps and strikes diagonally too (Q E Z X, or the stick's diagonals),
- * and the monsters' flood and their blows go eight ways. Shots fly four.
+ * and the monsters' flood, their blows and their shots go eight ways, as
+ * the party's arrows and spells do (the arrow's picture is copied into its
+ * one sprite block for the way it flies: arrow_to()).
  * The up-arrow key shoots, * casts, M is the music and SHIFT+M the effects,
  * as in the open world.
  *
@@ -374,13 +376,34 @@ static void lunge(unsigned char v, unsigned char n, unsigned char dir)
 
 static const unsigned char shot_colour[4] = { 7, 8, 14, 1 };  /* SHOT_* */
 
+/* The arrow's eight pictures, by DIR_* (fight_data.s): two bytes a row,
+   copied into its one block for the way it is about to fly. */
+extern const unsigned char fight_arrow[8][32];
+#define ARROW_BLOCK ((unsigned char *)0x4000 + SPR_ARROW * 64)
+
+static void arrow_to(unsigned char dir)
+{
+    const unsigned char *s = fight_arrow[dir];
+    unsigned char *d = ARROW_BLOCK;
+    unsigned char i;
+
+    for (i = 0; i < 16; ++i, s += 2, d += 3) {
+        d[0] = s[0];
+        d[1] = s[1];
+    }
+}
+
 /* Something flies from square (x,y), `flew` squares the way of `dir`. */
 static void shoot(unsigned char x, unsigned char y, unsigned char dir,
                   unsigned char flew, unsigned char kind)
 {
     v_put(V_SHOT, x, y);
-    vs_ptr[V_SHOT] = kind == SHOT_ARROW ? SPR_ARROW + dir
-                                        : SPR_FIRE - 1 + kind;
+    if (kind == SHOT_ARROW) {
+        arrow_to(dir);
+        vs_ptr[V_SHOT] = SPR_ARROW;
+    } else {
+        vs_ptr[V_SHOT] = SPR_FIRE - 1 + kind;
+    }
     vs_col[V_SHOT] = shot_colour[kind];
     for (flew <<= 1; flew; --flew) {
         v_nudge(V_SHOT, 1, dir, 8);
@@ -882,6 +905,15 @@ static void party_start(void)
 
 static unsigned char target;
 
+/* Whether a shot from (px,py) to the square diagonally beside it, (x,y),
+   would pass between two corners of wall: it stops, as a step does. */
+static unsigned char pinched(unsigned char px, unsigned char py,
+                             unsigned char x, unsigned char y)
+{
+    return px != x && py != y
+        && flag_at(x, py) == FF_BLOCK && flag_at(px, y) == FF_BLOCK;
+}
+
 /* Something flies from the member whose turn it is: battle.c's loose(). */
 static unsigned char loose(unsigned char dir, unsigned char range,
                            unsigned char atk, unsigned char kind,
@@ -892,7 +924,8 @@ static unsigned char loose(unsigned char dir, unsigned char range,
     while (flew < range) {
         x += dir_dx[dir];
         y += dir_dy[dir];
-        if (x >= FW || y >= FH) {
+        if (x >= FW || y >= FH || pinched(x - dir_dx[dir], y - dir_dy[dir],
+                                          x, y)) {
             break;                           /* off the field */
         }
         ++flew;
@@ -926,9 +959,8 @@ static unsigned char which_way(const char *put_down)
 
     say("Which way?");
     dir = key_dir(next_key());
-    if (dir > DIR_RIGHT) {              /* NONE, or a diagonal: a shot */
-        say(put_down);                  /* flies straight, and the arrow */
-        return NONE;                    /* has four pictures */
+    if (dir == NONE) {
+        say(put_down);
     }
     return dir;
 }
@@ -938,36 +970,31 @@ static unsigned char sx, sy, flew, victim;
 
 static unsigned char aim_at(unsigned char tx, unsigned char ty)
 {
-    unsigned char dir, x, y;
+    signed char dx, dy;
+    unsigned char dir, x, y, ax, ay;
 
-    if ((unsigned char)(tx - mx) < size) {
-        sx = tx;
-        if (ty < my) {
-            sy = my;
-            dir = DIR_UP;
-        } else {
-            sy = my + size - 1;
-            dir = DIR_DOWN;
+    /* Which way they are from the body, and the square of it the shot
+       leaves from: level with them, or the corner toward them. */
+    dx = tx < mx ? -1 : tx >= mx + size;
+    dy = ty < my ? -1 : ty >= my + size;
+    sx = dx < 0 ? mx : dx ? mx + size - 1 : tx;
+    sy = dy < 0 ? my : dy ? my + size - 1 : ty;
+    if (dx && dy) {                     /* a diagonal, or not in line */
+        ax = dx > 0 ? tx - sx : sx - tx;
+        ay = dy > 0 ? ty - sy : sy - ty;
+        if (ax != ay) {
+            return NONE;
         }
-    } else if ((unsigned char)(ty - my) < size) {
-        sy = ty;
-        if (tx < mx) {
-            sx = mx;
-            dir = DIR_LEFT;
-        } else {
-            sx = mx + size - 1;
-            dir = DIR_RIGHT;
-        }
-    } else {
-        return NONE;                         /* not in line */
     }
+    dir = dir_of(dx, dy);
 
     x = sx;
     y = sy;
     for (flew = 1; flew <= fq_reach; ++flew) {
         x += dir_dx[dir];
         y += dir_dy[dir];
-        if (x >= FW || y >= FH) {
+        if (x >= FW || y >= FH
+            || pinched(x - dir_dx[dir], y - dir_dy[dir], x, y)) {
             break;
         }
         if ((victim = member_at(x, y)) != NONE) {

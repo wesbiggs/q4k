@@ -1001,8 +1001,16 @@ and **it is eight ways**, as the open world walks: Q, E, Z and X (or the
 stick's diagonals) step and strike diagonally; the flood goes
 eight ways, a monster strikes from any of the eight squares round someone
 (a big one from twelve places), and neither side squeezes diagonally
-between two corners of wall. Shots still fly four ways (the arrow has four
-pictures and `SPR` one block free). The balance was measured four ways, so
+between two corners of wall. Shots fly eight ways too, the party's
+arrows and spells and the monsters' (a big one shoots diagonally from its
+corner), and stop where they would pass between two corners of wall
+(`pinched()`). **The arrow is one sprite block** (`SPR_ARROW`), which
+`arrow_to()` fills for the way it is about to fly from `fight_arrow[]`:
+eight pictures of 32 bytes, by `DIR_*`, that `mkfields.py` makes from
+three drawn in `assets/monsters.txt` (`arrow`, `arrow_r`, `arrow_ur`) by
+mirroring; `$5700-$57FF` (four blocks) are free. `owarena-arrow-ur` in
+`tools/test.sh` checks the block after a shot up-right, and golden
+`owarena-dragon` casts a spark up-left into Maldrath. The balance was measured four ways, so
 `tools/balance.py` (the game's fight) says nothing about this one. The
 music and the effects are the open world's: `ow_tune.s` and `ow_sfx.o`,
 ticked by `mux.s`'s frame interrupt; the block says which song (none from

@@ -101,12 +101,12 @@ typedef struct {
 /* Sprite blocks, as the VIC counts them in bank 1. */
 #define SPR_MONSTER  0x40       /* $5000: the monster's file */
 #define SPR_PARTY    0x50       /* $5400: two frames a class */
-#define SPR_ARROW    0x56       /* down, up, left, right: DIR_* */
-#define SPR_FIRE     0x5A
-#define SPR_WAVE     0x5B
-#define SPR_BOLT     0x5C
-#define SPR_CURSOR   0x5D
-#define SPR_HIT      0x5E
+#define SPR_ARROW    0x56       /* one block, filled for the way it flies */
+#define SPR_FIRE     0x57
+#define SPR_WAVE     0x58
+#define SPR_BOLT     0x59
+#define SPR_CURSOR   0x5A
+#define SPR_HIT      0x5B       /* $5700-$57FF: four blocks free */
 
 /* The multiplexer (src/fight/mux.s): sixteen sprites to ask for, eight to
    show them with. One is on while its vs_y is not 0. */
