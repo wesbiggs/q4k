@@ -469,18 +469,34 @@ $(DIST)/fight.prg: $(FIGHTOBJ) $(LIB) cfg/c64-fight.cfg
 	    -Wl -Ln,$(BUILD)/fight.lbl -o $@ $(FIGHTOBJ) $(LIB)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
+# The module again with its autoplayer (FIGHT_BOT), which the arena's `*`
+# loads for tools/balance.py --ow. After fight.o, never beside it: cl65
+# writes src/fight/fight.s on the way to either.
+FIGHTBOTOBJ := $(subst $(BUILD)/fight/fight.o,$(BUILD)/fight/fight_bot.o,$(FIGHTOBJ))
+
+$(BUILD)/fight/fight_bot.o: src/fight/fight.c | $(BUILD)/fight/fight.o
+	@mkdir -p $(dir $@)
+	$(CL65) $(filter-out -Osir,$(CFLAGS)) -Or -DFIGHT_BOT $(DEPFLAGS) -c -o $@ $<
+
+$(DIST)/fightbot.prg: $(FIGHTBOTOBJ) $(LIB) cfg/c64-fight.cfg
+	@mkdir -p $(DIST)
+	$(CL65) $(LDFLAGS) -C cfg/c64-fight.cfg -m $(BUILD)/fightbot.map \
+	    -Wl -Ln,$(BUILD)/fightbot.lbl -o $@ $(FIGHTBOTOBJ) $(LIB)
+	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
+
 $(FIGHT_STAMP): $(FIELD_SRC)
 	@rm -rf $(BUILD)/fight/disk
 	tools/mkfields.py $(BUILD)/fight/disk
 	@touch $@
 
-$(DIST)/owarena.d64: $(DIST)/owarena.prg $(DIST)/fight.prg $(FIGHT_STAMP)
+$(DIST)/owarena.d64: $(DIST)/owarena.prg $(DIST)/fight.prg $(DIST)/fightbot.prg \
+	    $(FIGHT_STAMP)
 	$(C1541) -format "owarena,01" d64 $@ >/dev/null
 	$(C1541) -attach $@ -write $(DIST)/owarena.prg owarena \
-	    -write $(DIST)/fight.prg fight \
+	    -write $(DIST)/fight.prg fight -write $(DIST)/fightbot.prg fightbot \
 	    $$(for f in $(BUILD)/fight/disk/[fs].*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
 
--include $(BUILD)/fight/fight.d $(BUILD)/fight/block.d
+-include $(BUILD)/fight/fight.d $(BUILD)/fight/fight_bot.d $(BUILD)/fight/block.d
 
 # The game. The engines come out of the same link, as files beside the PRG:
 # tools/mkengines.py, which also checks that no engine reaches into another.

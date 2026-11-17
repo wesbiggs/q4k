@@ -934,7 +934,7 @@ and no startup, loaded at `$5400` and entered by a jump at `$5800`
 many, whether the sides are a way out, a seed, and the names of two files);
 `block.c` lays the same bytes down under the game's own names (`party`,
 `potions`, ...) so that `arms.c` links unchanged, and `head.s` refuses to
-link if the block moved or changed length (149 bytes: change both). The
+link if the block moved or changed length (151 bytes: change both). The
 module shares its caller's zero page and C stack (so the caller must be a
 cc65 program, with BASIC switched out: its BSS runs past `$A000`), clears
 its own BSS on every call and keeps nothing between fights; it returns
@@ -1010,8 +1010,13 @@ eight pictures of 32 bytes, by `DIR_*`, that `mkfields.py` makes from
 three drawn in `assets/monsters.txt` (`arrow`, `arrow_r`, `arrow_ur`) by
 mirroring; `$5700-$57FF` (four blocks) are free. `owarena-arrow-ur` in
 `tools/test.sh` checks the block after a shot up-right, and golden
-`owarena-dragon` casts a spark up-left into Maldrath. The balance was measured four ways, so
-`tools/balance.py` (the game's fight) says nothing about this one. The
+`owarena-dragon` casts a spark up-left into Maldrath. **`tools/balance.py --ow`** measures
+this fight: `owarena`'s `*` loads `FIGHTBOT` (the module built with
+`-DFIGHT_BOT`: `battle.c`'s autoplayer, eight ways, which waits for no
+frame) and fights the poked fight `auto_runs` times, counting into `res_*`
+and the block's `rounds`, then probe stage 5. `--disk` points it at another
+copy of the arena's disk, so variants of the module can run side by side.
+`ARCHER_EYE` and `WIZ_GUARD` are `#ifndef` for such a sweep (`-D`). The
 music and the effects are the open world's: `ow_tune.s` and `ow_sfx.o`,
 ticked by `mux.s`'s frame interrupt; the block says which song (none from
 `owarena`, which loads no tune) and whether to carry on with it, and `M`

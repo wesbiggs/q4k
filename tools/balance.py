@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fight the keepers and Maldrath many times over, and count what happens.
 
-    tools/balance.py [--runs N] [--only NAME] [--party CLASSES]
+    tools/balance.py [--ow] [--runs N] [--only NAME] [--party CLASSES]
 
 The arena (src/arena.c) has an autoplayer: the game's own fight, compiled
 again with FIGHT_BOT, plays the party (see battle.c for what it does each
@@ -13,6 +13,11 @@ many draughts and rounds that took, on average.
 The keepers were tuned for one hero (battle.c): "a near thing", two or three
 draughts each, and five or six for Maldrath. A party should find them about
 as near a thing. Runs go four at a time, one VICE each.
+
+With --ow it measures the open world's fight instead (src/fight/, eight
+ways, on a 20 by 9 field): the multicolour arena (src/owarena.c) loads the
+module built with its own autoplayer (FIGHTBOT) and plays the same fights
+the same way, poked the same way.
 """
 
 import argparse
@@ -56,17 +61,24 @@ KIT = {
 CLS = {"W": 0, "A": 1, "Z": 2}
 
 
-def run(fight, party, runs):
+def run(fight, party, runs, ow=False, disk="dist/owarena.d64"):
     group, kit = 1, fight
     if fight in WANDER:
         mon, level, start, kit = WANDER[fight]
         group = min(6, (level + len(party) - 1) // start)
     else:
         mon, level = FIGHTS[fight]
-    args = [PRG, "--poke", "level=%d" % level, "--poke", "auto_mon=%d" % mon,
-            "--poke", "group=%d" % group,
-            "--poke", "auto_runs=%d" % runs, "--poke", "auto_n=%d" % len(party),
-            "--keys", "*", "--stage", "2", "--timeout", "1800"]
+    if ow:
+        head = ["dist/owarena.prg", "--disk", disk]
+        stage = "5"
+    else:
+        head = [PRG]
+        stage = "2"
+    args = head + [
+        "--poke", "level=%d" % level, "--poke", "auto_mon=%d" % mon,
+        "--poke", "group=%d" % group,
+        "--poke", "auto_runs=%d" % runs, "--poke", "auto_n=%d" % len(party),
+        "--keys", "*", "--stage", stage, "--timeout", "3600"]
     for i, c in enumerate(party):
         w, a, b = KIT[kit][c]
         args += ["--poke", "auto_cls+%d=%d" % (i, CLS[c]),
@@ -85,6 +97,10 @@ def run(fight, party, runs):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", type=int, default=40)
+    ap.add_argument("--ow", action="store_true",
+                    help="the open world's fight (src/fight/), not the game's")
+    ap.add_argument("--disk", default="dist/owarena.d64",
+                    help="with --ow: the arena's disk, to try another FIGHTBOT")
     ap.add_argument("--only", action="append",
                     choices=sorted(FIGHTS) + sorted(WANDER))
     ap.add_argument("--wander", action="store_true",
@@ -100,7 +116,9 @@ def main():
     print("%-9s %-5s %5s %5s %5s %9s %7s"
           % ("fight", "party", "won", "lost", "stall", "draughts", "rounds"))
     with concurrent.futures.ThreadPoolExecutor(4) as pool:
-        for f, p, got in pool.map(lambda j: run(j[0], j[1], args.runs), jobs):
+        for f, p, got in pool.map(
+                lambda j: run(j[0], j[1], args.runs, args.ow, args.disk),
+                jobs):
             if not got:
                 print("%-9s %-5s did not finish" % (f, p))
                 continue

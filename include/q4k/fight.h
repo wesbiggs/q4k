@@ -63,9 +63,10 @@ typedef struct {
     unsigned char quiet;                /* bit 0 music off, bit 1 effects
                                            off (OwGame's); M and X change
                                            it */
+    unsigned int  rounds;               /* out: how many rounds it took */
 } Fight;
 
-/* 149 bytes; src/fight/block.c lays the same things down in the same order
+/* 151 bytes; src/fight/block.c lays the same things down in the same order
    for the module, and head.s refuses to link if that is not as long. */
 
 #define FIGHT        ((Fight *)(FIGHT_BASE + 3))

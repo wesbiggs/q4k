@@ -18,7 +18,7 @@
 
 ; The block is where fight.h says it is, and as long.
         .assert _party = $5803, lderror, "the fight's block has moved"
-        .assert _fq_end - _party = 149, lderror, "the fight's block: see FIGHT_BLK_SIZE"
+        .assert _fq_end - _party = 151, lderror, "the fight's block: see FIGHT_BLK_SIZE"
 
         .segment "CODE"
 
