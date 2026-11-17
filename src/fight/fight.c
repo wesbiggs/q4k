@@ -702,8 +702,27 @@ static void bot_cast(unsigned char s, unsigned char arg, unsigned char kind)
 
 /* How good a square (x,y) is to stand on, against a foe at (tx,ty): lower
    is better. The rest want to be beside it, by the eight-way distance; the
-   ranged want to be in one of its eight lines, and nearer along it. */
+   ranged want to be in one of its eight lines with none of the party (but
+   whoever moves) or anything solid in between, and nearer along it. */
 static unsigned char tx, ty, ranged;
+
+static unsigned char bot_clear(unsigned char x, unsigned char y)
+{
+    signed char dx = tx > x ? 1 : tx < x ? -1 : 0;
+    signed char dy = ty > y ? 1 : ty < y ? -1 : 0;
+
+    for (;;) {
+        x += dx;
+        y += dy;
+        if (x == tx && y == ty) {
+            return 1;
+        }
+        if ((member_at(x, y) != NONE && (x != hx || y != hy))
+            || (flag_at(x, y) & FF_KIND) == FF_BLOCK) {
+            return 0;
+        }
+    }
+}
 
 static unsigned char bot_score(unsigned char x, unsigned char y)
 {
@@ -717,6 +736,9 @@ static unsigned char bot_score(unsigned char x, unsigned char y)
     off = ax < ay ? ax : ay;                     /* off the row or column */
     if ((unsigned char)(dist - off) < off) {
         off = dist - off;                         /* ... or the diagonal */
+    }
+    if (!off && dist && !bot_clear(x, y)) {
+        off = 1;                                  /* in line, but blocked */
     }
     return (off << 4) + dist;
 }

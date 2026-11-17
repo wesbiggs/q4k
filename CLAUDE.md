@@ -1018,7 +1018,15 @@ names up to three more things drawn `on` the tile set's ground (in
 `puddle` costs 20, `thicket` 15), which `mkfields.py` writes as four
 characters and a flag each at `FI_SCAT`; `scatter()` puts down two to four
 things that block, boulders or trees, and one to three patches of slow
-ground where it is quicker. **The arrow is one sprite block** (`SPR_ARROW`), which
+ground where it is quicker. **What those cost** (`balance.py --ow`, 40
+runs; the autoplayer steps aside for a clear line): the keepers, fought
+on floors that scatter nothing new, got harder for every party with a
+ranged member, since their shots wait for the warrior to be out of the
+way: W+A+Z drank 3.2, 3.5, 6.1 (3% lost) and 6.2 at the Gaoler, the
+Drowned King, the Warden and Maldrath, against 1.9, 1.5, 4.7 and 4.0
+before; three wizards won 42% against the Warden. A lone warrior and W+Z
+hardly moved. The wanderers stayed easy (ogres the worst: 1.4 draughts
+for W+A+Z, 2.7 for three archers). **The arrow is one sprite block** (`SPR_ARROW`), which
 `arrow_to()` fills for the way it is about to fly from `fight_arrow[]`:
 eight pictures of 32 bytes, by `DIR_*`, that `mkfields.py` makes from
 three drawn in `assets/monsters.txt` (`arrow`, `arrow_r`, `arrow_ur`) by
