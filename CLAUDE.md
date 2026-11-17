@@ -1021,15 +1021,17 @@ copy of the arena's disk, so variants of the module can run side by side.
 `balance.py` and `balance.py --ow`): eight ways, a lone warrior, W+Z and
 W+A+Z drank what they do in the game, give or take half a draught, but
 three archers drank up to 2.5 more (7.1 at the Gaoler against 4.6): a foe
-that closes in diagonally reaches them as fast as they back off. So the
-module's `ARCHER_EYE` is `6 + level / 2`, not `battle.c`'s 3, which puts
-three archers on the game's figures (4.7, 4.2, 5.5, 4.4 against 4.6, 4.4,
-5.1, 4.5) and leaves W+A+Z about a draught easier than the game. Three
-wizards against the Warden are still harder than in the game (80% won and
-7.8 draughts, against 85% and 5.5); a bigger `WIZ_GUARD` did not help (52
-to 57% won at three quarters of the level and seven eighths, because the
+that closes in diagonally reaches them as fast as they back off. And three
+wizards against the Warden won 80% with 7.8 draughts, against 85% and 5.5.
+**The tuning is left as `battle.c`'s, on purpose**: the mixed party of
+three, which most players will have, is what it should match, and the
+extremes and the smaller parties are meant to be harder. An `ARCHER_EYE`
+of `6 + level / 2` put three archers on the game's figures but made W+A+Z
+about a draught easier than the game (1.2, 1.1, 3.2, 3.6 against 2.1, 1.5,
+4.9, 4.6), and a bigger `WIZ_GUARD` lost more often (52 to 57% won against
+the Warden at three quarters of the level and seven eighths: the
 autoplayer counts it in deciding who is in danger, drinks later and dies
-with draughts left), and made Maldrath easy at level 10. The wanderers are
+with draughts left) and made Maldrath easy at level 10. The wanderers are
 no threat in either fight. The
 music and the effects are the open world's: `ow_tune.s` and `ow_sfx.o`,
 ticked by `mux.s`'s frame interrupt; the block says which song (none from

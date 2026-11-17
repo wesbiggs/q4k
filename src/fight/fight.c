@@ -106,14 +106,11 @@ extern unsigned char ow_tune_on;
 #define PROBE_STAGE (*(unsigned char *)0xCF02)
 #define KEYS_AHEAD  (*(unsigned char *)0x00C6)
 
-/* battle.c's tuning, but for an archer's eye: see there. Eight ways, a
-   foe that closes in reaches an archer sooner and from more sides, so the
-   arrows have to do more while they can (tools/balance.py --ow: three
-   archers drank 7.1 draughts at the Gaoler with battle.c's 3, 4.6 with 6,
-   as many as in the game's own fight). (Both overridable with -D for a
-   sweep.) */
+/* battle.c's tuning, unchanged: see there, and CLAUDE.md for what
+   tools/balance.py --ow measured of it eight ways. (Overridable with -D for
+   a sweep.) */
 #ifndef ARCHER_EYE
-#define ARCHER_EYE  (6 + (party_level >> 1))
+#define ARCHER_EYE  (3 + (party_level >> 1))
 #endif
 #define LONE_HP     3
 #define LONE_ATK    2
