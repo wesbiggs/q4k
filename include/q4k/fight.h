@@ -53,9 +53,19 @@ typedef struct {
     char          sprite[FIGHT_FNAME];  /* "s.rat" */
     /* What came of it. */
     unsigned char foes;                 /* how many there were, for the pay */
+    /* The music: a song of the tune under the KERNAL ($E7C0, as music.s and
+       ow_tune.s have it), played from the fight's own interrupt with the
+       effects (sfx.s, voice 3). */
+    unsigned char song;                 /* 1 + the song, or 0: none */
+    unsigned char carry;                /* in: 1 to carry on where it was
+                                           paused; out: 1 if it is paused
+                                           where it was, 0 if stopped */
+    unsigned char quiet;                /* bit 0 music off, bit 1 effects
+                                           off (OwGame's); M and X change
+                                           it */
 } Fight;
 
-/* 146 bytes; src/fight/block.c lays the same things down in the same order
+/* 149 bytes; src/fight/block.c lays the same things down in the same order
    for the module, and head.s refuses to link if that is not as long. */
 
 #define FIGHT        ((Fight *)(FIGHT_BASE + 3))
@@ -91,12 +101,12 @@ typedef struct {
 /* Sprite blocks, as the VIC counts them in bank 1. */
 #define SPR_MONSTER  0x40       /* $5000: the monster's file */
 #define SPR_PARTY    0x50       /* $5400: two frames a class */
-#define SPR_ARROW    0x56       /* down, up, left, right: DIR_* */
-#define SPR_FIRE     0x5A
-#define SPR_WAVE     0x5B
-#define SPR_BOLT     0x5C
-#define SPR_CURSOR   0x5D
-#define SPR_HIT      0x5E
+#define SPR_ARROW    0x56       /* one block, filled for the way it flies */
+#define SPR_FIRE     0x57
+#define SPR_WAVE     0x58
+#define SPR_BOLT     0x59
+#define SPR_CURSOR   0x5A
+#define SPR_HIT      0x5B       /* $5700-$57FF: four blocks free */
 
 /* The multiplexer (src/fight/mux.s): sixteen sprites to ask for, eight to
    show them with. One is on while its vs_y is not 0. */

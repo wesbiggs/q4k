@@ -25,10 +25,10 @@
  * near its memory map.
  *
  *   cursor keys, WASD or a joystick in port 2   walk
- *   Q, E, Z, C (or the stick's diagonals)       walk diagonally
+ *   Q, E, Z, X (or the stick's diagonals)       walk diagonally
  *   1 / 2                                        one or two pixels a frame
  *   M                                            the music off and on
- *   X                                            the sound effects off and on
+ *   SHIFT+M                                      the sound effects off and on
  *   I                                            the party, what they carry
  *                                                and a wizard's spells
  *   P                                            the worst hurt drinks a
@@ -437,7 +437,7 @@ static void save_game(void)
     VIC.bordercolor = COLOR_BLACK;
     disk_off(s);
     play_for(scene_now);
-    sm_ink = ok ? COLOR_WHITE : COLOR_LIGHTRED;
+    sm_ink = ok ? COLOR_WHITE : COLOR_RED;
     sm_say(ok ? s_saved : s_unsaved);
 }
 
@@ -546,7 +546,7 @@ void __fastcall__ look_nothing(unsigned char ground)
 
     if (ground != NONE && (enc_always || (grave_odds &&
         !(G->quiet & OWG_CALM) && !(rand() % grave_odds)))) {
-        sm_ink = COLOR_LIGHTRED;
+        sm_ink = COLOR_RED;
         sm_say(s_dead);
         for (i = 0; i < 60; ++i) {
             next_frame();       /* time to read it */
@@ -559,7 +559,7 @@ void __fastcall__ look_nothing(unsigned char ground)
 void __fastcall__ refuse(const char *why)
 {
     sfx_play(SFX_NO);
-    sm_ink = COLOR_GRAY3;
+    sm_ink = COLOR_CYAN;
     sm_say(why);
 }
 
@@ -780,7 +780,7 @@ static unsigned char key_dir(unsigned char k)
     case 'q': return DIR_UL;
     case 'e': return DIR_UR;
     case 'z': return DIR_DL;
-    case 'c': return DIR_DR;
+    case 'x': return DIR_DR;
     }
     return NONE;
 }
@@ -795,8 +795,8 @@ static unsigned char typed(void)
     switch (k) {
     case '1': speed = 1; break;
     case '2': speed = 2; break;
-    case 'm':
-    case 'x':
+    case 'm':                   /* the music */
+    case 'M':                   /* SHIFT+M: the effects */
         toggles(k);
         break;
     case 'p':                   /* a draught */

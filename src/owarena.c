@@ -20,8 +20,9 @@
  *   F3/F5/F7 weapon, armour, bow: each has the best of that or less that
  *            their class may carry
  *
- * In the fight: WASD or the cursor keys (or a stick in port 2) walk and
- * strike, F shoots, C casts, P drinks, SPACE stands firm.
+ * In the fight: WASD or the cursor keys, and Q E Z X diagonally (or a
+ * stick in port 2), walk and strike, the up arrow shoots, * casts, P
+ * drinks, SPACE stands firm, SHIFT+M turns the effects off and on.
  *
  *   make run PROG=owarena
  *
@@ -287,6 +288,8 @@ static void fight(unsigned char n)
     f->count  = n < num_wanderers ? group : 1;
     f->flee   = n < num_wanderers;
     f->seed   = auto_seed ? auto_seed : rand();
+    f->song   = 0;              /* no tune is loaded here */
+    f->quiet  = 0;
     strcpy(f->field, "f.");
     strcat(f->field, ground_names[g]);
     strcpy(f->sprite, sprite_of(m));
@@ -345,8 +348,9 @@ int main(void)
 
     textcolor(COLOR_GRAY1);
     cputsxy(0, 19, "A letter fights. In the fight: WASD or");
-    cputsxy(0, 20, "the cursor keys, F shoots, C casts,");
-    cputsxy(0, 21, "P drinks, SPACE stands firm.");
+    cputsxy(0, 20, "the cursor keys, QEZX diagonally, ^");
+    cputsxy(0, 21, "shoots, * casts, P drinks, SPACE stands");
+    cputsxy(0, 22, "firm.");
 
 #ifdef OWARENA_AUTO
     /* Straight into a fight, for a screenshot from VICE itself, which only

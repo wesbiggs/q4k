@@ -19,9 +19,9 @@
  17 |                                        |
  18 |                                        |
  19 |A letter fights. In the fight: WASD or  |
- 20 |the cursor keys, F shoots, C casts,     |
- 21 |P drinks, SPACE stands firm.            |
- 22 |                                        |
+ 20 |the cursor keys, QEZX diagonally, ^     |
+ 21 |shoots, * casts, P drinks, SPACE stands |
+ 22 |firm.                                   |
  23 |                                        |
  24 |                                        |
     +----------------------------------------+

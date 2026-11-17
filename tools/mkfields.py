@@ -46,9 +46,13 @@ FI_COLOUR, FI_FLAGS = 32, 160
 FLAG = {"pass": 0, "enter": 0, "water": 1, "block": 2}
 
 # The sprites linked into the fight, in the order of fight.h's SPR_*; each
-# class has two frames, and an arrow four, down, up, left and right (DIR_*).
+# class has two frames. The arrow is one block, which the fight fills when
+# one flies from fight_arrow[], eight pictures by DIR_* (down, up, left,
+# right, down-left, down-right, up-left, up-right) made from three drawn
+# ones: up (arrow), right (arrow_r) and up-right (arrow_ur), mirrored.
 STATIC = ["warrior", "archer", "wizard"]
 SHOTS = ["fire", "wave", "bolt", "cursor", "hit"]
+ARROWS = ["arrow", "arrow_r", "arrow_ur"]
 
 
 def die(msg):
@@ -328,18 +332,26 @@ def static_blocks(sprites):
     for n in STATIC:
         for fr in sprites[n][1]:
             out.append((n, block(fr)))
-    up = sprites["arrow"][1][0]
-    right = sprites["arrow_r"][1][0]
-    out += [("arrow down", block(up[::-1])), ("arrow up", block(up)),
-            ("arrow left", block([r[::-1] for r in right])),
-            ("arrow right", block(right))]
+    out.append(("the arrow, filled from fight_arrow", bytes(64)))
     for n in SHOTS:
         out.append((n, block(sprites[n][1][0])))
     return out
 
 
+def arrows(sprites):
+    """The eight arrows by DIR_*, as rows of strings."""
+    up = sprites["arrow"][1][0]
+    right = sprites["arrow_r"][1][0]
+    ur = sprites["arrow_ur"][1][0]
+    flip = lambda rows: [r[::-1] for r in rows]   # left for right
+    return [("down", up[::-1]), ("up", up),
+            ("left", flip(right)), ("right", right),
+            ("down-left", flip(ur[::-1])), ("down-right", ur[::-1]),
+            ("up-left", flip(ur)), ("up-right", ur)]
+
+
 def monsters(sprites, order):
-    skip = set(STATIC + SHOTS + ["arrow", "arrow_r"])
+    skip = set(STATIC + SHOTS + ARROWS)
     return [n for n in order if n not in skip]
 
 
@@ -359,6 +371,19 @@ def write_static(sprites):
     for name, b in static_blocks(sprites):
         out.append("        .byte " + ",".join("$%02X" % x for x in b)
                    + "   ; " + name)
+    out += ["",
+            "; The arrow's eight pictures, by DIR_*: two bytes for each of "
+            "sixteen",
+            "; rows (the third byte of a sprite's row is always 0).",
+            "",
+            "        .export _fight_arrow",
+            '        .segment "RODATA"',
+            "_fight_arrow:"]
+    for name, rows in arrows(sprites):
+        b = block(rows)
+        two = [b[i] for i in range(48) if i % 3 != 2]
+        out.append("        .byte " + ",".join("$%02X" % x for x in two)
+                   + "   ; " + name)
     out.append("")
     open(OUT_S, "w").write("\n".join(out))
 
@@ -373,7 +398,7 @@ MONCOL = {"rat": 8, "goblin": 3, "wolf": 15, "wasp": 7, "bandit": 10,
           "skeleton": 1, "ogre": 14, "wraith": 4, "drake": 2, "keeper": 10,
           "dragon": 2, "warrior": 6, "archer": 5, "wizard": 4, "fire": 8,
           "wave": 14, "bolt": 1, "cursor": 7, "hit": 1, "arrow": 7,
-          "arrow_r": 7}
+          "arrow_r": 7, "arrow_ur": 7}
 
 
 def preview(path, fields, tiles, sprites, order):
@@ -473,7 +498,7 @@ def main():
     tiles = tile_table()
     fields = read_fields()
     sprites, order = read_sprites()
-    for n in STATIC + SHOTS + ["arrow", "arrow_r"]:
+    for n in STATIC + SHOTS + ARROWS:
         if n not in sprites or sprites[n][0] != 1:
             die("%s wants a sprite %r, one square" % (SPRITES, n))
 

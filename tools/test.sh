@@ -85,6 +85,24 @@ for golden in tests/golden/*.txt; do
     compare "$name" "$golden" tools/screendump.py "$@"
 done
 
+# The arrow is one sprite block, filled from fight_arrow[] for the way it
+# flies (src/fight/fight.c's arrow_to()): the shore case's party shoots
+# up-right, and the block holds that picture after. --peek prints the last
+# byte first, so this is the block's 48 bytes backwards.
+if [ -f dist/owarena.prg ] && [ -f dist/owarena.d64 ]; then
+    got=$(tools/screendump.py dist/owarena.prg --disk dist/owarena.d64 \
+        --mux build/fight.lbl --poke auto_seed=7 --stage 3 --timeout 180 \
+        --keys '3hww\x5ee' --peek '$5580:48' 2>&1 >/dev/null \
+        | sed -n 's/.*(\$\([0-9A-F]*\)).*/\1/p')
+    want=000000000000000040000024000060000008000008000002000002008000008200002200000A0000AA00000000000000
+    if [ "$got" = "$want" ]; then
+        echo "PASS  owarena-arrow-ur"
+    else
+        echo "FAIL  owarena-arrow-ur (the arrow's block: ${got:-?})"
+        fail=1
+    fi
+fi
+
 # The game loads its engines from its disk (include/q4k/engine.h), so every
 # case that goes past the title screen has it in unit 8: the .cmd files say
 # --disk dist/q4k.d64, and the experimental networked build's cases use
@@ -189,16 +207,17 @@ if [ -f dist/openworld.d81 ]; then
     # grass; Alaric walks up and strikes until it is over, any key leaves
     # the screen that says what came of it, and the engine is back. The
     # dice come from the game's turn, so it goes the same way every time:
-    # won, 4 experience, 6 marks, 6 health left.
+    # won, 4 experience, 6 marks, 12 health left. The j's are padding (no
+    # key in the engine or the fight), while owtown and the module load.
     got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
         --splash quick --lbl build/ow-cpu.lbl --poke enc_always=1 \
-        --keys "ddkkkkkkkkkkkkkkkkkkkk$(printf 'w%.0s' $(seq 44))" \
+        --keys "ddjjjjjjjjjjjjjjjjjjjj$(printf 'w%.0s' $(seq 44))" \
         --settle 30 --peek party+2 --peek party+88:2 --peek party+90:2 \
         2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
-    if [ "$got" = "6 4 15 " ]; then
+    if [ "$got" = "12 4 15 " ]; then
         echo "PASS  openworld-fight"
     else
-        echo "FAIL  openworld-fight (health, experience, gold: ${got:-?}; not 6 4 15)"
+        echo "FAIL  openworld-fight (health, experience, gold: ${got:-?}; not 12 4 15)"
         fail=1
     fi
 fi

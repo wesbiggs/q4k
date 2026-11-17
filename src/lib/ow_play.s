@@ -15,7 +15,7 @@
 ; out ($01 = $35), so an NMI then reads its vector from the RAM under it:
 ; that points at owt_nmi, which runs the KERNAL's handler with the KERNAL in
 ; (vault.s's vault_nmi, again, here in CODE: owtown's HIGH is where a fight
-; loads its module, but nothing plays during a fight).
+; loads its module, which plays the tune itself, from its own interrupt).
 ;
 ; Pausing waits twelve jiffies for the silence to reach VICE's sound buffer
 ; before the drive works (music.s's music_pause: otherwise VICE holds the
