@@ -1026,7 +1026,18 @@ way: W+A+Z drank 3.2, 3.5, 6.1 (3% lost) and 6.2 at the Gaoler, the
 Drowned King, the Warden and Maldrath, against 1.9, 1.5, 4.7 and 4.0
 before; three wizards won 42% against the Warden. A lone warrior and W+Z
 hardly moved. The wanderers stayed easy (ogres the worst: 1.4 draughts
-for W+A+Z, 2.7 for three archers). **The arrow is one sprite block** (`SPR_ARROW`), which
+for W+A+Z, 2.7 for three archers). So **the party starts fanned out**
+(`party_start()`, `form_x/form_y`): the leader two squares toward the
+monster from the field's `@`, the second and third two squares either
+side of it (a fourth between them), each falling back to an open square
+round theirs, and nothing that blocks is scattered in that 5 by 3 box;
+and **`ARCHER_EYE` is `5 + level / 2`**, two more than `battle.c`'s. With
+both, W+A+Z drinks 2.6, 3.1, 6.5 and 5.0 at the four keepers and wins
+every time (the game's own fight: 2.1, 1.5, 4.9, 4.6), and three archers
+6.0, 8.8, 7.7, 5.7. The formation alone was worth about half a draught to
+W+A+Z; the eye at 3, 4 or 5 moved W+A+Z by no more than the noise of 40
+runs, and three archers by a draught and a half at the Gaoler.
+**The arrow is one sprite block** (`SPR_ARROW`), which
 `arrow_to()` fills for the way it is about to fly from `fight_arrow[]`:
 eight pictures of 32 bytes, by `DIR_*`, that `mkfields.py` makes from
 three drawn in `assets/monsters.txt` (`arrow`, `arrow_r`, `arrow_ur`) by
@@ -1045,7 +1056,8 @@ W+A+Z drank what they do in the game, give or take half a draught, but
 three archers drank up to 2.5 more (7.1 at the Gaoler against 4.6): a foe
 that closes in diagonally reaches them as fast as they back off. And three
 wizards against the Warden won 80% with 7.8 draughts, against 85% and 5.5.
-**The tuning is left as `battle.c`'s, on purpose**: the mixed party of
+**The tuning was then left as `battle.c`'s, on purpose** (until friendly
+fire, above, made the archers' eye 5): the mixed party of
 three, which most players will have, is what it should match, and the
 extremes and the smaller parties are meant to be harder. An `ARCHER_EYE`
 of `6 + level / 2` put three archers on the game's figures but made W+A+Z

@@ -5,15 +5,15 @@
   3 |fgfgflopopopoprgfgfgfgflopopopopoprgfgfg|
   4 |stwnmnmnmnmnmnmnmnmnmnmnmnmnmnmnmnmnmy[£|
   5 |uvxpopopopopopopopopopopopopopopopopoz]v|
-  6 |st^nm@mnm;mnmnmnmnmnmnmnmnmnmnmnmnmnm st|
-  7 |uv_popop<=opopopopopopopopopopopopopo!uv|
-  8 |"#&nmnmnmnmnmnmnmnmnmnmnm;mnmnmnmnmnm(*+|
+  6 |st^nm@mnm;mnmnm;mnmnmnmnmnmnmnmnmnmnm st|
+  7 |uv_popop<=opop<=opopopopopopopopopopo!uv|
+  8 |"#&nmnmnmnmnmnmnmnmnm@mnm;mnmnmnmnmnm(*+|
   9 |$%'popopopopopopopopopop<=opopopopopo),-|
  10 |stwnmnmnmnmnmnmnmnmnmnmnmnmnm;mnmnmnm st|
  11 |uvxpopopopopopopopopopopopop<=opo)$%$.uv|
- 12 |st^n0123mnmnm;mnm;m@m@mnmnmnmnmnmy4589st|
- 13 |uv/-rgflopop<=op<=opopopopopopo),.67:5uv|
- 14 |st45wnmnmnmnmnmnmn>?mnm@mnmnmnm 454589[£|
+ 12 |st^n0123mnmnm;mnm@mnmnmnmnmnmnmnmy4589st|
+ 13 |uv/-rgflopop<=opopopopopopopopo),.67:5uv|
+ 14 |st45wnmnmnmnmnmnmn>?mnmnm@mnmnm 454589[£|
  15 |uv67/%,-'popopopop·Aopopo),-,-$.6767:5]v|
  16 |st898945wnmnmnmnmnmnmnmnmy4545458989stst|
  17 |uv:5:567xpopopopopopopopoz676767:5:5uvuv|

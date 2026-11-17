@@ -106,11 +106,12 @@ extern unsigned char ow_tune_on;
 #define PROBE_STAGE (*(unsigned char *)0xCF02)
 #define KEYS_AHEAD  (*(unsigned char *)0x00C6)
 
-/* battle.c's tuning, unchanged: see there, and CLAUDE.md for what
-   tools/balance.py --ow measured of it eight ways. (Overridable with -D for
-   a sweep.) */
+/* battle.c's tuning (see there), but for an archer's eye, which is two
+   more: with shots stopping at the party, the archers lose turns waiting
+   for a clear line (CLAUDE.md has what tools/balance.py --ow measured).
+   (Overridable with -D for a sweep.) */
 #ifndef ARCHER_EYE
-#define ARCHER_EYE  (3 + (party_level >> 1))
+#define ARCHER_EYE  (5 + (party_level >> 1))
 #endif
 #define LONE_HP     3
 #define LONE_ATK    2
@@ -1177,26 +1178,61 @@ static unsigned char foe_start(void)
     return 1;
 }
 
-static const signed char beside_x[] = { -1, 1,  0, -1, 1, -2, 2, 0 };
-static const signed char beside_y[] = {  0, 0,  1,  1, 1,  0, 0, -1 };
+/* The party starts fanned out, the leader two squares toward the monster
+   and the other two two squares to either side of where the field puts
+   the leader, so that whoever is at the back has a turn or two to find a
+   line, or the way out, before anything reaches them:
+
+       ..1..
+       .....
+       2...3
+
+   A square that is walled, or taken, gives way to the first open one
+   round it, and failing that round the field's own start. */
+static const signed char form_x[MAX_PARTY] = { 0, -2, 2, 0 };  /* (a fourth: */
+static const signed char form_y[MAX_PARTY] = { -2, 0, 0, 0 };  /* between) */
+
+static unsigned char stand_ok(unsigned char x, unsigned char y,
+                              unsigned char placed)
+{
+    unsigned char j;
+
+    if (x >= FW || y >= FH || wall_at(x, y)) {
+        return 0;
+    }
+    for (j = 0; j < placed; ++j) {
+        if (mem_x[j] == x && mem_y[j] == y) {
+            return 0;
+        }
+    }
+    return 1;
+}
 
 static void party_start(void)
 {
-    unsigned char i, k = 0, x, y;
+    unsigned char i, k, x, y, cx, cy, hx0 = F_INFO[FI_HX], hy0 = F_INFO[FI_HY];
 
-    mem_x[0] = F_INFO[FI_HX];
-    mem_y[0] = F_INFO[FI_HY];
-    for (i = 1; i < party_count; ++i) {
-        for (; k < sizeof(beside_x); ++k) {
-            x = mem_x[0] + beside_x[k];
-            y = mem_y[0] + beside_y[k];
-            if (x < FW && y < FH && !wall_at(x, y)) {
-                break;
+    for (i = 0; i < party_count; ++i) {
+        cx = hx0 + form_x[i];
+        cy = hy0 + form_y[i];
+        x = cx;
+        y = cy;
+        for (k = 0; !stand_ok(x, y, i) && k < 16; ++k) {
+            if (k < 8) {
+                x = cx + dir_dx[k];
+                y = cy + dir_dy[k];
+            } else {
+                x = hx0 + dir_dx[k - 8];
+                y = hy0 + dir_dy[k - 8];
             }
+        }
+        if (k == 16 && !stand_ok(x, y, i)) {
+            x = hx0;                    /* (never: the field's start is
+                                           open, and so is round it) */
+            y = hy0;
         }
         mem_x[i] = x;
         mem_y[i] = y;
-        ++k;
     }
     for (i = 0; i < party_count; ++i) {
         guard[i] = 0;
@@ -1396,11 +1432,15 @@ static void scatter(void)
         x = 2 + ((unsigned char)rand() & 15);
         y = 1 + (unsigned char)(rand() % 7);
         w = &wall_at(x, y);
-        if ((x != F_INFO[FI_HX] || y != F_INFO[FI_HY]) && open9(w)) {
-            *w = 1;
-            put(x, y, blk[(unsigned char)rand() % nb]);
-            if (!--n) {
-                break;
+        if ((unsigned char)(x - F_INFO[FI_HX] + 2) > 4
+            || (unsigned char)(y - F_INFO[FI_HY] + 2) > 2) {
+            /* (not in the party's starting box: party_start()) */
+            if (open9(w)) {
+                *w = 1;
+                put(x, y, blk[(unsigned char)rand() % nb]);
+                if (!--n) {
+                    break;
+                }
             }
         }
     }
