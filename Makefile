@@ -149,8 +149,12 @@ endif
         online d64-online run-online
 .SECONDARY: $(BUILD)/$(PROG).o $(BUILD)/q4k.o
 
+# The open world's memory map, a page drawn from the links below (offline
+# only: the online build's open world is the same).
+MEMMAP := $(if $(filter 1,$(ONLINE)),,docs/memmap.html)
+
 all: dirs assets $(PRGS) $(DIST)/openworld.d81 $(DIST)/owarena.d64 \
-     $(DIST)/theme.sid $(BUILD)/music/.stamp
+     $(DIST)/theme.sid $(BUILD)/music/.stamp $(MEMMAP)
 
 # Assembly cannot see tiles.h; it has its own generated copy of the codes.
 $(BUILD)/lib/isle_gen.o: include/q4k/tiles.inc
@@ -498,6 +502,21 @@ $(DIST)/owarena.d64: $(DIST)/owarena.prg $(DIST)/fight.prg $(DIST)/fightbot.prg 
 	    $$(for f in $(BUILD)/fight/disk/[fs].*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
 
 -include $(BUILD)/fight/fight.d $(BUILD)/fight/fight_bot.d $(BUILD)/fight/block.d
+
+# The open world's memory map (docs/memmap.html, checked in): where every
+# byte goes in each of its modes, from the linker maps the programs below
+# leave in $(BUILD), the disk's data files, the game block's size and the
+# engine's sprites. tools/mkmemmap.py stamps it with the date and the commit,
+# and rewrites it only when an address moved, so a relink that moves nothing
+# leaves it as it was.
+ifneq ($(MEMMAP),)
+$(MEMMAP): tools/mkmemmap.py tools/memmap.html \
+	    $(DIST)/openworld.prg $(DIST)/owparty.prg $(OWENG) $(DIST)/owtown.prg \
+	    $(DIST)/fight.prg $(DIST)/ow-data.prg $(DIST)/splash-p.prg \
+	    $(DIST)/splash-n.prg $(DIST)/theme.sid $(FIGHT_STAMP) \
+	    include/q4k/owgame.h src/lib/ow_data.s
+	tools/mkmemmap.py $@
+endif
 
 # The game. The engines come out of the same link, as files beside the PRG:
 # tools/mkengines.py, which also checks that no engine reaches into another.
