@@ -467,8 +467,15 @@ square a turn, banked), one monster a frame in `ov_idle` while the raster
 is above line 190 (`foe_room()`), gliding there at the hero's pace; one
 beside the hero after its turn, or walked into, is a fight (`OWF_FOE`,
 which `ow_fight()` fights as that kind and clears from the block if won;
-one fled from stays). `foes.s` has a copy of what the map needs of
-`bestiary.c` (picture, colour, speed) and `dungeon.c` of the wanderers'
+one fled from stays). The fight waits for its glide to end, and the hero
+cannot step while one is coming (`pending`, `d_can_step()`); a held key
+starts the next step before the turns, so one that reached the square
+the hero was leaving takes another step after them (`d_arrived()`).
+A monster's square goes back into the block with its kind's bits kept:
+square + `BIAS` has bits of its own there (a bone archer once came back
+a wasp). `foes.s` has a copy of what the map needs of `bestiary.c`
+(picture, colour, speed: in RODATA, which is COMMON, for the slot's
+room) and `dungeon.c` of the wanderers'
 `from`: change a monster there and here. `OWG_CALM` places none, unless
 `--poke enc_always=2`.
 
@@ -770,9 +777,9 @@ that the engine's file does not carry 5K of empty screens to the disk. The overl
 bytes in MAIN (the land and town generators' `MAPCODE` moved there from
 HIGH), 18 in OWTOP (`$5280-$53FF`), 9 in HIGH (`$5400-$59FF`, where the
 text window's routines and the engine's words are), 145 beside the world's
-overlay, 31 beside the town's, none beside the dungeon's (its monsters' art
-is aligned to a block at the end, so a byte more of code costs 64), 23 in
-BSS, and COMMON 259. String
+overlay, 31 beside the town's, 10 beside the dungeon's (its monsters' art
+is aligned to a block at the end, so a byte more of code than that costs
+64), 23 in BSS, and COMMON 196. String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than

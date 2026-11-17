@@ -54,6 +54,8 @@ A_OGRE = 6
 A_WRAITH = 7
 A_DRAKE = 8
 A_KEEPER = 9
+        .segment "RODATA"       ; (OW-DATA, which has the room the slot has
+                                ; not)
 k_art:  .byte   A_RAT, A_GOBLIN, A_WOLF, A_WASP, A_BANDIT, A_BANDIT
         .byte   A_SKELETON, A_SKELETON, A_OGRE, A_WRAITH, A_DRAKE
         .byte   A_GOBLIN, A_BANDIT, A_OGRE, A_WRAITH, A_RAT, A_WRAITH
@@ -64,6 +66,8 @@ k_colour:
 k_speed:
         .byte   13, 10, 15, 22, 10, 10, 8, 8, 7, 12, 17
         .byte   11, 14, 8, 16, 9, 10, 12, 12, 7, 9
+
+        .segment "OVDCODE"
 
 _tx:    .res 1                  ; where the hero ended their last step
 _ty:    .res 1
@@ -445,18 +449,18 @@ _foe_turn:
         txa
         clc
         adc     _base
-        tay
-        lda     FOE_A,y
-        and     #$C0
-        ora     _sm_npc_x,x
-        sec
-        sbc     #BIAS
+        tay                     ; (carry clear: sbc takes one more)
+        lda     _sm_npc_x,x     ; the square less BIAS, and the kind's bits
+        sbc     #BIAS - 1       ; kept: square + BIAS has bits of its own
+        eor     FOE_A,y         ; there, which or-ing into the kind's
+        and     #63             ; changed what it was (a bone archer came
+        eor     FOE_A,y         ; back a wasp)
         sta     FOE_A,y
-        lda     FOE_B,y
-        and     #$E0
-        ora     _sm_npc_y,x
-        sec
+        lda     _sm_npc_y,x     ; (carry set)
         sbc     #BIAS
+        eor     FOE_B,y
+        and     #31
+        eor     FOE_B,y
         sta     FOE_B,y
         lda     _glide,x
 @still: ldx     #0
@@ -566,7 +570,8 @@ _foe_spawn:
         jsr     _rand
         and     #31
         sta     cy
-        adc     #BIAS           ; (carry clear)
+        clc                     ; (rand() leaves the carry anyhow: without
+        adc     #BIAS           ; this, the floor looked at was a row down)
         tay
         lda     cx
         adc     #BIAS
@@ -696,7 +701,9 @@ _foe_glide:
         sta     tmp1            ; any
         ldx     #FOES - 1
 @one:   lda     _glide,x
-        ldy     _speed
+        bne     :+              ; at least a square's pace: a turn that
+        lda     #1              ; moved it nowhere left it still off its
+:       ldy     _speed          ; square, and it never got there
         cpy     #2
         bne     :+
         asl     a

@@ -176,8 +176,17 @@ void d_arrived(void)
 {
     unsigned char t = tile_at(hx, hy);
 
+    tx = hx;
+    ty = hy;
     if (pending) {
-        fight(pending - 1);
+        /* It reached the square the hero was leaving (a key held starts
+           the next step before the monsters' turns): one more step after
+           them, gliding there, and d_idle() starts the fight once it is
+           beside them. Until then the hero cannot step (d_can_step()). */
+        i = pending - 1;
+        pace[i] = 10;
+        foe_turn(i);
+        return;
     }
     if ((t == T_STAIRDN && depth < dungeon_deep[dun_index])
         || t == T_STAIRUP) {
@@ -196,11 +205,16 @@ void d_arrived(void)
         }
         return;
     }
-    tx = hx;
-    ty = hy;
     if (think >= FOES) {
         think = 0;              /* (one still going carries on) */
     }
+}
+
+/* Whether the hero may step that way: not while a monster is coming up
+   beside them for a fight. */
+unsigned char __fastcall__ d_can_step(unsigned char d)
+{
+    return !pending && place_step(d);
 }
 
 /* Walked into: a monster, or the keeper, who does not step aside. */
