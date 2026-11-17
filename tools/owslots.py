@@ -20,7 +20,7 @@ import subprocess
 import sys
 
 SEGS = {"world": ("OVWHEAD", "OVWCODE"), "town": ("OVTHEAD", "OVTCODE"),
-        "dungeon": ("OVDHEAD", "OVDCODE")}
+        "dungeon": ("OVDHEAD", "OVDCODE", "OVDART")}
 
 
 def od65(obj, what):
@@ -31,7 +31,7 @@ def od65(obj, what):
 
 def part_of(obj):
     base = os.path.basename(obj)
-    if base == "ow_dungeon.o":
+    if base in ("ow_dungeon.o", "foe_art.o", "foes.o"):
         return "dungeon"
     for p in SEGS:
         if base.startswith(p + "-"):
@@ -81,9 +81,9 @@ def main():
         return 1
 
     sizes = []
-    for p, (head, body) in SEGS.items():
+    for p, (head, *body) in SEGS.items():
         lo = segs[head][0]
-        hi = max(segs[s][1] for s in (head, body) if s in segs)
+        hi = max(segs[s][1] for s in body if s in segs)
         sizes.append("%s %d" % (p, hi - lo + 1))
     print("owslots: slot at $%04X: %s" % (segs["OVWHEAD"][0], ", ".join(sizes)))
     return 0

@@ -57,6 +57,10 @@ static const char *const prize_names[NUM_DUNGEONS] = {
     "the Emberstone", "the Silver Tear", "the Dragon's Heart",
 };
 
+/* The choosing runs before the module is loaded, so it can be up in
+   HIGH with the bestiary: MAIN is full. */
+#pragma code-name (push, "HICODE")
+
 static void pick(const Monster *m, unsigned char n)
 {
     foe = *m;
@@ -64,13 +68,19 @@ static void pick(const Monster *m, unsigned char n)
     foes = n;
 }
 
-/* battle_wander(), as far as choosing goes. */
-static void pick_wanderer(unsigned char in_dungeon)
+/* battle_wander(), as far as choosing goes: or, for a dungeon's monster
+   (`kind` not NONE), the kind it was placed as (owgame.h's OWG_FOE_KIND),
+   with its numbers rolled now. */
+#define NONE 0xFF
+
+static void pick_wanderer(unsigned char in_dungeon, unsigned char kind)
 {
     unsigned char top, i, most, lvl, s;
 
-    if (land != ISLE_HOME && !(rand() & 3)) {
-        pick(&natives[OW->ibiome[land] * 2 + (rand() & 1)],
+    if (kind == NONE ? land != ISLE_HOME && !(rand() & 3)
+                     : kind >= OWG_NATIVE) {
+        pick(&natives[kind == NONE ? OW->ibiome[land] * 2 + (rand() & 1)
+                                   : kind - OWG_NATIVE],
              1 + (rand() & 1));
         for (s = slot_of(land); s; --s) {
             foe.hp   += 10;
@@ -85,15 +95,24 @@ static void pick_wanderer(unsigned char in_dungeon)
         return;
     }
     lvl = party_level + (in_dungeon ? G->depth - 1 : 0);
-    for (top = 0; top < num_wanderers && wanderers[top].from <= lvl; ++top) {
+    if (kind == NONE) {
+        for (top = 0; top < num_wanderers && wanderers[top].from <= lvl;
+             ++top) {
+        }
+        i = (unsigned char)(rand() % top);
+    } else {
+        i = kind;
     }
-    i = (unsigned char)(rand() % top);
     most = (lvl + party_count - 1) / wanderers[i].from;
-    if (most > MAX_FOES) {
+    if (!most) {
+        most = 1;               /* (placed before a level was lost: never) */
+    } else if (most > MAX_FOES) {
         most = MAX_FOES;
     }
     pick(&wanderers[i].m, (unsigned char)(1 + rand() % most));
 }
+
+#pragma code-name (pop)
 
 /* The field for the ground, as the arena names them (tools/mkfields.py). */
 static const char *field_of(unsigned char tile)
@@ -226,8 +245,12 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
         }
         ground = G->area == AREA_DUNGEON ? T_FLOOR : arg;
         break;
+    case OWF_FOE:
+        pick_wanderer(1, OWG_FOE_KIND(G->foe_a[arg], G->foe_b[arg]));
+        ground = T_FLOOR;
+        break;
     default:
-        pick_wanderer(G->area == AREA_DUNGEON);
+        pick_wanderer(G->area == AREA_DUNGEON, NONE);
         ground = G->area == AREA_DUNGEON ? T_FLOOR : arg;
         break;
     }
@@ -259,7 +282,7 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
     f->reach  = foe.reach;
     f->kind   = foe.kind;
     f->count  = foes;
-    f->flee   = kind == OWF_WANDER || kind == OWF_UNDEAD;
+    f->flee   = kind == OWF_WANDER || kind == OWF_UNDEAD || kind == OWF_FOE;
     f->seed   = rand();
     strcpy(f->field, field_of(ground));
     strcpy(f->sprite, sprite_of(foe.glyph));
@@ -300,6 +323,9 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
             cputs("You take ");
             cputs(prize_names[arg]);
             cputs(".");
+        } else if (kind == OWF_FOE) {
+            G->foe_a[arg] |= 0xC0;  /* it stays dead on this level, its */
+            G->foe_b[arg] |= 0xE0;  /* blood where it fell (OWG_FOE_DEAD) */
         } else if (kind == OWF_DRAGON) {
             quest_stage = Q_VICTORY;
             line(y, COLOR_YELLOW, "Maldrath is banished.");

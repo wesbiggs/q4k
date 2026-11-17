@@ -25,6 +25,7 @@
 #define OWG_ADDR  0xCE40
 #define OWG_MAGIC 0x47          /* a game is made: the party, the rest */
 #define OWG_SHIPS 8
+#define OWG_FOES  6           /* monsters a dungeon level */
 
 /* Where you are (and the engine's `area`). */
 #define AREA_HOME    0          /* the overworld */
@@ -64,13 +65,29 @@ typedef struct {
                                            screen, a fight); from the name
                                            at first (ow_party.c), and then
                                            the party screen's to change */
+    /* The dungeon's monsters (src/ow/dungeon.c): OWG_FOES a level, placed
+       the first time a level is seen after the way in from the world (a
+       bit a level in foe_made, cleared on the way in) and kept, where they
+       have chased the party to, until then. Each is two bytes: a, its x
+       (0: none, as there was no room; a level's column 0 is wall) and the low
+       two bits of its kind above it; b, its y and the kind's high three
+       bits (OWG_FOE_KIND). A kind is an index into wanderers[], or 16 +
+       one into natives[] (bestiary.c), or OWG_FOE_DEAD: killed, and the
+       dungeon shows a bloodstain where it was. */
+    unsigned char foe_made;
+    unsigned char foe_a[MAX_DEEP * OWG_FOES];
+    unsigned char foe_b[MAX_DEEP * OWG_FOES];
 } OwGame;
+
+#define OWG_FOE_KIND(a, b)  (((a) >> 6) | (((b) >> 5) << 2))
+#define OWG_NATIVE 16           /* a kind past this is natives[kind - 16] */
+#define OWG_FOE_DEAD 31         /* the kind of one killed, where it fell */
 
 #define G ((OwGame *)OWG_ADDR)
 
 /* Its size, which tools/mkowsave.py writes too: the engine checks that the
    two agree, and that it fits under the probe page. */
-#define OWG_SIZE 143
+#define OWG_SIZE 192
 
 /* The game's own variables from the block, and back. */
 void owg_in(void);

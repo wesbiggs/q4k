@@ -18,7 +18,7 @@
         .import _w_enter, _w_can_step, _w_arrived, _w_after, _w_idle
         .import _t_enter, _t_arrived, _t_bump, _t_can_step, _place_step, _t_idle
         .import _w_bump, _w_look, _t_look, _d_look
-        .import _d_enter, _d_arrived
+        .import _d_enter, _d_arrived, _d_bump, _d_idle
 
 _ov_enter       = __SLOTW_START__ + 0
 _ov_can_step    = __SLOTW_START__ + 3
@@ -62,9 +62,9 @@ t_nothing:
         jmp     _d_enter
         jmp     _place_step
         jmp     _d_arrived
-        jmp     d_nothing       ; a step into anything is only a wall
+        jmp     _d_bump         ; a monster, or the keeper
         jmp     d_nothing       ; (never called: as the town's)
-        jmp     d_nothing       ; ov_idle: nobody to idle
+        jmp     _d_idle         ; the monsters
         jmp     _d_look
 d_nothing:
         rts

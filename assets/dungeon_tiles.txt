@@ -120,7 +120,29 @@ tile stairdn white
 
 include places_common.txt
 
-open floor stairup stairdn chest monster boulder
+# Where a monster was beaten (src/ow/dungeon.c): the floor, stained. Only
+# the map shows it; underfoot it is floor (local[] has no stains).
+code blood 0x92
+
+tile blood red on floor
+--------
+--------
+---c----
+--cc-c--
+-cccc---
+--ccbc--
+-ccbcc-c
+--cccc--
+---ccc--
+-c--cb--
+------c-
+----c---
+--------
+-c------
+--------
+--------
+
+open floor stairup stairdn chest monster boulder blood
 
 # The floor darkens where rock is beside it, which is what rounds a room's
 # inside corners: a dithered shadow, along a side and round a corner.

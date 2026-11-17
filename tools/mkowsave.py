@@ -21,11 +21,12 @@ HOME_X, HOME_Y = 128, 64
 CASTLE = 1              # home's places: Millford, the castle, ...
 ACTOR = 21              # sizeof(Actor), include/q4k/actor.h
 LOOTED = 5              # LOOTED_BYTES
-OWG_SIZE = 143          # include/q4k/owgame.h
+OWG_SIZE = 192          # include/q4k/owgame.h
 Q_HEART = 7
 KEYS = 0x3F             # IT_SIGIL ... IT_HEART: as the quick start
 AREA_HOME, ISLE_HOME, GATE = 0, 4, 0xFF
 CALM = 4                # OWG_CALM: nothing wanders out (a test fixture)
+FOES = 4 * 6            # MAX_DEEP * OWG_FOES: the dungeons' monsters
 
 
 def petscii(s):
@@ -71,6 +72,7 @@ def main():
     b += bytes([0, 0]) + bytes(16 + 8)  # no boat, ships moored
     b += bytes([CALM])                   # music and effects on, no monsters
     b += bytes([tunic("Alaric"), 0, 0, 0])   # each member's colour
+    b += bytes(1 + 2 * FOES)             # no dungeon's monsters placed
     assert len(b) == OWG_SIZE
     with open(out, "wb") as f:
         f.write(struct.pack("<H", ADDR))

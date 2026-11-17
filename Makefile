@@ -177,7 +177,7 @@ GEN_VER   := include/q4k/version.h
 GEN_MUSIC := src/sid/theme_data.s
 GEN_TUNES := include/q4k/music_map.h src/lib/music_map.c
 GEN_OW    := src/lib/ow_data.s src/lib/ow_figs.s
-GEN_FIGHT := src/fight/fight_data.s
+GEN_FIGHT := src/fight/fight_data.s src/ow/foe_art.s
 
 # Where the letters come from. FONT_SOURCE is "rom" for the machine's own
 # character set, or a path to a C64 charset binary. FONT_STYLE only applies
@@ -381,6 +381,12 @@ $(BUILD)/ow/ovl.o: src/ow/ovl.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) -c -o $@ $<
 
+# The dungeon's monsters' sprites (tools/mkfields.py), and what they do
+# square by square (foes.s), in its overlay.
+$(BUILD)/ow/foe_art.o $(BUILD)/ow/foes.o: $(BUILD)/ow/%.o: src/ow/%.s
+	@mkdir -p $(dir $@)
+	$(CL65) $(ASFLAGS) -c -o $@ $<
+
 # The sound effects (src/lib/sfx.s) again, in the engine's own segments and
 # ticking with its music: linked ahead of the library, as ow_dungeon.o is.
 $(BUILD)/ow/ow_sfx.o: src/lib/sfx.s
@@ -388,13 +394,14 @@ $(BUILD)/ow/ow_sfx.o: src/lib/sfx.s
 	$(CL65) $(ASFLAGS) --asm-define OW_SFX=1 -c -o $@ $<
 
 OWOBJ = $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-$*.o) $(BUILD)/ow/ovl.o \
-        $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o
+        $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o $(BUILD)/ow/foe_art.o \
+        $(BUILD)/ow/foes.o
 
 # The overlays come out of the same link (ld65's %O.world, ...).
 $(DIST)/ow-%.world $(DIST)/ow-%.town $(DIST)/ow-%.dungeon $(DIST)/ow-%.hi: $(DIST)/ow-%.prg ;
 
 $(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/ow/ovl.o \
-	    $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o \
+	    $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o $(BUILD)/ow/foe_art.o $(BUILD)/ow/foes.o \
 	    $(LIB) cfg/c64-openworld.cfg tools/owslots.py
 	@mkdir -p $(DIST)
 	$(CL65) $(LDFLAGS) -C cfg/c64-openworld.cfg -m $(BUILD)/ow-$*.map \

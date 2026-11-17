@@ -36,6 +36,13 @@ FIELDS = os.path.join(ROOT, "assets", "fields.txt")
 SPRITES = os.path.join(ROOT, "assets", "monsters.txt")
 TILES = os.path.join(ROOT, "assets", "tiles.txt")
 OUT_S = os.path.join(ROOT, "src", "fight", "fight_data.s")
+OUT_FOES = os.path.join(ROOT, "src", "ow", "foe_art.s")
+
+# The monsters the open world's dungeons show on the map (src/ow/dungeon.c's
+# A_*, in this order): two frames each, in the dungeon's overlay.
+FOE_ART = ["rat", "goblin", "wolf", "wasp", "bandit", "skeleton", "ogre",
+           "wraith", "drake", "keeper"]
+FOE_FRAMES = 1          # src/ow/dungeon.c's: the slot has room for one
 
 FW, FH = 20, 9
 SCREEN, INFO, CHARS, MONSPR = 0x4000, 0x4400, 0x4800, 0x5000
@@ -379,6 +386,31 @@ def write_static(sprites):
     open(OUT_S, "w").write("\n".join(out))
 
 
+def write_foes(sprites):
+    out = ["; GENERATED from assets/monsters.txt by tools/mkfields.py -- do "
+           "not edit.",
+           "",
+           "; The monsters on a dungeon's map (src/ow/dungeon.c's A_*): "
+           "FOE_FRAMES each,",
+           "; 64 bytes a block, in the dungeon's overlay, which is in the "
+           "engine's VIC",
+           "; bank (cfg/c64-openworld.cfg's OVDART, aligned to a block).",
+           "",
+           "        .export _foe_art",
+           '        .segment "OVDART"',
+           "_foe_art:"]
+    for name in FOE_ART:
+        size, frames = sprites[name]
+        if size != 1:
+            die("%s: a dungeon's monster is one square" % name)
+        for fr in frames[:FOE_FRAMES]:
+            out.append("        .byte " + ",".join("$%02X" % x
+                                                   for x in block(fr))
+                       + "   ; " + name)
+    out.append("")
+    open(OUT_FOES, "w").write("\n".join(out))
+
+
 # --- a picture ---------------------------------------------------------------
 
 RGB = [(0, 0, 0), (255, 255, 255), (136, 57, 50), (103, 182, 189),
@@ -498,6 +530,7 @@ def main():
         preview(args[1], fields, tiles, sprites, order)
         return
     write_static(sprites)
+    write_foes(sprites)
     if not args:
         return
     out = args[0]
