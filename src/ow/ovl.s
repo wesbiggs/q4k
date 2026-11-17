@@ -16,7 +16,7 @@
         .assert __SLOTW_START__ = __SLOTD_START__, lderror, "ovl: the overlays must share the slot"
 
         .import _w_enter, _w_can_step, _w_arrived, _w_after, _w_idle
-        .import _t_enter, _t_arrived, _t_bump, _t_can_step, _place_step
+        .import _t_enter, _t_arrived, _t_bump, _t_can_step, _place_step, _t_idle
         .import _w_bump, _w_look, _t_look, _d_look
         .import _d_enter, _d_arrived
 
@@ -51,7 +51,7 @@ _ov_look        = __SLOTW_START__ + 18
         jmp     _t_arrived
         jmp     _t_bump
         jmp     t_nothing       ; no window to stream: never called
-        jmp     t_nothing       ; (ov_idle: nor is this)
+        jmp     _t_idle         ; the people idle
         jmp     _t_look
 t_nothing:
         rts
@@ -64,7 +64,7 @@ t_nothing:
         jmp     _d_arrived
         jmp     d_nothing       ; a step into anything is only a wall
         jmp     d_nothing       ; (never called: as the town's)
-        jmp     d_nothing
+        jmp     d_nothing       ; ov_idle: nobody to idle
         jmp     _d_look
 d_nothing:
         rts

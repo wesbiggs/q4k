@@ -167,7 +167,7 @@ unsigned char seed;             /* lore_seed for the land (the bootstrap's) */
 unsigned char speed     = 2;    /* pixels a frame: 1 or 2 */
 unsigned char freeze_at = 0;    /* stop this many pixels into a step ... */
 unsigned char freeze_after = 0; /* ... once this many steps are done */
-unsigned char still     = 0;    /* 1: the water does not flow */
+unsigned char still     = 0;    /* 1: the water does not flow, nobody bobs */
 unsigned char enc_always = 0;   /* 1: every roll is a fight, for tests */
 unsigned char whole     = 0;    /* 1: a roof change redraws everything, for
                                    checking that the box it does is enough */
@@ -222,21 +222,26 @@ static void build_some(void)
     }
 }
 
-/* The hero's frame: walking, or a ship facing the way it last went across. */
+/* The hero's frame: the leader's class (assets/monsters.txt, the fight's
+   figures: two frames each, which `st` picks, the bob), or a ship facing
+   the way it last went across. */
 static unsigned char ship_face = 1;
+
+#pragma code-name (push, "OWTOP")  /* (MAIN is full) */
 
 unsigned char hero_frame(unsigned char d, unsigned char st)
 {
     if (!boat) {
-        return facing[d] * 2 + st;
+        return (party[0].cls << 1) + st;
     }
     if (facing[d] == DIR_LEFT) {
         ship_face = 0;
     } else if (facing[d] == DIR_RIGHT) {
         ship_face = 1;
     }
-    return 9 + ship_face;
+    return 8 + ship_face;
 }
+#pragma code-name (pop)
 
 void place_camera(void)
 {
@@ -902,6 +907,7 @@ static void take_block(void)
         memcpy(ship_x, OW->ship_x, sizeof ship_x);
         memcpy(ship_y, OW->ship_y, sizeof ship_y);
     }
+    sm_tunic = G->tunic[0];
     land = G->land;
     if (land != ISLE_HOME) {
         isle_biome = OW->ibiome[land];
@@ -1000,7 +1006,7 @@ int main(void)
         for (;;) {
         }
     }
-    /* The engine's code past the screens, $52C0-$59FF (OWTOP, HICODE): a
+    /* The engine's code past the screens, $5280-$59FF (OWTOP, HICODE): a
        file of its own, so that this one is not 5K of empty screens longer.
        Nothing in it may run before this. */
     while (!load3(hi_file)) {
@@ -1106,6 +1112,12 @@ int main(void)
                 publish();
             }
         } else if ((frame & 15) == 0 && !still) {
+            /* Standing still, the hero idles between their two frames, as
+               everyone in a fight does (walking, a step changes it twice),
+               and the water flows. Not for a test that asks for still: a
+               text dump marks a sprite by the middle of its pixels, which
+               the bob moves, and when it is taken is the harness's. */
+            sm_sprite(hero_frame(dir, stride ^= 1));
             sm_animate();
         }
 
@@ -1151,10 +1163,9 @@ int main(void)
                 }
             }
         }
-        /* A frame with nothing built in it: the window's next job. */
-        if (area == AREA_HOME) {
-            ov_idle();
-        }
+        /* A frame with nothing built in it: the window's next job, or
+           (in a town) the people idling. */
+        ov_idle();
         flipped = 0;
     }
     return 0;

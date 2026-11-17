@@ -21,6 +21,7 @@ HOME_X, HOME_Y = 128, 64
 CASTLE = 1              # home's places: Millford, the castle, ...
 ACTOR = 21              # sizeof(Actor), include/q4k/actor.h
 LOOTED = 5              # LOOTED_BYTES
+OWG_SIZE = 143          # include/q4k/owgame.h
 Q_HEART = 7
 KEYS = 0x3F             # IT_SIGIL ... IT_HEART: as the quick start
 AREA_HOME, ISLE_HOME, GATE = 0, 4, 0xFF
@@ -48,6 +49,14 @@ def actor(name, hp):
     return a
 
 
+def tunic(name):
+    """A member's colour from their name: src/lib/ow_party.c's tunic()."""
+    h = 0
+    for c in petscii(name):
+        h = ((h << 1) | (h >> 7)) & 255 ^ c
+    return 2 + h % 14
+
+
 def main():
     out = sys.argv[1]
     seed = int(sys.argv[2]) if len(sys.argv) > 2 else 7
@@ -61,6 +70,8 @@ def main():
     b += struct.pack("<HB", wx, wy)
     b += bytes([0, 0]) + bytes(16 + 8)  # no boat, ships moored
     b += bytes([CALM])                   # music and effects on, no monsters
+    b += bytes([tunic("Alaric"), 0, 0, 0])   # each member's colour
+    assert len(b) == OWG_SIZE
     with open(out, "wb") as f:
         f.write(struct.pack("<H", ADDR))
         f.write(b)

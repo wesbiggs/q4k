@@ -17,6 +17,8 @@ import os
 import random
 import sys
 
+import figures
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "assets", "overworld.txt")
 TILES = os.path.join(ROOT, "assets", "tiles.txt")
@@ -26,6 +28,7 @@ FONT = 0xA0             # smooth.s's: the text window's characters
 SET_FILE = {"overworld": "overworld.txt", "town": "town_tiles.txt",
             "castle": "castle_tiles.txt", "dungeon": "dungeon_tiles.txt"}
 OUT = os.path.join(ROOT, "src", "lib", "ow_data.s")
+OUT_FIGS = os.path.join(ROOT, "src", "lib", "ow_figs.s")
 
 COLOURS = {
     "black": 0, "white": 1, "red": 2, "cyan": 3, "purple": 4, "green": 5,
@@ -198,7 +201,11 @@ def parse(path):
                     fail(lineno, "one colour or four")
                 tiles.append((f[1], cols, rows, lineno, base))
             else:
+                # sprite <name> [bob]: with bob, a second frame it idles
+                # between, sunk a row (tools/figures.py).
                 sprites.append((f[1], rows))
+                if "bob" in f[2:]:
+                    sprites.append((f[1] + " bobbing", figures.bob(rows)))
         else:
             fail(lineno, "what is %r?" % f[0])
     # What stands on something is drawn over the first of that something.
@@ -459,6 +466,34 @@ def build(setname):
             "overlays": dict(OVERLAYS)}
 
 
+def write_figs(hero):
+    """The classes' frames again, for the party screen (src/owtown.c): in a
+    segment of their own, which its cfg puts on a sprite block's boundary
+    in VIC bank 0."""
+    out = ["; GENERATED from assets/monsters.txt by tools/mkoverworld.py -- "
+           "do not edit.",
+           "",
+           "; The party's figures for the party screen (src/owtown.c): each "
+           "class's",
+           "; two frames, 64 bytes a block, as the engines and the fight have "
+           "them.",
+           "",
+           "        .export _ow_figs",
+           '        .segment "OWFIGS"',
+           "_ow_figs:"]
+    for name, b in hero:
+        out.append("        .byte " + ",".join("$%02X" % x for x in b)
+                   + "   ; " + name)
+    out += ["",
+            "; The VIC sees the character ROM at $1000-$1FFF of bank 0.",
+            "        .assert _ow_figs >= $2000 && _ow_figs + %d <= $4000, "
+            "lderror, \"ow_figs: not where the VIC can see it\"" % (64 * len(hero)),
+            "        .assert (_ow_figs & 63) = 0, lderror, "
+            "\"ow_figs: not on a sprite block\"",
+            ""]
+    open(OUT_FIGS, "w").write("\n".join(out))
+
+
 def main():
     sets = {name: build(name) for name in SETS}
     # The engine's text window has the character set from FONT up for its
@@ -469,6 +504,7 @@ def main():
                      "font is above)" % (name, sets[name]["chars"], FONT))
     ow = sets["overworld"]
     sprites, sprcols = ow["sprites"], ow["sprcols"]
+    hero = figures.party()
     codes = tile_codes()
 
     # Which tiles can be walked onto, from assets/tiles.txt: the same in
@@ -503,7 +539,7 @@ def main():
     w("")
     w("_ow_spr1:    .byte %d" % sprcols[0])
     w("_ow_spr2:    .byte %d" % sprcols[1])
-    w("ow_nsprites: .byte %d" % len(sprites))
+    w("ow_nsprites: .byte %d" % (len(hero) + len(sprites)))
     w("")
     w("; Whether each tile code ($60 + index) can be walked onto.")
     w("_ow_pass: .byte " + ",".join(str(b) for b in passable))
@@ -537,26 +573,16 @@ def main():
         for n in range(0, len(b), 16):
             w("        .byte " + ",".join("$%02X" % x for x in b[n:n + 16]))
     w("")
-    w("; The hero: down, up, left and right, two strides each; 64 bytes a frame.")
+    w("; The sprites, 64 bytes a frame from block 64 (smooth.s's SPRITES): the")
+    w("; hero as each class, two frames each (assets/monsters.txt, as the fight")
+    w("; has them), then the set's own (assets/overworld.txt).")
     w("ow_sprites:")
-    for name, rows in sprites:
-        data = []
-        for r in range(21):
-            b0 = 0
-            if r < 16:
-                for ch in rows[r][:4]:
-                    b0 = (b0 << 2) | {".": 0, "k": 1, "t": 2, "s": 3}[ch]
-                b1 = 0
-                for ch in rows[r][4:]:
-                    b1 = (b1 << 2) | {".": 0, "k": 1, "t": 2, "s": 3}[ch]
-            else:
-                b1 = 0
-            data += [b0, b1, 0]
-        data.append(0)
-        w("        .byte " + ",".join("$%02X" % b for b in data) + "   ; " + name)
+    for name, b in hero + [(n, figures.block(r)) for n, r in sprites]:
+        w("        .byte " + ",".join("$%02X" % x for x in b) + "   ; " + name)
     w("")
 
     open(OUT, "w").write("\n".join(out))
+    write_figs(hero)
     for name in SETS:
         st = sets[name]
         print("mkoverworld: %-9s %3d characters, %2d metatiles, %5d bytes"

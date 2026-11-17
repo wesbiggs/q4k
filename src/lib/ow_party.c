@@ -183,8 +183,23 @@ static void make_party(void)
     ask("Then to Millford...");
 }
 
+/* A member's colour from their name, as the game's sprite.c's tunic_of():
+   the same name always gets the same one, never black or white
+   (tools/mkowsave.py has it too). The party screen changes it. */
+static unsigned char tunic(const char *name)
+{
+    unsigned char h = 0;
+
+    while (*name) {
+        h = (unsigned char)((h << 1) | (h >> 7)) ^ *name++;
+    }
+    return (unsigned char)(2 + h % 14);
+}
+
 void ow_new_game(unsigned char quick)
 {
+    unsigned char i;
+
     /* The game as game.c's game_init() starts it. */
     lore_seed   = G->seed;
     gold        = 9;
@@ -209,5 +224,8 @@ void ow_new_game(unsigned char quick)
     }
     potions = party_count;      /* a draught for each who answered */
     owg_out();
+    for (i = 0; i < MAX_PARTY; ++i) {
+        G->tunic[i] = tunic(party[i].name);
+    }
     G->magic = OWG_MAGIC;
 }

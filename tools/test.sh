@@ -203,6 +203,22 @@ if [ -f dist/openworld.d81 ]; then
         fail=1
     fi
 
+    # I, then cursor down twice: Alaric's colour (14, light blue, from his
+    # name) goes to 15 and round past black to 1, and any other key goes
+    # back to the engine, whose hero is drawn in it (sm_tunic). The j's are
+    # padding while owtown loads (it empties the buffer as it starts).
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
+        --splash quick --lbl build/ow-cpu.lbl \
+        --keys 'ijjjjjjjjj\x11\x11j' --settle 15 \
+        --peek '$CECB' --peek sm_tunic \
+        2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
+    if [ "$got" = "1 1 " ]; then
+        echo "PASS  openworld-recolour"
+    else
+        echo "FAIL  openworld-recolour (colour in the block, the hero's: ${got:-?}; not 1 1)"
+        fail=1
+    fi
+
     # A fight: enc_always makes the second step's roll one, a goblin on the
     # grass; Alaric stands firm (six SPACEs) until it comes to him, from
     # above, then strikes up until it is over; any key leaves the screen

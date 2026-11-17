@@ -15,7 +15,8 @@
  *   OWB_SHOP            a shop (src/lib/shop.c), arg its kind (SHOP_*)
  *   OWB_INN             an inn (src/lib/inn.c): ale and a rumour from the
  *                       inn's file on the disk, or beds; arg which inn
- *   OWB_PARTY           I: the party, what they carry, a wizard's spells
+ *   OWB_PARTY           I: the party, one at a time with their figure:
+ *                       what they carry, a wizard's spells, their colour
  *   OWB_HELP            ?: the open world's keys, and what to do next
  *   OWB_FIGHT           a fight (src/lib/ow_fight.c, with the multicolour
  *                       fight module, which loads over this program's code
@@ -50,6 +51,7 @@
 #include <q4k/ow.h>
 #include <q4k/owgame.h>
 #include <q4k/help.h>
+#include <q4k/shop.h>
 #include <q4k/tiles.h>
 #include <q4k/town_data.h>
 
@@ -150,6 +152,141 @@ static void talk(unsigned char npc)
     }
 }
 
+/* --- I: the party ----------------------------------------------------------
+
+   One member at a time, with their figure as the map and the fights show
+   it: their class, idling between its two frames (assets/monsters.txt,
+   tools/figures.py), doubled, in their colour from the game block. The
+   cursor keys go left and right through the party and up and down through
+   the colours (all but black, the outline), which is seen on the figure as
+   it changes: the hero on the map is drawn in the leader's, and a fight
+   has everyone's. The rows are shop.c's, as the game's party screen has
+   them. The figure is a multicolour sprite whose frames are
+   src/lib/ow_figs.s, which the cfg puts on a sprite block in VIC bank 0
+   (OWFIGS). */
+
+extern const unsigned char ow_figs[];
+
+/* Above $4000, which only a fight overwrites, and none comes after this. */
+#pragma code-name (push, "HICODE")
+
+#define FIG_COL  18             /* the figure's top left, in characters */
+#define FIG_ROW  8
+#define K_CRSR_RIGHT 0x1D
+#define K_CRSR_LEFT  0x9D
+#define K_CRSR_DOWN  0x11
+#define K_CRSR_UP    0x91
+
+static unsigned char fig_bob;
+
+/* The figure for member `who`, doubled, below their rows. */
+static void figure(unsigned char who)
+{
+    VIC.spr0_x      = (unsigned char)(24 + FIG_COL * 8);
+    VIC.spr_hi_x    = 24 + FIG_COL * 8 > 255;
+    VIC.spr0_y      = 50 + FIG_ROW * 8;
+    VIC.spr0_color  = G->tunic[who];
+    VIC.spr_mcolor0 = COLOR_GRAY1;      /* the outline: black on the map and
+                                           in a fight, but this is black */
+    VIC.spr_mcolor1 = COLOR_LIGHTRED;
+    VIC.spr_mcolor  = 1;
+    VIC.spr_exp_x   = 1;
+    VIC.spr_exp_y   = 1;
+    fig_bob = 0xFF;                     /* (fig_key() sets the frame) */
+    VIC.spr_ena     = 1;
+}
+
+/* A key, with the figure idling meanwhile: every sixteenth jiffy it shifts
+   its feet. */
+static unsigned char fig_key(unsigned char who)
+{
+    unsigned char b;
+
+    while (!kbhit()) {
+        b = (PEEK(0xA2) >> 4) & 1;
+        if (b != fig_bob) {
+            fig_bob = b;
+            POKE(0x07F8, (unsigned char)((unsigned int)ow_figs >> 6)
+                         + (party[who].cls << 1) + b);
+        }
+    }
+    return cgetc();
+}
+
+static void hint(unsigned char y, const char *s)
+{
+    textcolor(COLOR_GRAY2);
+    cputsxy(0, y, s);
+}
+
+/* Member `who`'s page: shop.c's rows for them and for the party. */
+static void page(unsigned char who)
+{
+    party_head();
+    if (party_count > 1) {
+        textcolor(COLOR_GRAY2);
+        gotoxy(34, 0);
+        cputc('0' + who + 1);
+        cputs(" of ");
+        cputc('0' + party_count);
+    }
+    member_rows(who, 2);
+    party_totals(15);
+    if (party_count > 1) {
+        hint(20, "Cursor left, right  the others");
+    }
+    hint(21, "Cursor up, down  their colour");
+    if (party[who].cls == CL_WIZARD) {
+        hint(22, "S  prepare spells");
+    }
+    hint(24, "Any other key goes back");
+}
+
+static void party_look(void)
+{
+    unsigned char who = 0, key, c, draw = 1;
+
+    for (;;) {
+        if (draw) {
+            page(who);
+            figure(who);
+        }
+        draw = 1;
+        key = fig_key(who);
+        c = G->tunic[who];
+        switch (key) {
+        case K_CRSR_RIGHT:
+            who = who + 1 == party_count ? 0 : who + 1;
+            continue;
+        case K_CRSR_LEFT:
+            who = who ? who - 1 : party_count - 1;
+            continue;
+        case K_CRSR_DOWN:
+            c = c == 15 ? 1 : c + 1;
+            break;
+        case K_CRSR_UP:
+            c = c <= 1 ? 15 : c - 1;
+            break;
+        default:
+            if ((key & 0x7F) == 's' && party[who].cls == CL_WIZARD) {
+                while (party_prepare(who)) {
+                    page(who);
+                }
+                continue;
+            }
+            goto done;
+        }
+        G->tunic[who] = c;      /* the colour: only the figure changes */
+        VIC.spr0_color = c;
+        draw = 0;
+    }
+done:
+    VIC.spr_ena = 0;            /* (the disk's icon, ow_disk.s, sets the
+                                   rest of the VIC's sprites as it wants) */
+}
+
+#pragma code-name (pop)
+
 /* ?: the open world's keys (the game's help.c has the game's), and what
    the quest wants next (quest.c's, as the game's help screen has it). */
 static void help(void)
@@ -237,8 +374,7 @@ int main(void)
         ow_fight(OWB->arg, OWB->npc);
         break;
     case OWB_PARTY:             /* who they are and what they carry */
-        eng_a = SHOP_PARTY;
-        shop_entry();
+        party_look();
         break;
     case OWB_HELP:
         help();
