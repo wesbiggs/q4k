@@ -28,6 +28,7 @@
 #include <q4k/fight.h>
 #include <q4k/game.h>
 #include <q4k/isle.h>
+#include <q4k/music_map.h>
 #include <q4k/ow.h>
 #include <q4k/owgame.h>
 #include <q4k/tiles.h>
@@ -184,6 +185,34 @@ static unsigned char award(unsigned char y)
     return y + 2;
 }
 
+/* The music the engine left paused (src/lib/ow_play.s, owtown's). */
+void owt_music_on(void);
+
+/* The fight's scene's song, for the fight module to play (fight.h): the
+   engine's paused one carried on if it is the same, the file loaded under
+   the KERNAL if it is another. Before the module is loaded, which goes
+   over the table. */
+static unsigned char song, carry;
+
+static void fight_music(unsigned char boss)
+{
+    unsigned char s = boss ? MUSIC_BOSS : MUSIC_FIGHT;
+    unsigned char file = tune_file[s];
+
+    song = carry = 0;
+    if (file != OW->tune) {
+        OW->tune = OW_NO_TUNE;
+        OWB->song = 0;              /* (nothing to carry on with) */
+        if (cbm_load(tune_name[file], 8, 0)) {
+            OW->tune = file;
+        }
+    }
+    if (OW->tune == file) {
+        song = tune_song[s] + 1;
+        carry = OWB->song == song;
+    }
+}
+
 void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
 {
     Fight *f = FIGHT;
@@ -214,6 +243,8 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
         break;
     }
 
+    fight_music(kind == OWF_KEEPER || kind == OWF_DRAGON);
+
     /* From here the module is over everything above $4000. */
     clrscr();
     while (!cbm_load(FIGHT_FILE, 8, 0)) {
@@ -243,8 +274,16 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
     f->seed   = rand();
     strcpy(f->field, field_of(ground));
     strcpy(f->sprite, sprite_of(foe.glyph));
+    f->song   = song;
+    f->carry  = carry;
+    f->quiet  = G->quiet;
 
     r = fight_call();
+
+    /* The music paused where the fight left it, for the engine to carry
+       on with (and this screen meanwhile), and M and X as they were left. */
+    OWB->song = f->carry ? f->song : 0;
+    G->quiet = (G->quiet & ~3) | (f->quiet & 3);
 
     memcpy(party, f->party, sizeof(party));
     potions = f->potions;
@@ -310,6 +349,7 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
             }
         }
     }
+    owt_music_on();
     line(22, COLOR_GRAY2, "Press a key.");
     while (kbhit()) {
         cgetc();

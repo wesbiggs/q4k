@@ -1896,6 +1896,7 @@ _sm_say:
         sta     SCRA + (TEXTROW+1)*40,y
         sta     SCRB + (TEXTROW+1)*40,y
         lda     _sm_ink
+        and     #7              ; 8-15 would be a multicolour character
         sta     $D800 + (TEXTROW+1)*40,y
         iny
         cpy     #40

@@ -53,9 +53,19 @@ typedef struct {
     char          sprite[FIGHT_FNAME];  /* "s.rat" */
     /* What came of it. */
     unsigned char foes;                 /* how many there were, for the pay */
+    /* The music: a song of the tune under the KERNAL ($E7C0, as music.s and
+       ow_tune.s have it), played from the fight's own interrupt with the
+       effects (sfx.s, voice 3). */
+    unsigned char song;                 /* 1 + the song, or 0: none */
+    unsigned char carry;                /* in: 1 to carry on where it was
+                                           paused; out: 1 if it is paused
+                                           where it was, 0 if stopped */
+    unsigned char quiet;                /* bit 0 music off, bit 1 effects
+                                           off (OwGame's); M and X change
+                                           it */
 } Fight;
 
-/* 146 bytes; src/fight/block.c lays the same things down in the same order
+/* 149 bytes; src/fight/block.c lays the same things down in the same order
    for the module, and head.s refuses to link if that is not as long. */
 
 #define FIGHT        ((Fight *)(FIGHT_BASE + 3))

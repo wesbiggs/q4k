@@ -263,8 +263,12 @@ leaves (`ow_fight_with()`). `ow_fight()` picks what turns up as
 over everything of `owtown`'s above `$4000` (so whatever runs after the
 fight, and the C library, must be in MAIN: `cfg/c64-owtown.cfg`), and then
 pays, levels, hands over a keeper's stone, or wakes the party in Millford
-with half the purse, and says so on a screen of text. Not yet: gear and
-treasure maps dropped, music in the fight. `OWG_CALM` in
+with half the purse, and says so on a screen of text. The fight plays the
+`fight` or `boss` scene's song (`fight_music()` in `ow_fight.c` loads its
+file if another is under the KERNAL) and carries on with the engine's if it
+is the same one, from its own interrupt (below), and `M`/`X` there change
+the game block's `quiet`. Not yet: gear and treasure maps dropped.
+`OWG_CALM` in
 the game block's `quiet` keeps anything from wandering out (the quick start
 and the disk's save have it, so the goldens meet nothing); `--poke
 enc_always=1` makes every roll a fight, which `openworld-fight` in
@@ -278,7 +282,9 @@ splash picture is asked F1 or F3 in words (`title_text()` in
 
 **The text window, and `L`.** The engine's map is rows 0-21 of its screens;
 rows 22 and 23 are two lines of text that stay put while the map scrolls
-(`sm_say()`, `sm_ink`, in `smooth.s`, which explains the raster split: at
+(`sm_say()`, `sm_ink` -- 0-7 only: 8-15 is a multicolour character, which
+is how the captain's refusal in light grey came out as smeared yellow --
+in `smooth.s`, which explains the raster split: at
 line `$DC` the fine scroll is forced to 7 and extended colour turned on,
 which with multicolour is black, so the text rows always start at `$E7`
 behind a seven-line black band; a second interrupt turns it off in the
@@ -309,7 +315,8 @@ song in `OWB->song`; `owtown` plays it on from the KERNAL's interrupt
 disk), pauses it again before `ow_back()`, and the engine's `play_for()`
 carries on with it (`ow_tune_resume()`) if its scene plays that song. The
 same goes for a town's gate, an overlay's load and a save inside the
-engine. A fight starts the theme again afterwards.
+engine. A fight carries it on too: the module plays it (`ow_tune.s`) and
+leaves it paused for the screen after and the engine.
 
 **The screens of text are a program loaded from disk, not a part of the
 engine**: `owtown` (`src/owtown.c`, linked with `cfg/c64-owtown.cfg`, the
@@ -927,7 +934,7 @@ and no startup, loaded at `$5400` and entered by a jump at `$5800`
 many, whether the sides are a way out, a seed, and the names of two files);
 `block.c` lays the same bytes down under the game's own names (`party`,
 `potions`, ...) so that `arms.c` links unchanged, and `head.s` refuses to
-link if the block moved or changed length (146 bytes: change both). The
+link if the block moved or changed length (149 bytes: change both). The
 module shares its caller's zero page and C stack (so the caller must be a
 cc65 program, with BASIC switched out: its BSS runs past `$A000`), clears
 its own BSS on every call and keeps nothing between fights; it returns
@@ -989,8 +996,18 @@ fourth), 22-24 the log.
 **The rules are `battle.c`'s**, ported by hand, not shared: the flood, the
 lone monster's banked turns, `LONE_HP`, `ARCHER_EYE`, the spells. Change one
 and change the other. What differs: the field is 20 by 9, not 21 by 19 (so
-two to four boulders, and long ranges mean less), there is no autoplayer, no
-sound yet, and `M`/`X` do nothing. The bestiary moved out of `battle.c` into
+two to four boulders, and long ranges mean less), there is no autoplayer,
+and **it is eight ways**, as the open world walks: Q, E, Z and C (or the
+stick's diagonals) step and strike diagonally, so `K` casts; the flood goes
+eight ways, a monster strikes from any of the eight squares round someone
+(a big one from twelve places), and neither side squeezes diagonally
+between two corners of wall. Shots still fly four ways (the arrow has four
+pictures and `SPR` one block free). The balance was measured four ways, so
+`tools/balance.py` (the game's fight) says nothing about this one. The
+music and the effects are the open world's: `ow_tune.s` and `ow_sfx.o`,
+ticked by `mux.s`'s frame interrupt; the block says which song (none from
+`owarena`, which loads no tune) and whether to carry on with it, and `M`
+and `X` turn them off and on. The bestiary moved out of `battle.c` into
 `src/lib/bestiary.c` (still in the fight's engine) so that the arena has the
 same monsters.
 

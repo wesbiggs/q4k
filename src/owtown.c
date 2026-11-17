@@ -179,7 +179,7 @@ static void help(void)
     cputsxy(3, 13, "?  This screen");
     cputsxy(3, 14, "RUN/STOP  Quit to the title");
     cputsxy(3, 16, "Each in turn: walk into foe to strike");
-    cputsxy(3, 17, "F+dir shoots a bow, C casts a spell");
+    cputsxy(3, 17, "F+dir shoots a bow, K casts a spell");
     cputsxy(3, 18, "SPACE guards; flee by a side gap");
     textcolor(COLOR_LIGHTGREEN);
     cputsxy(1, 21, quest_task[stage][0]);
@@ -217,9 +217,7 @@ int main(void)
        and seed make it another one each time, and the same in a test. */
     srand(game_turn ^ ((unsigned int)lore_seed << 8));
     land = G->land;             /* the shops' tiers, a made town's inn */
-    if (mode == OWB_FIGHT) {
-        OWB->song = 0;          /* (none in a fight yet: the theme again after) */
-    } else {
+    if (mode != OWB_FIGHT) {    /* (the fight module plays its own) */
         owt_music_on();
     }
     switch (mode) {

@@ -447,8 +447,11 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 # linked on its own (src/fight/, cfg/c64-fight.cfg, include/q4k/fight.h),
 # with the game's arms out of the library. Its disk holds the arena, the
 # module, and what the module loads for a fight: a field (f.*) and the
-# monster's sprites (s.*), which tools/mkfields.py makes.
-FIGHTOBJ := $(patsubst %,$(BUILD)/fight/%.o,head block fight mux fight_data)
+# monster's sprites (s.*), which tools/mkfields.py makes. The music and the
+# effects are the open world's (ow_tune.s from the library, and ow_sfx.o,
+# ahead of the library's sfx.s), called from the fight's interrupt.
+FIGHTOBJ := $(patsubst %,$(BUILD)/fight/%.o,head block fight mux fight_data) \
+            $(BUILD)/ow/ow_sfx.o
 FIGHT_STAMP := $(BUILD)/fight/disk/.stamp
 
 # -Or, as the game's own fight is (SMALLMODS): a tenth smaller.

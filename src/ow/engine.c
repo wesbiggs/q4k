@@ -437,7 +437,7 @@ static void save_game(void)
     VIC.bordercolor = COLOR_BLACK;
     disk_off(s);
     play_for(scene_now);
-    sm_ink = ok ? COLOR_WHITE : COLOR_LIGHTRED;
+    sm_ink = ok ? COLOR_WHITE : COLOR_RED;
     sm_say(ok ? s_saved : s_unsaved);
 }
 
@@ -546,7 +546,7 @@ void __fastcall__ look_nothing(unsigned char ground)
 
     if (ground != NONE && (enc_always || (grave_odds &&
         !(G->quiet & OWG_CALM) && !(rand() % grave_odds)))) {
-        sm_ink = COLOR_LIGHTRED;
+        sm_ink = COLOR_RED;
         sm_say(s_dead);
         for (i = 0; i < 60; ++i) {
             next_frame();       /* time to read it */
@@ -559,7 +559,7 @@ void __fastcall__ look_nothing(unsigned char ground)
 void __fastcall__ refuse(const char *why)
 {
     sfx_play(SFX_NO);
-    sm_ink = COLOR_GRAY3;
+    sm_ink = COLOR_CYAN;
     sm_say(why);
 }
 

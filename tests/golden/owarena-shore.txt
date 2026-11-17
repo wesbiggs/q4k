@@ -3,9 +3,9 @@
   1 |cdcdcefgfgfgfghdcdcdcdcefgfgfgfgfghdcdcd|
   2 |abijakmnmnmnmnqbijababikmnmnmnmnmnqbijab|
   3 |fgfgflopopopoprgfgfgfgflopopopopoprgfgfg|
-  4 |stwnmnmnmnmnmnmnmnmnmnmnmnmnmnmnmnm@my[£|
+  4 |stwnmnmnmnmnmnmnmnmnmnmnmnmnmnmnmnmnmy[£|
   5 |uvxpopopopopopopopopopopopopopopopopoz]v|
-  6 |st^nmnmnm;mnmnmnm;mnmnmnmnmnmnmnmnmnm st|
+  6 |st^nmnmnm;mnmnmnm;mnmnmnmnmnmnmnmnm@m st|
   7 |uv_popop<=opopop<=opopopopopopopopopo!uv|
   8 |"#&nmnmnmnmnmnmnmnmnmnmnm;mnmnmnmnmnm(*+|
   9 |$%'popopopopopopopopopop<=opopopopopo),-|

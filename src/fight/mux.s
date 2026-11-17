@@ -28,7 +28,9 @@
 ;
 ;   line 251  below the last text row: the background back to the field's,
 ;             the new plan if there is one, the first eight sprites, and
-;             the KERNAL's own work (the keyboard, the clock) through $EA31
+;             the music and the effects, once a frame (ow_tune.s, as
+;             the open world's engines call it), and the KERNAL's own work
+;             (the keyboard, the clock) through $EA31
 ;   events    each on the line its sprite comes free; several at once when
 ;             their lines are within two of each other
 ;   line 198  inside the solid black row under the field: the background to
@@ -43,6 +45,7 @@
         .export _mx_font, _mx_colour, _mx_start, _mx_stop
         .export _mx_plan, _mx_wait
         .importzp ptr1, ptr2
+        .import ow_tune_irq
 
 NV       = 16                   ; sprites to ask for
 SCREEN   = $4000
@@ -359,6 +362,7 @@ top:    lda     bgcol
         lda     #1
         sta     phase
 @out:   inc     _mx_frame
+        jsr     ow_tune_irq     ; the music and the effects (ow_tune.s)
         jmp     $EA31
 
 ; $D010 for the first eight entries of the plan at X.

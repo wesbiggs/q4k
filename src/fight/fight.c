@@ -21,6 +21,11 @@
  * Text is in the same multicolour mode as the field, where a character
  * whose colour is 0-7 is an ordinary one: so its colours are those eight.
  *
+ * Unlike battle.c it goes eight ways, as the open world walks: the party
+ * steps and strikes diagonally too (Q E Z C, or the stick's diagonals, so
+ * K casts), and the monsters' flood and their blows go eight ways. Shots
+ * fly four.
+ *
  * Left to whoever called: the experience and the pay (fq_foes says for how
  * many), the levels they bring, and what a monster drops.
  */
@@ -33,7 +38,9 @@
 #include <q4k/battle.h>
 #include <q4k/fight.h>
 #include <q4k/game.h>
+#include <q4k/music.h>          /* sfx_*, SFX_* */
 #include <q4k/sprite.h>         /* DIR_*, SHOT_* */
+#include <q4k/tiles.h>          /* T_*, for the steps' sounds */
 
 /* The rest of the block (block.c). */
 extern unsigned char fq_tunic[MAX_PARTY];
@@ -44,6 +51,15 @@ extern unsigned char fq_count, fq_flee;
 extern unsigned int  fq_seed;
 extern char          fq_field[FIGHT_FNAME], fq_sprite[FIGHT_FNAME];
 extern unsigned char fq_foes;
+extern unsigned char fq_song, fq_carry, fq_quiet;
+
+/* The music (src/lib/ow_tune.s, called by mux.s's interrupt once a frame,
+   with the effects): the tune under the KERNAL that the caller says. */
+void __fastcall__ ow_tune_play(unsigned char song);
+void __fastcall__ ow_tune_resume(unsigned char song);
+void ow_tune_pause(void);
+void ow_tune_stop(void);
+extern unsigned char ow_tune_on;
 
 /* Keys, as PETSCII numbers. */
 #define K_W          0x57
@@ -52,7 +68,13 @@ extern unsigned char fq_foes;
 #define K_D          0x44
 #define K_POTION     0x50
 #define K_F          0x46
+#define K_Q          0x51
+#define K_E          0x45
+#define K_Z          0x5A
 #define K_C          0x43
+#define K_CAST       0x4B       /* K: C is a diagonal, as in the open world */
+#define K_M          0x4D
+#define K_X          0x58
 #define K_SPACE      0x20
 #define K_CRSR_DOWN  0x11
 #define K_CRSR_RIGHT 0x1D
@@ -60,6 +82,13 @@ extern unsigned char fq_foes;
 #define K_CRSR_LEFT  0x9D
 
 #define NONE 0xFF
+
+/* Eight ways: sprite.h's four, then the diagonals, as the open world's
+   engine numbers them (src/ow/engine.h). */
+#define DIR_DL 4
+#define DIR_DR 5
+#define DIR_UL 6
+#define DIR_UR 7
 
 /* For the tests (tools/screendump.py --stage): the probe page's stage is 3
    while the fight waits for a key with none typed ahead, and 2 while it is
@@ -140,10 +169,13 @@ static void t_clear(unsigned char x, unsigned char y, unsigned char n)
     memset(F_SCREEN + (unsigned int)y * 40 + x, 0xA0, n);
 }
 
-/* The log: three lines, the newest at the bottom. */
+/* The log: three lines, the newest at the bottom. A row at a time: one
+   memcpy() of both rows up over themselves came out with the newest line
+   in both (memcpy() is not memmove(): it may copy in any order). */
 static void say(const char *s)
 {
-    memcpy(F_SCREEN + ROW_LOG * 40, F_SCREEN + (ROW_LOG + 1) * 40, 80);
+    memcpy(F_SCREEN + ROW_LOG * 40, F_SCREEN + (ROW_LOG + 1) * 40, 40);
+    memcpy(F_SCREEN + (ROW_LOG + 1) * 40, F_SCREEN + (ROW_LOG + 2) * 40, 40);
     t_clear(0, ROW_LOG + 2, 40);
     t_at(0, ROW_LOG + 2, C_WHITE);
     t_str(s);
@@ -182,6 +214,7 @@ static unsigned int  foe_hp[MAX_FOES];
 /* --- sprites -------------------------------------------------------------- */
 
 static unsigned char tick, anim;
+static unsigned char ground;    /* the game's tile for the field's ground */
 
 /* Sprite `v` on square (x,y). */
 static void v_put(unsigned char v, unsigned char x, unsigned char y)
@@ -193,8 +226,20 @@ static void v_put(unsigned char v, unsigned char x, unsigned char y)
     vs_y[v]  = 50 + (y << 4);
 }
 
-static const signed char dir_dx[4] = { 0, 0, -1, 1 };   /* DIR_* */
-static const signed char dir_dy[4] = { 1, -1, 0, 0 };
+static const signed char dir_dx[8] = { 0, 0, -1, 1, -1, 1, -1, 1 };  /* DIR_* */
+static const signed char dir_dy[8] = { 1, -1, 0, 0, 1, 1, -1, -1 };
+
+/* The way of a step of (dx, dy), each -1, 0 or 1, not both 0. */
+static unsigned char dir_of(signed char dx, signed char dy)
+{
+    if (!dx) {
+        return dy > 0 ? DIR_DOWN : DIR_UP;
+    }
+    if (!dy) {
+        return dx > 0 ? DIR_RIGHT : DIR_LEFT;
+    }
+    return (dy > 0 ? DIR_DL : DIR_UL) + (dx > 0);
+}
 
 /* `n` sprites from `v`, `step` pixels the way of `dir`. */
 static void v_nudge(unsigned char v, unsigned char n, unsigned char dir,
@@ -501,15 +546,19 @@ static unsigned char bitten(unsigned char who, unsigned char atk)
 static unsigned char held;      /* frames the stick has been held */
 
 /* The next key, with SHIFTed letters folded onto unshifted ones, or the
-   stick in port 2: its directions as the cursor keys, repeating while held,
-   and its button as F. Everyone goes on idling meanwhile, and the cursor
-   marks whose turn it is. */
+   stick in port 2: its directions as the cursor keys and its diagonals as
+   Q, E, Z and C, repeating while held, and its button alone as F. Everyone
+   goes on idling meanwhile, and the cursor marks whose turn it is. */
 static unsigned char next_key(void)
 {
-    static const unsigned char stick[5] = {
-        K_CRSR_UP, K_CRSR_DOWN, K_CRSR_LEFT, K_CRSR_RIGHT, K_F,
+    /* By the stick's four direction bits: up 1, down 2, left 4, right 8. */
+    static const unsigned char stick[16] = {
+        K_F, K_CRSR_UP, K_CRSR_DOWN, K_F,
+        K_CRSR_LEFT, K_Q, K_Z, K_CRSR_LEFT,
+        K_CRSR_RIGHT, K_E, K_C, K_CRSR_RIGHT,
+        K_F, K_CRSR_UP, K_CRSR_DOWN, K_F,
     };
-    unsigned char key, j, i;
+    unsigned char key, j;
 
     v_put(V_CUR, hx, hy);
     vs_ptr[V_CUR] = SPR_CURSOR;
@@ -532,9 +581,7 @@ static unsigned char next_key(void)
             if (held >= 16) {
                 held = 9;               /* again in seven frames */
             }
-            for (i = 0; !(j & 1); ++i, j >>= 1) {
-            }
-            key = stick[i];
+            key = stick[j & 15];
             break;
         }
         if (held > 200) {
@@ -553,6 +600,10 @@ static unsigned char key_dir(unsigned char key)
         case K_S: case K_CRSR_DOWN:   return DIR_DOWN;
         case K_A: case K_CRSR_LEFT:   return DIR_LEFT;
         case K_D: case K_CRSR_RIGHT:  return DIR_RIGHT;
+        case K_Q:                     return DIR_UL;
+        case K_E:                     return DIR_UR;
+        case K_Z:                     return DIR_DL;
+        case K_C:                     return DIR_DR;
     }
     return NONE;
 }
@@ -601,6 +652,7 @@ static unsigned char quaff(void)
         say(msg);
         return 0;
     }
+    sfx_play(SFX_DRINK);
     say_who(who, " drinks. ");
     cat_num(healed);
     strcat(msg, " restored.");
@@ -625,9 +677,10 @@ static void get_up(void)
 
 /* --- the monsters' way ---------------------------------------------------- */
 
+/* Whoever of the party the monster stands beside, any of eight ways. */
 static unsigned char next_to(void)
 {
-    unsigned char i, x, y;
+    unsigned char i, k, x, y;
 
     for (i = 0; i < party_count; ++i) {
         if (!party[i].hp) {
@@ -635,9 +688,10 @@ static unsigned char next_to(void)
         }
         x = mem_x[i];
         y = mem_y[i];
-        if (on_foe(x, y - 1) || on_foe(x, y + 1)
-            || on_foe(x - 1, y) || on_foe(x + 1, y)) {
-            return i;
+        for (k = 0; k < 8; ++k) {
+            if (on_foe(x + dir_dx[k], y + dir_dy[k])) {
+                return i;
+            }
         }
     }
     return NONE;
@@ -655,21 +709,26 @@ static void seed(unsigned char x, unsigned char y)
     }
 }
 
-/* battle.c's flood, as it is there: out from every one of the party at
+/* battle.c's flood, but eight ways: out from every one of the party at
    once, over a copy of the field with a wall round it, until it reaches the
-   monster whose turn it is; the square it is reached from is its step. */
+   monster whose turn it is; the square it is reached from is its step. A
+   diagonal may not squeeze between two corners of wall (a step of the
+   party's may not either), which the copy cannot say once the flood has
+   been through: that is `stand`, the field as it was. */
 static unsigned char step_x, step_y;
 
 static unsigned char flood(void)
 {
     register unsigned char *row;
+    const unsigned char *stand;
     unsigned char head = 0;
-    unsigned char x, y, tx, ty, i;
+    unsigned char x, y, nx, ny, tx, ty, i, k;
 
     tail = 0;
     tx = mx + 1;
     ty = my + 1;
     if (size == 1) {
+        stand = wall;
         memcpy(seen, wall, sizeof(seen));
         for (i = 0; i < foes; ++i) {
             if (i != cur && foe_hp[i]) {
@@ -682,6 +741,9 @@ static unsigned char flood(void)
             }
         }
     } else {
+        /* A big one stands by its top left square: it is beside someone
+           from any of the twelve places round them that it fits. */
+        stand = roomy;
         memcpy(seen, roomy, sizeof(seen));
         for (i = 0; i < party_count; ++i) {
             if (party[i].hp) {
@@ -693,12 +755,11 @@ static unsigned char flood(void)
         }
         for (i = 0; i < party_count; ++i) {
             if (party[i].hp) {
-                x = mem_x[i] + 1;
-                y = mem_y[i] + 1;
-                seed(x - 1, y + 1); seed(x, y + 1);
-                seed(x - 1, y - 2); seed(x, y - 2);
-                seed(x + 1, y - 1); seed(x + 1, y);
-                seed(x - 2, y - 1); seed(x - 2, y);
+                x = mem_x[i] - 1;
+                y = mem_y[i] - 1;
+                for (k = 0; k < 16; ++k) {
+                    seed(x + (k & 3), y + (k >> 2));
+                }
             }
         }
     }
@@ -711,28 +772,24 @@ static unsigned char flood(void)
         y = queue_y[head];
         ++head;
 
-        row = seen_row[y - 1];
-        if (!row[x]) {
-            if (x == tx && y - 1 == ty) goto found;
-            row[x] = 1;
-            queue_x[tail] = x; queue_y[tail] = y - 1; ++tail;
-        }
-        row = seen_row[y + 1];
-        if (!row[x]) {
-            if (x == tx && y + 1 == ty) goto found;
-            row[x] = 1;
-            queue_x[tail] = x; queue_y[tail] = y + 1; ++tail;
-        }
-        row = seen_row[y];
-        if (!row[x - 1]) {
-            if (x - 1 == tx && y == ty) goto found;
-            row[x - 1] = 1;
-            queue_x[tail] = x - 1; queue_y[tail] = y; ++tail;
-        }
-        if (!row[x + 1]) {
-            if (x + 1 == tx && y == ty) goto found;
-            row[x + 1] = 1;
-            queue_x[tail] = x + 1; queue_y[tail] = y; ++tail;
+        for (k = 0; k < 8; ++k) {
+            nx = x + dir_dx[k];
+            ny = y + dir_dy[k];
+            row = seen_row[ny];
+            if (row[nx]) {
+                continue;
+            }
+            if (k >= 4 && stand[(unsigned char)(y * RIM_W + nx)]
+                       && stand[(unsigned char)(ny * RIM_W + x)]) {
+                continue;               /* between two corners */
+            }
+            if (nx == tx && ny == ty) {
+                goto found;
+            }
+            row[nx] = 1;
+            queue_x[tail] = nx;
+            queue_y[tail] = ny;
+            ++tail;
         }
     } while (head != tail);
     return 0;
@@ -751,8 +808,8 @@ static void foe_step(void)
     if (flood() && member_at(step_x - 1, step_y - 1) == NONE) {
         --step_x;
         --step_y;
-        dir = step_x > mx ? DIR_RIGHT : step_x < mx ? DIR_LEFT
-            : step_y > my ? DIR_DOWN : DIR_UP;
+        dir = dir_of(step_x > mx ? 1 : step_x < mx ? -1 : 0,
+                     step_y > my ? 1 : step_y < my ? -1 : 0);
         mx = foe_x[cur] = step_x;
         my = foe_y[cur] = step_y;
         foe_sprites(cur);
@@ -848,6 +905,7 @@ static unsigned char loose(unsigned char dir, unsigned char range,
     shoot(hx, hy, dir, flew, kind);
     strcpy(msg, what);
     if (hit) {
+        sfx_play(SFX_BOW);
         strcat(msg, " hits for ");
         hit = strike(foe_hp[target], atk);
         foe_sprites(target);
@@ -865,8 +923,9 @@ static unsigned char which_way(const char *put_down)
 
     say("Which way?");
     dir = key_dir(next_key());
-    if (dir == NONE) {
-        say(put_down);
+    if (dir > DIR_RIGHT) {              /* NONE, or a diagonal: a shot */
+        say(put_down);                  /* flies straight, and the arrow */
+        return NONE;                    /* has four pictures */
     }
     return dir;
 }
@@ -1063,6 +1122,7 @@ static unsigned char cast(unsigned char *spent)
             return 0;
         default:                             /* SP_BLAZE */
             hurt_all = 1;
+            sfx_play(SFX_BOW);
             strcpy(msg, "Fire takes them all for ");
             s = strike(0xFFFF, 4 + party_level);
             for (who = 0; who < foes; ++who) {
@@ -1140,15 +1200,18 @@ static unsigned char their_turn(void)
                 strcat(msg, " for ");
                 foe_sprites(cur);
                 /* Toward them: by the nearest part of a big body. */
-                dir = mem_x[i] < mx ? DIR_LEFT
-                    : mem_x[i] >= mx + size ? DIR_RIGHT
-                    : mem_y[i] < my ? DIR_UP : DIR_DOWN;
+                dir = dir_of(mem_x[i] < mx ? -1 : mem_x[i] >= mx + size,
+                             mem_y[i] < my ? -1 : mem_y[i] >= my + size);
+                sfx_delay();         /* let the blow before it finish */
+                sfx_play(SFX_MELEE);
                 lunge(fv, fn, dir);
                 if (bitten(i, fq_atk + fury)) {
                     return 1;
                 }
             } else if ((dir = aim()) != NONE) {
                 shoot(sx, sy, dir, flew, fq_kind);
+                sfx_delay();
+                sfx_play(SFX_BOW);
                 strcpy(msg, shot_hits[fq_kind]);
                 strcat(msg, party[victim].name);
                 strcat(msg, " for ");
@@ -1312,7 +1375,7 @@ static unsigned char fight(void)
                         dir = NONE;                  /* shooting is not walking */
                         break;
 
-                    case K_C:
+                    case K_CAST:
                         dmg = cast(&spent);
                         if (!spent) {
                             continue;
@@ -1332,6 +1395,21 @@ static unsigned char fight(void)
                         }
                         break;
 
+                    case K_M:                    /* no turn spent */
+                        fq_quiet ^= 1;
+                        if (fq_quiet & 1) {
+                            ow_tune_stop();
+                        } else if (fq_song) {
+                            ow_tune_play(fq_song - 1);
+                        }
+                        say(fq_quiet & 1 ? "Music off." : "Music on.");
+                        continue;
+
+                    case K_X:
+                        fq_quiet ^= 2;
+                        say(sfx_toggle() ? "Effects on." : "Effects off.");
+                        continue;
+
                     default:
                         if (dir == NONE) {
                             continue;
@@ -1345,13 +1423,17 @@ static unsigned char fight(void)
 
                     if ((target = foe_at(nx, ny)) != NONE) {
                         say_who(act, " strikes for ");
+                        sfx_play(SFX_MELEE);
                         lunge(act, 1, dir);
                         dmg = strike(foe_hp[target],
                                      weapon_atk[party[act].weapon]);
                         foe_sprites(target);
                         flash(fv, fn, nx, ny);
                     } else if (nx >= FW || ny >= FH || wall_at(nx, ny)
-                               || member_at(nx, ny) != NONE) {
+                               || member_at(nx, ny) != NONE
+                               || (dir > DIR_RIGHT && wall_at(nx, hy)
+                                   && wall_at(hx, ny))) {
+                        /* (Nor between two corners of wall.) */
                         /* Unsigned: off the top or the left wraps to 255.
                            The gaps in the middle of the sides are the way
                            out, for the whole party. */
@@ -1368,6 +1450,7 @@ static unsigned char fight(void)
                         }
                         continue;                    /* bumping costs no turn */
                     } else {
+                        sfx_step(ground);
                         for (key = 0; key < 8; ++key) {
                             v_nudge(act, 1, dir, 2);
                             frame();
@@ -1439,8 +1522,24 @@ static void unpack(void)
     }
 }
 
+/* The game's tile for the field's ground, by its name (f.grass, f.forest,
+   f.shore, f.swamp, f.floor, f.lair: assets/fields.txt), for the sound of
+   a step on it (sfx_step()). */
+static unsigned char ground_of(void)
+{
+    switch (fq_field[2]) {
+    case 0x47: return T_GRASS;                                  /* g */
+    case 0x46: return fq_field[3] == 0x4F ? T_FOREST : T_FLOOR; /* fo */
+    case 0x53: return fq_field[3] == 0x48 ? T_SHORE : T_SWAMP;  /* sh */
+    }
+    return T_FLOOR;
+}
+
 /* The module's way in (head.s): load what the block names, fight, and
-   leave the machine as it was. */
+   leave the machine as it was. The music is the caller's tune, carried on
+   or started, and paused where it is at the end (silence first, which has
+   to reach VICE's sound buffer before the next load: music.s), so that the
+   caller can carry on with it in turn. */
 unsigned char fight_run(void)
 {
     unsigned char dev = *(unsigned char *)0xBA, r;
@@ -1457,8 +1556,23 @@ unsigned char fight_run(void)
     set_up();
     mx_colour();
     memset(F_COLOR + ROW_FOE * 40, C_WHITE, 6 * 40);
+    ground = ground_of();
+    if (fq_quiet & 2) {
+        sfx_toggle();                   /* (the BSS starts them on) */
+    }
     mx_start();
+    if (fq_song && !(fq_quiet & 1)) {
+        if (fq_carry) {
+            ow_tune_resume(fq_song - 1);
+        } else {
+            ow_tune_play(fq_song - 1);
+        }
+    }
     r = fight();
+    sfx_delay();                        /* the last blow heard out */
+    fq_carry = ow_tune_on;
+    ow_tune_pause();
+    pause(12);
     mx_stop();
     return r;
 }
