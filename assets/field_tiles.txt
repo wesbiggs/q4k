@@ -63,6 +63,68 @@ tile boulder white on grass
 --------
 --------
 
+# More that the fight may scatter (assets/fields.txt's scatter=): a tree
+# that stands on any ground and blocks like a boulder, and ground that is
+# slow to cross -- a puddle to wade, a thicket to push through. Tiles of this
+# set's own, which the game has not got: codes from $92 (mkoverworld.py).
+code oak 0x92
+code puddle 0x93
+code thicket 0x94
+
+tile oak black on grass
+---cc---
+--caac--
+-caaaac-
+-caacaac
+caaaaaac
+caacaaac
+caaaaacc
+-caaacc-
+-ccaacc-
+--cccc--
+---cc---
+---cc---
+---cc---
+--cccc--
+--------
+--------
+
+tile puddle cyan on grass
+--------
+--------
+--------
+---bbb--
+-bbbbbbb
+bbbcbbbb
+bbbbbbcb
+bbbbbbbb
+-bbcbbbb
+bbbbbbbb
+-bbbbbc-
+--bbbb--
+--------
+--------
+--------
+--------
+
+tile thicket black on grass
+--------
+--------
+--------
+--cc-cc-
+-caacaac
+caaaaaac
+caacaaac
+-caaaac-
+-cacaacc
+caacaaac
+caaaacac
+-caaaac-
+--cccc--
+--------
+--------
+--------
+
 # Sand and swamp fray toward a tree as they do toward the forest.
 also shore forest mountain swamp tree
 also swamp forest mountain tree

@@ -5,23 +5,23 @@
   3 |cdkfghkfghghkfghkfghghkfghkfghghkfghkfcd|
   4 |abefefopijefopefijijefopefijijefefabijlm|
   5 |cdghghqrkfghqrghkfkfghqrghkfkfghghcdkfnd|
-  6 |ablmijefefefijijefe@efiji@efefefijijefab|
-  7 |cdndkfghghghkfkfghghghkfkfghghghkfkfghcd|
-  8 |efefijefijefefijefi@e@e@opefijefefijefij|
-  9 |ghghkfghkfghghkfghkfghghqrghkfghghkfghkf|
- 10 |abefefopefefefefefefefe@e@efefefopefefab|
- 11 |cdghghqrghghghghghghghghghghghghqrghghcd|
- 12 |abijefijefefijefijefefijeflmefefijefijab|
- 13 |cdkfghkfghghkfghkfghghkfghndghghkfghkfcd|
+  6 |ablmijefefefijije@e@efi@i@efefefijuvefab|
+  7 |cdndkfghghghkfkfghghghkfkfghghghkfwxghcd|
+  8 |efefijefijefefije@ije@e@i@efijefyzijefij|
+  9 |ghghkfghkfghghkfghkfghghkfghkfgh[£kfghkf|
+ 10 |abefefopefuvefefefefefefefefefefopefefab|
+ 11 |cdghghqrghwxghghghghghghghghghghqrghghcd|
+ 12 |abijefijefefijefabefefijeflmefefijefijab|
+ 13 |cdkfghkfghghkfghstghghkfghndghghkfghkfcd|
  14 |abefefijijefefefijijefefefijijefefeflmlm|
  15 |cdghghkfkfghghghkfkfghghghkfkfghghghndnd|
  16 |ablmijefefabijijefefefijijefefefijijefab|
  17 |cdndkfghghcdkfkfghghghkfkfghghghkfkfghcd|
  18 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|
- 19 |A█dRgmt█wgsz█x4████KP█5██5██5██5████████|
+ 19 |A█dRgmt█wgsz█x5████KP█5██5██5██5██5█████|
  20 |>A@grRb████MRrg██████ZOs██████DrgudQt█3█|
- 21 |█19/22█████16/18█████5/16██6██ArrYws█40█|
- 22 |A█dRgmt█wgsz█QRts█A@grRb█WYr█1.█████████|
- 23 |A█dRgmt█wgsz█QRts█ZOs█WYr█2.████████████|
- 24 |A█dRgmt█wgsz█QRts█ZOs█WYr█1.████████████|
+ 21 |█20/22█████14/18█████1/16██6██ArrYws█40█|
+ 22 |A█dRgmt█wgsz█QRts█ZOs█WYr█2.████████████|
+ 23 |A█dRgmt█wgsz█QRts█MRrg█WYr█2.███████████|
+ 24 |A█dRgmt█wgsz█QRts█MRrg█WYr█1.███████████|
     +----------------------------------------+

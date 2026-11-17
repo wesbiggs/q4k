@@ -207,17 +207,17 @@ if [ -f dist/openworld.d81 ]; then
     # grass; Alaric walks up and strikes until it is over, any key leaves
     # the screen that says what came of it, and the engine is back. The
     # dice come from the game's turn, so it goes the same way every time:
-    # won, 4 experience, 6 marks, 12 health left. The j's are padding (no
+    # won, 4 experience, 6 marks, 5 health left. The j's are padding (no
     # key in the engine or the fight), while owtown and the module load.
     got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
         --splash quick --lbl build/ow-cpu.lbl --poke enc_always=1 \
         --keys "ddjjjjjjjjjjjjjjjjjjjj$(printf 'w%.0s' $(seq 44))" \
         --settle 30 --peek party+2 --peek party+88:2 --peek party+90:2 \
         2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
-    if [ "$got" = "12 4 15 " ]; then
+    if [ "$got" = "5 4 15 " ]; then
         echo "PASS  openworld-fight"
     else
-        echo "FAIL  openworld-fight (health, experience, gold: ${got:-?}; not 12 4 15)"
+        echo "FAIL  openworld-fight (health, experience, gold: ${got:-?}; not 5 4 15)"
         fail=1
     fi
 fi

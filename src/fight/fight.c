@@ -216,6 +216,12 @@ static unsigned char hx, hy, mx, my;
 static unsigned char size;
 
 static unsigned char mem_x[MAX_PARTY], mem_y[MAX_PARTY], guard[MAX_PARTY];
+/* What each of the party owes for slow ground, in tenths of a turn: a step
+   onto a square costs FF_COST of it, of which a turn pays 10, and a turn
+   is lost for every 10 owed. */
+static unsigned char mire[MAX_PARTY];
+/* ... and what the monster's last step cost past 10 (foe_step()). */
+static unsigned char slow;
 static unsigned char act, ward, sleep;
 static unsigned char rel, lone, lone_bank, fury;
 
@@ -613,7 +619,8 @@ static void bot_push(unsigned char k)
 }
 
 /* Is a foe in line `dir` of the active member, within `range`, with nothing
-   solid between? (A shot flies over the party, as loose() has it.) */
+   solid and none of the party between? (A shot hits whoever is in the way,
+   as loose() has it.) */
 static unsigned char bot_line(unsigned char dir, unsigned char range)
 {
     unsigned char x = hx, y = hy, n;
@@ -628,8 +635,9 @@ static unsigned char bot_line(unsigned char dir, unsigned char range)
         if (foe_at(x, y) != NONE) {
             return 1;
         }
-        if (flag_at(x, y) == FF_BLOCK) {
-            return 0;
+        if (member_at(x, y) != NONE
+            || (flag_at(x, y) & FF_KIND) == FF_BLOCK) {
+            return 0;                   /* (a shot would hit them) */
         }
     }
     return 0;
@@ -1099,11 +1107,13 @@ found:
     return 1;
 }
 
-/* The monster one square nearer, gliding there. */
+/* The monster one square nearer, gliding there; `slow` is what the square
+   costs past 10 (by its top left square, for a big one). */
 static void foe_step(void)
 {
     unsigned char dir, k;
 
+    slow = 0;
     if (flood() && member_at(step_x - 1, step_y - 1) == NONE) {
         --step_x;
         --step_y;
@@ -1111,6 +1121,7 @@ static void foe_step(void)
                      step_y > my ? 1 : step_y < my ? -1 : 0);
         mx = foe_x[cur] = step_x;
         my = foe_y[cur] = step_y;
+        slow = FF_COST(flag_at(mx, my)) - 10;
         foe_sprites(cur);
         for (k = 0; k < 4; ++k) {
             v_nudge(fv, fn, dir, 4);
@@ -1184,7 +1195,7 @@ static unsigned char pinched(unsigned char px, unsigned char py,
                              unsigned char x, unsigned char y)
 {
     return px != x && py != y
-        && flag_at(x, py) == FF_BLOCK && flag_at(px, y) == FF_BLOCK;
+        && (flag_at(x, py) & FF_KIND) == FF_BLOCK && (flag_at(px, y) & FF_KIND) == FF_BLOCK;
 }
 
 /* Something flies from the member whose turn it is: battle.c's loose(). */
@@ -1192,7 +1203,7 @@ static unsigned char loose(unsigned char dir, unsigned char range,
                            unsigned char atk, unsigned char kind,
                            const char *what)
 {
-    unsigned char x = hx, y = hy, flew = 0, hit = 0;
+    unsigned char x = hx, y = hy, flew = 0, hit = 0, ally = NONE;
 
     while (flew < range) {
         x += dir_dx[dir];
@@ -1206,13 +1217,27 @@ static unsigned char loose(unsigned char dir, unsigned char range,
             hit = 1;
             break;
         }
-        if (flag_at(x, y) == FF_BLOCK) {
+        /* Nor does it fly over the party: whoever is in the way takes it,
+           as hard as a foe would have. */
+        if ((ally = member_at(x, y)) != NONE) {
+            break;
+        }
+        if ((flag_at(x, y) & FF_KIND) == FF_BLOCK) {
             break;
         }
     }
 
     shoot(hx, hy, dir, flew, kind);
     strcpy(msg, what);
+    if (ally != NONE) {
+        sfx_play(SFX_BOW);
+        strcat(msg, " hits ");
+        strcat(msg, party[ally].name);
+        strcat(msg, " for ");
+        bitten(ally, atk + party_level);   /* (never the last: the one
+                                              who loosed it stands) */
+        return 0;
+    }
     if (hit) {
         sfx_play(SFX_BOW);
         strcat(msg, " hits for ");
@@ -1273,7 +1298,7 @@ static unsigned char aim_at(unsigned char tx, unsigned char ty)
         if ((victim = member_at(x, y)) != NONE) {
             return dir;
         }
-        if (flag_at(x, y) == FF_BLOCK || foe_at(x, y) != NONE) {
+        if ((flag_at(x, y) & FF_KIND) == FF_BLOCK || foe_at(x, y) != NONE) {
             break;
         }
     }
@@ -1306,14 +1331,43 @@ static unsigned char open9(const unsigned char *w)
            | w[2 * RIM_W] | w[2 * RIM_W + 1] | w[2 * RIM_W + 2]);
 }
 
-/* No two fights are fought on the same ground: a few boulders go down
-   where the ground is open all round (so nothing is cut off), never on the
-   leader's square. On a field less than half the old one's size, two to
-   four of them. */
+/* No two fights are fought on the same ground: two to four things that
+   block go down -- boulders, or what else the field may scatter that blocks
+   (a tree) -- where the ground is open all round (so nothing is cut off),
+   never on the leader's square; then, where the field has some, one to
+   three patches of slow ground (a puddle, a thicket) on open squares that
+   are quicker to cross than they would be. The field's file says what it
+   may scatter (FI_SCAT, from assets/fields.txt). */
+static unsigned char rock5[5];
+
+static void put(unsigned char x, unsigned char y, const unsigned char *e)
+{
+    unsigned char *s = F_SCREEN + (unsigned int)y * 80 + (x << 1);
+
+    s[0]  = e[0];
+    s[1]  = e[1];
+    s[40] = e[2];
+    s[41] = e[3];
+    flag_at(x, y) = e[4];
+}
+
 static void scatter(void)
 {
-    unsigned char n, tries, x, y, q;
-    unsigned char *w, *s;
+    const unsigned char *blk[1 + 3], *slw[3], *e;
+    unsigned char n, nb = 0, ns = 0, tries, x, y, f;
+    unsigned char *w;
+
+    memcpy(rock5, F_INFO + FI_ROCK, 4);
+    rock5[4] = FF_BLOCK;
+    blk[nb++] = rock5;
+    for (n = 0; n < F_INFO[FI_NSCAT]; ++n) {
+        e = F_INFO + FI_SCAT + n * 5;
+        if (e[4] == FF_BLOCK) {
+            blk[nb++] = e;
+        } else {
+            slw[ns++] = e;
+        }
+    }
 
     n = 2 + (unsigned char)(rand() % 3);
     for (tries = 0; tries < 40; ++tries) {
@@ -1322,11 +1376,25 @@ static void scatter(void)
         w = &wall_at(x, y);
         if ((x != F_INFO[FI_HX] || y != F_INFO[FI_HY]) && open9(w)) {
             *w = 1;
-            flag_at(x, y) = FF_BLOCK;
-            s = F_SCREEN + (unsigned int)y * 80 + (x << 1);
-            for (q = 0; q < 4; ++q) {
-                s[(q >> 1) * 40 + (q & 1)] = F_INFO[FI_ROCK + q];
+            put(x, y, blk[(unsigned char)rand() % nb]);
+            if (!--n) {
+                break;
             }
+        }
+    }
+
+    if (!ns) {
+        return;
+    }
+    n = 1 + (unsigned char)(rand() % 3);
+    for (tries = 0; tries < 40; ++tries) {
+        x = 1 + (unsigned char)(rand() % (FW - 2));
+        y = (unsigned char)(rand() % FH);
+        e = slw[(unsigned char)rand() % ns];
+        f = flag_at(x, y);
+        if ((f & FF_KIND) == FF_OPEN && (f & FF_SLOW) < (e[4] & FF_SLOW)
+            && (x != F_INFO[FI_HX] || y != F_INFO[FI_HY])) {
+            put(x, y, e);
             if (!--n) {
                 break;
             }
@@ -1524,7 +1592,14 @@ static unsigned char their_turn(void)
                 pace %= 10;
                 break;
             } else {
+                /* Slow ground spends more of its pace: what is left of it
+                   may not be enough for another move this round. */
                 foe_step();
+                if (pace >= 10 + slow) {
+                    pace -= slow;
+                } else {
+                    pace = 10;          /* (and the loop takes that) */
+                }
             }
         }
         foe_pace[cur] = pace;
@@ -1579,7 +1654,7 @@ static void set_up(void)
     }
     for (y = 0; y < FH; ++y) {
         for (x = 0; x < FW; ++x) {
-            wall_at(x, y) = flag_at(x, y) != FF_OPEN;
+            wall_at(x, y) = (flag_at(x, y) & FF_KIND) != FF_OPEN;
         }
     }
     if (size == 1) {
@@ -1650,6 +1725,15 @@ static unsigned char fight(void)
             guard[i] = 0;
             if (party[i].mp < party[i].mp_max) {
                 ++party[i].mp;
+            }
+            if (mire[i] >= 10) {
+                /* Slow ground: this turn goes on getting through it. */
+                mire[i] -= 10;
+                show_party();
+                say_who(i, " is slowed by the ground.");
+                say(msg);
+                pause(20);
+                goto turn_done;
             }
             for (;;) {
                 show_party();
@@ -1767,6 +1851,7 @@ static unsigned char fight(void)
                         }
                         hx = mem_x[act] = nx;
                         hy = mem_y[act] = ny;
+                        mire[act] += FF_COST(flag_at(nx, ny)) - 10;
                     }
                 }
                 break;
@@ -1783,6 +1868,7 @@ static unsigned char fight(void)
                     return won();
                 }
             }
+turn_done:
             /* Alone, it has (n + 1) / 2 turns a round for a party of n,
                spread between theirs: battle.c. */
             if (lone) {

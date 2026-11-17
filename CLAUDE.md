@@ -1004,7 +1004,21 @@ eight ways, a monster strikes from any of the eight squares round someone
 between two corners of wall. Shots fly eight ways too, the party's
 arrows and spells and the monsters' (a big one shoots diagonally from its
 corner), and stop where they would pass between two corners of wall
-(`pinched()`). **The arrow is one sprite block** (`SPR_ARROW`), which
+(`pinched()`). **A shot does not fly over the party**, as `battle.c`'s
+does: whoever of them is in its way takes it (`loose()`, through
+`bitten()`, at the attack it would have had), and the autoplayer will not
+shoot through one. **Ground is slow**: each square's flag has a cost in
+bits 2-3 (`FF_COST`: 10 tenths for grass and floors, 15 for sand and
+forest, 20 for swamp, from `SLOW` in `mkfields.py`); a monster spends it
+out of its pace, and a member owes what a step costs past 10 (`mire[]`)
+and loses a turn for every 10 owed ("is slowed by the ground"). **The
+fields scatter more than boulders**: `assets/fields.txt`'s `scatter=`
+names up to three more things drawn `on` the tile set's ground (in
+`field_tiles.txt`, on codes `$92-$94` of that set's own: `oak` blocks,
+`puddle` costs 20, `thicket` 15), which `mkfields.py` writes as four
+characters and a flag each at `FI_SCAT`; `scatter()` puts down two to four
+things that block, boulders or trees, and one to three patches of slow
+ground where it is quicker. **The arrow is one sprite block** (`SPR_ARROW`), which
 `arrow_to()` fills for the way it is about to fly from `fight_arrow[]`:
 eight pictures of 32 bytes, by `DIR_*`, that `mkfields.py` makes from
 three drawn in `assets/monsters.txt` (`arrow`, `arrow_r`, `arrow_ur`) by
