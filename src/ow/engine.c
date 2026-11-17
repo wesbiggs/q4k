@@ -25,10 +25,10 @@
  * near its memory map.
  *
  *   cursor keys, WASD or a joystick in port 2   walk
- *   Q, E, Z, C (or the stick's diagonals)       walk diagonally
+ *   Q, E, Z, X (or the stick's diagonals)       walk diagonally
  *   1 / 2                                        one or two pixels a frame
  *   M                                            the music off and on
- *   X                                            the sound effects off and on
+ *   SHIFT+M                                      the sound effects off and on
  *   I                                            the party, what they carry
  *                                                and a wizard's spells
  *   P                                            the worst hurt drinks a
@@ -780,7 +780,7 @@ static unsigned char key_dir(unsigned char k)
     case 'q': return DIR_UL;
     case 'e': return DIR_UR;
     case 'z': return DIR_DL;
-    case 'c': return DIR_DR;
+    case 'x': return DIR_DR;
     }
     return NONE;
 }
@@ -795,8 +795,8 @@ static unsigned char typed(void)
     switch (k) {
     case '1': speed = 1; break;
     case '2': speed = 2; break;
-    case 'm':
-    case 'x':
+    case 'm':                   /* the music */
+    case 'M':                   /* SHIFT+M: the effects */
         toggles(k);
         break;
     case 'p':                   /* a draught */

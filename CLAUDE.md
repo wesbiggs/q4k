@@ -223,7 +223,7 @@ alone**: `OwGame` (`include/q4k/owgame.h`) at `$CE40-$CEFF`, between the
 engines' BSS (cut to end there) and the probe page: the party, the purse,
 the quest, the looted bits and where everyone is (the area, the town or
 dungeon and its level, the square, the world square, the ships, the boat,
-M and X). ld65 does not clear it. The engines' cfg names its party `party`
+the music and the effects). ld65 does not clear it. The engines' cfg names its party `party`
 (it comes first), and they copy the rest in (`take_block()`) and out
 (`owg_where()`, before a save or another program); a program that links
 the game's own `actor.c`/`game.c` uses `owg_in()`/`owg_out()`
@@ -266,7 +266,7 @@ pays, levels, hands over a keeper's stone, or wakes the party in Millford
 with half the purse, and says so on a screen of text. The fight plays the
 `fight` or `boss` scene's song (`fight_music()` in `ow_fight.c` loads its
 file if another is under the KERNAL) and carries on with the engine's if it
-is the same one, from its own interrupt (below), and `M`/`X` there change
+is the same one, from its own interrupt (below), and `M`/SHIFT+`M` there change
 the game block's `quiet`. Not yet: gear and treasure maps dropped.
 `OWG_CALM` in
 the game block's `quiet` keeps anything from wandering out (the quick start
@@ -363,7 +363,7 @@ shops and the engine read it. The loader retries a failed load instead
 of flashing the border for good. Golden `openworld-talk`
 talks to Old Tam in Millford, comes back and walks out; it leans on the
 harness typing its keys a bufferful at a time (the talk and the engine
-each empty the buffer as they start), hence the `x` padding. **Never
+each empty the buffer as they start), hence the `j` padding (`x` is a step now). **Never
 `--poke` an engine's label in a test that starts in `owtown`**: pokes land
 when the first stage is published, which is `owtown`'s, over its code.
 
@@ -797,7 +797,7 @@ a flip overran on NTSC (18 frames missed in 27 steps) and never on PAL. To
 run on NTSC, `screendump.py --vice=-ntsc`. The camera
 rests 4 pixels into a character so the first wrap of a step is two frames
 away either way; steps are a square each, as in the game, so the direction
-of every shift is known in advance. Eight ways (Q, E, Z, C or the stick's
+of every shift is known in advance. Eight ways (Q, E, Z, X or the stick's
 diagonals; directions 4-7 after `sprite.h`'s four): a diagonal step is one
 diagonal shift per flip, and on a mixed one (down-left, up-right), whose two
 fine scrolls would wrap two frames apart, `glide()` holds the positive axis a
@@ -997,8 +997,8 @@ fourth), 22-24 the log.
 lone monster's banked turns, `LONE_HP`, `ARCHER_EYE`, the spells. Change one
 and change the other. What differs: the field is 20 by 9, not 21 by 19 (so
 two to four boulders, and long ranges mean less), there is no autoplayer,
-and **it is eight ways**, as the open world walks: Q, E, Z and C (or the
-stick's diagonals) step and strike diagonally, so `K` casts; the flood goes
+and **it is eight ways**, as the open world walks: Q, E, Z and X (or the
+stick's diagonals) step and strike diagonally; the flood goes
 eight ways, a monster strikes from any of the eight squares round someone
 (a big one from twelve places), and neither side squeezes diagonally
 between two corners of wall. Shots still fly four ways (the arrow has four
@@ -1007,7 +1007,12 @@ pictures and `SPR` one block free). The balance was measured four ways, so
 music and the effects are the open world's: `ow_tune.s` and `ow_sfx.o`,
 ticked by `mux.s`'s frame interrupt; the block says which song (none from
 `owarena`, which loads no tune) and whether to carry on with it, and `M`
-and `X` turn them off and on. The bestiary moved out of `battle.c` into
+and SHIFT+`M` turn them off and on. **The open world's keys**, the engine's
+and the fight's alike: Q E Z X diagonally (C does nothing), `M` the music,
+SHIFT+`M` the effects (the fight's `next_key()` folds every other shifted
+letter onto its plain one), and in a fight the up-arrow key (`$5E`, the
+stick's button) shoots and `*` casts. A `.cmd` file types them as `\x5e`
+and `\x2a`, since `*` would glob in the harness's `set -- $(cat ...)`. The bestiary moved out of `battle.c` into
 `src/lib/bestiary.c` (still in the fight's engine) so that the arena has the
 same monsters.
 

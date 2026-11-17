@@ -1,6 +1,3 @@
-screendump: poked auto_seed+0=7 at $2969
-screendump: wrote /tmp/claude-0/out/d.png
-probe: stage=3 counter=0 scratch=00 00 ff ff ff ff 00 00 00 00 ff ff ff ff 00 00 | charset=$4800 lowercase
     +----------------------------------------+
   0 |aaaaaaadfgigigigigigigigigigigiklaaaaaaa|
   1 |aaabcccefhjhjhjhjhjhjhjhjhjhjhjkmcccnaaa|

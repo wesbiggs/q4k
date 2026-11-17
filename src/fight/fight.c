@@ -22,9 +22,10 @@
  * whose colour is 0-7 is an ordinary one: so its colours are those eight.
  *
  * Unlike battle.c it goes eight ways, as the open world walks: the party
- * steps and strikes diagonally too (Q E Z C, or the stick's diagonals, so
- * K casts), and the monsters' flood and their blows go eight ways. Shots
- * fly four.
+ * steps and strikes diagonally too (Q E Z X, or the stick's diagonals),
+ * and the monsters' flood and their blows go eight ways. Shots fly four.
+ * The up-arrow key shoots, * casts, M is the music and SHIFT+M the effects,
+ * as in the open world.
  *
  * Left to whoever called: the experience and the pay (fq_foes says for how
  * many), the levels they bring, and what a monster drops.
@@ -67,14 +68,14 @@ extern unsigned char ow_tune_on;
 #define K_S          0x53
 #define K_D          0x44
 #define K_POTION     0x50
-#define K_F          0x46
+#define K_FIRE       0x5E       /* the up-arrow key: an arrow */
 #define K_Q          0x51
 #define K_E          0x45
 #define K_Z          0x5A
-#define K_C          0x43
-#define K_CAST       0x4B       /* K: C is a diagonal, as in the open world */
-#define K_M          0x4D
-#define K_X          0x58
+#define K_X          0x58       /* down and right, as in the open world */
+#define K_CAST       0x2A       /* *: a burst of magic */
+#define K_M          0x4D       /* the music */
+#define K_SHIFT_M    0xCD       /* the effects */
 #define K_SPACE      0x20
 #define K_CRSR_DOWN  0x11
 #define K_CRSR_RIGHT 0x1D
@@ -547,16 +548,17 @@ static unsigned char held;      /* frames the stick has been held */
 
 /* The next key, with SHIFTed letters folded onto unshifted ones, or the
    stick in port 2: its directions as the cursor keys and its diagonals as
-   Q, E, Z and C, repeating while held, and its button alone as F. Everyone
-   goes on idling meanwhile, and the cursor marks whose turn it is. */
+   Q, E, Z and X, repeating while held, and its button alone as the up
+   arrow, which shoots. SHIFT+M stays itself (the effects). Everyone goes
+   on idling meanwhile, and the cursor marks whose turn it is. */
 static unsigned char next_key(void)
 {
     /* By the stick's four direction bits: up 1, down 2, left 4, right 8. */
     static const unsigned char stick[16] = {
-        K_F, K_CRSR_UP, K_CRSR_DOWN, K_F,
+        K_FIRE, K_CRSR_UP, K_CRSR_DOWN, K_FIRE,
         K_CRSR_LEFT, K_Q, K_Z, K_CRSR_LEFT,
-        K_CRSR_RIGHT, K_E, K_C, K_CRSR_RIGHT,
-        K_F, K_CRSR_UP, K_CRSR_DOWN, K_F,
+        K_CRSR_RIGHT, K_E, K_X, K_CRSR_RIGHT,
+        K_FIRE, K_CRSR_UP, K_CRSR_DOWN, K_FIRE,
     };
     unsigned char key, j;
 
@@ -590,7 +592,8 @@ static unsigned char next_key(void)
     }
     PROBE_STAGE = 2;
     vs_y[V_CUR] = 0;
-    return (key >= 0xC1 && key <= 0xDA) ? key - 0x80 : key;
+    return (key >= 0xC1 && key <= 0xDA && key != K_SHIFT_M) ? key - 0x80
+                                                              : key;
 }
 
 static unsigned char key_dir(unsigned char key)
@@ -603,7 +606,7 @@ static unsigned char key_dir(unsigned char key)
         case K_Q:                     return DIR_UL;
         case K_E:                     return DIR_UR;
         case K_Z:                     return DIR_DL;
-        case K_C:                     return DIR_DR;
+        case K_X:                     return DIR_DR;
     }
     return NONE;
 }
@@ -1351,7 +1354,7 @@ static unsigned char fight(void)
                 dir = key_dir(key);
 
                 switch (key) {
-                    case K_F:
+                    case K_FIRE:
                         if (!party[act].bow) {
                             say_who(act, " has no bow.");
                             say(msg);
@@ -1405,7 +1408,7 @@ static unsigned char fight(void)
                         say(fq_quiet & 1 ? "Music off." : "Music on.");
                         continue;
 
-                    case K_X:
+                    case K_SHIFT_M:
                         fq_quiet ^= 2;
                         say(sfx_toggle() ? "Effects on." : "Effects off.");
                         continue;
