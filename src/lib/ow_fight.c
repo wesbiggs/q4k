@@ -127,17 +127,6 @@ static const char *sprite_of(unsigned char glyph)
     return "s.keeper";
 }
 
-/* sprite.c's tunic_of(): the same name, the same colour. */
-static unsigned char tunic(const char *name)
-{
-    unsigned char h = 0;
-
-    while (*name) {
-        h = (unsigned char)((h << 1) | (h >> 7)) ^ *name++;
-    }
-    return (unsigned char)(2 + h % 14);
-}
-
 static void line(unsigned char y, unsigned char colour, const char *s)
 {
     textcolor(colour);
@@ -257,7 +246,7 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
     f->potions     = potions;
     f->arrows      = arrows;
     for (i = 0; i < party_count; ++i) {
-        f->tunic[i] = tunic(party[i].name);
+        f->tunic[i] = G->tunic[i];  /* (the party screen's to change) */
     }
     strcpy(f->name, foe_name);
     f->hp     = foe.hp;

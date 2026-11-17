@@ -27,9 +27,9 @@
 
 #include "engine.h"
 
-/* The villager's sprite frame, after the hero's eight (assets/overworld.txt),
-   and the robes' colours, one a person. */
-#define NPC_FRAME  (64 + 8)
+/* The villager's sprite frames, after the hero's six (assets/overworld.txt:
+   it and its bob), and the robes' colours, one a person. */
+#define NPC_FRAME  (64 + 6)
 static const unsigned char robes[7] = {
     COLOR_CYAN, COLOR_YELLOW, COLOR_PURPLE, COLOR_BLUE, COLOR_ORANGE,
     COLOR_LIGHTBLUE, COLOR_WHITE
@@ -38,6 +38,7 @@ static const unsigned char robes[7] = {
 
 static unsigned char ex, ey;            /* the way out */
 static unsigned char npc_ent[7];        /* which of here_ents each sprite is */
+static unsigned char bob;               /* the people's frame: 0 or 1 */
 
 /* --- Roofs -------------------------------------------------------------
 
@@ -237,7 +238,7 @@ static void show_people(void)
         sm_npc_x[n] = e->x + BIAS;
         sm_npc_y[n] = e->y + BIAS;
         POKE(0x43F9 + n, NPC_FRAME);    /* both screens' sprite pointers */
-        POKE(0x47F9 + n, NPC_FRAME);
+        POKE(0x47F9 + n, NPC_FRAME);    /* (t_idle() bobs them) */
         POKE(0xD028 + n, robes[i % 7]);
         ++n;
     }
@@ -442,6 +443,22 @@ void t_arrived(void)
         ov_want = OV_WORLD;
     } else {
         roof_check();
+    }
+}
+
+/* Every frame (ov_idle): every sixteenth, the people shift their feet, as
+   everyone does in a fight. */
+void t_idle(void)
+{
+    unsigned char i, f;
+
+    if ((frame & 15) || still) {
+        return;
+    }
+    f = NPC_FRAME + (bob ^= 1);
+    for (i = sm_npc_n; i--; ) {
+        POKE(0x43F9 + i, f);
+        POKE(0x47F9 + i, f);
     }
 }
 

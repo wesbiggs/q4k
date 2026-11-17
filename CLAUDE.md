@@ -227,7 +227,7 @@ the music and the effects). ld65 does not clear it. The engines' cfg names its p
 (it comes first), and they copy the rest in (`take_block()`) and out
 (`owg_where()`, before a save or another program); a program that links
 the game's own `actor.c`/`game.c` uses `owg_in()`/`owg_out()`
-(`src/lib/owgame.c`). A save is this block as it is, in `ow-save` (139
+(`src/lib/owgame.c`). A save is this block as it is, in `ow-save` (143
 bytes, `OWG_SIZE`, which `tools/mkowsave.py` writes too and the engine
 checks): F1 in an engine writes it (scratching the old file first, as
 `savegame.c` does; the border is light blue while the drive works, red
@@ -237,6 +237,40 @@ builds its world (the game goes on as it was if there is no save). The
 `openworld-save` case in `tools/test.sh` saves, walks on and restores, on a
 copy of the disk. Every engine start resumes from it: the overworld, a town (at
 its gate when `x` is `OWG_GATE`) or a dungeon level, where it was left.
+
+**The figures** -- the party as the open world shows them -- are the
+fight's: `assets/monsters.txt`'s warrior, archer and wizard, two frames
+each, the second the first sunk a row onto its feet (`tools/figures.py`'s
+`bob()`, which `mkfields.py` and `mkoverworld.py` share, and a villager
+marked `bob` in `overworld.txt` gets too). Everyone idles between their
+two every sixteenth frame, as in a fight: the hero (the leader's class,
+`hero_frame()` in `engine.c`: frame `cls * 2 + stride`; a step still
+changes it twice, so walking reads as walking), the townsfolk (`t_idle()`,
+the town's `ov_idle`, which the core now calls in every area) and the
+figure on the party screen. A text dump marks a multicolour sprite by the
+middle of the 16 by 16 it is drawn in (doubled if it is), not of its
+pixels, which the bob moves (`sprite_cells()` in `screendump.py`, as for
+the fight's `--mux`); `--poke still=1` stops the engine's bob too, but only
+until the engine is loaded again, after a talk, say. The engine's
+sprite blocks from `$5000`: the three classes (0-5), the villager (6, 7),
+the ship (8, 9). Each member's colour is `tunic[]` in the game block, from
+the name at first (`ow_party.c`'s `tunic()`, sprite.c's `tunic_of()`
+again; `mkowsave.py` has it too), and the hero is drawn in the leader's
+(`sm_tunic`), a fight in everyone's (`ow_fight.c`). **The party screen**
+(`I`, `party_look()` in `owtown.c`) shows one member at a time, with
+`shop.c`'s rows (`party_head()`, `member_rows()`, `party_totals()`,
+`party_prepare()`, which the game's own `party_draw()` is made of) and
+their figure doubled below them: cursor left and right go through the
+party, up and down through the colours (all but black), and `S` prepares
+a wizard's spells. The figure is `src/lib/ow_figs.s` (generated, segment
+`OWFIGS`, aligned to a sprite block in MAIN, which it asserts is where the
+VIC sees RAM); room for it came from moving `tiles_install()`
+(`TITLECODE`/`TITLEDATA`) and the party screen's code to HIGH, which only
+a fight overwrites and neither runs after one. Golden `openworld-colour`
+is the screen, and `openworld-recolour` in `tools/test.sh` changes
+Alaric's colour and checks the engine's hero has it. The game proper is
+untouched: its hero is still the three-sprite hi-res figure and its
+townsfolk glyphs.
 
 **The story in the open world** is the game's: `owtown`'s conversations
 hand over what `gift.c`'s `quest_after_talk()` says (Garrett's arms, the
@@ -324,8 +358,8 @@ flat layout with the shop's code below the charset, where it would be 6K
 of padding in the file). The hand-off block (`OWB` in `include/q4k/ow.h`,
 at `$02ED`) says what for: `OWB_TALK` a conversation, `OWB_SHOP` and
 `OWB_INN` the game's own `shop.c` and `inn.c` (walking into a keeper, as a
-townsperson), `OWB_PARTY` the game's party screen (`I`), `OWB_HELP` the
-keys (`?`). It defines the
+townsperson), `OWB_PARTY` the party screen (`I`: `shop.c`'s rows, one
+member at a time with their figure, below), `OWB_HELP` the keys (`?`). It defines the
 few variables and functions of `game.c`, `sprite.c`, `savegame.c`,
 `music.s` and `view.c` that those modules use (as the engine does), so
 that none of those is linked, nor the map, the land generator and the
@@ -688,14 +722,15 @@ there after `N`. ld65 writes it beside each engine (`COMMON` in the cfg,
 the same in both links can go there: data, not code (the engines' BSS
 differs). `local[]` (`HIDATA`, the game's font image) is at `$6C00` in an
 engine and in no file. An engine is 12.6K, MAIN only: what it has past the
-screens (`VICTOP` and `HIGH`, `$52C0-$59FF`) is a file of its own,
+screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
 that the engine's file does not carry 5K of empty screens to the disk. The overlays are 4.4K (world), 4.4K
 (town) and 2.1K (dungeon) of the slot's 4.5K. Free, OW-CPU's (OW-REU has a
-little more): 175 bytes in MAIN (the land and town generators' `MAPCODE`
-moved there from HIGH), 150 in HIGH (`$5400-$59FF`, where the text window's
-routines and the engine's words are), 125 beside the world's overlay and
-the town's, 2.5K beside the dungeon's, 48 in BSS, and COMMON 250. String
+little more), measured from the maps: 66 bytes in MAIN (the land and town
+generators' `MAPCODE` moved there from HIGH), 61 in `OWTOP` (`$5280-$53FF`),
+11 in HIGH (`$5400-$59FF`, where the text window's routines and the
+engine's words are), 145 beside the world's overlay, 40 beside the town's,
+2.5K beside the dungeon's, 39 in BSS, and COMMON 315. String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than
@@ -741,7 +776,7 @@ kind costs (`job_lines[]`); a full queue (32) runs one on the spot. Leaving
 for a place finishes the queue first. **Ships**: eight (`ship_x/ship_y`),
 moored beside home's four ports and the continents' docks at the start.
 Stepping onto one boards it (`boat` is its index + 1; the hero's sprite
-becomes the ship, frames 9 and 10); in it you sail open water and step off
+becomes the ship, frames 8 and 9); in it you sail open water and step off
 onto any land, where it stays; its position is kept as you sail. No
 permission is asked. The continents' places go in as they do in the game
 (the bootstrap works out `slot_of()` for each).
@@ -765,7 +800,7 @@ because it has one colour copy, not two
 (`colour_for` patches its hundred screen addresses for the screen a
 redraw or a roof's flip reads, in the main loop before the flip, about 2K
 cycles; every other flip is coloured from the REU).
-Past the sprite blocks at `$52C0` there is a little code (`OWTOP`).
+Past the sprite blocks at `$5280` there is a little code (`OWTOP`).
 `OWLOW`, code run at `$0400` from inside screen A's space, is empty since the
 roofs went to the town's overlay, and nothing copies it down any more: ld65
 leaves an empty segment's `__OWLOW_LOAD__` undefined, so put the copy back
@@ -1287,8 +1322,9 @@ deliberately non-static so they have labels.
 
 **The hero is a sprite, not a screen code**, so screen RAM holds the
 terrain under them. `screendump.py` puts `@` wherever an enabled sprite sits
-in its text dump, which is how the goldens still record where the hero is
-standing; `--raw` and `--hex` show plain screen RAM. `--shot` draws sprites
+in its text dump (a hi-res one by the middle of its pixels, a multicolour
+one by the middle of its square, which its bob does not move), which is how
+the goldens still record where the hero is standing; `--raw` and `--hex` show plain screen RAM. `--shot` draws sprites
 too. Any screen that takes over from the map must call `sprite_hide()`.
 The sprite is one member of the party at a time (`sprite_as()`): the leader
 on the map, whoever's turn it is in a fight, where the rest are their class's

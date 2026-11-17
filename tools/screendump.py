@@ -541,14 +541,17 @@ SPRITE_CODE = 0x100
 
 
 def sprite_cells(sprites, fetch, square=False):
-    """The screen cell under the middle of each sprite's pixels -- or, with
-    `square`, of the 16 by 16 it is drawn in (the multicolour fight's, whose
-    figures shift their feet between two frames, so that the middle of
-    their pixels is not always the same cell)."""
+    """The screen cell under the middle of each hi-res sprite's pixels, and
+    of the 16 by 16 a multicolour one is drawn in (or every one, with
+    `square`), doubled if it is: the figures of the multicolour fight and of
+    the open world (tools/figures.py) shift their feet between two frames,
+    so that the middle of their pixels is not always the same cell, and
+    which of the two a dump catches is the harness's timing."""
     cells = set()
-    for x, y, block, _, _, wide, tall in sprites:
-        if square:
-            cx, cy = (x - 24 + 8) // 8, (y - 50 + 7) // 8
+    for x, y, block, _, multi, wide, tall in sprites:
+        if square or multi:
+            cx = (x - 24 + 8 * wide) // 8
+            cy = (y - 50 + 8 * tall - 1) // 8
             if 0 <= cx < SCR_W and 0 <= cy < SCR_H:
                 cells.add((cx, cy))
             continue

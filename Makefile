@@ -172,7 +172,7 @@ GEN_LOOT  := include/q4k/loot_data.h src/lib/loot_data.c
 GEN_VER   := include/q4k/version.h
 GEN_MUSIC := src/sid/theme_data.s
 GEN_TUNES := include/q4k/music_map.h src/lib/music_map.c
-GEN_OW    := src/lib/ow_data.s
+GEN_OW    := src/lib/ow_data.s src/lib/ow_figs.s
 GEN_FIGHT := src/fight/fight_data.s
 
 # Where the letters come from. FONT_SOURCE is "rom" for the machine's own
@@ -222,7 +222,8 @@ $(GEN_TUNES): assets/music.txt tools/mksid.py
 	tools/mksid.py map
 
 $(GEN_OW): assets/overworld.txt $(wildcard assets/*_tiles.txt) \
-           assets/places_common.txt assets/tiles.txt tools/mkoverworld.py
+           assets/places_common.txt assets/tiles.txt assets/monsters.txt \
+           tools/mkoverworld.py tools/figures.py
 	tools/mkoverworld.py
 
 # The multicolour arena's sprites (the ones linked into the fight), and
@@ -231,7 +232,7 @@ $(GEN_OW): assets/overworld.txt $(wildcard assets/*_tiles.txt) \
 FIELD_SRC := assets/fields.txt assets/monsters.txt assets/field_tiles.txt \
              assets/overworld.txt assets/dungeon_tiles.txt \
              assets/places_common.txt assets/tiles.txt tools/mkfields.py \
-             tools/mkoverworld.py
+             tools/mkoverworld.py tools/figures.py
 
 $(GEN_FIGHT): $(FIELD_SRC)
 	tools/mkfields.py

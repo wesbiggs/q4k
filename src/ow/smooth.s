@@ -8,7 +8,8 @@
 ; VIC bank 1 ($4000-$7FFF), which has no character ROM image in it:
 ;
 ;   $4000  screen A          $4800  the character set (multicolour)
-;   $4400  screen B          $5000  sprite blocks 64-71 (the hero)
+;   $4400  screen B          $5000  sprite blocks 64-73 (the hero as each
+;                                   class, the villager, the ship)
 ;
 ; The map is a square's tile code per byte, 64 by 64, at WORLD (the
 ; generator's home, copied out of the vault). Every square is a metatile of
@@ -79,7 +80,7 @@
         .import ow_qvar, ow_rnd, ow_sprites, ow_nsprites
         .import _ow_spr1, _ow_spr2
         .export _sm_tileset, _sm_blank, _sm_offtile
-        .export _sm_npcs, _sm_npc_n, _sm_npc_x, _sm_npc_y
+        .export _sm_npcs, _sm_npc_n, _sm_npc_x, _sm_npc_y, _sm_tunic
         .importzp ptr1, ptr2, ptr3, ptr4, sp
         .export _sm_stack
 
@@ -152,6 +153,7 @@ den:        .res 1              ; $10, or 0 while the screen is blanked
 ; People: sprites 1-7 over the map, at squares (biased, like the hero's),
 ; placed from the camera the next frame shows (sm_npcs) and written by the
 ; interrupt with the fine scroll, so they move with the map.
+_sm_tunic:  .res 1              ; the hero's colour: the leader's (G->tunic)
 _sm_npc_n:  .res 1
 _sm_npc_x:  .res 7
 _sm_npc_y:  .res 7
@@ -2043,7 +2045,7 @@ _sm_show:
         sta     $D025
         lda     _ow_spr2
         sta     $D026
-        lda     #2              ; red tunic
+        lda     _sm_tunic       ; the leader's colour
         sta     $D027
         lda     #1
         sta     $D01C

@@ -28,6 +28,7 @@ top right, bottom left, bottom right, twice).
 import os
 import sys
 
+import figures
 import mkoverworld as ow
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -55,7 +56,7 @@ SLOW_LEVEL = {15: 1, 20: 2}
 # one flies from fight_arrow[], eight pictures by DIR_* (down, up, left,
 # right, down-left, down-right, up-left, up-right) made from three drawn
 # ones: up (arrow), right (arrow_r) and up-right (arrow_ur), mirrored.
-STATIC = ["warrior", "archer", "wizard"]
+STATIC = figures.CLASSES
 SHOTS = ["fire", "wave", "bolt", "cursor", "hit"]
 ARROWS = ["arrow", "arrow_r", "arrow_ur"]
 
@@ -301,54 +302,12 @@ def check(fd, flags, hx, hy, mx, my):
 # --- sprites -----------------------------------------------------------------
 
 def read_sprites():
-    """name -> (size, [frames]), a frame being 16 * size rows."""
-    out, order = {}, []
-    lines = open(SPRITES).read().split("\n")
-    i = 0
-    while i < len(lines):
-        f = lines[i].split("#")[0].split()
-        i += 1
-        if not f:
-            continue
-        if f[0] != "sprite":
-            die("%s:%d: what is %r?" % (SPRITES, i, f[0]))
-        size = int(f[2]) if len(f) > 2 else 1
-        rows = lines[i:i + 16 * size]
-        for n, r in enumerate(rows):
-            if len(r) != 8 * size or set(r) - set(".kst"):
-                die("%s:%d: want %d of '.kst', got %r"
-                    % (SPRITES, i + n + 1, 8 * size, r))
-        if len(rows) != 16 * size:
-            die("%s:%d: %s: want %d rows" % (SPRITES, i, f[1], 16 * size))
-        i += 16 * size
-        if f[1] not in out:
-            out[f[1]] = (size, [])
-            order.append(f[1])
-        out[f[1]][1].append(rows)
-    for name in order:
-        size, frames = out[name]
-        if len(frames) == 1:
-            # Its second frame: sunk a row, onto feet that stay where they
-            # are.
-            r = frames[0]
-            frames.append(["." * len(r[0])] + r[:-2] + [r[-1]])
-        elif len(frames) != 2:
-            die("%s: one frame or two" % name)
-    return out, order
+    """name -> (size, [frames]), a frame being 16 * size rows (with its
+    bob, tools/figures.py, if drawn once)."""
+    return figures.read(SPRITES)
 
 
-SPR_PIX = {".": 0, "k": 1, "t": 2, "s": 3}
-
-
-def block(rows):
-    """Sixteen rows of 8 as a sprite's 64 bytes."""
-    data = []
-    for r in rows:
-        b = [0, 0]
-        for k, ch in enumerate(r):
-            b[k >> 2] = (b[k >> 2] << 2) | SPR_PIX[ch]
-        data += [b[0], b[1], 0]
-    return bytes(data + [0] * (64 - len(data)))
+block = figures.block
 
 
 def blocks(size, frame):

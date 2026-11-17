@@ -492,7 +492,7 @@ void shop_open(unsigned char kind)
 
 /* Each member: name, class, health and magic; their weapon and bow; their
    armour; and a wizard's spells, the prepared ones in white. */
-static unsigned char member_rows(unsigned char i, unsigned char y)
+unsigned char member_rows(unsigned char i, unsigned char y)
 {
     const Actor *a = &party[i];
     unsigned char x;
@@ -538,20 +538,18 @@ static unsigned char member_rows(unsigned char i, unsigned char y)
     return y + 2;
 }
 
-static void party_draw(void)
+void party_head(void)
 {
-    unsigned char i, y = 2, maps = 0;
-    char *p;
-
     clrscr();
     textcolor(COLOR_YELLOW);
     cputsxy(0, 0, "The party");
     textcolor(COLOR_GRAY1);
     chlinexy(0, 1, SCR_W);
+}
 
-    for (i = 0; i < party_count; ++i) {
-        y = member_rows(i, y);
-    }
+void __fastcall__ party_totals(unsigned char y)
+{
+    register char *p;           /* (not BSS: the online game has 1 byte) */
 
     p = str_lit(line, "Level ");
     p = str_num(p, party_level);
@@ -565,6 +563,18 @@ static void party_draw(void)
     p = str_lit(p, "  Arrows ");
     p = str_num(p, arrows);
     text_put(0, y + 1, line, COLOR_WHITE);
+}
+
+void party_draw(void)
+{
+    unsigned char i, y = 2, maps = 0;
+    char *p;
+
+    party_head();
+    for (i = 0; i < party_count; ++i) {
+        y = member_rows(i, y);
+    }
+    party_totals(y);
 
     for (i = 0; i < MAPS; ++i) {
         maps += tmap[TM_LAND + i] != 0;
@@ -583,16 +593,17 @@ static void party_draw(void)
     text_put(0, 24, line, COLOR_GRAY2);
 }
 
-/* Change which of wizard `who`'s spells are prepared: a number toggles one,
-   while there is a slot for it; RETURN or RUN/STOP is done. */
-static void prepare(unsigned char who)
+/* Change which of wizard `who`'s spells are prepared, a key at a time, over
+   the bottom of whatever the caller has drawn: a number toggles one, while
+   there is a slot for it, and returns 1 for the caller to redraw and call
+   again; RETURN or RUN/STOP is done (0). */
+unsigned char __fastcall__ party_prepare(unsigned char who)
 {
     Actor *a = &party[who];
     unsigned char i, key, bit, n;
     char *p;
 
     for (;;) {
-        party_draw();
         for (i = 20; i < 25; ++i) {
             text_clear(0, i, SCR_W);
         }
@@ -617,7 +628,7 @@ static void prepare(unsigned char who)
 
         key = cgetc();
         if (key == 0x0D || key == K_STOP) {
-            return;
+            return 0;
         }
         i = key - 0x31;
         if (i >= NUM_SPELLS) {
@@ -632,6 +643,7 @@ static void prepare(unsigned char who)
         } else if (spells_ready(who) < spell_slots()) {
             a->ready |= bit;
         }
+        return 1;
     }
 }
 
@@ -649,7 +661,9 @@ static unsigned char party_screen(void)
         }
         i = key - 0x31;
         if (i < party_count && party[i].cls == CL_WIZARD) {
-            prepare(i);
+            while (party_prepare(i)) {
+                party_draw();
+            }
             continue;
         }
         return 0;

@@ -59,13 +59,18 @@ typedef struct {
     unsigned char ship_y[OWG_SHIPS];
     unsigned char quiet;                /* bit 0 music off, bit 1 effects,
                                            OWG_CALM nothing wanders out */
+    unsigned char tunic[MAX_PARTY];     /* each member's colour: their
+                                           figure's own (the hero, the party
+                                           screen, a fight); from the name
+                                           at first (ow_party.c), and then
+                                           the party screen's to change */
 } OwGame;
 
 #define G ((OwGame *)OWG_ADDR)
 
 /* Its size, which tools/mkowsave.py writes too: the engine checks that the
    two agree, and that it fits under the probe page. */
-#define OWG_SIZE 139
+#define OWG_SIZE 143
 
 /* The game's own variables from the block, and back. */
 void owg_in(void);

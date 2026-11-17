@@ -51,6 +51,8 @@ void __fastcall__ sm_blank(unsigned char on);
 void __fastcall__ sm_reu_keep(unsigned char out);
 extern unsigned char sm_offtile;
 extern unsigned char sm_npc_n, sm_npc_x[7], sm_npc_y[7];
+extern unsigned char sm_tunic;          /* the hero's colour, on foot */
+extern unsigned char still;             /* a test's: nothing idles */
 void sm_npcs(void);
 void sm_redraw_box(void);
 void sm_shores_rect(void);

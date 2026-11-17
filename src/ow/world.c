@@ -24,8 +24,9 @@
 
 #include "engine.h"
 
-#define SHIP_FRAME (64 + 9)     /* the ship's sprite frames, facing left and
-                                   right, after the hero's eight */
+#define SHIP_FRAME (64 + 8)     /* the ship's sprite frames, facing left and
+                                   right, after the hero's six and the
+                                   villager's two */
 
 /* --- The world -----------------------------------------------------------
 
@@ -521,7 +522,7 @@ static void step_world(void)
         ship_y[boat - 1] = wy;
     } else {
         boat = 0;                   /* ashore: it stays where it was */
-        VIC.spr0_color = COLOR_RED;
+        VIC.spr0_color = sm_tunic;
         sm_sprite(hero_frame(dir, stride));
         ashore = 1;
     }

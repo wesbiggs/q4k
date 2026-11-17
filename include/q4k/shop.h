@@ -21,4 +21,18 @@ void shop_open(unsigned char kind);
    shop's engine (shop_entry() with SHOP_GEAR: engine.h) when it comes up. */
 extern unsigned char gear_odds;
 
+/* The party screen's parts (I), for the open world's own (src/owtown.c),
+   which shows one member at a time with their figure. The game's own is
+   party_draw() and is reached through shop_entry() (SHOP_PARTY).
+   party_head(): the screen cleared and its title; member_rows(): member i's
+   rows from row y, returning the row after the blank one below them;
+   party_totals(): the level, the purse, the draughts and arrows, two rows
+   from y; party_prepare(): one key of preparing wizard `who`'s spells, over
+   rows 20-24, 1 while they go on (redraw and call again). */
+void party_head(void);
+unsigned char member_rows(unsigned char i, unsigned char y);
+void __fastcall__ party_totals(unsigned char y);
+void party_draw(void);
+unsigned char __fastcall__ party_prepare(unsigned char who);
+
 #endif /* Q4K_SHOP_H */

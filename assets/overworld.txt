@@ -25,7 +25,8 @@
 # shore <colour> [<headland colour>] [against <tile>...]
 #                               the beaches, below: where water meets land
 #                               (or only the tiles named)
-# sprite <name>                 8 double-width pixels by 16 rows:
+# sprite <name> [bob]           8 double-width pixels by 16 rows (bob: and
+#                                the same sunk a row, to idle between):
 #     k  $D025 (shared)   s  $D026 (shared)   t  the sprite's own colour
 #
 # Water is animated: the generator lists its characters, and the engine
@@ -459,154 +460,14 @@ edges forest
 .... .... .... .... .... ....
 .... .... .... .... .... ....
 
-# The hero, a warrior in a red tunic: down, up, left, right, two strides each.
-sprite down
-..kkkk..
-.kkkkkk.
-.kssssk.
-.ksskssk
-.kssssk.
-..kssk..
-.kttttk.
-kttttttk
-ksttttsk
-ksttttsk
-kkttttkk
-.kkkkkk.
-.kt..tk.
-.kk..kk.
-.kk..kk.
-kkk...k.
-
-sprite down
-..kkkk..
-.kkkkkk.
-.kssssk.
-.ksskssk
-.kssssk.
-..kssk..
-.kttttk.
-kttttttk
-ksttttsk
-ksttttsk
-kkttttkk
-.kkkkkk.
-.kt..tk.
-.kk..kk.
-.kk..kk.
-.k...kkk
-
-sprite up
-..kkkk..
-.kkkkkk.
-.kkkkkk.
-.kkkkkk.
-.kkkkkk.
-..kkkk..
-.kttttk.
-kttttttk
-ksttttsk
-ksttttsk
-kkttttkk
-.kkkkkk.
-.kt..tk.
-.kk..kk.
-.kk..kk.
-kkk...k.
-
-sprite up
-..kkkk..
-.kkkkkk.
-.kkkkkk.
-.kkkkkk.
-.kkkkkk.
-..kkkk..
-.kttttk.
-kttttttk
-ksttttsk
-ksttttsk
-kkttttkk
-.kkkkkk.
-.kt..tk.
-.kk..kk.
-.kk..kk.
-.k...kkk
-
-sprite left
-..kkkk..
-.kkkkkk.
-.ksskkk.
-.kskskk.
-.ksssk..
-..kssk..
-..kttk..
-.kttttk.
-.ksttk..
-.ksttk..
-.kttttk.
-.kkkkk..
-.kt.tk..
-.kk.kk..
-kk..kk..
-kk...kk.
-
-sprite left
-..kkkk..
-.kkkkkk.
-.ksskkk.
-.kskskk.
-.ksssk..
-..kssk..
-..kttk..
-.kttttk.
-..kstk..
-..kstk..
-.kttttk.
-.kkkkk..
-..ktk...
-..kkk...
-..kkk...
-.kkk....
-
-sprite right
-..kkkk..
-.kkkkkk.
-.kkkssk.
-.kkskskk
-..ksssk.
-..kssk..
-..kttk..
-.kttttk.
-..kttsk.
-..kttsk.
-.kttttk.
-..kkkkk.
-..kt.tk.
-..kk.kk.
-..kk..kk
-.kk...kk
-
-sprite right
-..kkkk..
-.kkkkkk.
-.kkkssk.
-.kkskskk
-..ksssk.
-..kssk..
-..kttk..
-.kttttk.
-..ktsk..
-..ktsk..
-.kttttk.
-..kkkkk.
-...ktk..
-...kkk..
-...kkk..
-....kkk.
+# The hero is the leader's class, from assets/monsters.txt (the fight's
+# figures, which the engine has first: tools/figures.py), in the leader's
+# own colour.
 
 # The people in towns and the castle: sprites 1-7, a robe in a colour of
-# their own (openworld.c gives each one).
-sprite villager
+# their own (town.c gives each one), idling between two frames as the hero
+# does (bob: the second is this sunk a row, tools/figures.py).
+sprite villager bob
 ...kk...
 ..kssk..
 .kssssk.
