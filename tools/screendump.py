@@ -260,7 +260,18 @@ def free_port():
         return s.getsockname()[1]
 
 
-def launch(prg, port, rs232=None, disk=None, extra=()):
+def trap_device8():
+    """The option that has VICE serve unit 8 itself: -trapdevice8 since
+    VICE 3.9 (CI's 3.10), -virtualdev8 before (Ubuntu's 3.7.1)."""
+    try:
+        out = subprocess.run(["x64sc", "-help"], capture_output=True,
+                             text=True, timeout=30).stdout
+    except (OSError, subprocess.SubprocessError):
+        out = ""
+    return "-virtualdev8" if "-virtualdev8" in out else "-trapdevice8"
+
+
+def launch(prg, port, rs232=None, disk=None, extra=(), fastdisk=False):
     argv = [
         "x64sc",
         "-default",
@@ -279,6 +290,12 @@ def launch(prg, port, rs232=None, disk=None, extra=()):
             argv += ["-drive8type", "1581"]
         argv += ["-8", disk]
     argv += list(extra)
+    if disk and fastdisk and not rs232:
+        # The drive is not emulated: VICE serves the KERNAL's LOAD from the
+        # image itself, which in warp mode is a few times quicker than an
+        # emulated 1581. Not for a test whose point is the drive (a STOP
+        # during a LOAD, a save), which keeps the true drive.
+        argv += ["+drive8truedrive", trap_device8()]
     if not rs232:
         # Warp is free speed for a self-contained program, but it decouples
         # emulated time from wall-clock time. With a live host on the other
@@ -293,7 +310,7 @@ def launch(prg, port, rs232=None, disk=None, extra=()):
         # each way. So the drive is not emulated: VICE serves the KERNAL's
         # LOAD from the image at once instead.
         if disk:
-            argv += ["+drive8truedrive", "-trapdevice8"]
+            argv += ["+drive8truedrive", trap_device8()]
         argv += [
             "-userportdevice", "2",
             "-rsuserdev", "0",
@@ -611,6 +628,9 @@ def main():
                          "engine: build/ow-cpu.lbl or build/ow-reu.lbl)")
     ap.add_argument("--disk", metavar="D64",
                     help="attach a disk image as unit 8, for save and load")
+    ap.add_argument("--fastdisk", action="store_true",
+                    help="with --disk: no true drive emulation, VICE serves "
+                         "the KERNAL's LOAD from the image (-trapdevice8)")
     ap.add_argument("--peek", action="append", metavar="SYM|$ADDR[+OFF][:WIDTH]",
                     default=[], help="print a global by name")
     ap.add_argument("--shot", metavar="PNG",
@@ -637,7 +657,7 @@ def main():
     port = free_port()
     vice = launch(args.prg, port,
                   (args.rs232, args.baud) if args.rs232 else None,
-                  args.disk, args.vice)
+                  args.disk, args.vice, args.fastdisk)
     sock = None
     try:
         sock = connect(port)

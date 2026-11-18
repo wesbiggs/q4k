@@ -192,7 +192,7 @@ if [ -f dist/openworld.d81 ]; then
 
     # P: Alaric, hurt to 5, drinks the quick start's one draught (12 back,
     # its floor) and the second P finds none.
-    hp=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
+    hp=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl --poke party+2=5 --keys pp \
         --settle 4 --peek party+2 2>&1 >/dev/null \
         | sed -n 's/.*party+2 @ .* = \([0-9]*\) .*/\1/p') || true
@@ -207,7 +207,7 @@ if [ -f dist/openworld.d81 ]; then
     # name) goes to 15 and round past black to 1, and any other key goes
     # back to the engine, whose hero is drawn in it (sm_tunic). The j's are
     # padding while owtown loads (it empties the buffer as it starts).
-    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl \
         --keys 'ijjjjjjjjj\x11\x11j' --settle 15 \
         --peek '$CECA' --peek sm_tunic \
@@ -228,7 +228,7 @@ if [ -f dist/openworld.d81 ]; then
     # dice and the field's scatter: a change to either can need the keys
     # worked out again, with --shot.) The j's are padding (no key in the
     # engine or the fight), while owtown and the module load.
-    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl --poke enc_always=1 \
         --keys "ddjjjjjjjjjjjjjjjjjjjj      $(printf 'w%.0s' $(seq 20))" \
         --settle 30 --peek party+2 --peek party+88:2 --peek party+90:2 \
@@ -251,7 +251,7 @@ if [ -f dist/openworld.d81 ]; then
     # follows the game's turn and the level, so a change to the generator,
     # the walk or the dice can want the keys worked out again, with --shot.
     ow_enter=dddssssssssssssssssdsssssaasaaaaaaa
-    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl --poke still=1 \
         --poke enc_always=2 \
         --keys "${ow_enter}aaaaaaaa$(printf 'j%.0s' $(seq 20))     eeeeeezzzz$(printf 'j%.0s' $(seq 20))" \
@@ -272,7 +272,7 @@ if [ -f dist/openworld.d81 ]; then
     # from the levels' maps (dungeon_build() and the quick start's seed).
     ow_down=aaaaaaaaaaaaaaaaaaaazssssssssssaaaaaaaaaaaaaaaaaaaaaaaazssssssss
     ow_bump=dddddddewwwweeweddddddddddddddddxxxdddddewwwwwww
-    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl --poke still=1 --poke items=55 \
         --keys "${ow_enter}${ow_down}${ow_bump}$(printf 'j%.0s' $(seq 20))" \
         --stage 3 --peek '$02ED:3' \

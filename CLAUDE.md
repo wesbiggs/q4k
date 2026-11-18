@@ -1490,6 +1490,17 @@ old engines and a test fails with no output (`sail` did). And never
 `git stash` round a `make`: the objects built from the stashed tree are
 newer than the sources that come back, and stay.
 
+**`--fastdisk`** turns the drive emulation off and has VICE serve the
+KERNAL's LOAD from the image (`+drive8truedrive` and `-trapdevice8`, or
+`-virtualdev8` on a VICE before 3.9, which `trap_device8()` asks `x64sc
+-help` about). Most of the open world's goldens and its cases in
+`tools/test.sh` use it: a test that took 24 seconds takes 4, and all of
+the open world's goldens went from 142 seconds to 59, four at a time. Those
+whose point is the drive keep it: `openworld-talk` (a STOP during a LOAD),
+`openworld-load`, `openworld-party` (F1 through the bootstrap), the
+`openworld-save` case (a save and its scratch), and one overlay switch an
+engine, `openworld-dungeon-out` (ow-cpu) and `openworld-town-reu`.
+
 **The modem.** `tools/screendump.py --rs232 PORT` wires the user port to a TCP
 socket and drops warp mode. Without warp an emulated 1541 would take a minute
 for each engine, so with `--disk` it also turns the drive emulation off and
