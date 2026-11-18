@@ -178,7 +178,7 @@ def blocks():
          "Reserved for a bigger tune"],
         [0xFFFA, 0xFFFF, "cpuvec", "sys", "CPU vectors"],
     ]
-    od = B(owdata, "owdata", "data", "OW-DATA: tile sets, town maps, constants")
+    od = B(owdata, "owdata", "data", "OW-DATA: town maps, shared tables, constants")
 
     def engine(segs):
         core = span(segs, 0x0801, 0x3FFF, skip=("MAPCODE",))
@@ -203,7 +203,8 @@ def blocks():
               "HIGH code (from .hi)"),
             B(seg(segs, "HIDATA"), "local", "ebss", "local[]: the place's map"),
             od,
-            [0xA000, 0xAFFF, "shore", "ebss", "SHORE: edges of each square"],
+            [0xA000, 0xAFFF, "shore", "ebss",
+             "SHORE: edges of each square (a tile set's file, t.*, on the way in)"],
             [0xB000, 0xBFFF, "world", "ebss", "WORLD: the 64 by 64 window"],
             B(seg(segs, "ALIGNBSS"), "chcol", "ebss",
               "ow_chcol (page aligned)"),

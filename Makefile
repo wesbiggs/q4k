@@ -230,6 +230,17 @@ $(GEN_OW): assets/overworld.txt $(wildcard assets/*_tiles.txt) \
            tools/mkoverworld.py tools/figures.py
 	tools/mkoverworld.py
 
+# The open world's tile sets, a file each on its disk (t.overworld ...),
+# which the engine loads into SHORE on the way into an area.
+OWSETS := $(BUILD)/ow/sets/.stamp
+
+$(OWSETS): assets/overworld.txt $(wildcard assets/*_tiles.txt) \
+           assets/places_common.txt assets/tiles.txt assets/monsters.txt \
+           tools/mkoverworld.py tools/figures.py
+	@mkdir -p $(@D)
+	tools/mkoverworld.py --sets $(@D)
+	@touch $@
+
 # The multicolour arena's sprites (the ones linked into the fight), and
 # further down the files of its disk: the fields, drawn with the prototype's
 # tile sets, and each monster's sprites.
@@ -440,7 +451,7 @@ $(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py
 $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST)/owtown.prg \
 	    $(DIST)/owparty.prg \
 	    $(BUILD)/music/.stamp $(BUILD)/talk/.stamp $(DIST)/fight.prg \
-	    $(BUILD)/fight/disk/.stamp
+	    $(BUILD)/fight/disk/.stamp $(OWSETS)
 	$(C1541) -format "openworld,01" d81 $@ >/dev/null
 	$(C1541) -attach $@ -write $(DIST)/openworld.prg openworld \
 	    -write $(DIST)/splash-p.prg splash-p -write $(DIST)/splash-n.prg splash-n \
@@ -449,6 +460,7 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 	    $(foreach f,$(OWOVL),-write $(f) $(notdir $(f))) \
 	    -write $(DIST)/owtown.prg owtown -write $(DIST)/owparty.prg owparty \
 	    -write $(DIST)/fight.prg fight \
+	    $$(for f in $(BUILD)/ow/sets/t.*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/fight/disk/[fs].*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/music/m.*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/talk/[0-9]*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null

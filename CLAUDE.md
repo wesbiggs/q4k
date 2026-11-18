@@ -814,9 +814,19 @@ must outlast the bootstrap; it stands still while the lands are built, with
 interrupts off). Only a failed load prints anything.
 
 **What both engines read and neither changes** is one file, `ow-data`
-(10.7K at `$7400-$9FFF`: the tile sets, in `OWDATA`, the towns' maps and
-names, and every module's `RODATA`), which the bootstrap loads once, after the splash, and which is still
-there after `N`. ld65 writes it beside each engine (`COMMON` in the cfg,
+(3.9K from `$7400`: the tables every tile set shares, in `OWDATA`, the
+towns' maps and names, and every module's `RODATA`), which the bootstrap
+loads once, after the splash, and which is still there after `N`. **The
+tile sets are files of their own**, `t.overworld`, `t.town`, `t.castle`
+and `t.dungeon` (`tools/mkoverworld.py --sets`, 1.6K to 2.1K each), which
+the core's `tileset()` (`engine.c`, called by `build_area()` and the
+world's `back_home()`) loads into SHORE (`$A000`, their own address) and
+`sm_tileset()` unpacks: nothing reads a set after that, and every way into
+an area builds SHORE afresh afterwards (`show_area()`'s `sm_shores()`, or
+the REU's copy of the overworld's, which `back_home()` puts back after the
+set). A set already in is not loaded again (a dungeon's next level; only
+the overworld's set animates its characters, its water), and the music, if
+it was going, goes on after the load as after a save. ld65 writes it beside each engine (`COMMON` in the cfg,
 `%O.data`) and the Makefile fails if the two differ, so only bytes that are
 the same in both links can go there: data, not code (the engines' BSS
 differs). `local[]` (`HIDATA`, the game's font image) is at `$6C00` in an
@@ -825,15 +835,17 @@ screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
 that the engine's file does not carry 5K of empty screens to the disk. The overlays are 4.4K (world), 4.4K
 (town) and 4.5K (dungeon, its monsters' pictures at the end) of the slot's
-4.5K. Free, OW-CPU's (OW-REU has a little more), measured from the maps: 1
-byte in MAIN (the land and town generators' `MAPCODE` moved there from
+4.5K. Free, OW-CPU's (OW-REU has a little more), measured from the maps: 198
+bytes in MAIN (the engine no longer links cc65's `conio`: its one message is
+written to the text screen's top row, and the keyboard's buffer is emptied
+with a poke of `$C6`) (the land and town generators' `MAPCODE` moved there from
 HIGH), 8 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 19 in
 OWTOP (`$5280-$53FF`), 21 in HIGH (`$5400-$59FF`, where the text window's
 routines, stlow.s's helpers and the engine's words are), 35 beside the
 world's overlay (which has `wander()`, the overworld's encounter roll, out
 of the core), 24 beside the town's, 4 beside the dungeon's (its monsters' art is aligned to
 a block at the end, so a byte more of code than that costs 64), 23 in BSS,
-and COMMON 12. String
+and COMMON 7.2K. String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than
@@ -989,8 +1001,8 @@ generated town goes in, built the game's own way (`town_data.c`'s maps,
 tile set of its own: `assets/town_tiles.txt`, `castle_tiles.txt`,
 `dungeon_tiles.txt` (sharing `places_common.txt`'s furniture, drawn `on
 floor`: a `-` is the floor's pixel). `mkoverworld.py` turns every set into a
-blob in `ow_data.s` and `sm_tileset()` unpacks one into the engine's tables
-in BSS and the character set; a set says its palette and what lies off the
+blob, a file on the disk (`t.town` ..., above), and `sm_tileset()` unpacks
+one into the engine's tables in BSS and the character set; a set says its palette and what lies off the
 map (`offmap`). Walls are two and a half dimensions: a top, and a face in the
 lower half where floor is below, which is a drawn edge (`edges wall`, top
 and bottom quarters drawn apart, not mirrored upside down). People are

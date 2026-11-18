@@ -115,6 +115,15 @@ static char hi_file[]      = "ow-cpu.hi";
 #endif
 unsigned char ov_want, ov_have;
 
+/* The tile sets' files, the same in both engines (so in OW-DATA). Each
+   loads into SHORE ($A000), its own address, which every way into an area
+   builds afresh after sm_tileset() has read it (show_area()'s sm_shores(),
+   or the REU's copy of the overworld's). */
+const char ts_overworld[] = "t.overworld";
+const char ts_town[]      = "t.town";
+const char ts_castle[]    = "t.castle";
+const char ts_dungeon[]   = "t.dungeon";
+
 /* What the game's own modules here (the town and dungeon generators, the
    vault) read and write of game.c's, actor.c's and the land generator's:
    defined here instead, so that none is linked, nor the view, the sprite
@@ -709,20 +718,22 @@ static void __fastcall__ load_failed(const char *name, unsigned char up)
    started. The game's disk is needed: load_failed() says what the drive
    said, and it is tried again after a key.
    An overlay's ov_enter() may ask for the other in turn. */
+static void __fastcall__ fetch(const char *name)
+{
+    unsigned char s = disk_on();
+
+    while (!load3(name)) {
+        load_failed(name, 1);
+    }
+    VIC.bordercolor = COLOR_BLACK;
+    disk_off(s);
+}
+
 static void ov_switch(void)
 {
-    unsigned char s;
-    const char *name;
-
     while (ov_want != ov_have) {
-        s = disk_on();
-        name = ov_want == OV_TOWN ? town_file :
-               ov_want == OV_DUNGEON ? dungeon_file : world_file;
-        while (!load3(name)) {
-            load_failed(name, 1);
-        }
-        VIC.bordercolor = COLOR_BLACK;
-        disk_off(s);
+        fetch(ov_want == OV_TOWN ? town_file :
+              ov_want == OV_DUNGEON ? dungeon_file : world_file);
         ov_have = ov_want;
         ov_enter();
     }
@@ -738,15 +749,36 @@ void leave_area(void)
     next_frame();               /* the blank has reached the screen */
 }
 
+/* A tile set in (the screen is off): its file into SHORE, and unpacked
+   from there, unless it is the one in already (a dungeon's next level: no
+   set animates its characters but the overworld's). The music, if it was
+   going, goes on after the disk, as after a save. */
+static const char *set_have;
+
+void __fastcall__ tileset(const char *set)
+{
+    unsigned char n;
+
+    if (set != set_have) {
+        n = song_now;
+        fetch(set);
+        set_have = set;
+        sm_tileset(SHORE);
+        if (n != NONE) {
+            play_for(scene_now);
+        }
+    }
+}
+
 /* A place's map, from local[], into WORLD, with the people in it, in the
    tile set `set` (which says what is beyond the map's edge). */
-void build_area(const unsigned char *set, unsigned char w, unsigned char h)
+void build_area(const char *set, unsigned char w, unsigned char h)
 {
     unsigned char y;
 
     sm_npc_n = 0;               /* nobody, until the people are shown */
     sm_torus = 0;               /* a place has edges */
-    sm_tileset(set);
+    tileset(set);
     memset(WORLD, sm_offtile, 64 * 64);
     for (y = 0; y < h; ++y) {
         memcpy(WORLD + (unsigned int)y * 64, local + LOCAL_AT(0, y), w);
@@ -1012,7 +1044,10 @@ int main(void)
     sm_stack();                 /* (the screen is off: the loader's doing) */
 
     if (OW->magic != OW_MAGIC) {
-        cputs("\r\nLoad OPENWORLD: it builds the world.");
+        /* (on the text screen's top row, as load_failed() writes: below
+           it is stlow.s's code; PETSCII lower case as screen codes reads
+           as capitals) */
+        strcpy((char *)0x0400, "load openworld: it builds the world.");
         for (;;) {
         }
     }
@@ -1039,9 +1074,7 @@ int main(void)
     ov_switch();
     st_start();
 
-    while (kbhit()) {
-        cgetc();
-    }
+    POKE(0xC6, 0);              /* the keyboard's buffer emptied */
     publish();
     probe_stage(1);
 

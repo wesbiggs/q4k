@@ -23,6 +23,7 @@
 #include <q4k/owgame.h>
 
 #define WORLD   ((unsigned char *)0xB000)
+#define SHORE   ((unsigned char *)0xA000)
 #define BIAS    32              /* squares: smooth.s's 64 characters */
 #define NONE    0xFF
 
@@ -90,9 +91,10 @@ void ow_tune_pause(void);
 void ow_tune_stop(void);
 extern unsigned char ow_tune_on;
 
-/* The tile sets (src/lib/ow_data.s), and which tiles can be walked onto. */
-extern const unsigned char ts_overworld[], ts_town[], ts_castle[],
-                           ts_dungeon[];
+/* The tile sets' files (t.overworld ..., tools/mkoverworld.py --sets),
+   which tileset() loads into SHORE for sm_tileset(); and (src/lib/ow_data.s)
+   which tiles can be walked onto. */
+extern const char ts_overworld[], ts_town[], ts_castle[], ts_dungeon[];
 extern const unsigned char ow_pass[64];
 
 /* --- The core (engine.c) ------------------------------------------------ */
@@ -169,7 +171,8 @@ unsigned char __fastcall__ place_step(unsigned char d);
 unsigned char hero_frame(unsigned char d, unsigned char st);
 void place_camera(void);
 void leave_area(void);
-void build_area(const unsigned char *set, unsigned char w, unsigned char h);
+void __fastcall__ tileset(const char *set);
+void build_area(const char *set, unsigned char w, unsigned char h);
 void __fastcall__ show_area(unsigned char x, unsigned char y);
 
 /* The overlays: which one is wanted next, and which is in the slot. An

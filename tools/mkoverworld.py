@@ -4,8 +4,10 @@
 Each set is an asset file -- assets/overworld.txt (which has the format, and
 the hero's sprite), and the places' sets, assets/town_tiles.txt,
 castle_tiles.txt and dungeon_tiles.txt -- and comes out in src/lib/ow_data.s
-as one blob the engine (src/lib/smooth.s, sm_tileset) unpacks into its
-tables when you go somewhere that uses it: the multicolour character set, a
+as one blob, a file of its own on the disk (`--sets DIR` writes them:
+t.overworld, t.town, t.castle, t.dungeon), which the engine loads into SHORE
+($A000, the file's address) and unpacks (src/ow/smooth.s, sm_tileset) into
+its tables when you go somewhere that uses it: the multicolour character set, a
 colour for each character, the metatiles, their edges, and the water
 characters it animates. Identical characters (same pixels, same colour) are
 stored once in a set.
@@ -494,8 +496,36 @@ def write_figs(hero):
     open(OUT_FIGS, "w").write("\n".join(out))
 
 
+# Where a set's file loads: SHORE (src/ow/smooth.s), which every way into
+# an area builds afresh after sm_tileset() has read the set.
+SET_ADDR = 0xA000
+SET_ROOM = 0x1000
+
+
+def write_sets(sets, where):
+    """Each set as sm_tileset reads it, a PRG file at SET_ADDR: the three
+    shared colours, the numbers of characters (0 is 256), water pairs and
+    metatiles, what is off the map, the water pairs, each character's colour
+    RAM value, the metatiles of each tile code and of its variant, each tile
+    code's neighbour flags, edge selection and inversion, the metatiles'
+    characters a quarter at a time, their edges, and the characters."""
+    os.makedirs(where, exist_ok=True)
+    for name in SETS:
+        b = bytes(sets[name]["blob"])
+        if len(b) > SET_ROOM:
+            sys.exit("mkoverworld: %s: %d bytes, SHORE has %d"
+                     % (name, len(b), SET_ROOM))
+        with open(os.path.join(where, "t." + name), "wb") as f:
+            f.write(bytes([SET_ADDR & 255, SET_ADDR >> 8]) + b)
+        print("mkoverworld: t.%-9s %5d bytes (%s)"
+              % (name, len(b), ", ".join(sets[name]["names"])))
+
+
 def main():
     sets = {name: build(name) for name in SETS}
+    if len(sys.argv) == 3 and sys.argv[1] == "--sets":
+        write_sets(sets, sys.argv[2])
+        return
     # The engine's text window has the character set from FONT up for its
     # letters (src/ow/smooth.s), so a set must stay below it.
     for name in SETS:
@@ -527,7 +557,6 @@ def main():
     w("")
     w('        .export _ow_spr1, _ow_spr2, _ow_pass')
     w('        .export ow_rnd, ow_qvar, ow_sprites, ow_nsprites')
-    w('        .export ' + ", ".join("_ts_" + n for n in SETS))
     w("")
     w("; All of it is only read, and the same in both engines, so it goes in")
     w("; the file they share, OW-DATA (cfg/c64-openworld.cfg), whose load")
@@ -556,22 +585,7 @@ def main():
     for n in range(0, 256, 16):
         w("        .byte " + ",".join("$%02X" % b for b in hashes[n:n + 16]))
     w("")
-    w("; The tile sets, each as sm_tileset reads it: the three shared colours,")
-    w("; the numbers of characters (0 is 256), water pairs and metatiles, what")
-    w("; is off the map, the water pairs, each character's colour RAM value,")
-    w("; the metatiles of each tile code and of its variant, each tile code's")
-    w("; neighbour flags, edge selection and inversion, the metatiles'")
-    w("; characters a quarter at a time, their edges, and the characters.")
-    for name in SETS:
-        st = sets[name]
-        w("")
-        w("; %s: %d characters, %d metatiles (%s); %d bytes"
-          % (name, st["chars"], st["metatiles"], ", ".join(st["names"]),
-             len(st["blob"])))
-        w("_ts_%s:" % name)
-        b = st["blob"]
-        for n in range(0, len(b), 16):
-            w("        .byte " + ",".join("$%02X" % x for x in b[n:n + 16]))
+    w("; (The tile sets are files of their own: mkoverworld.py --sets.)")
     w("")
     w("; The sprites, 64 bytes a frame from block 64 (smooth.s's SPRITES): the")
     w("; hero as each class, two frames each (assets/monsters.txt, as the fight")
