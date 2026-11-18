@@ -405,8 +405,11 @@ text screen's (`src/lib/talkscr.c`'s `tsc_*`, named `ts_*` by
 from `assets/portraits/NAME-n.v2i` and `-p.v2i`, version 6 hires
 pictures at the top left, at most 24 by 16 cells, without their thumbnail
 and metadata) at `$8000` and show it with vic2orious's `v2i.inc` in VIC
-bank 1, then draw the name and what is said beside it, the topics below
-and the hint in row 24 with `v2t.inc` (`src/ow/picshow.s`,
+bank 1 (the library takes the bank as an option: 1 and 3 hold any
+picture, 2 only a small or simple one, since the VIC sees the character
+ROM at `$9000-$9FFF` there, where a picture's sprites would want to be;
+3 is the game block's, the vault's and the music's in the open world), then draw the name and what is said beside it,
+the topics below and the hint in row 24 with `v2t.inc` (`src/ow/picshow.s`,
 `assets/vic2/`, the font the character ROM's, `src/ow/vic2/font.inc`).
 Anyone else, or a portrait that will not load, gets the text screen. The
 picture's code is `PICCODE`, which the file brings into bank 1 and
