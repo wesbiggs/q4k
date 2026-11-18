@@ -19,10 +19,16 @@ env:
   VICE_VERSION: "3.10"
   CC65_VERSION: "2.19"
 
+# The suite is split in three (tools/test.sh's group_of()), each on a
+# machine of its own, and each third runs its cases several at a time.
 jobs:
   test:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [game, openworld, online]
 
     steps:
       - uses: actions/checkout@v5
@@ -90,4 +96,4 @@ jobs:
         run: make d64-online
 
       - name: Test
-        run: make test
+        run: make test TESTARGS="--group ${{ matrix.group }}"

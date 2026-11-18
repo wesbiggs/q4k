@@ -81,8 +81,11 @@ against a fresh headless run, and also runs `tools/checkmap.py`,
 square cut off from the landing) and the dialogue host's own tests. Save and
 load get a fresh disk each run.
 
-The `test` workflow (`.github/workflows/test.yml`) runs `make test` on every
-push to any branch, and that is the run to watch: the suite takes a while
+The cases run several at a time (`-j`), each printing its time when it
+ends; `tools/test.sh NAME...` runs only those (`--list` names them). The
+`test` workflow (`.github/workflows/test.yml`) runs `make test` on every
+push to any branch, split over three machines (`--group game`,
+`openworld`, `online`), and that is the run to watch: the suite takes a while
 locally and opens VICE windows on a desktop. `make check PROG=name` or
 `tools/screendump.py dist/name.prg --keys ...` is the quick way to look at
 one screen while working.
