@@ -473,7 +473,7 @@ and streaming, the continent kept, the ships), the town's (`town.c`,
 and the dungeon's (`dungeon.c`, `OVDCODE`: the levels and their stairs, with
 its own copy of the game's `dungeon_build()`, `build/ow/ow_dungeon.o`,
 linked ahead of the library so the library's `MAPCODE` copy is not) take
-turns in `SLOT` (`$5A00-$6BFF`), each a file of its own that ld65 writes
+turns in `SLOT` (`$5A00-$7FFF`, 9.5K, to the end of the VIC's bank), each a file of its own that ld65 writes
 beside the engine (`ow-cpu.world`, `.town`, `.dungeon`, and `ow-reu.*`,
 since each engine links its own). Stepping onto a town or a dungeon loads
 its overlay over the world's, and its way out loads the world's back
@@ -511,7 +511,8 @@ where they were left, and a fight's round trip through `owtown` too. Each
 is a sprite, 1 to 6, through the town's people's `sm_npc_*` (with
 `sm_npc_ox/oy`, pixels off the square, for the glide), one picture a kind
 (`tools/mkfields.py` writes `src/ow/foe_art.s` from `assets/monsters.txt`,
-`OVDART`, aligned at the slot's end: only one frame fits), however many
+`OVDART`, aligned to a block after the overlay's code, and asserted below
+`$8000`, where the VIC's bank ends: only one frame was given room), however many
 the fight brings. After each step of the hero's, each that sees them (no
 farther than the screen, 10 by 6, and nothing but floor on the line)
 comes for them at its speed in the arena (`Monster.speed`, tenths of a
@@ -826,26 +827,24 @@ an area builds SHORE afresh afterwards (`show_area()`'s `sm_shores()`, or
 the REU's copy of the overworld's, which `back_home()` puts back after the
 set). A set already in is not loaded again (a dungeon's next level; only
 the overworld's set animates its characters, its water), and the music, if
-it was going, goes on after the load as after a save. ld65 writes it beside each engine (`COMMON` in the cfg,
+it was going, goes on after the load as after a save. ld65 writes `ow-data` beside each engine (`COMMON` in the cfg,
 `%O.data`) and the Makefile fails if the two differ, so only bytes that are
 the same in both links can go there: data, not code (the engines' BSS
-differs). `local[]` (`HIDATA`, the game's font image) is at `$6C00` in an
-engine and in no file. An engine is 12.6K, MAIN only: what it has past the
+differs). `local[]` (`HIDATA`, the game's font image) is at `$8000` in an
+engine and in no file, and COMMON is `$8800-$9FFF`. An engine is 12.6K, MAIN only: what it has past the
 screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
 that the engine's file does not carry 5K of empty screens to the disk. The overlays are 4.4K (world), 4.4K
 (town) and 4.5K (dungeon, its monsters' pictures at the end) of the slot's
-4.5K. Free, OW-CPU's (OW-REU has a little more), measured from the maps: 198
-bytes in MAIN (the engine no longer links cc65's `conio`: its one message is
+9.5K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 198
+bytes in MAIN (the land and town generators' `MAPCODE` moved there from
+HIGH; the engine no longer links cc65's `conio`: its one message is
 written to the text screen's top row, and the keyboard's buffer is emptied
-with a poke of `$C6`) (the land and town generators' `MAPCODE` moved there from
-HIGH), 8 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 19 in
+with a poke of `$C6`), 8 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 19 in
 OWTOP (`$5280-$53FF`), 21 in HIGH (`$5400-$59FF`, where the text window's
-routines, stlow.s's helpers and the engine's words are), 35 beside the
+routines, stlow.s's helpers and the engine's words are), 5155 beside the
 world's overlay (which has `wander()`, the overworld's encounter roll, out
-of the core), 24 beside the town's, 4 beside the dungeon's (its monsters' art is aligned to
-a block at the end, so a byte more of code than that costs 64), 23 in BSS,
-and COMMON 7.2K. String
+of the core), 5144 beside the town's, 5120 beside the dungeon's, 23 in BSS, and COMMON 1.7K. String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than

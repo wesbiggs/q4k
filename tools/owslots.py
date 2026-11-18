@@ -85,7 +85,11 @@ def main():
         lo = segs[head][0]
         hi = max(segs[s][1] for s in body if s in segs)
         sizes.append("%s %d" % (p, hi - lo + 1))
-    print("owslots: slot at $%04X: %s" % (segs["OVWHEAD"][0], ", ".join(sizes)))
+    cfg = open(os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "cfg", "c64-openworld.cfg")).read()
+    m = re.search(r"SLOTW:.*size\s*=\s*\$([0-9A-Fa-f]+)", cfg)
+    print("owslots: slot at $%04X, %d bytes: %s" % (
+        segs["OVWHEAD"][0], int(m.group(1), 16), ", ".join(sizes)))
     return 0
 
 

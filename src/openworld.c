@@ -211,7 +211,7 @@ int main(void)
     OW->seed = lore_seed;
     OW->reu = ow_reu_detect();
     if (!again) {               /* else they are still there */
-        need("ow-data", 0);     /* to its own address, $7400 */
+        need("ow-data", 0);     /* to its own address, $8800 */
         /* The music a game starts with, to where the game keeps a tune:
            $E7C0, under the KERNAL. Not worth stopping for if it is not on
            the disk; an engine loads any other itself. */
