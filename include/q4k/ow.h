@@ -6,16 +6,17 @@
  * smooth.s), OW-CPU and OW-REU, and what the bootstrap loads for them. It
  * shows the splash screen (SPLASH-P or SPLASH-N, by the machine's video
  * system) until F1, a new game, or F3, a saved one (OW-SAVE, which the disk
- * comes with: nothing saves yet); then it looks for an REU, loads what both
- * engines read and neither changes (OW-DATA: the tile sets and the towns'
- * maps, at the top of the engines' memory, where their own files do not
- * reach) and the music a game starts with (a SID file, under the KERNAL as
+ * comes with: nothing saves yet); then it looks for an REU (and lays out
+ * its load cache: ow_cload() below), loads what both engines read and
+ * neither changes (OW-DATA: the tables the tile sets share and every
+ * module's constants, at the top of the engines' memory, where their own
+ * files do not reach) and the music a game starts with (a SID file, under the KERNAL as
  * the game has it), builds Keldmarch into the RAM under the I/O area (the
  * vault) and each continent once to see where its places and its landing
  * are, moors the ships, writes what it found here and loads the engine that
  * suits the machine, which takes everything from here. So neither engine
  * carries the tiles, and each carries only its own way of scrolling. (Both
- * carry the land generator: there is room under the KERNAL for one
+ * carry the land generator, in the world's overlay: there is room under the KERNAL for one
  * continent beside the music, so an engine builds the one the hero is
  * nearest as they go: src/lib/ow_gen.s.)
  *
@@ -105,6 +106,17 @@ typedef struct {
    return; the border flashes if the load fails. */
 void __fastcall__ ow_run(const char *name);
 
+/* Load a file from unit 8 as cbm_load(name, 8, at) does (at 0: to its own
+   address), through the REU cache when there is one (src/lib/ow_cache.s):
+   the first time from the disk and stashed, after that fetched. The end
+   address, or 0 and _oserror. Never for OW-SAVE, which changes. */
+unsigned int __fastcall__ ow_cload(const char *name, void *at);
+extern unsigned int cache_hits, cache_misses;
+
+/* The bootstrap's: the REU's directory for the cache kept if it is this
+   build's, or laid out anew (src/lib/ow_cinit.s). */
+void ow_cinit(void);
+
 /* From another program of the open world's back to the engine, which
    carries on from the game block (src/lib/ow_back.c). Does not return. */
 void ow_back(void);
@@ -136,6 +148,13 @@ unsigned char ow_reu_detect(void);
    written there is taken as pressed: tools/screendump.py --splash. */
 #define OW_HOOK_OFF  62
 #define OW_HOOK_WAIT 0xA5
+
+/* And the tests' way to have OW-CPU with an REU (screendump.py
+   --cpu-engine, written while the splash waits): the REU taken for one
+   whose transfers do not reach colour RAM (OW_REU_BLIND), which still
+   caches. Cleared by a cold start of the bootstrap. Past OWB. */
+#define OW_TESTCPU    (*(unsigned char *)0x02F1)
+#define OW_TESTCPU_ON 0xC7
 
 unsigned char ow_video(void);
 /* Show the picture at OW_SPLASH_AT until F1 or F3: OW_KEY_F1, OW_KEY_F3, or

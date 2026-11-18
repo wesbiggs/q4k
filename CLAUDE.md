@@ -418,7 +418,8 @@ leaves it paused for the screen after and the engine.
 **The screens of text are a program loaded from disk, not a part of the
 engine**: `owtown` (`src/owtown.c`, linked with `cfg/c64-owtown.cfg`, the
 flat layout with the shop's code below the charset, where it would be 6K
-of padding in the file). The hand-off block (`OWB` in `include/q4k/ow.h`,
+of padding in the file; the talk's code is above it, in HIGH, since no
+talk follows a fight, and MAIN wanted the room for the REU cache's loader). The hand-off block (`OWB` in `include/q4k/ow.h`,
 at `$02ED`) says what for: `OWB_TALK` a conversation, `OWB_SHOP` and
 `OWB_INN` the game's own `shop.c` and `inn.c` (walking into a keeper, as a
 townsperson), `OWB_PARTY` the party screen (`I`: `shop.c`'s rows, one
@@ -551,6 +552,52 @@ which covers `$CF14`. The sprite lives at `$0380`, the only place in bank 0
 no program's code is. The interrupt stops itself after about thirty seconds,
 so a soft reset during a load cannot leave it blinking at READY. The talk
 program's BSS2 starts at `$CF14` too, but nothing there writes it.
+
+**The REU load cache** (`src/lib/ow_cache.s`, `ow_cload()` in
+`include/q4k/ow.h`): with an REU, a file the open world loads comes from the
+disk the first time, is stashed in the REU at once (before anything runs in
+it or writes to it), and is fetched by DMA every time after: `owtown` in
+about 33 ms. Every load but `OW-SAVE`'s and the splash pictures' goes
+through it: `ow_run()` (the engines, `owtown`, `owparty`), `ow_back()`'s
+`ow-data`, the engine's `load3()` (the overlays, the `.hi` files, the tile
+sets, a tune), `ow_fight.c` (the module, the tunes, and the field and the
+sprites, which it loads itself before calling the module and says so with
+an empty sprite name: the module links no cache, or its BSS would reach
+`owtown`'s at `$B000`), and the bootstrap's `ow-data` and tune. Where things
+are is the build's decision: `tools/mkowcache.py` knows every cacheable
+file's name, address and length (`OWCACHE_FILES` in the Makefile, the most
+used first), and writes the bootstrap's table (`build/ow/owcdir.s`) and the
+build's stamp, a hash of them all. In the REU, bank 1 (bank 0 is the
+scrolling's): a directory of 256 entries of 8 bytes at 8 times a hash of the
+name (the file's room, its length, its address, and a check byte from the
+name, bit 0 set once it is there), the magic and the stamp at `$0800`, the
+rooms from `$0900`. The hash's salt is `include/q4k/owcache.inc`'s, and
+`mkowcache.py` fails the build if two names share an entry (`mkowcache.py
+salt NAMES` lists the salts that work: 1 is chosen with the bootstrap,
+the splash pictures and `ow-save` counted in too). The bootstrap lays the
+directory out (`ow_cinit.s`) unless the REU already has this build's stamp
+(N and F3, and a preloaded image, keep it): the REU's size from a byte
+written to the top of each bank, highest first, read back up until a bank
+does not hold its own number; the directory cleared (a stash with the
+C64's address fixed); each file an entry and a room while they fit; the
+magic last. A load looks only at the magic (with no REU nothing comes back,
+so it is never there) and the entry's check; a name the build does not know
+loads as it always did. **A miss is one load and one stash**, then a stash
+of the entry's last byte: the KERNAL forgets a file's own start address
+during a LOAD (`$AE/$AF` are overwritten from the file's first two bytes),
+which is why the start comes from the table. A stash runs with `$01 = $35`
+(a tune at `$E7C0` is under the KERNAL) and the NMI's vector, read from RAM
+then, on an RTI; every transfer has interrupts off from its setting up to
+its end, since the engine's raster interrupt uses the REU too. The cache's
+scratch is segment `OWCBSS` (in every cfg; in an engine past `OW-DATA`'s
+last byte, since BSS is full). `ow_run.s` looks a program up in `_ow_run`,
+while the caller is still there, and its stub only fetches (`cpre`) or loads
+and stashes and marks (`cpost`); that half, with the name, is copied to
+`$0100-$017F`, the bottom of the stack page, since the tape buffer was full.
+`cache_hits`/`cache_misses` count an engine's (and every program's) for
+`--peek`. Tested: every `-reu` golden; the tune stashed from under the
+KERNAL fetched back byte for byte; and `openworld-cache` in
+`tools/test.sh` (below).
 
 ## Treasure maps
 
@@ -824,7 +871,7 @@ must outlast the bootstrap; it stands still while the lands are built, with
 interrupts off). Only a failed load prints anything.
 
 **What both engines read and neither changes** is one file, `ow-data`
-(3.9K from `$7400`: the tables every tile set shares, in `OWDATA`, the
+(2.8K from `$8800`: the tables every tile set shares, in `OWDATA`, the
 towns' maps and names, and every module's `RODATA`), which the bootstrap
 loads once, after the splash, and which is still there after `N`. **The
 tile sets are files of their own**, `t.overworld`, `t.town`, `t.castle`
@@ -845,15 +892,15 @@ screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
 that the engine's file does not carry 5K of empty screens to the disk. The overlays are 5.9K (world), 6.4K
 (town) and 4.5K (dungeon, its monsters' pictures at the end) of the slot's
-9.5K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 2428
-bytes in MAIN (the generators went to their overlays; the engine no longer
-links cc65's `conio`: its one message is
+9.5K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 1912
+bytes in MAIN (the generators went to their overlays, and the REU cache's
+loader came in; the engine no longer links cc65's `conio`: its one message is
 written to the text screen's top row, and the keyboard's buffer is emptied
 with a poke of `$C6`), 8 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 19 in
 OWTOP (`$5280-$53FF`), 105 in HIGH (`$5400-$59FF`, where the text window's
 routines, stlow.s's helpers and the engine's words are), 3669 beside the
 world's overlay (which has `wander()`, the overworld's encounter roll, out
-of the core), 3210 beside the town's, 5120 beside the dungeon's, 23 in BSS, and 3.3K in COMMON (`$8800-$9FFF`). String
+of the core), 3210 beside the town's, 5120 beside the dungeon's, 18 in BSS, and 3.3K in COMMON (`$8800-$9FFF`, less the cache's 28 bytes of scratch). String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than
@@ -1523,6 +1570,23 @@ whose point is the drive keep it: `openworld-talk` (a STOP during a LOAD),
 `openworld-load`, `openworld-party` (F1 through the bootstrap), the
 `openworld-save` case (a save and its scratch), and one overlay switch an
 engine, `openworld-dungeon-out` (ow-cpu) and `openworld-town-reu`.
+
+**`--reucache`** attaches a 512K REU that starts with the load cache full:
+`build/owcache.reu`, which `make` writes (`mkowcache.py image`, laid out as
+`ow_cinit.s` and the loader would leave it, with this build's stamp, so the
+bootstrap keeps it), with `+reuimagerw`, so nothing is written back.
+**`--cpu-engine`** (with `--splash` and an REU) has the bootstrap take the
+REU for one whose transfers do not reach colour RAM (`OW_REU_BLIND`: the
+byte at `$02F1`, `OW_TESTCPU`, which the harness writes while the splash
+waits), so `ow-cpu` runs, caching. `openworld-reu` and `openworld8-reu` use
+the full cache; `openworld-ale`, `-colour` and `-garrett` run `ow-cpu` with
+it; `openworld-dungeon-reu` and `openworld-town-reu` start empty, for the
+misses, and the rest have no REU, for the plain loads. `openworld-cache` in
+`tools/test.sh` goes into Millford and out with an empty cache (hits on the
+way out, `openworld-out`'s screen) and with `--reucache --cpu-engine` (no
+misses). All the open world's goldens: 142 seconds before `--fastdisk`, 59
+after, 51 with the cache; what is left is mostly the bootstrap (the splash
+and building the lands) and the five that keep the drive.
 
 **The modem.** `tools/screendump.py --rs232 PORT` wires the user port to a TCP
 socket and drops warp mode. Without warp an emulated 1541 would take a minute

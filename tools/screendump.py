@@ -366,12 +366,17 @@ def wait_for_stage(mon, stage, timeout=60.0):
 SPLASH_HOOK = 0x02A7 + 62
 SPLASH_WAIT = 0xA5
 SPLASH_KEYS = {"f1": 0x85, "f3": 0x86, "quick": 0x87}
+# Written with the key: the bootstrap takes the REU for one that cannot
+# scroll, and runs OW-CPU with its cache (OW_TESTCPU, q4k/ow.h).
+TESTCPU, TESTCPU_ON = 0x02F1, 0xC7
 
 
-def press_splash(mon, key, timeout=60.0):
+def press_splash(mon, key, timeout=60.0, cpu_engine=False):
     deadline = time.time() + timeout
     while time.time() < deadline:
         if mon.mem_get(SPLASH_HOOK, SPLASH_HOOK)[0] == SPLASH_WAIT:
+            if cpu_engine:
+                mon.mem_set(TESTCPU, bytes([TESTCPU_ON]))
             mon.mem_set(SPLASH_HOOK, bytes([SPLASH_KEYS[key]]))
             mon.resume()
             return
@@ -618,6 +623,13 @@ def main():
                     help="press this key at the smooth-scrolling "
                          "prototype's splash screen (f1 a new game, f3 the "
                          "saved one), before anything else")
+    ap.add_argument("--reucache", action="store_true",
+                    help="a 512K REU that starts with the open world's load "
+                         "cache full (build/owcache.reu, tools/mkowcache.py), "
+                         "never written back")
+    ap.add_argument("--cpu-engine", action="store_true",
+                    help="with --splash and an REU: the open world runs "
+                         "OW-CPU, with the REU for its load cache only")
     ap.add_argument("--poke", action="append", metavar="SYM=VALUE",
                     default=[],
                     help="set a global by name once the program is running")
@@ -654,6 +666,11 @@ def main():
         # So a shell can pass "look\r" without needing $'...' quoting.
         args.keys = args.keys.encode("latin-1", "replace").decode("unicode_escape")
 
+    if args.reucache:
+        args.vice += ["-reu", "-reusize", "512", "-reuimage",
+                      os.path.join(os.path.dirname(os.path.dirname(
+                          os.path.abspath(__file__))), "build", "owcache.reu"),
+                      "+reuimagerw"]
     port = free_port()
     vice = launch(args.prg, port,
                   (args.rs232, args.baud) if args.rs232 else None,
@@ -664,7 +681,7 @@ def main():
         mon = Monitor(sock)
         mon.resume()   # connecting drops VICE into the monitor; let it boot
         if args.splash:
-            press_splash(mon, args.splash, args.timeout)
+            press_splash(mon, args.splash, args.timeout, args.cpu_engine)
         stage = wait_for_stage(mon, args.ready, args.timeout)
         if args.poke:
             apply_pokes(mon, load_symbols(args.prg, args.lbl), args.poke)

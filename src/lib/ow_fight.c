@@ -211,7 +211,7 @@ static void fight_music(unsigned char boss)
     if (file != OW->tune) {
         OW->tune = OW_NO_TUNE;
         OWB->song = 0;              /* (nothing to carry on with) */
-        if (cbm_load(tune_name[file], 8, 0)) {
+        if (ow_cload(tune_name[file], 0)) {
             OW->tune = file;
         }
     }
@@ -262,7 +262,7 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
 
     /* From here the module is over everything above $4000. */
     clrscr();
-    while (!cbm_load(FIGHT_FILE, 8, 0)) {
+    while (!ow_cload(FIGHT_FILE, 0)) {
         cputsxy(1, 12, "Put the disk back and press a key.");
         cgetc();
     }
@@ -289,6 +289,13 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
     f->seed   = rand();
     strcpy(f->field, field_of(ground));
     strcpy(f->sprite, sprite_of(foe.glyph));
+    /* The field and the sprites through the REU cache (ow_cache.s), which
+       the module does not link: an empty sprite name tells it they are in. */
+    while (!ow_cload(f->field, 0) || !ow_cload(f->sprite, 0)) {
+        cputsxy(1, 12, "Put the disk back and press a key.");
+        cgetc();
+    }
+    f->sprite[0] = 0;
     f->song   = song;
     f->carry  = carry;
     f->quiet  = G->quiet;

@@ -153,7 +153,7 @@ endif
 # only: the online build's open world is the same).
 MEMMAP := $(if $(filter 1,$(ONLINE)),,docs/memmap.html)
 
-all: dirs assets $(PRGS) $(DIST)/openworld.d81 $(DIST)/owarena.d64 \
+all: dirs assets $(PRGS) $(DIST)/openworld.d81 $(BUILD)/owcache.reu $(DIST)/owarena.d64 \
      $(DIST)/theme.sid $(BUILD)/music/.stamp $(MEMMAP)
 
 # Assembly cannot see tiles.h; it has its own generated copy of the codes.
@@ -487,6 +487,39 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 
 -include $(foreach p,$(OWPARTS),$(BUILD)/ow/$(p)-cpu.d $(BUILD)/ow/$(p)-reu.d)
 -include $(BUILD)/ow/ow_town_gen.d $(BUILD)/ow/ow_town_data.d
+
+# The REU load cache (src/lib/ow_cache.s): every file the open world loads
+# through it, in the order they get rooms in the REU (the most used first).
+# tools/mkowcache.py makes the bootstrap's table of them (where each is in
+# the REU's directory, where it loads, how long it is) and this build's
+# stamp, and fails if two names share an entry; and the image of an REU
+# with all of them in it, for the tests (screendump.py --reucache).
+OWCACHE_FILES := $(DIST)/ow-data.prg=ow-data \
+    $(DIST)/ow-cpu.prg=ow-cpu $(DIST)/ow-reu.prg=ow-reu \
+    $(foreach e,cpu reu,$(foreach o,hi world town dungeon,$(DIST)/ow-$(e).$(o)=ow-$(e).$(o))) \
+    $(DIST)/owtown.prg=owtown --glob '$(BUILD)/ow/sets/t.*' \
+    $(DIST)/fight.prg=fight --glob '$(BUILD)/music/m.*' \
+    --glob '$(BUILD)/fight/disk/[fs].*' $(DIST)/owparty.prg=owparty
+OWCACHE_DEPS := $(DIST)/ow-data.prg $(OWENG) $(OWOVL) $(DIST)/owtown.prg \
+    $(DIST)/fight.prg $(DIST)/owparty.prg $(OWSETS) $(BUILD)/music/.stamp \
+    $(BUILD)/fight/disk/.stamp tools/mkowcache.py include/q4k/owcache.inc
+
+$(BUILD)/ow/owcdir.s: $(OWCACHE_DEPS)
+	@mkdir -p $(@D)
+	tools/mkowcache.py dir $@ $(OWCACHE_FILES)
+
+$(BUILD)/ow/owcdir.o: $(BUILD)/ow/owcdir.s
+	$(CL65) $(ASFLAGS) -c -o $@ $<
+
+$(BUILD)/owcache.reu: $(OWCACHE_DEPS)
+	tools/mkowcache.py image $@ 512 $(OWCACHE_FILES)
+
+# The bootstrap, with the cache's table.
+$(DIST)/openworld.prg: $(BUILD)/openworld.o $(BUILD)/ow/owcdir.o $(LIB) $(wildcard cfg/*.cfg)
+	@mkdir -p $(DIST)
+	$(CL65) $(LDFLAGS) -C cfg/c64-owboot.cfg -m $(BUILD)/openworld.map \
+	    -Wl -Ln,$(BUILD)/openworld.lbl -o $@ $< $(BUILD)/ow/owcdir.o $(LIB)
+	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
 # The multicolour arena (src/owarena.c) and the fight it calls: a module
 # linked on its own (src/fight/, cfg/c64-fight.cfg, include/q4k/fight.h),

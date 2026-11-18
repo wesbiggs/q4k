@@ -409,7 +409,7 @@ static unsigned char __fastcall__ load3(const char *name)
 
     _oserror = 0;
     for (i = 0; i < 3; ++i) {
-        if (cbm_load(name, 8, 0)) {
+        if (ow_cload(name, 0)) {
             return 1;
         }
     }

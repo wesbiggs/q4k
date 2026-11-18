@@ -285,6 +285,36 @@ if [ -f dist/openworld.d81 ]; then
     fi
 fi
 
+# The REU load cache (src/lib/ow_cache.s): into Millford and out with an
+# REU that starts empty, so the world's overlay and its tile set come back
+# from the REU (cache_hits), on the screen openworld-out has; then OW-CPU
+# with an REU (--cpu-engine) that starts full (--reucache, the image make
+# writes), which loads nothing from the disk at all (cache_misses 0).
+if [ -f dist/openworld.d81 ] && [ -f build/owcache.reu ]; then
+    log=$(mktemp "${TMPDIR:-/tmp}/q4kcache.XXXXXX")
+    peek() { sed -n "s/.*$1+0 @ .* = \([0-9]*\) .*/\1/p" "$log"; }
+    set -- $(cat tests/golden/openworld-out.cmd)
+    cold=$(tools/screendump.py "${@/ow-cpu.lbl/ow-reu.lbl}" \
+               --vice=-reu --vice=-reusize --vice=512 --peek cache_hits:2 \
+               2>"$log" | diff -q tests/golden/openworld-out.txt - >/dev/null \
+           && echo same)
+    hits=$(peek cache_hits)
+    full=$(tools/screendump.py "$@" --reucache --cpu-engine \
+               --peek cache_hits:2 --peek cache_misses:2 \
+               2>"$log" | diff -q tests/golden/openworld-out.txt - >/dev/null \
+           && echo same)
+    fhits=$(peek cache_hits)
+    fmiss=$(peek cache_misses)
+    rm -f "$log"
+    if [ "$cold" = same ] && [ "${hits:-0}" -gt 0 ] && [ "$full" = same ] \
+            && [ "${fhits:-0}" -gt 0 ] && [ "$fmiss" = 0 ]; then
+        echo "PASS  openworld-cache"
+    else
+        echo "FAIL  openworld-cache (empty: ${cold:-another screen}, ${hits:-?} hits; full: ${full:-another screen}, ${fhits:-?} hits, ${fmiss:-?} misses)"
+        fail=1
+    fi
+fi
+
 # Home is made from the game's seed, so the tests that go somewhere on it walk
 # there, with keys worked out from the model of the generator.
 SEED=0x5a
