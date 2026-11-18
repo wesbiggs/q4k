@@ -293,12 +293,13 @@ fi
 if [ -f dist/openworld.d81 ] && [ -f build/owcache.reu ]; then
     log=$(mktemp "${TMPDIR:-/tmp}/q4kcache.XXXXXX")
     peek() { sed -n "s/.*$1+0 @ .* = \([0-9]*\) .*/\1/p" "$log"; }
-    set -- $(cat tests/golden/openworld-out.cmd)
-    cold=$(tools/screendump.py "${@/ow-cpu.lbl/ow-reu.lbl}" \
+    set -- $(sed 's/ow-cpu\.lbl/ow-reu.lbl/' tests/golden/openworld-out.cmd)
+    cold=$(tools/screendump.py "$@" \
                --vice=-reu --vice=-reusize --vice=512 --peek cache_hits:2 \
                2>"$log" | diff -q tests/golden/openworld-out.txt - >/dev/null \
            && echo same)
     hits=$(peek cache_hits)
+    set -- $(cat tests/golden/openworld-out.cmd)
     full=$(tools/screendump.py "$@" --reucache --cpu-engine \
                --peek cache_hits:2 --peek cache_misses:2 \
                2>"$log" | diff -q tests/golden/openworld-out.txt - >/dev/null \
