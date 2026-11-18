@@ -6,7 +6,7 @@
  * bootstrap, the engines, the party's making, the talk ...: q4k/ow.h), so
  * the game itself -- the party, the purse, the story and where everyone
  * is -- lives in one block at a fixed address that every one of them leaves
- * alone: $CE40-$CEFF, between the engines' BSS and the probe page (every
+ * alone: $CE3F-$CEFF, between the engines' BSS and the probe page (every
  * cfg of the open world's keeps it out of BSS, and ld65 does not clear it).
  * A program that keeps the game's own variables (actor.c's, game.c's)
  * copies them in from here when it starts and back before it goes
@@ -22,7 +22,7 @@
 #include <q4k/actor.h>
 #include <q4k/game.h>
 
-#define OWG_ADDR  0xCE40
+#define OWG_ADDR  0xCE3F
 #define OWG_MAGIC 0x47          /* a game is made: the party, the rest */
 #define OWG_SHIPS 8
 #define OWG_FOES  6           /* monsters a dungeon level */
@@ -36,7 +36,9 @@
 #define OWG_GATE     0xFF
 
 #define OWG_CALM     4          /* quiet: no wandering monsters (the tests'
-                                   quick start and the disk's save) */       /* x: at the town's own gate, not a square */
+                                   quick start and the disk's save) */
+#define OWG_HIDE     8          /* quiet: SPACE hid the party's status
+                                   under the map (src/ow/status.c) */       /* x: at the town's own gate, not a square */
 
 typedef struct {
     Actor         party[MAX_PARTY];     /* first: the engines' cfg names it */
@@ -77,7 +79,14 @@ typedef struct {
     unsigned char foe_made;
     unsigned char foe_a[MAX_DEEP * OWG_FOES];
     unsigned char foe_b[MAX_DEEP * OWG_FOES];
+    /* The dungeon's monster the party last fled from, and how many of it
+       were still standing: 1 + its index in foe_a/foe_b (OWG_FLED_WHO), and
+       the count in the top three bits; 0 for none. Its next fight is with
+       those, not a fresh roll; cleared on the way in from the world. */
+    unsigned char fled;
 } OwGame;
+
+#define OWG_FLED_WHO 31
 
 #define OWG_FOE_KIND(a, b)  (((a) >> 6) | (((b) >> 5) << 2))
 #define OWG_NATIVE 16           /* a kind past this is natives[kind - 16] */
@@ -87,7 +96,7 @@ typedef struct {
 
 /* Its size, which tools/mkowsave.py writes too: the engine checks that the
    two agree, and that it fits under the probe page. */
-#define OWG_SIZE 192
+#define OWG_SIZE 193
 
 /* The game's own variables from the block, and back. */
 void owg_in(void);

@@ -422,7 +422,7 @@ static const char scratch_save[] = {
     0
 };
 
-static void save_game(void)
+void save_game(void)
 {
     unsigned char s, i, ok, st[2];
 
@@ -572,7 +572,7 @@ void __fastcall__ refuse(const char *why)
 }
 
 /* A question, Y or N (RUN/STOP is no), waited for with the music playing. */
-static unsigned char __fastcall__ yes(const char *q)
+unsigned char __fastcall__ yes(const char *q)
 {
     unsigned char k;
 
@@ -663,25 +663,24 @@ static void quaff(void)
    (OWB_LOAD, F3), or the next seed's (N), with the party in it. The game
    block first, which is what goes on if there is no save. */
 #pragma code-name (push, "OWTOP")  /* (MAIN is full) */
-static void rebuild(unsigned char mode)
+void __fastcall__ rebuild(unsigned char mode)
 {
-    owg_where();
-    ow_tune_stop();
-    OWB->song = 0;
-    sm_quit();
+    ow_tune_stop();             /* (so nothing to carry on: OWB->song 0) */
     OWB->mode = mode;
     OW->seed = seed + 1;
-    ow_run("openworld");
+    ow_leave(s_boot);           /* (which clears the screen it would show:
+                                   status.c's code is in it) */
 }
 #pragma code-name (pop)
 
 /* A file that would not load: its name and what the drive says, on the
-   KERNAL's text screen (row 12), until a key; then it is tried again.
+   KERNAL's text screen (its top row: below it is status.c's code, which
+   the engine's file loads there), until a key; then it is tried again.
    `up` is whether the engine's screen is going, to be put back after.
    (On VICE every load works; this is for a drive that says no.) */
 static void __fastcall__ load_failed(const char *name, unsigned char up)
 {
-    unsigned char *row = (unsigned char *)0x0400 + 40 * 12;
+    unsigned char *row = (unsigned char *)0x0400;
 
     sm_quit();
     memset(row, ' ', 40);
@@ -695,7 +694,7 @@ static void __fastcall__ load_failed(const char *name, unsigned char up)
         cbm_read(15, row, 24);
         cbm_close(15);
     }
-    memset((void *)(0xD800 + 40 * 12), COLOR_WHITE, 40);
+    memset((void *)0xD800, COLOR_WHITE, 40);
     VIC.bordercolor = COLOR_RED;
     while (!cbm_k_getin()) {
     }
@@ -813,7 +812,10 @@ static unsigned char typed(void)
         quaff();
         break;
     case 'l':                   /* look (the overlay's) */
-        ov_look();
+        st_look();
+        break;
+    case ' ':                   /* the party's status, hidden or shown */
+        st_toggle();
         break;
     case 'i':                   /* the party's screen (owtown) */
         screen(OWB_PARTY);      /* (neither returns) */
@@ -822,11 +824,12 @@ static unsigned char typed(void)
     case 0x03:                  /* RUN/STOP: quit */
         quit();
         break;
-    case 0x85:                  /* F1: save */
-        save_game();
+    case 0x85:                  /* F1: save, Y or N */
+        st_save();
         break;
-    case 0x86:                  /* F3: the saved game */
-        rebuild(OWB_LOAD);
+    case 0x86:                  /* F3: the saved game, Y or N */
+        st_load();
+        break;
     case 'n':                   /* the next world */
         rebuild(OWB_NONE);
     }
@@ -980,7 +983,8 @@ void owg_where(void)
         G->x  = hx - BIAS;
         G->y  = hy - BIAS;
     }
-    G->quiet = (G->quiet & OWG_CALM) | !music | (sfx_on() ? 0 : 2);
+    G->quiet = (G->quiet & (OWG_CALM | OWG_HIDE)) | !music
+             | (sfx_on() ? 0 : 2);
 }
 
 void __fastcall__ ow_leave(const char *name)
@@ -1032,6 +1036,7 @@ int main(void)
     sm_blank(1);
     sm_show();
     ov_switch();
+    st_start();
 
     while (kbhit()) {
         cgetc();
@@ -1113,6 +1118,7 @@ int main(void)
                 }
                 ++steps;
                 ov_arrived();   /* (the overworld's step is the world's) */
+                st_arrived();   /* a chest underfoot is opened */
                 ov_switch();    /* into a town or a dungeon, or out */
                 publish();
             }
@@ -1124,6 +1130,7 @@ int main(void)
                the bob moves, and when it is taken is the harness's. */
             sm_sprite(hero_frame(dir, stride ^= 1));
             sm_animate();
+            st_bob();           /* and the keeper with them */
         }
 
         if (!moving && !flipped) {
@@ -1139,6 +1146,7 @@ int main(void)
             if (d != NONE) {
                 sm_sprite(hero_frame(d, stride));
                 if (ov_can_step(d)) {
+                    st_step();  /* the status over what was said */
                     dir = d;
                     moving = 1;
                     moved = 0;

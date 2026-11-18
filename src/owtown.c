@@ -313,11 +313,11 @@ static void help(void)
     cputsxy(3, 10, "I  The party, what they carry");
     cputsxy(3, 11, "F1 Save          F3 Restore");
     cputsxy(3, 12, "M  Music   SHIFT+M  Effects");
-    cputsxy(3, 13, "?  This screen");
+    cputsxy(3, 13, "?  This screen    SPACE  Party lines");
     cputsxy(3, 14, "RUN/STOP  Quit to the title");
     cputsxy(3, 16, "Each in turn: walk into foe to strike");
-    cputsxy(3, 17, "^+dir shoots a bow, * casts a spell");
-    cputsxy(3, 18, "SPACE guards; flee by a side gap");
+    cputsxy(3, 17, "^+dir shoots; * (a wizard's ^) casts");
+    cputsxy(3, 18, "SPACE guards; all flee by a side gap");
     textcolor(COLOR_LIGHTGREEN);
     cputsxy(1, 21, quest_task[stage][0]);
     cputsxy(1, 22, quest_task[stage][1]);

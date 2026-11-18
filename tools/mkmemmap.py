@@ -186,6 +186,8 @@ def blocks():
             [0x0334, 0x03FF, "estack", "ebss",
              "C stack (sm_stack), over the loader and the icon, idle while "
              "the engine runs"],
+            B(seg(segs, "OWLO"), "owlo", "engine",
+              "OWLO: status.c and stlow.s, in the KERNAL's text screen"),
             B(core, "ecore", "engine",
               "Engine core: main loop, scrolling, music"),
             B(seg(segs, "MAPCODE"), "egen", "engine",

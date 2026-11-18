@@ -62,7 +62,8 @@ extern unsigned char sm_sh_x0, sm_sh_y0, sm_sh_x1, sm_sh_y1;
 extern unsigned char sm_box_c0, sm_box_c1, sm_box_r0, sm_box_r1;
 extern unsigned char sm_torus;
 /* The text window: two lines under the map (smooth.s). sm_say() moves the
-   bottom one up and writes s (PETSCII, up to 40) under it in sm_ink (0-7);
+   bottom one up and writes s (PETSCII, up to 40) under it in sm_ink (0-7),
+   taking the window from the party's status (status.c) until the next step;
    sm_guard() waits while the split that makes the window is near, for
    whatever is about to keep interrupts off for long. */
 void __fastcall__ sm_say(const char *s);
@@ -189,5 +190,19 @@ void __fastcall__ ov_bump(unsigned char d);  /* a step that could not be */
 void ov_after(void);            /* the frame after a step (after != 0) */
 void ov_idle(void);             /* what is left of a frame (every frame) */
 void ov_look(void);             /* L: what is on the hero's square */
+
+/* --- status.c, in OWLO (the engine's file, below $0801) ------------------ */
+
+void st_show(void);             /* the party under the map, unless hidden */
+void st_start(void);            /* the screen is the engine's: a greeting,
+                                   or the status */
+void st_step(void);             /* a step begins: the status back */
+void st_toggle(void);           /* SPACE */
+void st_save(void);             /* F1, asked first */
+void st_load(void);             /* F3, asked first */
+void st_look(void);             /* L, and a chest drawn open */
+void st_arrived(void);          /* a step ends: a chest is opened */
+void st_chests(void);           /* a dungeon level built: the open ones */
+void st_bob(void);              /* the keeper idles */
 
 #endif /* OW_ENGINE_H */

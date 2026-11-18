@@ -26,5 +26,6 @@ char          fq_sprite[FIGHT_FNAME];
 unsigned char fq_foes;
 unsigned char fq_song, fq_carry, fq_quiet;
 unsigned int  fq_rounds;
+unsigned int  fq_xp_each, fq_to_level;
 unsigned char fq_end;           /* only its address: the end of the block */
 #pragma bss-name (pop)

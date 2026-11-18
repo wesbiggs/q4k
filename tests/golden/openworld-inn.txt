@@ -21,7 +21,7 @@
  19 |.............i~................i^abefefe|
  20 |%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%Dcdghghg|
  21 |fefefababefababefefefefabefefefefefabefa|
- 22 |                                        |
- 23 |                                        |
+ 22 | Alaric                      Draught 1  |
+ 23 | 22/22                       Arrows 0   |
  24 |                                        |
     +----------------------------------------+

@@ -55,7 +55,7 @@ FI_COLOUR, FI_FLAGS = 32, 160
 FLAG = {"pass": 0, "enter": 0, "water": 1, "block": 2}
 # What a step onto a square costs, past the 10 tenths of grass: bits 2-3 of
 # its flag, a level of 5 tenths each (fight.h's FF_COST).
-SLOW = {"shore": 1, "forest": 1, "swamp": 2}
+SLOW = {"shore": 1, "swamp": 2}     # (not the forest: it is no slower)
 SLOW_LEVEL = {15: 1, 20: 2}
 
 # The sprites linked into the fight, in the order of fight.h's SPR_*; each

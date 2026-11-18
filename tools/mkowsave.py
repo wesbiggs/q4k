@@ -4,7 +4,7 @@
     tools/mkowsave.py OUT.prg [SEED]
 
 A save is the open world's game block (OwGame, include/q4k/owgame.h) as it
-is in memory, loaded back to $CE40. The game writes its own over this one
+is in memory, loaded back to $CE3F. The game writes its own over this one
 (F1); until then the disk has the world of SEED (7) with a lone warrior,
 Alaric, at the castle's gate, the keys to every dungeon and the three
 stones in hand (as the tests' quick start has it). The castle is found with the model of the land
@@ -15,13 +15,13 @@ import sys
 
 import isleref
 
-ADDR = 0xCE40           # OWG_ADDR
+ADDR = 0xCE3F           # OWG_ADDR
 MAGIC = 0x47            # OWG_MAGIC
 HOME_X, HOME_Y = 128, 64
 CASTLE = 1              # home's places: Millford, the castle, ...
 ACTOR = 21              # sizeof(Actor), include/q4k/actor.h
 LOOTED = 5              # LOOTED_BYTES
-OWG_SIZE = 192          # include/q4k/owgame.h
+OWG_SIZE = 193          # include/q4k/owgame.h
 Q_HEART = 7
 KEYS = 0x3F             # IT_SIGIL ... IT_HEART: as the quick start
 AREA_HOME, ISLE_HOME, GATE = 0, 4, 0xFF
@@ -65,7 +65,7 @@ def main():
     wx, wy = HOME_X + x, HOME_Y + y
     b = actor("Alaric", 22) + bytes(ACTOR * 3)
     b += bytes([MAGIC, seed, 1, 1])                 # one member, level 1
-    b += struct.pack("<HHH", 0, 9, 0)               # xp, gold, turn
+    b += struct.pack("<HHH", 0, 9, 1)               # xp, gold, turn (not 0: a new game)
     b += bytes([1, 0, Q_HEART, KEYS]) + bytes(LOOTED)
     b += bytes([AREA_HOME, ISLE_HOME, 0, 0, GATE, 0])
     b += struct.pack("<HB", wx, wy)
@@ -73,6 +73,7 @@ def main():
     b += bytes([CALM])                   # music and effects on, no monsters
     b += bytes([tunic("Alaric"), 0, 0, 0])   # each member's colour
     b += bytes(1 + 2 * FOES)             # no dungeon's monsters placed
+    b += bytes([0])                      # none fled from
     assert len(b) == OWG_SIZE
     with open(out, "wb") as f:
         f.write(struct.pack("<H", ADDR))

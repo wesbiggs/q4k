@@ -64,9 +64,14 @@ typedef struct {
                                            off (OwGame's); M and X change
                                            it */
     unsigned int  rounds;               /* out: how many rounds it took */
+    /* A level, if winning brings one: the fight shows it (a flash and a
+       fanfare), the caller pays it (fq_foes times xp_each). */
+    unsigned int  xp_each;              /* experience a foe is worth */
+    unsigned int  to_level;             /* what the next level still wants,
+                                           or 0: none to be had */
 } Fight;
 
-/* 151 bytes; src/fight/block.c lays the same things down in the same order
+/* 155 bytes; src/fight/block.c lays the same things down in the same order
    for the module, and head.s refuses to link if that is not as long. */
 
 #define FIGHT        ((Fight *)(FIGHT_BASE + 3))

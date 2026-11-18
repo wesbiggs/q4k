@@ -71,7 +71,8 @@
         .export _sm_box_c0, _sm_box_c1, _sm_box_r0, _sm_box_r1
         .export _sm_ox, _sm_oy, _sm_fx, _sm_fy, _sm_front, _sm_frame
         .export _sm_colend, _sm_irqline, _sm_irqend, _sm_splitline
-        .export _sm_say, _sm_ink, _sm_text_clear, _sm_guard, sm_guard
+        .export _sm_say_raw, _sm_ink, _sm_text_clear, _sm_guard, sm_guard
+        .export _ow_mt0, _ow_chq        ; (status.c: the keeper's bob)
         .export _sm_quit
 .if OW_REU
         .export _sm_reu_keep
@@ -141,12 +142,14 @@ ow_nwater:  .res 1              ; water character pairs to animate
 _sm_offtile: .res 1             ; what is beyond the map
 ts_nmt:     .res 1              ; metatiles
 ow_water:   .res 16             ; those pairs
+_ow_mt0:
 ow_mt0:     .res 64             ; each tile code's metatile ($60 + index) ...
 ow_mt1:     .res 64             ; ... and its variant's
         .export ow_nflag, ow_bsel, ow_binv   ; (for tests)
 ow_nflag:   .res 64             ; what it is to its neighbours
 ow_bsel:    .res 64             ; which of their flags give it an edge ...
 ow_binv:    .res 64             ; ... set or clear
+_ow_chq:
 ow_chq:     .res 128            ; each metatile's characters, 32 a quarter
 ow_blend:   .res 512            ; and its edges', 16 a metatile
 den:        .res 1              ; $10, or 0 while the screen is blanked
@@ -1894,10 +1897,11 @@ _sm_guard:
 
         .segment "HICODE"       ; (the rest of the window: MAIN is full)
 
-; void __fastcall__ sm_say(const char *s) -- a line of text: the window's
-; bottom line moves up into the top one, and s (PETSCII, up to 40) is the
-; new bottom line, in the colour sm_ink (0-7), in both screens.
-_sm_say:
+; void __fastcall__ sm_say_raw(const char *s) -- a line of text: the
+; window's bottom line moves up into the top one, and s (PETSCII, up to 40)
+; is the new bottom line, in the colour sm_ink (0-7), in both screens.
+; (status.c's sm_say() clears the party's status off the window first.)
+_sm_say_raw:
         sta     ptr1
         stx     ptr1+1
         ldx     #39
