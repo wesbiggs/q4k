@@ -247,6 +247,9 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
         break;
     case OWF_FOE:
         pick_wanderer(1, OWG_FOE_KIND(G->foe_a[arg], G->foe_b[arg]));
+        if ((G->fled & OWG_FLED_WHO) == arg + 1) {
+            foes = G->fled >> 5;    /* what was left when the party fled */
+        }
         ground = T_FLOOR;
         break;
     default:
@@ -289,6 +292,9 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
     f->song   = song;
     f->carry  = carry;
     f->quiet  = G->quiet;
+    f->xp_each  = foe.xp;
+    f->to_level = party_level < MAX_LEVEL
+                ? level_at[party_level] - party_xp : 0;
 
     r = fight_call();
 
@@ -326,6 +332,9 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
         } else if (kind == OWF_FOE) {
             G->foe_a[arg] |= 0xC0;  /* it stays dead on this level, its */
             G->foe_b[arg] |= 0xE0;  /* blood where it fell (OWG_FOE_DEAD) */
+            if ((G->fled & OWG_FLED_WHO) == arg + 1) {
+                G->fled = 0;
+            }
         } else if (kind == OWF_DRAGON) {
             quest_stage = Q_VICTORY;
             line(y, COLOR_YELLOW, "Maldrath is banished.");
@@ -334,6 +343,11 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
         break;
     case BATTLE_FLED:
         line(4, COLOR_GRAY3, "You get away.");
+        if (kind == OWF_FOE) {
+            /* It stays on the map, and so do those of it still standing
+               (the module says how many: fq_foes). */
+            G->fled = (arg + 1) | (foes << 5);
+        }
         break;
     case BATTLE_DEAD:
         /* q4k.c's died(): half the purse, mended, in Millford. */

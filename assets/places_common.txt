@@ -186,20 +186,23 @@ tile boulder black on floor
 --------
 --------
 
+# The keeper, outlined in grey so that he does not read as a stain (red
+# with brown on a dungeon's floor is what the blood is). The dungeons give
+# him a bob (keeperbob in dungeon_tiles.txt).
 tile monster red on floor
 --------
--c----c-
--cc--cc-
---cccc--
--ccaacc-
--cc..cc-
--cccccc-
-cccccccc
-c-cccc-c
-c-cccc-c
---cccc--
---c--c--
--cc--cc-
-cc----cc
---------
---------
+-a----a-
+aca--aca
+acaaaaca
+-acccca-
+ac.cc.ca
+acccccca
+-acbbca-
+aaccccaa
+acaccaca
+acaccaca
+aaccccaa
+-acaaca-
+-ac--ca-
+aca--aca
+aaa--aaa

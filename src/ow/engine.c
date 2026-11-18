@@ -61,6 +61,7 @@
 #include <errno.h>
 #include <conio.h>
 #include <peekpoke.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -69,6 +70,7 @@
 #include <q4k/dungeon.h>
 #include <q4k/game.h>
 #include <q4k/isle.h>
+#include <q4k/loot_data.h>
 #include <q4k/music.h>
 #include <q4k/music_map.h>
 #include <q4k/ow.h>
@@ -133,13 +135,36 @@ unsigned char has(unsigned char item)
 /* (party[] is the game block's: cfg/c64-openworld.cfg names it.) */
 typedef char owgame_is_what_mkowsave_writes[2 * (sizeof(OwGame) == OWG_SIZE) - 1];
 typedef char owgame_fits_below_the_probe[2 * (OWG_ADDR + OWG_SIZE <= 0xCF00) - 1];
+/* stlow.s has these by number. */
+typedef char st_g[2 * (OWG_ADDR == 0xCE3F) - 1];
+typedef char st_count[2 * (offsetof(OwGame, party_count) == 86) - 1];
+typedef char st_turn[2 * (offsetof(OwGame, game_turn) == 92) - 1];
+typedef char st_potions[2 * (offsetof(OwGame, potions) == 94) - 1];
+typedef char st_arrows[2 * (offsetof(OwGame, arrows) == 95) - 1];
+typedef char st_quiet[2 * (offsetof(OwGame, quiet) == 138) - 1];
+typedef char st_actor[2 * (sizeof(Actor) == 21) - 1];
+typedef char st_hp[2 * (offsetof(Actor, hp) == 2) - 1];
+typedef char st_name[2 * (offsetof(Actor, name) == 4) - 1];
+typedef char st_mp[2 * (offsetof(Actor, mp) == 17) - 1];
+typedef char st_mpmax[2 * (offsetof(Actor, mp_max) == 18) - 1];
+typedef char st_chest[2 * (T_CHEST == 0x70) - 1];
+typedef char st_monster[2 * (T_MONSTER == 0x8E) - 1];
+typedef char st_dungeon[2 * (AREA_DUNGEON == 3) - 1];
+typedef char st_hide[2 * (OWG_HIDE == 8) - 1];
+typedef char st_owbload[2 * (OWB_LOAD == 8) - 1];
+typedef char st_dunloot[2 * (DUN_LOOT == 36) - 1];
+typedef char st_numloot[2 * (NUM_LOOT == 2) - 1];
+typedef char st_lootsize[2 * (sizeof(Loot) == 6) - 1];
+
+/* A line made up to be said: in the BASIC input buffer, which nothing uses
+   while the engine runs (and below the hand-off blocks at $02A7). */
+#define said ((char *)0x0200)
 
 /* Everything said, in the engine's spare memory past the screens (HICODE):
    OW-DATA, where constants go, has little room left, and cc65 puts string
    literals there whatever the rodata pragma says, so they are arrays. */
 #pragma rodata-name (push, "HICODE")
 #pragma data-name (push, "HICODE")
-static char said[41] = { 0 };
 static const char s_draught[] = "You find a draught.";
 static const char s_find[] = "You find ";
 static const char s_draughts[] = " draughts.";
@@ -422,7 +447,7 @@ static const char scratch_save[] = {
     0
 };
 
-static void save_game(void)
+void save_game(void)
 {
     unsigned char s, i, ok, st[2];
 
@@ -464,30 +489,6 @@ void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg)
     ow_leave(owtown);
 }
 
-/* After a step onto `tile`: something wanders out, now and then, as the
-   game's encounter_roll() has it (out of 200, by the ground; towns never
-   roll, and nor does a ship). Not with OWG_CALM, the tests'. */
-void __fastcall__ wander(unsigned char tile)
-{
-    unsigned char chance;
-
-    switch (tile) {
-    case T_GRASS:  chance = 8;  break;
-    case T_SHORE:  chance = 7;  break;
-    case T_FOREST: chance = 12; break;
-    case T_SWAMP:  chance = 16; break;
-    case T_FLOOR:  chance = 5;  break;
-    default:       return;
-    }
-    if (enc_always == 1) {
-        chance = 200;           /* (and calm or not) */
-    } else if (G->quiet & OWG_CALM) {
-        return;
-    }
-    if ((unsigned char)(rand() % 200) < chance) {
-        ow_fight_with(OWF_WANDER, tile);
-    }
-}
 
 #pragma code-name (pop)
 
@@ -572,7 +573,7 @@ void __fastcall__ refuse(const char *why)
 }
 
 /* A question, Y or N (RUN/STOP is no), waited for with the music playing. */
-static unsigned char __fastcall__ yes(const char *q)
+unsigned char __fastcall__ yes(const char *q)
 {
     unsigned char k;
 
@@ -663,25 +664,24 @@ static void quaff(void)
    (OWB_LOAD, F3), or the next seed's (N), with the party in it. The game
    block first, which is what goes on if there is no save. */
 #pragma code-name (push, "OWTOP")  /* (MAIN is full) */
-static void rebuild(unsigned char mode)
+void __fastcall__ rebuild(unsigned char mode)
 {
-    owg_where();
-    ow_tune_stop();
-    OWB->song = 0;
-    sm_quit();
+    ow_tune_stop();             /* (so nothing to carry on: OWB->song 0) */
     OWB->mode = mode;
     OW->seed = seed + 1;
-    ow_run("openworld");
+    ow_leave(s_boot);           /* (which clears the screen it would show:
+                                   stlow.s's code is in it) */
 }
 #pragma code-name (pop)
 
 /* A file that would not load: its name and what the drive says, on the
-   KERNAL's text screen (row 12), until a key; then it is tried again.
+   KERNAL's text screen (its top row: below it is stlow.s's code, which
+   the engine's file loads there), until a key; then it is tried again.
    `up` is whether the engine's screen is going, to be put back after.
    (On VICE every load works; this is for a drive that says no.) */
 static void __fastcall__ load_failed(const char *name, unsigned char up)
 {
-    unsigned char *row = (unsigned char *)0x0400 + 40 * 12;
+    unsigned char *row = (unsigned char *)0x0400;
 
     sm_quit();
     memset(row, ' ', 40);
@@ -695,7 +695,7 @@ static void __fastcall__ load_failed(const char *name, unsigned char up)
         cbm_read(15, row, 24);
         cbm_close(15);
     }
-    memset((void *)(0xD800 + 40 * 12), COLOR_WHITE, 40);
+    memset((void *)0xD800, COLOR_WHITE, 40);
     VIC.bordercolor = COLOR_RED;
     while (!cbm_k_getin()) {
     }
@@ -813,7 +813,10 @@ static unsigned char typed(void)
         quaff();
         break;
     case 'l':                   /* look (the overlay's) */
-        ov_look();
+        st_look();
+        break;
+    case ' ':                   /* the party's status, hidden or shown */
+        st_toggle();
         break;
     case 'i':                   /* the party's screen (owtown) */
         screen(OWB_PARTY);      /* (neither returns) */
@@ -822,11 +825,12 @@ static unsigned char typed(void)
     case 0x03:                  /* RUN/STOP: quit */
         quit();
         break;
-    case 0x85:                  /* F1: save */
-        save_game();
+    case 0x85:                  /* F1: save, Y or N */
+        st_save();
         break;
-    case 0x86:                  /* F3: the saved game */
-        rebuild(OWB_LOAD);
+    case 0x86:                  /* F3: the saved game, Y or N */
+        st_load();
+        break;
     case 'n':                   /* the next world */
         rebuild(OWB_NONE);
     }
@@ -980,7 +984,8 @@ void owg_where(void)
         G->x  = hx - BIAS;
         G->y  = hy - BIAS;
     }
-    G->quiet = (G->quiet & OWG_CALM) | !music | (sfx_on() ? 0 : 2);
+    G->quiet = (G->quiet & (OWG_CALM | OWG_HIDE)) | !music
+             | (sfx_on() ? 0 : 2);
 }
 
 void __fastcall__ ow_leave(const char *name)
@@ -1032,6 +1037,7 @@ int main(void)
     sm_blank(1);
     sm_show();
     ov_switch();
+    st_start();
 
     while (kbhit()) {
         cgetc();
@@ -1113,6 +1119,7 @@ int main(void)
                 }
                 ++steps;
                 ov_arrived();   /* (the overworld's step is the world's) */
+                st_arrived();   /* a chest underfoot is opened */
                 ov_switch();    /* into a town or a dungeon, or out */
                 publish();
             }
@@ -1124,6 +1131,7 @@ int main(void)
                the bob moves, and when it is taken is the harness's. */
             sm_sprite(hero_frame(dir, stride ^= 1));
             sm_animate();
+            st_bob();           /* and the keeper with them */
         }
 
         if (!moving && !flipped) {
@@ -1139,6 +1147,7 @@ int main(void)
             if (d != NONE) {
                 sm_sprite(hero_frame(d, stride));
                 if (ov_can_step(d)) {
+                    st_step();  /* the status over what was said */
                     dir = d;
                     moving = 1;
                     moved = 0;

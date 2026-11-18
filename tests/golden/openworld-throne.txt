@@ -1,27 +1,27 @@
     +----------------------------------------+
-  0 |vvvvvvDlm@a@a@a@a@a@a@a@a@a@a@a,<__vvvvv|
-  1 |vvvvvv#%=@a·ZZZZZZZZZZZZZZZZ·@a,Djk,vvvv|
-  2 |___v<___>@aY~..............^·@a+>no,<___|
-  3 |qpqY·@a@a@aY·@a@a@a9:@a@a@aY·@a@a@aY·pqp|
-  4 |srsY·@a@a@aY·@a@a@a;<@a@a@aY·@a@a@aY·rsr|
-  5 |qpqY·@a@a·Z··@a@a@a@@@a@a@aY·Z·@a@aY·pqp|
-  6 |srsY·@a@aY~.&@a@a@a@a@a@a@aF.^·@a@aY·rsr|
-  7 |qpqY·@a@aY·56@a@a@a@a@a@a@a56Y·@a@aY·pqp|
-  8 |srsY·@a@aY·78@a@a@a@a@a@a@a78Y·@a@aY·rsr|
-  9 |qpqY·@a@aY·Z·@a@a@a@a@a@a@a·Z··@a@aY·pqp|
- 10 |srsY·@a@aF.^·@a@a@a@a@a@a@aY~.&@a@aY·rsr|
- 11 |qpqY·@a@a@aY·@a@a@@@@@a@a@aY·@a@a@aY·pqp|
- 12 |srsY·@a@a@aY·@a@a@a@a@a@a@aY·@a@a@aY·rsr|
- 13 |%%%CDjkT=@aY·ZZZZZ·jk·ZZZZZ··@aT%%%C#%%%|
- 14 |vvvvDlm,D@aF......&lmF......&@a+_vvvvvvv|
- 15 |vvvv#%%CD@a@a@a@a@a@a@a@a@a@a@ajk,vvvvvv|
- 16 |vvvvvvvvD@a@a@a@a@a@a@a@a@a@a@alm,vvvvvv|
- 17 |wwwwwwwwtZZZZZZZ·tututu·ZZZZZZZwwwwwwwww|
- 18 |xxxxxxxx/.......&tututuF.......xxxxxxxxx|
- 19 |vvvvvvvvDpqpqpqpqtututupqpqpqpq,vvvvvvvv|
- 20 |vvvvvvvvDrsrsrsrstututursrsrsrs,vvvvvvvv|
- 21 |vvvvvvvvDpqpqpqpqtututupqpqpqpq,vvvvvvvv|
- 22 |                                        |
- 23 |                                        |
+  0 |vvvvvv+lm@a@a@a@a@a@a@a@a@a@a@aDo**vvvvv|
+  1 |vvvvvv<=>@a·················^@aD+jkDvvvv|
+  2 |***vo***t@a·C~~~~~~~~~~~~~~%F@aLtnoDo***|
+  3 |qpq·F@a@a@a·F@a@a@a=>@a@a@a·F@a@a@a·Fpqp|
+  4 |srs·F@a@a@a·F@a@a@a?·@a@a@a·F@a@a@a·Frsr|
+  5 |qpq·F@a@a··.F@a@a@a@@@a@a@a·&·^@a@a·Fpqp|
+  6 |srs·F@a@a·C~T@a@a@a@a@a@a@a,~%F@a@a·Frsr|
+  7 |qpq·F@a@a·F9:@a@a@a@a@a@a@a9:·F@a@a·Fpqp|
+  8 |srs·F@a@a·F;<@a@a@a@a@a@a@a;<·F@a@a·Frsr|
+  9 |qpq·F@a@a·&·^@a@a@a@a@a@a@a··.F@a@a·Fpqp|
+ 10 |srs·F@a@a,~%F@a@a@a@a@a@a@a·C~T@a@a·Frsr|
+ 11 |qpq·F@a@a@a·F@a@a@@@@@a@a@a·F@a@a@a·Fpqp|
+ 12 |srs·F@a@a@a·F@a@a@a@a@a@a@a·F@a@a@a·Frsr|
+ 13 |===_+jk#>@a·&·····^jk······.F@a#===_<===|
+ 14 |vvvv+lmD+@a,~~~~~~Tlm,~~~~~~T@aL*vvvvvvv|
+ 15 |vvvv<==_+@a@a@a@a@a@a@a@a@a@a@ajkDvvvvvv|
+ 16 |vvvvvvvv+@a@a@a@a@a@a@a@a@a@a@almDvvvvvv|
+ 17 |wwwwwwwwB·······^tututu········wwwwwwwww|
+ 18 |xxxxxxxx}~~~~~~~Ttututu,~~~~~~~xxxxxxxxx|
+ 19 |vvvvvvvv+pqpqpqpqtututupqpqpqpqDvvvvvvvv|
+ 20 |vvvvvvvv+rsrsrsrstututursrsrsrsDvvvvvvvv|
+ 21 |vvvvvvvv+pqpqpqpqtututupqpqpqpqDvvvvvvvv|
+ 22 | Alaric                      Draught 1  |
+ 23 | 22/22                       Arrows 0   |
  24 |                                        |
     +----------------------------------------+

@@ -17,8 +17,8 @@
 #                    tile set; alone it blocks, with :15 or :20 it is
 #                    ground that costs that many tenths a step
 #
-# Each square costs a step 10 tenths (grass, floors), 15 (sand, forest) or
-# 20 (swamp): the party's members lose a turn for every 10 owed, and the
+# Each square costs a step 10 tenths (grass, forest, floors), 15 (sand) or
+# 20 (swamp, a puddle): the party's members lose a turn for every 10 owed, and the
 # monsters spend their pace on it (src/fight/fight.c).
 #   then 9 rows of 20 characters
 #
@@ -28,7 +28,7 @@
 # The way out is the middle row, open at both ends; mkfields.py refuses a
 # field where it is not, or where the monster could not reach the party.
 
-field grass field_tiles grass scatter=oak,puddle:20,thicket:15
+field grass field_tiles grass scatter=oak,puddle:20
 t.t.....t......t...t
 t..................t
 t.....o...m......t.t
@@ -50,7 +50,7 @@ tFtFFF.FFFFFFFFFFFtt
 ttFFFFFFFF@FFFF.FFFt
 tttFFtFFFFFFFFtFFttt
 
-field shore field_tiles shore scatter=puddle:20,thicket:15
+field shore field_tiles shore scatter=puddle:20
 ~~~~~~~~~~~~~~~~~~~~
 ~~~,,,,~~~~~,,,,,~~~
 t,,,,,,,,,m,,,,,,,,t
@@ -61,7 +61,7 @@ t,~~,,,,,,,,,,,,,..t
 t.,,,,,,,,@,,,,,...t
 t...,,,,,,,,,.....tt
 
-field swamp field_tiles swamp scatter=oak,thicket:15
+field swamp field_tiles swamp scatter=oak
 t%%%~~%%%%%%%%t%%%%t
 t%%%%%%%%%%%%%%%%%%t
 t%%%%%%%%%m%%%%~~%%t

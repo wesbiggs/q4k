@@ -56,6 +56,7 @@ extern char          fq_field[FIGHT_FNAME], fq_sprite[FIGHT_FNAME];
 extern unsigned char fq_foes;
 extern unsigned char fq_song, fq_carry, fq_quiet;
 extern unsigned int  fq_rounds;
+extern unsigned int  fq_xp_each, fq_to_level;
 
 #ifdef FIGHT_BOT
 #define FIGHT_BOT_ON 1
@@ -224,6 +225,15 @@ static unsigned char mire[MAX_PARTY];
 /* ... and what the monster's last step cost past 10 (foe_step()). */
 static unsigned char slow;
 static unsigned char act, ward, sleep;
+/* Who of the party has got away by a side: off the field, their turns
+   skipped, until the rest follow them out (or fall). */
+static unsigned char gone[MAX_PARTY], fled_n;
+
+/* Member `i` is on the field: standing, and not got away. */
+static unsigned char here(unsigned char i)
+{
+    return party[i].hp && !gone[i];
+}
 static unsigned char rel, lone, lone_bank, fury;
 
 static unsigned char foes, alive, cur;
@@ -476,6 +486,11 @@ static void show_party(void)
         t_at(x, ROW_NAMES, i == act ? C_YELLOW : C_WHITE);
         t_ch(i == act ? 0x3E : 0x20);           /* > */
         t_str(a->name);
+        if (gone[i]) {
+            t_at(x + 1, ROW_STATS, C_CYAN);
+            t_str("fled");
+            continue;
+        }
         t_at(x + 1, ROW_STATS, a->hp ? C_GREEN : C_RED);
         t_num(a->hp);
         t_ch(0x2F);                             /* / */
@@ -524,7 +539,7 @@ static unsigned char member_at(unsigned char x, unsigned char y)
     unsigned char i;
 
     for (i = 0; i < party_count; ++i) {
-        if (party[i].hp && mem_x[i] == x && mem_y[i] == y) {
+        if (here(i) && mem_x[i] == x && mem_y[i] == y) {
             return i;
         }
     }
@@ -580,11 +595,11 @@ static unsigned char bitten(unsigned char who, unsigned char atk)
     say_who(who, " falls!");
     say(msg);
     for (hit = 0; hit < party_count; ++hit) {
-        if (party[hit].hp) {
+        if (here(hit)) {
             return 0;
         }
     }
-    return 1;
+    return 1;                 /* (the rest may have got away: over()) */
 }
 
 /* --- keys ----------------------------------------------------------------- */
@@ -684,7 +699,7 @@ static unsigned char bot_alive(void)
     unsigned char i, n = 0;
 
     for (i = 0; i < party_count; ++i) {
-        n += party[i].hp != 0;
+        n += here(i);
     }
     return n;
 }
@@ -693,7 +708,9 @@ static unsigned char bot_alive(void)
 static void bot_cast(unsigned char s, unsigned char arg, unsigned char kind)
 {
     bot_push(K_CAST);
-    bot_push(0x31 + s);
+    if (party[act].ready & (party[act].ready - 1)) {
+        bot_push(0x31 + s);     /* (one spell ready is cast unasked) */
+    }
     if (kind == 1) {
         bot_push(dir_key[arg]);
     } else if (kind == 2 && bot_alive() > 1) {
@@ -750,7 +767,7 @@ static void bot_plan(void)
     unsigned char i, low = NONE, d, best, s, nx, ny, dist;
 
     for (i = 0; i < party_count; ++i) {
-        if (party[i].hp && (low == NONE
+        if (here(i) && (low == NONE
             || (unsigned int)party[i].hp * party[low].hp_max
                < (unsigned int)party[low].hp * party[i].hp_max)) {
             low = i;
@@ -943,7 +960,7 @@ static unsigned char pick_member(const char *question)
     unsigned char i, n = 0, one = 0;
 
     for (i = 0; i < party_count; ++i) {
-        if (party[i].hp) {
+        if (here(i)) {
             ++n;
             one = i;
         }
@@ -957,7 +974,7 @@ static unsigned char pick_member(const char *question)
     strcat(msg, ")");
     say(msg);
     i = next_key() - 0x31;
-    if (i < party_count && party[i].hp) {
+    if (i < party_count && here(i)) {
         return i;
     }
     say("Never mind.");
@@ -1013,7 +1030,7 @@ static unsigned char next_to(void)
     unsigned char i, k, x, y;
 
     for (i = 0; i < party_count; ++i) {
-        if (!party[i].hp) {
+        if (!here(i)) {
             continue;
         }
         x = mem_x[i];
@@ -1066,7 +1083,7 @@ static unsigned char flood(void)
             }
         }
         for (i = 0; i < party_count; ++i) {
-            if (party[i].hp) {
+            if (here(i)) {
                 seed(mem_x[i] + 1, mem_y[i] + 1);
             }
         }
@@ -1076,7 +1093,7 @@ static unsigned char flood(void)
         stand = roomy;
         memcpy(seen, roomy, sizeof(seen));
         for (i = 0; i < party_count; ++i) {
-            if (party[i].hp) {
+            if (here(i)) {
                 x = mem_x[i] + 1;
                 y = mem_y[i] + 1;
                 seen_row[y - 1][x - 1] = seen_row[y - 1][x] = 1;
@@ -1084,7 +1101,7 @@ static unsigned char flood(void)
             }
         }
         for (i = 0; i < party_count; ++i) {
-            if (party[i].hp) {
+            if (here(i)) {
                 x = mem_x[i] - 1;
                 y = mem_y[i] - 1;
                 for (k = 0; k < 16; ++k) {
@@ -1371,7 +1388,7 @@ static unsigned char aim(void)
         return NONE;
     }
     for (i = 0; i < party_count; ++i) {
-        if (party[i].hp && (dir = aim_at(mem_x[i], mem_y[i])) != NONE) {
+        if (here(i) && (dir = aim_at(mem_x[i], mem_y[i])) != NONE) {
             return dir;
         }
     }
@@ -1471,7 +1488,7 @@ static unsigned char hurt_all;
 static unsigned char cast(unsigned char *spent)
 {
     Actor *a = &party[act];
-    unsigned char s, dir, who, amount;
+    unsigned char s, dir, who, amount, one;
 
     *spent = 0;
     hurt_all = 0;
@@ -1486,14 +1503,22 @@ static unsigned char cast(unsigned char *spent)
     strcpy(msg, "Cast");
     for (s = 0; s < NUM_SPELLS; ++s) {
         if (a->ready & (1 << s)) {
+            one = s;
             strcat(msg, " ");
             cat_num(s + 1);
             strcat(msg, " ");
             strcat(msg, spell_names[s]);
         }
     }
-    say(msg);
-    s = next_key() - 0x31;
+    if (a->ready & (a->ready - 1)) {
+        say(msg);
+        s = next_key() - 0x31;
+    } else {
+        s = one;                /* the one spell ready: no need to ask */
+        strcpy(msg, "Cast ");
+        strcat(msg, spell_names[s]);
+        say(msg);
+    }
     if (s >= NUM_SPELLS || !(a->ready & (1 << s))) {
         say("Never mind.");
         return 0;
@@ -1669,12 +1694,36 @@ static unsigned char their_turn(void)
     return 0;
 }
 
+/* A level reached: everyone on the field flashes through the colours to a
+   fanfare. (The caller raises them: ow_fight.c's award().) */
+static void level_up(void)
+{
+    static const unsigned char glow[8] = { 1, 7, 13, 3, 14, 4, 10, 7 };
+    unsigned char k, i;
+
+    sfx_delay();
+    sfx_play(SFX_LEVEL);
+    say(party_count > 1 ? "The party grows stronger!" : "You grow stronger!");
+    for (k = 0; k < 32; ++k) {
+        for (i = 0; i < party_count; ++i) {
+            vs_col[i] = glow[(k + i) & 7];
+        }
+        pause(2);
+    }
+    for (i = 0; i < party_count; ++i) {
+        vs_col[i] = fq_tunic[i];
+    }
+}
+
 static unsigned char won(void)
 {
     unsigned char got;
 
     say("It falls.");
     get_up();
+    if (fq_to_level && fq_xp_each * fq_foes >= fq_to_level) {
+        level_up();
+    }
     if (party_has_bow() && arrows < ARROW_MAX && !(rand() & 3)) {
         got = 1 + (unsigned char)(rand() % 4);
         arrows += got;
@@ -1691,8 +1740,22 @@ static unsigned char won(void)
     return BATTLE_WON;
 }
 
+/* The last of them got away: the fallen are carried off, and the monsters
+   left are what the caller remembers (fq_foes). */
+static unsigned char got_away(void)
+{
+    say(party_count > 1 ? "The party gets away." : "You get away.");
+    get_up();
+    fq_foes = alive;
+    pause(40);
+    return BATTLE_FLED;
+}
+
 static unsigned char lost(void)
 {
+    if (fled_n) {
+        return got_away();      /* the rest are fallen, but some got out */
+    }
     say("The party has fallen.");
 #ifndef FIGHT_BOT
     say("Press a key.");
@@ -1780,7 +1843,7 @@ static unsigned char fight(void)
             return BATTLE_FLED;
         }
         for (i = 0; i < party_count; ++i) {
-            if (!party[i].hp) {
+            if (!here(i)) {
                 continue;
             }
             turn_to(i);
@@ -1808,6 +1871,9 @@ static unsigned char fight(void)
 
                 switch (key) {
                     case K_FIRE:
+                        if (party[act].cls == CL_WIZARD) {
+                            goto cast_it;    /* a wizard's fire is a spell */
+                        }
                         if (!party[act].bow) {
                             say_who(act, " has no bow.");
                             say(msg);
@@ -1832,6 +1898,7 @@ static unsigned char fight(void)
                         break;
 
                     case K_CAST:
+                    cast_it:
                         dmg = cast(&spent);
                         if (!spent) {
                             continue;
@@ -1894,15 +1961,27 @@ static unsigned char fight(void)
                            The gaps in the middle of the sides are the way
                            out, for the whole party. */
                         if (fq_flee && ny == FH / 2 && nx >= FW) {
+                            /* Out by a side: off the field until the
+                               rest of the party is out too. */
                             for (key = 0; key < 8; ++key) {
                                 v_nudge(act, 1, dir, 2);
                                 frame();
                             }
                             vs_y[act] = 0;
-                            say("You get away.");
-                            get_up();
-                            pause(40);
-                            return BATTLE_FLED;
+                            gone[act] = 1;
+                            ++fled_n;
+                            for (key = 0; key < party_count; ++key) {
+                                if (here(key)) {
+                                    break;
+                                }
+                            }
+                            if (key == party_count) {
+                                return got_away();
+                            }
+                            say_who(act, " gets away.");
+                            say(msg);
+                            act = NONE;
+                            goto turn_done;
                         }
                         continue;                    /* bumping costs no turn */
                     } else {

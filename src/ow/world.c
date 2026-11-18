@@ -10,6 +10,7 @@
  * in. Built with --code-name OVWCODE.
  */
 
+#include <stdlib.h>
 #include <c64.h>
 #include <peekpoke.h>
 #include <string.h>
@@ -675,6 +676,32 @@ static void to_dungeon_if(unsigned char n)
 /* At the end of a step: whatever the square does. Home's places are, in
    isle_fx's order, Millford, the castle, the Hollow Crown, Maldrath's lair
    (which is the dragon, and not here) and a town of its own. */
+/* After a step onto `tile`: something wanders out, now and then, as the
+   game's encounter_roll() has it (out of 200, by the ground; towns never
+   roll, and nor does a ship). Not with OWG_CALM, the tests'. (Here, not in
+   the core: only the overworld rolls.) */
+static void __fastcall__ wander(unsigned char tile)
+{
+    unsigned char chance;
+
+    switch (tile) {
+    case T_GRASS:  chance = 8;  break;
+    case T_SHORE:  chance = 7;  break;
+    case T_FOREST: chance = 12; break;
+    case T_SWAMP:  chance = 16; break;
+    case T_FLOOR:  chance = 5;  break;
+    default:       return;
+    }
+    if (enc_always == 1) {
+        chance = 200;           /* (and calm or not) */
+    } else if (G->quiet & OWG_CALM) {
+        return;
+    }
+    if ((unsigned char)(rand() % 200) < chance) {
+        ow_fight_with(OWF_WANDER, tile);
+    }
+}
+
 void w_arrived(void)
 {
     unsigned char t, i, k, lx, ly, d;

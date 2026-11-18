@@ -160,6 +160,8 @@ bbbbbb.b
 # middle row, and the castle's stone face below where the floor is.
 code roof 0x92
 code ridge 0x93
+# A chest emptied (src/ow/stlow.s), as the dungeons' (the same art and code).
+code chestopen 0x95
 
 tile roof blue
 cc.ccc.c
@@ -233,6 +235,24 @@ bbbb bbbb bbbb bbbb bbbb bbbb
 ..cc c.cc c.cc c.cc ..cc c.cc
 .aaa aaaa aaaa aaaa .aaa aaaa
 
+tile chestopen yellow on floor
+--------
+--------
+-bbbbbb-
+-bcbbcb-
+-bbbbbb-
+bbbbbbbb
+b......b
+cccccccc
+bcbccbcb
+bcbccbcb
+bbbbbbbb
+bcbbbbcb
+bbbbbbbb
+-b----b-
+--------
+--------
+
 include places_common.txt
 
 # Where the moat meets the grass (and only there: the walls stand in it as
@@ -249,7 +269,7 @@ bbcc cccc bbcc cccc ..c.
 bccc cccc bbcc cccc .c.c
 bbcc cccc bbcc cccc ....
 
-open floor grass door lockeddoor water drawbridge sword shield bow potion book shelf bed chest crown boulder
+open floor grass door lockeddoor water drawbridge sword shield bow potion book shelf bed chest crown boulder chestopen
 
 # The wall-walk's edges, and the face: stone blocks with black mortar and a
 # white edge where the light catches them. Secret doors are walls.

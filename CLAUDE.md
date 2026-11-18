@@ -228,20 +228,24 @@ place game data there (bar BSS2, above).
 VIC bank switch — it stays at `$D800` regardless of where the screen matrix is.
 
 **The open world's game lives in a block every one of its programs leaves
-alone**: `OwGame` (`include/q4k/owgame.h`) at `$CE40-$CEFF`, between the
+alone**: `OwGame` (`include/q4k/owgame.h`) at `$CE3F-$CEFF`, between the
 engines' BSS (cut to end there) and the probe page: the party, the purse,
 the quest, the looted bits and where everyone is (the area, the town or
 dungeon and its level, the square, the world square, the ships, the boat,
-the music and the effects). ld65 does not clear it. The engines' cfg names its party `party`
+the music, the effects and whether the party's lines are hidden, and the
+dungeon monster last fled from with how many of it were left: `fled`). ld65 does not clear it. The engines' cfg names its party `party`
 (it comes first), and they copy the rest in (`take_block()`) and out
 (`owg_where()`, before a save or another program); a program that links
 the game's own `actor.c`/`game.c` uses `owg_in()`/`owg_out()`
-(`src/lib/owgame.c`). A save is this block as it is, in `ow-save` (192
-bytes, `OWG_SIZE`: the whole of `$CE40-$CEFF`, so a new field must move the bound first; it is what `tools/mkowsave.py` writes too and the engine
-checks): F1 in an engine writes it (scratching the old file first, as
+(`src/lib/owgame.c`). A save is this block as it is, in `ow-save` (193
+bytes, `OWG_SIZE`: the whole of `$CE3F-$CEFF`, so a new field must move the
+bound first -- `OWG_ADDR`, the engines' cfg (`_party` and BSS), `foes.s`'s
+`FOE_A`, `stlow.s`'s offsets (engine.c checks them), `mkowsave.py` -- and the engines' BSS has 23
+bytes below it; it is what `tools/mkowsave.py` writes too and the engine
+checks): F1 in an engine writes it, after Y to "Save over the saved game? (scratching the old file first, as
 `savegame.c` does; the border is light blue while the drive works, red
 for a second if it would not, and the text window says which), and
-F3 goes back through the bootstrap with `OWB_LOAD`, which loads it and
+F3 (after Y to its own question) goes back through the bootstrap with `OWB_LOAD`, which loads it and
 builds its world (the game goes on as it was if there is no save). The
 `openworld-save` case in `tools/test.sh` saves, walks on and restores, on a
 copy of the disk. Every engine start resumes from it: the overworld, a town (at
@@ -311,7 +315,8 @@ with half the purse, and says so on a screen of text. The fight plays the
 `fight` or `boss` scene's song (`fight_music()` in `ow_fight.c` loads its
 file if another is under the KERNAL) and carries on with the engine's if it
 is the same one, from its own interrupt (below), and `M`/SHIFT+`M` there change
-the game block's `quiet`. Not yet: gear and treasure maps dropped.
+the game block's `quiet`. Not yet: gear and treasure maps dropped, and
+pay for the foes killed before a flight.
 `OWG_CALM` in
 the game block's `quiet` keeps anything from wandering out (the quick start
 and the disk's save have it, so the goldens meet nothing); `--poke
@@ -352,6 +357,53 @@ yet. RUN/STOP asks to quit (Y or N, in the window) and goes back through
 the bootstrap with the world block empty, which shows the splash again.
 `?` is `owtown`'s `OWB_HELP`, the open world's keys and the quest's next
 step.
+
+**The party's lines, the full screen, and the engine's code below $0801.**
+The text window shows the party as a fight's panel does (name; health, a
+wizard's magic; the draughts and arrows in the last column with room), all
+of it `src/ow/stlow.s`: `sm_say()` is its, which clears the lines off
+before `smooth.s`'s `sm_say_raw()` says anything, and the next step
+(`st_step()`) puts them back. **SPACE hides the window and gives its rows
+to the map**: `_sm_rows` (smooth.s's DATA) is 22 with the window and 25
+without, and the split (`irq`), the shift copy, the edges, the draws, the
+REU's lengths and the people's lowest line (`_sm_npclim`) all read it. The
+unrolled copies are the window's 22 rows: the colour copy goes on into
+`colour_tail_a/b` (HICODE, a column of the last three rows a pass), and the
+CPU's shift copy is 25 pairs, the 23rd patched to a jump past the last
+three with the window (`patch`, made again when `_sm_scdir` is $FF). Hiding
+it redraws the front screen there and then (`window_off`); `OWG_HIDE` in the
+game block keeps it across programs (`st_start()` hides it again).
+Anything said while it is hidden brings the window back, to stay
+(`window_on`). Measured over a 40-step walk (`late`): PAL 0 either way; NTSC
+10 with the window, 19 full screen (the full screen before the window
+existed: 15); the REU's engine 0 either way. Golden `openworld-full`.
+A new game opens with "Hail, adventurers! Press ? for help." instead
+(`st_start()`: `game_turn` is 0; `mkowsave.py`'s save has a turn). F1 and
+F3 ask first, in the game's words (`st_save()`, `st_load()`, the engine's
+`yes()`). A chest, a dungeon's or the castle's (its two are `loot.txt`'s),
+is opened by standing on it (`st_arrived()` after `ov_arrived()`, which
+calls L), and any taken chest is drawn open, `chestopen` (`$95` in the
+dungeon's and the castle's sets), in `WORLD` only: `st_chests()` from
+`dungeon.c`'s `muster()`, `st_tchests()` at the end of `town.c`'s
+`put_roofs()` (the castle's are in the throne room, and a roof taken off
+puts back what `local[]` has), and after L the square redrawn as a roof
+change is. The keeper
+idles: `st_bob()`, with the hero's idle, swaps his four characters with
+`keeperbob`'s (`$94`) in the character set; his art (`places_common.txt`)
+is outlined in grey, since red and brown on a dungeon floor is what the
+blood is. stlow.s, `sm_text_clear` and `font_copy` live in `OWLO`,
+`$0430-$07F7`: **the engine's file starts at `$042E`**, in the KERNAL's text
+screen, which the engine never shows. While anything loads, the disk icon
+(`ow_disk.s`) puts the VIC in extended colour and multicolour at once,
+which it draws as black with the sprites over it, so the code loading into
+the screen is never seen; `disk_off` puts the KERNAL's mode back. Sprite 0's
+pointer at `$07F8` is written with the icon's block (`OWSPTR`), since the
+icon is up while the file loads over it. So `load_failed()` writes the
+screen's top row only, and anything that hands the screen back to the
+KERNAL first clears it (`ow_leave()`; `rebuild()` goes through it now) or
+it shows code. `said`, the engine's line being made up, is the BASIC input
+buffer at `$0200`. Goldens: the window's rows are the party's lines, or
+what was said last.
 
 **The music carries on** across the programs: leaving, the engine pauses
 the tune where it is (`ow_tune_pause()`, the volume only) and says which
@@ -773,13 +825,15 @@ screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
 that the engine's file does not carry 5K of empty screens to the disk. The overlays are 4.4K (world), 4.4K
 (town) and 4.5K (dungeon, its monsters' pictures at the end) of the slot's
-4.5K. Free, OW-CPU's (OW-REU has a little more), measured from the maps: 75
-bytes in MAIN (the land and town generators' `MAPCODE` moved there from
-HIGH), 18 in OWTOP (`$5280-$53FF`), 9 in HIGH (`$5400-$59FF`, where the
-text window's routines and the engine's words are), 145 beside the world's
-overlay, 31 beside the town's, 10 beside the dungeon's (its monsters' art
-is aligned to a block at the end, so a byte more of code than that costs
-64), 23 in BSS, and COMMON 196. String
+4.5K. Free, OW-CPU's (OW-REU has a little more), measured from the maps: 1
+byte in MAIN (the land and town generators' `MAPCODE` moved there from
+HIGH), 8 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 19 in
+OWTOP (`$5280-$53FF`), 21 in HIGH (`$5400-$59FF`, where the text window's
+routines, stlow.s's helpers and the engine's words are), 35 beside the
+world's overlay (which has `wander()`, the overworld's encounter roll, out
+of the core), 24 beside the town's, 4 beside the dungeon's (its monsters' art is aligned to
+a block at the end, so a byte more of code than that costs 64), 23 in BSS,
+and COMMON 12. String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than
@@ -1018,7 +1072,7 @@ and no startup, loaded at `$5400` and entered by a jump at `$5800`
 many, whether the sides are a way out, a seed, and the names of two files);
 `block.c` lays the same bytes down under the game's own names (`party`,
 `potions`, ...) so that `arms.c` links unchanged, and `head.s` refuses to
-link if the block moved or changed length (151 bytes: change both). The
+link if the block moved or changed length (155 bytes: change both). The
 module shares its caller's zero page and C stack (so the caller must be a
 cc65 program, with BASIC switched out: its BSS runs past `$A000`), clears
 its own BSS on every call and keeps nothing between fights; it returns
@@ -1092,14 +1146,15 @@ corner), and stop where they would pass between two corners of wall
 does: whoever of them is in its way takes it (`loose()`, through
 `bitten()`, at the attack it would have had), and the autoplayer will not
 shoot through one. **Ground is slow**: each square's flag has a cost in
-bits 2-3 (`FF_COST`: 10 tenths for grass and floors, 15 for sand and
-forest, 20 for swamp, from `SLOW` in `mkfields.py`); a monster spends it
+bits 2-3 (`FF_COST`: 10 tenths for grass, forest and floors, 15 for
+sand, 20 for swamp, from `SLOW` in `mkfields.py`; the forest was 15 until
+it was asked to be no slower, and the `thicket` scatter went with it); a monster spends it
 out of its pace, and a member owes what a step costs past 10 (`mire[]`)
 and loses a turn for every 10 owed ("is slowed by the ground"). **The
 fields scatter more than boulders**: `assets/fields.txt`'s `scatter=`
 names up to three more things drawn `on` the tile set's ground (in
 `field_tiles.txt`, on codes `$92-$94` of that set's own: `oak` blocks,
-`puddle` costs 20, `thicket` 15), which `mkfields.py` writes as four
+`puddle` costs 20; `thicket`, 15, is drawn but no field scatters it), which `mkfields.py` writes as four
 characters and a flag each at `FI_SCAT`; `scatter()` puts down two to four
 things that block, boulders or trees, and one to three patches of slow
 ground where it is quicker. **What those cost** (`balance.py --ow`, 40
@@ -1158,7 +1213,19 @@ and SHIFT+`M` turn them off and on. **The open world's keys**, the engine's
 and the fight's alike: Q E Z X diagonally (C does nothing), `M` the music,
 SHIFT+`M` the effects (the fight's `next_key()` folds every other shifted
 letter onto its plain one), and in a fight the up-arrow key (`$5E`, the
-stick's button) shoots and `*` casts. A `.cmd` file types them as `\x5e`
+stick's button) shoots and `*` casts -- a wizard's up-arrow casts too, and
+a wizard with one spell ready casts it without being asked which.
+**Fleeing takes the whole party**: each member walks out of a side gap on
+their own turn (`gone[]`, "fled" in their stats; off the field, their turns
+skipped, no longer a target), and the fight is fled when the last one on
+the field is out, or when all who stayed have fallen (`got_away()`). Then
+`fq_foes` is how many were still standing, which `ow_fight.c` keeps for a
+dungeon's monster in the game block's `fled` (1 + its index, and the count
+in the top three bits), so the next fight with it is with those; won, or
+the dungeon left for the world, it is cleared. **A level is shown in the
+fight**: the caller passes `xp_each` and `to_level` (the block is 155
+bytes now), and a win that reaches it flashes the party through the
+colours to `SFX_LEVEL` (an arpeggio, `sfx.s`). A `.cmd` file types them as `\x5e`
 and `\x2a`, since `*` would glob in the harness's `set -- $(cat ...)`. The bestiary moved out of `battle.c` into
 `src/lib/bestiary.c` (still in the fight's engine) so that the arena has the
 same monsters.

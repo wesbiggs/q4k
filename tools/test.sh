@@ -92,7 +92,7 @@ done
 if [ -f dist/owarena.prg ] && [ -f dist/owarena.d64 ]; then
     got=$(tools/screendump.py dist/owarena.prg --disk dist/owarena.d64 \
         --mux build/fight.lbl --poke auto_seed=7 --stage 3 --timeout 180 \
-        --keys '3hww\x5ee' --peek '$5580:48' 2>&1 >/dev/null \
+        --keys '3hw\x5ee' --peek '$5580:48' 2>&1 >/dev/null \
         | sed -n 's/.*(\$\([0-9A-F]*\)).*/\1/p')
     want=000000000000000040000024000060000008000008000002000002008000008200002200000A0000AA00000000000000
     if [ "$got" = "$want" ]; then
@@ -177,10 +177,10 @@ if [ -f dist/openworld.d81 ]; then
     cp dist/openworld.d81 "$saves"
     wxof() { sed -n 's/.*wx+0 @ .* = \([0-9]*\) .*/\1/p'; }
     saved=$(tools/screendump.py dist/openworld.prg --disk "$saves" \
-        --splash quick --lbl build/ow-cpu.lbl --keys 'dd\x85ddd' \
+        --splash quick --lbl build/ow-cpu.lbl --keys 'dd\x85yddd' \
         --settle 20 --peek wx:2 2>&1 >/dev/null | wxof) || true
     restored=$(tools/screendump.py dist/openworld.prg --disk "$saves" \
-        --splash quick --lbl build/ow-cpu.lbl --keys '\x86' \
+        --splash quick --lbl build/ow-cpu.lbl --keys '\x86y' \
         --settle 40 --peek wx:2 2>&1 >/dev/null | wxof) || true
     if [ -n "$saved" ] && [ "$restored" = $((saved - 3)) ]; then
         echo "PASS  openworld-save"
@@ -210,7 +210,7 @@ if [ -f dist/openworld.d81 ]; then
     got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
         --splash quick --lbl build/ow-cpu.lbl \
         --keys 'ijjjjjjjjj\x11\x11j' --settle 15 \
-        --peek '$CECB' --peek sm_tunic \
+        --peek '$CECA' --peek sm_tunic \
         2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
     if [ "$got" = "1 1 " ]; then
         echo "PASS  openworld-recolour"
@@ -255,7 +255,7 @@ if [ -f dist/openworld.d81 ]; then
         --splash quick --lbl build/ow-cpu.lbl --poke still=1 \
         --poke enc_always=2 \
         --keys "${ow_enter}aaaaaaaa$(printf 'j%.0s' $(seq 20))     eeeeeezzzz$(printf 'j%.0s' $(seq 20))" \
-        --settle 30 --peek '$CED0' --peek sm_npc_x --peek party+88:2 \
+        --settle 30 --peek '$CECF' --peek sm_npc_x --peek party+88:2 \
         --peek '$B318' \
         2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
     if [ "$got" = "216 0 2 146 " ]; then

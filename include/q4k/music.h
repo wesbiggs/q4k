@@ -41,6 +41,7 @@ extern unsigned char music_state;
 #define SFX_BOW    8    /* a shot that lands, either way */
 #define SFX_NO     9    /* not that way, or not yet (the open world's) */
 #define SFX_DRINK 10    /* a draught drunk */
+#define SFX_LEVEL 11    /* the party reaches a level */
 
 void sfx_play(unsigned char id);
 void sfx_step(unsigned char tile);  /* a step onto that tile, by terrain */
