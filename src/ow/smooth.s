@@ -81,6 +81,7 @@
         .import _ow_spr1, _ow_spr2
         .export _sm_tileset, _sm_blank, _sm_offtile
         .export _sm_npcs, _sm_npc_n, _sm_npc_x, _sm_npc_y, _sm_tunic
+        .export _sm_npc_ox, _sm_npc_oy
         .importzp ptr1, ptr2, ptr3, ptr4, sp
         .export _sm_stack
 
@@ -157,6 +158,8 @@ _sm_tunic:  .res 1              ; the hero's colour: the leader's (G->tunic)
 _sm_npc_n:  .res 1
 _sm_npc_x:  .res 7
 _sm_npc_y:  .res 7
+_sm_npc_ox: .res 7              ; and pixels from there, signed (a dungeon's
+_sm_npc_oy: .res 7              ; monsters gliding from square to square)
 spr_xy:     .res 14             ; sprites 1-7: x, y, x, y, ...
 spr_msb:    .res 1              ; $D010
 spr_en:     .res 1              ; $D015
@@ -1505,6 +1508,13 @@ _sm_npcs:
         adc     #31
         bcc     :+
         inc     cnhi
+:       clc                     ; + the glide, signed
+        adc     _sm_npc_ox,y
+        bcc     :+
+        inc     cnhi
+:       ldx     _sm_npc_ox,y
+        bpl     :+
+        dec     cnhi
 :       sec
         sbc     camx
         sta     cnlo
@@ -1529,6 +1539,13 @@ _sm_npcs:
         adc     #54
         bcc     :+
         inc     vtmp
+:       clc
+        adc     _sm_npc_oy,y
+        bcc     :+
+        inc     vtmp
+:       ldx     _sm_npc_oy,y
+        bpl     :+
+        dec     vtmp
 :       sec
         sbc     camy
         tax

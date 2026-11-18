@@ -76,13 +76,16 @@ typedef struct {
 #define OWB_PARTY 7             /* the party and what they carry */
 #define OWB_LOAD  8             /* (to the bootstrap) F3: the saved game */
 #define OWB_FIGHT 9             /* a fight: arg OWF_*, npc the ground (a
-                                   tile) or the dungeon */
+                                   tile), the dungeon or the monster */
 #define OWB_HELP  10            /* ?: the keys, and what to do next */
 
 #define OWF_WANDER 0            /* what wanders out at you, on npc's ground */
 #define OWF_KEEPER 1            /* a dungeon's keeper: npc the dungeon */
 #define OWF_DRAGON 2            /* Maldrath, in his lair */
 #define OWF_UNDEAD 3            /* the dead, woken by L: npc the ground */
+#define OWF_FOE    4            /* a dungeon's monster that reached the
+                                   party, or that it walked into: npc its
+                                   index in the game block's foe_a[] */
 
 typedef struct {
     unsigned char mode;         /* OWB_* */

@@ -239,6 +239,50 @@ if [ -f dist/openworld.d81 ]; then
         echo "FAIL  openworld-fight (health, experience, gold: ${got:-?}; not 4 4 15)"
         fail=1
     fi
+
+    # A dungeon's monsters (src/ow/dungeon.c), which the quick start's
+    # OWG_CALM keeps out but enc_always=2 lets in: into the Hollow Crown and
+    # west along its first level, where a rat (monster 0, at 22,14) sees
+    # Alaric from the seventh step and comes up the corridor, a square a
+    # turn, until it is beside him after the eighth: a fight, which he waits
+    # out and wins by walking into it. Then it is dead in the game block
+    # (its kind OWG_FOE_DEAD, at 24,12: $D8), gone from the map the engine
+    # comes back to, and its blood is on that square ($92 in WORLD). The placing
+    # follows the game's turn and the level, so a change to the generator,
+    # the walk or the dice can want the keys worked out again, with --shot.
+    ow_enter=dddssssssssssssssssdsssssaasaaaaaaa
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
+        --splash quick --lbl build/ow-cpu.lbl --poke still=1 \
+        --poke enc_always=2 \
+        --keys "${ow_enter}aaaaaaaa$(printf 'j%.0s' $(seq 20))     eeeeeezzzz$(printf 'j%.0s' $(seq 20))" \
+        --settle 30 --peek '$CED0' --peek sm_npc_x --peek party+88:2 \
+        --peek '$B318' \
+        2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
+    if [ "$got" = "216 0 2 146 " ]; then
+        echo "PASS  openworld-foes"
+    else
+        echo "FAIL  openworld-foes (rat in the block, on the map, experience, the stain: ${got:-?}; not 216 0 2 146)"
+        fail=1
+    fi
+
+    # The keeper: down the Hollow Crown to the Gaoler, who stands on the
+    # bottom level while the party has no Emberstone (the quick start has
+    # every stone, so items=55 takes it away), and walk into him: the fight
+    # is asked for (OWB: OWB_FIGHT, the dungeon, OWF_KEEPER). The keys come
+    # from the levels' maps (dungeon_build() and the quick start's seed).
+    ow_down=aaaaaaaaaaaaaaaaaaaazssssssssssaaaaaaaaaaaaaaaaaaaaaaaazssssssss
+    ow_bump=dddddddewwwweeweddddddddddddddddxxxdddddewwwwwww
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
+        --splash quick --lbl build/ow-cpu.lbl --poke still=1 --poke items=55 \
+        --keys "${ow_enter}${ow_down}${ow_bump}$(printf 'j%.0s' $(seq 20))" \
+        --stage 3 --peek '$02ED:3' \
+        2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p')
+    if [ "$got" = 65545 ]; then     # $010009
+        echo "PASS  openworld-keeper"
+    else
+        echo "FAIL  openworld-keeper (hand-off ${got:-?}, not 65545: \$010009)"
+        fail=1
+    fi
 fi
 
 # Home is made from the game's seed, so the tests that go somewhere on it walk

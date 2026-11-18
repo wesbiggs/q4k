@@ -206,7 +206,10 @@ Everything that fights lives in `src/lib/battle.c`, typed in
 
 - `wanderers[]` -- each with `from`, the level it starts turning up at, and
   kept in that order: `battle_wander()` picks evenly from those the hero has
-  reached and stops at the first it has not.
+  reached and stops at the first it has not. The open world's dungeons show
+  them on the map, and keep their own copy of what that needs: each one's
+  picture, colour and speed in `src/ow/foes.s` (natives too), and `from` in
+  `src/ow/dungeon.c`. Change a wanderer and change those.
 - `keepers[]`, one per dungeon, and `maldrath`, who is two squares by two.
 
 A `Monster` is its stats, its glyph and colour, its speed in tenths of a move

@@ -53,6 +53,7 @@ extern unsigned char sm_offtile;
 extern unsigned char sm_npc_n, sm_npc_x[7], sm_npc_y[7];
 extern unsigned char sm_tunic;          /* the hero's colour, on foot */
 extern unsigned char still;             /* a test's: nothing idles */
+extern signed char sm_npc_ox[7], sm_npc_oy[7];   /* pixels off the square */
 void sm_npcs(void);
 void sm_redraw_box(void);
 void sm_shores_rect(void);
@@ -106,6 +107,11 @@ extern const unsigned char facing[8];
 
 extern unsigned char hx, hy;    /* the hero's square, as the engine has it */
 extern unsigned char dir, stride, pre_dir, frame, after;
+extern unsigned char moving;    /* a step is under way (dir) */
+extern unsigned char speed;     /* pixels a frame: 1 or 2 */
+extern unsigned char enc_always;    /* tests: 1 every roll a fight, and 1
+                                       or 2 a dungeon's monsters even with
+                                       OWG_CALM */
 extern unsigned int  steps;
 extern unsigned char whole, switch_time, roof_time;
 
@@ -181,7 +187,7 @@ unsigned char __fastcall__ ov_can_step(unsigned char d);
 void ov_arrived(void);          /* a step has ended: hx, hy are past it */
 void __fastcall__ ov_bump(unsigned char d);  /* a step that could not be */
 void ov_after(void);            /* the frame after a step (after != 0) */
-void ov_idle(void);             /* what is left of a frame */
+void ov_idle(void);             /* what is left of a frame (every frame) */
 void ov_look(void);             /* L: what is on the hero's square */
 
 #endif /* OW_ENGINE_H */

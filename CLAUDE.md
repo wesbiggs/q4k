@@ -236,8 +236,8 @@ the music and the effects). ld65 does not clear it. The engines' cfg names its p
 (it comes first), and they copy the rest in (`take_block()`) and out
 (`owg_where()`, before a save or another program); a program that links
 the game's own `actor.c`/`game.c` uses `owg_in()`/`owg_out()`
-(`src/lib/owgame.c`). A save is this block as it is, in `ow-save` (143
-bytes, `OWG_SIZE`, which `tools/mkowsave.py` writes too and the engine
+(`src/lib/owgame.c`). A save is this block as it is, in `ow-save` (192
+bytes, `OWG_SIZE`: the whole of `$CE40-$CEFF`, so a new field must move the bound first; it is what `tools/mkowsave.py` writes too and the engine
 checks): F1 in an engine writes it (scratching the old file first, as
 `savegame.c` does; the border is light blue while the drive works, red
 for a second if it would not, and the text window says which), and
@@ -299,7 +299,8 @@ key and stone, so that nothing is shut for the other goldens.
 called by `owtown` (`OWB_FIGHT`, `src/lib/ow_fight.c`). The engine rolls
 after a step on foot as the game's `encounter_roll()` does (`wander()` in
 `engine.c`, out of 200 by the ground, never in towns or ships, dice seeded
-from the game's turn and seed), sends a keeper's square in a dungeon and
+from the game's turn and seed; not in a dungeon, whose monsters are on
+the map: below), sends the keeper (walked into: `d_bump()`) and
 Maldrath's lair (with Dragonbane, before `Q_VICTORY`) the same way, and
 leaves (`ow_fight_with()`). `ow_fight()` picks what turns up as
 `battle_wander()` does, copies it out of the bestiary, loads the module
@@ -315,7 +316,8 @@ the game block's `quiet`. Not yet: gear and treasure maps dropped.
 the game block's `quiet` keeps anything from wandering out (the quick start
 and the disk's save have it, so the goldens meet nothing); `--poke
 enc_always=1` makes every roll a fight, which `openworld-fight` in
-`tools/test.sh` uses to win against a goblin. The fields are packed on
+`tools/test.sh` uses to win against a goblin (and places a dungeon's
+monsters in spite of `OWG_CALM`; `enc_always=2` does only that). The fields are packed on
 the disk (`tools/mkfields.py`'s `pack()`, unpacked by the module from
 `$C000`). **The open world's disk is a D81** (a 1581's, 3160 blocks): a
 1541's was full once the fights were on it. `screendump.py` and
@@ -440,6 +442,42 @@ engines. A new overlay is a file in `OWPARTS`, a code segment and a memory
 area in the cfg, a table in `ovl.s` and a line in `owslots.py`'s `SEGS`.
 Goldens `openworld-dungeon-out` and `openworld-out` go in and out of a
 dungeon and a town.
+
+**A dungeon's monsters are on the map** (`src/ow/dungeon.c`, and
+`src/ow/foes.s` for what is done square by square, which in C did not fit
+the slot): six a level (`OWG_FOES`), placed the first time a level is seen
+after the way in from the world (`foe_made`, a bit a level, cleared by
+`d_enter()`) on open floor at least five squares from either stairs, as
+`battle_wander()` would choose them (by the party's level and the depth,
+a quarter natives over the sea), and kept in the game block (`foe_a`,
+`foe_b`: two bytes each, x and y and a five-bit kind; x 0 for one there
+was no room for, and kind `OWG_FOE_DEAD` for one killed, whose square
+gets a bloodstain: `foes.s`'s `stain`, the dungeon set's `blood` at
+`0x92`, written into `WORLD` only, so it is still floor underfoot),
+so that a level left by the stairs and come back to has the same ones
+where they were left, and a fight's round trip through `owtown` too. Each
+is a sprite, 1 to 6, through the town's people's `sm_npc_*` (with
+`sm_npc_ox/oy`, pixels off the square, for the glide), one picture a kind
+(`tools/mkfields.py` writes `src/ow/foe_art.s` from `assets/monsters.txt`,
+`OVDART`, aligned at the slot's end: only one frame fits), however many
+the fight brings. After each step of the hero's, each that sees them (no
+farther than the screen, 10 by 6, and nothing but floor on the line)
+comes for them at its speed in the arena (`Monster.speed`, tenths of a
+square a turn, banked), one monster a frame in `ov_idle` while the raster
+is above line 190 (`foe_room()`), gliding there at the hero's pace; one
+beside the hero after its turn, or walked into, is a fight (`OWF_FOE`,
+which `ow_fight()` fights as that kind and clears from the block if won;
+one fled from stays). The fight waits for its glide to end, and the hero
+cannot step while one is coming (`pending`, `d_can_step()`); a held key
+starts the next step before the turns, so one that reached the square
+the hero was leaving takes another step after them (`d_arrived()`).
+A monster's square goes back into the block with its kind's bits kept:
+square + `BIAS` has bits of its own there (a bone archer once came back
+a wasp). `foes.s` has a copy of what the map needs of `bestiary.c`
+(picture, colour, speed: in RODATA, which is COMMON, for the slot's
+room) and `dungeon.c` of the wanderers'
+`from`: change a monster there and here. `OWG_CALM` places none, unless
+`--poke enc_always=2`.
 
 **The open world's disk icon is resident at `$CF14`.** `src/lib/ow_disk.s`
 (segment `OWDISK`, `cfg/c64-owboot.cfg`) holds the code, the sprite's picture
@@ -734,12 +772,14 @@ engine and in no file. An engine is 12.6K, MAIN only: what it has past the
 screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
 that the engine's file does not carry 5K of empty screens to the disk. The overlays are 4.4K (world), 4.4K
-(town) and 2.1K (dungeon) of the slot's 4.5K. Free, OW-CPU's (OW-REU has a
-little more), measured from the maps: 66 bytes in MAIN (the land and town
-generators' `MAPCODE` moved there from HIGH), 61 in `OWTOP` (`$5280-$53FF`),
-11 in HIGH (`$5400-$59FF`, where the text window's routines and the
-engine's words are), 145 beside the world's overlay, 40 beside the town's,
-2.5K beside the dungeon's, 39 in BSS, and COMMON 315. String
+(town) and 4.5K (dungeon, its monsters' pictures at the end) of the slot's
+4.5K. Free, OW-CPU's (OW-REU has a little more), measured from the maps: 75
+bytes in MAIN (the land and town generators' `MAPCODE` moved there from
+HIGH), 18 in OWTOP (`$5280-$53FF`), 9 in HIGH (`$5400-$59FF`, where the
+text window's routines and the engine's words are), 145 beside the world's
+overlay, 31 beside the town's, 10 beside the dungeon's (its monsters' art
+is aligned to a block at the end, so a byte more of code than that costs
+64), 23 in BSS, and COMMON 196. String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than

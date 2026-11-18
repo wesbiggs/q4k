@@ -168,7 +168,9 @@ unsigned char speed     = 2;    /* pixels a frame: 1 or 2 */
 unsigned char freeze_at = 0;    /* stop this many pixels into a step ... */
 unsigned char freeze_after = 0; /* ... once this many steps are done */
 unsigned char still     = 0;    /* 1: the water does not flow, nobody bobs */
-unsigned char enc_always = 0;   /* 1: every roll is a fight, for tests */
+unsigned char enc_always = 0;   /* for tests: 1, every roll is a fight (and
+                                   L finds the dead), and a dungeon has its
+                                   monsters, calm or not; 2, only that */
 unsigned char whole     = 0;    /* 1: a roof change redraws everything, for
                                    checking that the box it does is enough */
 
@@ -184,7 +186,8 @@ unsigned int  steps;
 unsigned long idle;             /* turns of the waiting loop while walking */
 unsigned int  walked;           /* ... over this many frames */
 
-static unsigned char moving, moved;
+unsigned char moving;
+static unsigned char moved;
 unsigned char dir, stride;
 unsigned char pre_dir = 0xFF;   /* the back screen is shifted that way */
 unsigned char frame;            /* the last frame the main loop handled */
@@ -476,7 +479,7 @@ void __fastcall__ wander(unsigned char tile)
     case T_FLOOR:  chance = 5;  break;
     default:       return;
     }
-    if (enc_always) {
+    if (enc_always == 1) {
         chance = 200;           /* (and calm or not) */
     } else if (G->quiet & OWG_CALM) {
         return;
@@ -659,6 +662,7 @@ static void quaff(void)
 /* Back through the bootstrap, which builds a world: the saved game's
    (OWB_LOAD, F3), or the next seed's (N), with the party in it. The game
    block first, which is what goes on if there is no save. */
+#pragma code-name (push, "OWTOP")  /* (MAIN is full) */
 static void rebuild(unsigned char mode)
 {
     owg_where();
@@ -669,6 +673,7 @@ static void rebuild(unsigned char mode)
     OW->seed = seed + 1;
     ow_run("openworld");
 }
+#pragma code-name (pop)
 
 /* A file that would not load: its name and what the drive says, on the
    KERNAL's text screen (row 12), until a key; then it is tried again.
@@ -1163,8 +1168,8 @@ int main(void)
                 }
             }
         }
-        /* A frame with nothing built in it: the window's next job, or
-           (in a town) the people idling. */
+        /* What is left of the frame: the window's next job (the world's),
+           the people idling (a town's), the monsters (the dungeon's). */
         ov_idle();
         flipped = 0;
     }
