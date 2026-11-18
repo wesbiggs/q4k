@@ -446,7 +446,7 @@ reloads `ow-data`, which it overwrites, resets the machine and loads the
 engine), and the engine loads the area's overlay straight away, with the
 hero where they stood, and builds the overworld afresh only on the way out
 (`fresh` in `world.c`, even with an REU, whose copy did not survive). The
-talk's files are on `openworld.d81` beside it (a D81, with about 2400
+talk's files are on `openworld.d81` beside it (a D81, with about 2300
 blocks free). The RUN/STOP that leaves
 a talk is still flagged when `ow-data` reloads, and the KERNAL's `LOAD`
 then fails with no drive error: `ow_back()` waits for STOP to come up and
@@ -887,7 +887,7 @@ it was going, goes on after the load as after a save. ld65 writes `ow-data` besi
 `%O.data`) and the Makefile fails if the two differ, so only bytes that are
 the same in both links can go there: data, not code (the engines' BSS
 differs). `local[]` (`HIDATA`, the game's font image) is at `$8000` in an
-engine and in no file, and COMMON is `$8800-$9FFF`. An engine is 12.6K, MAIN only: what it has past the
+engine and in no file, and COMMON is `$8800-$9FFF`. An engine is 13.1K (OW-CPU; OW-REU 12.6K), MAIN only: what it has past the
 screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
 that the engine's file does not carry 5K of empty screens to the disk. The overlays are 5.9K (world), 6.4K
