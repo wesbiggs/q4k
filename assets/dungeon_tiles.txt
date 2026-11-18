@@ -123,10 +123,11 @@ include places_common.txt
 # Where a monster was beaten (src/ow/dungeon.c): the floor, stained. Only
 # the map shows it; underfoot it is floor (local[] has no stains).
 code blood 0x92
-# A chest emptied (src/ow/status.c): WORLD only, as the blood is; local[]
-# keeps the chest, so that L there still says it is empty.
-code chestopen 0x93
-# The keeper's second frame (status.c's st_bob() swaps its characters with
+# A chest emptied (src/ow/stlow.s): WORLD only, as the blood is; local[]
+# keeps the chest, so that L there still says it is empty. $95 here and in
+# the castle's set, the same art.
+code chestopen 0x95
+# The keeper's second frame (stlow.s's st_bob() swaps its characters with
 # the keeper's every sixteenth frame, as everyone idles): never on the map.
 code keeperbob 0x94
 

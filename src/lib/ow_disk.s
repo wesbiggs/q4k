@@ -53,6 +53,10 @@ disk_show:
         sta     $D01D
         lda     #DISK_COL
         sta     $D027
+        lda     #$5B            ; extended colour and multicolour at once,
+        sta     $D011           ; which the VIC draws as black, sprites and
+        lda     #$D8            ; all: whatever the screen holds is hidden
+        sta     $D016           ; (the engine's file loads code into it)
         lda     #1
         sta     $D015
         lda     #120            ; about thirty seconds: see _ow_disk_irq
@@ -77,6 +81,11 @@ disk_stop:
 ; The interrupt back to the KERNAL's, and the sprite off (no SEI: this runs
 ; in the interrupt too, from _ow_disk_irq).
 disk_off:
+        lda     $D011           ; the screen as the KERNAL has it again
+        and     #$BF
+        sta     $D011
+        lda     #$C8
+        sta     $D016
         lda     #$31
         sta     $0314
         lda     #$EA

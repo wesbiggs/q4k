@@ -343,7 +343,7 @@ OWFILES := $(DIST)/ow-data.prg $(DIST)/splash-p.prg $(DIST)/splash-n.prg \
 # ld65 writes beside it as %O.world, %O.town and %O.dungeon, and
 # tools/owslots.py checks that nothing calls into an overlay but through its
 # jump table (ovl.s).
-OWPARTS := engine status world town dungeon
+OWPARTS := engine world town dungeon
 
 $(BUILD)/ow/world-cpu.o $(BUILD)/ow/world-reu.o: OWSEG := --code-name OVWCODE
 $(BUILD)/ow/town-cpu.o $(BUILD)/ow/town-reu.o: OWSEG := --code-name OVTCODE

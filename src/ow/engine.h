@@ -63,11 +63,13 @@ extern unsigned char sm_box_c0, sm_box_c1, sm_box_r0, sm_box_r1;
 extern unsigned char sm_torus;
 /* The text window: two lines under the map (smooth.s). sm_say() moves the
    bottom one up and writes s (PETSCII, up to 40) under it in sm_ink (0-7),
-   taking the window from the party's status (status.c) until the next step;
+   taking the window from the party's status (stlow.s) until the next step;
    sm_guard() waits while the split that makes the window is near, for
    whatever is about to keep interrupts off for long. */
-void __fastcall__ sm_say(const char *s);
+void __fastcall__ sm_say(const char *s);  /* (stlow.s's: below) */
 void sm_text_clear(void);
+extern unsigned char sm_rows;   /* the map's rows: 22 under the window, 25
+                                   with it hidden (stlow.s) */
 void sm_guard(void);
 extern unsigned char sm_ink;
 extern unsigned char sm_irqend, sm_splitline;
@@ -145,8 +147,6 @@ extern const char owtown[];     /* "owtown": the screens of text */
 /* A fight (OWF_* in ow.h; arg the ground or the dungeon), in owtown.
    Never returns. */
 void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg);
-/* After a step onto that tile: a wandering monster, now and then. */
-void __fastcall__ wander(unsigned char tile);
 
 /* L, the overlays' (ov_look): what they found, said and taken -- gold or
    draughts -- and a looted[] bit taken (0, and said, if it was before); or
@@ -191,7 +191,7 @@ void ov_after(void);            /* the frame after a step (after != 0) */
 void ov_idle(void);             /* what is left of a frame (every frame) */
 void ov_look(void);             /* L: what is on the hero's square */
 
-/* --- status.c, in OWLO (the engine's file, below $0801) ------------------ */
+/* --- stlow.s, in OWLO (the engine's file, below $0801) ------------------- */
 
 void st_show(void);             /* the party under the map, unless hidden */
 void st_start(void);            /* the screen is the engine's: a greeting,
@@ -203,6 +203,7 @@ void st_load(void);             /* F3, asked first */
 void st_look(void);             /* L, and a chest drawn open */
 void st_arrived(void);          /* a step ends: a chest is opened */
 void st_chests(void);           /* a dungeon level built: the open ones */
+void st_tchests(void);          /* a place's roofs put on or off: the same */
 void st_bob(void);              /* the keeper idles */
 
 #endif /* OW_ENGINE_H */

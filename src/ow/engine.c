@@ -61,6 +61,7 @@
 #include <errno.h>
 #include <conio.h>
 #include <peekpoke.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -69,6 +70,7 @@
 #include <q4k/dungeon.h>
 #include <q4k/game.h>
 #include <q4k/isle.h>
+#include <q4k/loot_data.h>
 #include <q4k/music.h>
 #include <q4k/music_map.h>
 #include <q4k/ow.h>
@@ -133,13 +135,36 @@ unsigned char has(unsigned char item)
 /* (party[] is the game block's: cfg/c64-openworld.cfg names it.) */
 typedef char owgame_is_what_mkowsave_writes[2 * (sizeof(OwGame) == OWG_SIZE) - 1];
 typedef char owgame_fits_below_the_probe[2 * (OWG_ADDR + OWG_SIZE <= 0xCF00) - 1];
+/* stlow.s has these by number. */
+typedef char st_g[2 * (OWG_ADDR == 0xCE3F) - 1];
+typedef char st_count[2 * (offsetof(OwGame, party_count) == 86) - 1];
+typedef char st_turn[2 * (offsetof(OwGame, game_turn) == 92) - 1];
+typedef char st_potions[2 * (offsetof(OwGame, potions) == 94) - 1];
+typedef char st_arrows[2 * (offsetof(OwGame, arrows) == 95) - 1];
+typedef char st_quiet[2 * (offsetof(OwGame, quiet) == 138) - 1];
+typedef char st_actor[2 * (sizeof(Actor) == 21) - 1];
+typedef char st_hp[2 * (offsetof(Actor, hp) == 2) - 1];
+typedef char st_name[2 * (offsetof(Actor, name) == 4) - 1];
+typedef char st_mp[2 * (offsetof(Actor, mp) == 17) - 1];
+typedef char st_mpmax[2 * (offsetof(Actor, mp_max) == 18) - 1];
+typedef char st_chest[2 * (T_CHEST == 0x70) - 1];
+typedef char st_monster[2 * (T_MONSTER == 0x8E) - 1];
+typedef char st_dungeon[2 * (AREA_DUNGEON == 3) - 1];
+typedef char st_hide[2 * (OWG_HIDE == 8) - 1];
+typedef char st_owbload[2 * (OWB_LOAD == 8) - 1];
+typedef char st_dunloot[2 * (DUN_LOOT == 36) - 1];
+typedef char st_numloot[2 * (NUM_LOOT == 2) - 1];
+typedef char st_lootsize[2 * (sizeof(Loot) == 6) - 1];
+
+/* A line made up to be said: in the BASIC input buffer, which nothing uses
+   while the engine runs (and below the hand-off blocks at $02A7). */
+#define said ((char *)0x0200)
 
 /* Everything said, in the engine's spare memory past the screens (HICODE):
    OW-DATA, where constants go, has little room left, and cc65 puts string
    literals there whatever the rodata pragma says, so they are arrays. */
 #pragma rodata-name (push, "HICODE")
 #pragma data-name (push, "HICODE")
-static char said[41] = { 0 };
 static const char s_draught[] = "You find a draught.";
 static const char s_find[] = "You find ";
 static const char s_draughts[] = " draughts.";
@@ -464,30 +489,6 @@ void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg)
     ow_leave(owtown);
 }
 
-/* After a step onto `tile`: something wanders out, now and then, as the
-   game's encounter_roll() has it (out of 200, by the ground; towns never
-   roll, and nor does a ship). Not with OWG_CALM, the tests'. */
-void __fastcall__ wander(unsigned char tile)
-{
-    unsigned char chance;
-
-    switch (tile) {
-    case T_GRASS:  chance = 8;  break;
-    case T_SHORE:  chance = 7;  break;
-    case T_FOREST: chance = 12; break;
-    case T_SWAMP:  chance = 16; break;
-    case T_FLOOR:  chance = 5;  break;
-    default:       return;
-    }
-    if (enc_always == 1) {
-        chance = 200;           /* (and calm or not) */
-    } else if (G->quiet & OWG_CALM) {
-        return;
-    }
-    if ((unsigned char)(rand() % 200) < chance) {
-        ow_fight_with(OWF_WANDER, tile);
-    }
-}
 
 #pragma code-name (pop)
 
@@ -669,12 +670,12 @@ void __fastcall__ rebuild(unsigned char mode)
     OWB->mode = mode;
     OW->seed = seed + 1;
     ow_leave(s_boot);           /* (which clears the screen it would show:
-                                   status.c's code is in it) */
+                                   stlow.s's code is in it) */
 }
 #pragma code-name (pop)
 
 /* A file that would not load: its name and what the drive says, on the
-   KERNAL's text screen (its top row: below it is status.c's code, which
+   KERNAL's text screen (its top row: below it is stlow.s's code, which
    the engine's file loads there), until a key; then it is tried again.
    `up` is whether the engine's screen is going, to be put back after.
    (On VICE every load works; this is for a drive that says no.) */

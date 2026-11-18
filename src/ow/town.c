@@ -221,6 +221,7 @@ static void put_roofs(void)
             }
         }
     }
+    st_tchests();               /* (a chest taken, uncovered: open) */
 }
 
 /* The people, as sprites 1 to 7, but for those under a roof: where they
@@ -275,14 +276,15 @@ static void box_on_screen(void)
     if (c0 < 0) c0 = 0;
     if (r0 < 0) r0 = 0;
     if (c1 > 39) c1 = 39;
-    if (r1 > 21) r1 = 21;       /* (the map's rows: the text is below) */
+    if (r1 >= sm_rows) r1 = sm_rows - 1;  /* (the map's rows: the text
+                                             window may be below) */
     if (c0 > c1 || r0 > r1) {
         c0 = c1 = r0 = r1 = 0;
     }
     if (whole) {
         c0 = r0 = 0;
         c1 = 39;
-        r1 = 21;
+        r1 = sm_rows - 1;
     }
     sm_box_c0 = c0;
     sm_box_c1 = c1;

@@ -240,7 +240,7 @@ the game's own `actor.c`/`game.c` uses `owg_in()`/`owg_out()`
 (`src/lib/owgame.c`). A save is this block as it is, in `ow-save` (193
 bytes, `OWG_SIZE`: the whole of `$CE3F-$CEFF`, so a new field must move the
 bound first -- `OWG_ADDR`, the engines' cfg (`_party` and BSS), `foes.s`'s
-`FOE_A`, `stlow.s`'s offsets, `mkowsave.py` -- and the engines' BSS has 23
+`FOE_A`, `stlow.s`'s offsets (engine.c checks them), `mkowsave.py` -- and the engines' BSS has 23
 bytes below it; it is what `tools/mkowsave.py` writes too and the engine
 checks): F1 in an engine writes it, after Y to "Save over the saved game? (scratching the old file first, as
 `savegame.c` does; the border is light blue while the drive works, red
@@ -358,30 +358,52 @@ the bootstrap with the world block empty, which shows the splash again.
 `?` is `owtown`'s `OWB_HELP`, the open world's keys and the quest's next
 step.
 
-**The party's lines, and the engine's code below $0801.** The text window
-shows the party as a fight's panel does (name; health, a wizard's magic;
-the draughts and arrows in the last column with room), drawn by
-`src/ow/stlow.s`'s `st_draw()` and kept by `src/ow/status.c`: `sm_say()` is
-status.c's, which clears the lines off before `smooth.s`'s `sm_say_raw()`
-says anything, and the next step (`st_step()`) puts them back, shown again
-even if SPACE had hidden them (`OWG_HIDE` in the game block's `quiet`).
+**The party's lines, the full screen, and the engine's code below $0801.**
+The text window shows the party as a fight's panel does (name; health, a
+wizard's magic; the draughts and arrows in the last column with room), all
+of it `src/ow/stlow.s`: `sm_say()` is its, which clears the lines off
+before `smooth.s`'s `sm_say_raw()` says anything, and the next step
+(`st_step()`) puts them back. **SPACE hides the window and gives its rows
+to the map**: `_sm_rows` (smooth.s's DATA) is 22 with the window and 25
+without, and the split (`irq`), the shift copy, the edges, the draws, the
+REU's lengths and the people's lowest line (`_sm_npclim`) all read it. The
+unrolled copies are the window's 22 rows: the colour copy goes on into
+`colour_tail_a/b` (HICODE, a column of the last three rows a pass), and the
+CPU's shift copy is 25 pairs, the 23rd patched to a jump past the last
+three with the window (`patch`, made again when `_sm_scdir` is $FF). Hiding
+it redraws the front screen there and then (`window_off`); `OWG_HIDE` in the
+game block keeps it across programs (`st_start()` hides it again).
+Anything said while it is hidden brings the window back, to stay
+(`window_on`). Measured over a 40-step walk (`late`): PAL 0 either way; NTSC
+10 with the window, 19 full screen (the full screen before the window
+existed: 15); the REU's engine 0 either way. Golden `openworld-full`.
 A new game opens with "Hail, adventurers! Press ? for help." instead
-(`st_start()`: `game_turn` is 0). F1 and F3 ask first (`st_save()`,
-`st_load()`, the engine's `yes()`). A dungeon's chest is opened by
-standing on it (`st_arrived()` after `ov_arrived()`, which calls L), and
-any taken chest is drawn open, `chestopen` (`$93` in the dungeon set), in
-`WORLD` only (`st_chests()` from `dungeon.c`'s `muster()`; after L, the
-square redrawn as a roof change is). The keeper idles: `st_bob()`, with the
-hero's idle, swaps his four characters with `keeperbob`'s (`$94`) in the
-character set; his art (`places_common.txt`) is outlined in grey, since red
-and brown on a dungeon floor is what the blood is. All of that lives in
-`OWLO`, `$0430-$07F7`: **the engine's file now starts at `$042E`**, in the
-KERNAL's text screen, which the engine never shows (sprite 0's pointer at
-`$07F8` is written with the disk icon's block, `OWSPTR`, since the icon is
-up while the file loads over it). So `load_failed()` writes the screen's
-top row only, and anything that hands the screen back to the KERNAL first
-clears it (`ow_leave()`; `rebuild()` goes through it now) or it shows code.
-Goldens: the window's rows are the party's lines, or what was said last.
+(`st_start()`: `game_turn` is 0; `mkowsave.py`'s save has a turn). F1 and
+F3 ask first, in the game's words (`st_save()`, `st_load()`, the engine's
+`yes()`). A chest, a dungeon's or the castle's (its two are `loot.txt`'s),
+is opened by standing on it (`st_arrived()` after `ov_arrived()`, which
+calls L), and any taken chest is drawn open, `chestopen` (`$95` in the
+dungeon's and the castle's sets), in `WORLD` only: `st_chests()` from
+`dungeon.c`'s `muster()`, `st_tchests()` at the end of `town.c`'s
+`put_roofs()` (the castle's are in the throne room, and a roof taken off
+puts back what `local[]` has), and after L the square redrawn as a roof
+change is. The keeper
+idles: `st_bob()`, with the hero's idle, swaps his four characters with
+`keeperbob`'s (`$94`) in the character set; his art (`places_common.txt`)
+is outlined in grey, since red and brown on a dungeon floor is what the
+blood is. stlow.s, `sm_text_clear` and `font_copy` live in `OWLO`,
+`$0430-$07F7`: **the engine's file starts at `$042E`**, in the KERNAL's text
+screen, which the engine never shows. While anything loads, the disk icon
+(`ow_disk.s`) puts the VIC in extended colour and multicolour at once,
+which it draws as black with the sprites over it, so the code loading into
+the screen is never seen; `disk_off` puts the KERNAL's mode back. Sprite 0's
+pointer at `$07F8` is written with the icon's block (`OWSPTR`), since the
+icon is up while the file loads over it. So `load_failed()` writes the
+screen's top row only, and anything that hands the screen back to the
+KERNAL first clears it (`ow_leave()`; `rebuild()` goes through it now) or
+it shows code. `said`, the engine's line being made up, is the BASIC input
+buffer at `$0200`. Goldens: the window's rows are the party's lines, or
+what was said last.
 
 **The music carries on** across the programs: leaving, the engine pauses
 the tune where it is (`ow_tune_pause()`, the volume only) and says which
@@ -803,14 +825,15 @@ screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
 that the engine's file does not carry 5K of empty screens to the disk. The overlays are 4.4K (world), 4.4K
 (town) and 4.5K (dungeon, its monsters' pictures at the end) of the slot's
-4.5K. Free, OW-CPU's (OW-REU has a little more), measured from the maps: 63
-bytes in MAIN (the land and town generators' `MAPCODE` moved there from
-HIGH), 64 in OWLO (`$0430-$07F7`, below the BASIC stub: the party's lines
-and the rest of `status.c`), 19 in OWTOP (`$5280-$53FF`), 9 in HIGH
-(`$5400-$59FF`, where the text window's routines and the engine's words
-are), 145 beside the world's overlay, 31 beside the town's, 4 beside the
-dungeon's (its monsters' art is aligned to a block at the end, so a byte
-more of code than that costs 64), 23 in BSS, and COMMON 70. String
+4.5K. Free, OW-CPU's (OW-REU has a little more), measured from the maps: 1
+byte in MAIN (the land and town generators' `MAPCODE` moved there from
+HIGH), 8 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 19 in
+OWTOP (`$5280-$53FF`), 21 in HIGH (`$5400-$59FF`, where the text window's
+routines, stlow.s's helpers and the engine's words are), 35 beside the
+world's overlay (which has `wander()`, the overworld's encounter roll, out
+of the core), 24 beside the town's, 4 beside the dungeon's (its monsters' art is aligned to
+a block at the end, so a byte more of code than that costs 64), 23 in BSS,
+and COMMON 12. String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than

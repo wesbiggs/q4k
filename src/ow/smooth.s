@@ -72,7 +72,8 @@
         .export _sm_ox, _sm_oy, _sm_fx, _sm_fy, _sm_front, _sm_frame
         .export _sm_colend, _sm_irqline, _sm_irqend, _sm_splitline
         .export _sm_say_raw, _sm_ink, _sm_text_clear, _sm_guard, sm_guard
-        .export _ow_mt0, _ow_chq        ; (status.c: the keeper's bob)
+        .export _sm_rows, _sm_npclim, _sm_scdir     ; (stlow.s: the window)
+        .export _ow_mt0, _ow_chq        ; (stlow.s: the keeper's bob)
         .export _sm_quit
 .if OW_REU
         .export _sm_reu_keep
@@ -98,8 +99,14 @@ D018_B   = ((SCRB & $3FFF) / $400) * 16 + ((CHARS & $3FFF) / $800) * 2
 IRQLINE  = 250
 ; The text window (sm_say): the map is rows 0-21 of the screens, and rows
 ; 22 and 23 are two lines of text that stay put while the map scrolls. See
-; "The text window", below the interrupt.
+; "The text window", below the interrupt. Or, with the window hidden (SPACE,
+; stlow.s), no split and the map on all 25 rows: _sm_rows says which, and
+; everything that draws, shifts or colours the map reads it. MAPROWS is the
+; window's; the unrolled copies are the window's too, and the full screen's
+; last three rows are a loop after them (colour_tail) or patched in (the
+; shift's).
 MAPROWS  = 22
+ALLROWS  = 25
 MAPLEN   = MAPROWS * 40
 TEXTROW  = 22
 SPLITLINE = $DC                 ; ECM on, fine scroll 7: the map ends
@@ -610,7 +617,7 @@ fill_n: lda     #0
 
 ; A column of the map's rows from (cx, cy) down into ptr1.
 fill_col:
-        lda     #MAPROWS
+        lda     _sm_rows
         sta     cnt
 @l:     jsr     char_at
         ldy     #0
@@ -644,14 +651,48 @@ fill_col:
         dex
         bpl     :-
         .endrep
-        rts
 .endmacro
 
 .if !OW_REU
 colour_a:
         COLCOPY SCRA
+        jmp     colour_tail_a
 colour_b:
         COLCOPY SCRB
+        jmp     colour_tail_b
+
+; The full screen's last three rows, after the window's: a loop, nothing
+; in a hurry, for either screen. Nothing with the window up.
+        .segment "HICODE"
+colour_tail_a:
+        ldy     #>SCRA
+        .byte   $2C             ; (skips the next ldy)
+colour_tail_b:
+        ldy     #>SCRB
+        lda     _sm_rows
+        cmp     #MAPROWS
+        beq     @done
+        tya                     ; the three loads' pages: the screen's
+        ora     #>(MAPROWS * 40)
+        sta     @r0 + 2
+        sta     @r1 + 2
+        sta     @r2 + 2
+        ldx     #39             ; a column of all three a pass: nearly
+@r0:    ldy     SCRA + 22 * 40, x       ; as quick as unrolled
+        lda     ow_chcol, y
+        sta     $D800 + 22 * 40, x
+@r1:    ldy     SCRA + 23 * 40, x
+        lda     ow_chcol, y
+        sta     $D800 + 23 * 40, x
+@r2:    ldy     SCRA + 24 * 40, x
+        lda     ow_chcol, y
+        sta     $D800 + 24 * 40, x
+        dex
+        bpl     @r0
+@done:  rts
+        .assert MAPROWS = 22 && ALLROWS = 25, error, "colour_tail's rows"
+        .assert >(SCRA + 24 * 40 + 39) = >(SCRA + 22 * 40), error, "colour_tail page"
+        .segment "CODE"
 .else
 ; OW-REU colours a flip from the REU, and needs a copy from the screen only
 ; for a redraw (sm_draw_all, sm_redraw_box): one copy will do, made to read
@@ -659,7 +700,17 @@ colour_b:
 colour_a:
         COLCOPY SCRA
 CC_ROW = 2 + 4 * 9 + 3          ; a row's code: ldx, four ldy-lda-sta, dex, bpl
-        .assert * - colour_a = MAPROWS * CC_ROW + 1, error, "colour_for's layout"
+        .assert * - colour_a = MAPROWS * CC_ROW, error, "colour_for's layout"
+        lda     _sm_rows        ; the full screen's last three rows: a loop
+        cmp     #MAPROWS
+        beq     :+
+        ldx     #(ALLROWS - MAPROWS) * 40 - 1
+cc_tail: ldy    SCRA + MAPROWS * 40, x
+        lda     ow_chcol, y
+        sta     $D800 + MAPROWS * 40, x
+        dex
+        bpl     cc_tail
+:       rts
 
 ; colour_a, made to read the screen whose page is in A: the high byte of
 ; each of its hundred ldy's, flipped if it reads the other one. About 2K
@@ -672,6 +723,9 @@ colour_for:
         sta     ptr1
         lda     #>(colour_a + 4)
         sta     ptr1+1
+        lda     cc_tail+2       ; (and the tail's)
+        eor     #(>SCRA) ^ (>SCRB)
+        sta     cc_tail+2
         ldx     #MAPROWS
 @row:   ldy     #0
 @ldy:   lda     (ptr1),y
@@ -713,10 +767,11 @@ shiftcopy:
 sc_ldx: ldx     #38
 sc_go:  jmp     sc_body
 sc_body:
-        .repeat MAPROWS, R
+        .repeat ALLROWS, R
         lda     $FFFF, x
         sta     $FFFF, x
         .endrep
+sc_next:
         dex
         bmi     :+
 sc_loop: jmp    sc_body
@@ -732,7 +787,10 @@ sh_skip: .byte 6, 6, 0, 0, 6, 6, 6, 6   ; past the last row if it moves rows
 sh_cnt:  .byte 39, 39, 38, 38, 38, 38, 38, 38
 
         .segment "DATA"
-sc_dir:  .byte   $FF            ; ... this direction: none yet
+_sm_scdir:
+sc_dir:  .byte   $FF            ; ... this direction: none yet (stlow.s
+                                ; says so when the rows change)
+sc_lim:  .byte   MAPROWS * 6
         .segment "CODE"
 
 .endif
@@ -792,7 +850,7 @@ patch:  cmp     sc_dir
         clc
         adc     #6
         tay
-        cpy     #MAPROWS*6
+        cpy     sc_lim
         bne     @flip
 @go:    rts
 
@@ -823,11 +881,26 @@ patch:  cmp     sc_dir
         ldy     #>SCRA
 :       sta     ptr1+1
         sty     ptr2+1
-        ldy     #7              ; rows 0-20 into pairs 1-21 ...
-        ldx     #MAPROWS
+        lda     _sm_rows        ; (its pairs are 6 bytes: the flip's end)
+        asl     a
+        adc     _sm_rows
+        asl     a
+        sta     sc_lim
+        lda     #$BD            ; the full screen copies all 25 pairs: the
+        ldx     _sm_rows        ; 23rd's lda back; with the window, a jump
+        cpx     #MAPROWS        ; there, past the last three
+        bne     :+
+        lda     #<sc_next
+        sta     sc_body+MAPROWS*6+1
+        lda     #>sc_next
+        sta     sc_body+MAPROWS*6+2
+        lda     #$4C
+:       sta     sc_body+MAPROWS*6
+        ldy     #7              ; rows 0 on into pairs 1 on ...
+        ldx     _sm_rows
 @pair:  dex
         bne     :+
-        ldy     #1              ; ... and row 21 into pair 0
+        ldy     #1              ; ... and the last row into pair 0
 :       lda     ptr1
         sta     sc_body,y
         lda     ptr1+1
@@ -837,8 +910,9 @@ patch:  cmp     sc_dir
         lda     ptr2+1
         sta     sc_body+4,y
         txa
-        beq     @go
-        tya
+        bne     :+
+        rts
+:       tya
         clc
         adc     #6
         tay
@@ -878,15 +952,17 @@ _sm_edge_row:
         lda     dirdy,x
         beq     @none
         bmi     @top
-        lda     #<((MAPROWS-1)*40)      ; the bottom row, from the new
-        sta     ptr1                    ; origin's
+        ldy     _sm_rows        ; the bottom row, from the new origin's
+        dey
+        lda     rowlo40,y
+        sta     ptr1
         lda     backhi
         clc
-        adc     #>((MAPROWS-1)*40)
+        adc     rowhi40,y
         sta     ptr1+1
         lda     _sm_oy
         clc
-        adc     #MAPROWS        ; (oy + 1) + the last row
+        adc     _sm_rows        ; (oy + 1) + the last row
         bne     @go             ; (never 0 on the map)
 @top:   lda     #0
         sta     ptr1
@@ -1028,7 +1104,7 @@ draw_page:
         sta     ptr1
         lda     _sm_oy
         sta     cy
-        lda     #MAPROWS
+        lda     _sm_rows
         sta     dir             ; a row count, here
 @row:   lda     _sm_ox
         sta     cx
@@ -1215,11 +1291,12 @@ shifted:
         lda     r_addr+1
         adc     #0
         sta     r_addr+1
-        lda     #<MAPLEN
+        ldy     _sm_rows        ; (the map's rows: not the text's)
+        lda     rowlo40,y
         sec
         sbc     offlo,x
         sta     r_len
-        lda     #>MAPLEN
+        lda     rowhi40,y
         sbc     #0
         sta     r_len+1
         rts
@@ -1230,11 +1307,12 @@ shifted:
         lda     r_c64+1
         sbc     #$FF
         sta     r_c64+1
-        lda     #<MAPLEN        ; MAPLEN + off
+        ldy     _sm_rows        ; the map's length + off
+        lda     rowlo40,y
         clc
         adc     offlo,x
         sta     r_len
-        lda     #>MAPLEN
+        lda     rowhi40,y
         adc     #$FF
         sta     r_len+1
         rts
@@ -1297,9 +1375,10 @@ reu_shift:
         rts
 
 len1000:                        ; (the map's rows: not the text's)
-        lda     #<MAPLEN
+        ldy     _sm_rows
+        lda     rowlo40,y
         sta     r_len
-        lda     #>MAPLEN
+        lda     rowhi40,y
         sta     r_len+1
         rts
 
@@ -1326,7 +1405,8 @@ reu_colour:
         ldy     #0              ; the top row ...
         lda     dirdy,x
         bmi     :+
-        ldy     #MAPROWS-1      ; ... or the bottom
+        ldy     _sm_rows        ; ... or the bottom
+        dey
 :       lda     rowlo40,y
         sta     @rs+1
         sta     @rc+1
@@ -1358,7 +1438,7 @@ reu_colour:
         sta     @cs+2
         lda     #>$D800
         sta     @cc+2
-        ldx     #MAPROWS
+        ldx     _sm_rows
 @cs:    ldy     $FFFF
         lda     ow_chcol,y
 @cc:    sta     $FFFF
@@ -1556,7 +1636,7 @@ _sm_npcs:
         sbc     camy+1
         and     #7
         bne     @off            ; above the screen, or below it
-        cpx     #NPC_YMAX + 1
+        cpx     _sm_npclim
         bcs     @off            ; over the text window
         tya                     ; on: x, y and the bits
         asl     a
@@ -1587,6 +1667,14 @@ bit_of: .byte   1, 2, 4, 8, 16, 32, 64, 128
 ; The lowest a person's sprite may stand: its sixteen lines end above the
 ; band (from $DD) and the text.
 NPC_YMAX = SPLITLINE - 15
+
+        .segment "DATA"
+_sm_rows:   .byte MAPROWS       ; the map's rows: MAPROWS, or ALLROWS with
+_sm_npclim: .byte NPC_YMAX + 1  ; no window (stlow.s), and how low a
+.if OW_REU
+_sm_scdir:  .byte 0             ; (the CPU's shift's: nothing here)
+.endif
+        .segment "CODE"         ; sprite may stand (255 then)
 
 ; ---------------------------------------------------------------------------
 ; void __fastcall__ sm_tileset(const unsigned char *set) -- a tile set in:
@@ -1762,7 +1850,10 @@ irq:
         lda     ts_bg           ; (the text window made it black)
         sta     $D021
         lda     den             ; and its split, unless the screen is off
-        beq     :+
+        beq     :+              ; or the window hidden
+        lda     _sm_rows
+        cmp     #MAPROWS
+        bne     :+
         lda     #SPLITLINE
         sta     $D012
         inc     irqstep
@@ -1900,7 +1991,7 @@ _sm_guard:
 ; void __fastcall__ sm_say_raw(const char *s) -- a line of text: the
 ; window's bottom line moves up into the top one, and s (PETSCII, up to 40)
 ; is the new bottom line, in the colour sm_ink (0-7), in both screens.
-; (status.c's sm_say() clears the party's status off the window first.)
+; (stlow.s's sm_say() clears the party's status off the window first.)
 _sm_say_raw:
         sta     ptr1
         stx     ptr1+1
@@ -1955,6 +2046,7 @@ font_of:
         adc     #FONT
         rts
 
+        .segment "OWLO"         ; (for HICODE's room)
 ; void sm_text_clear(void) -- both lines blank (and row 24, which is under
 ; the border, with them).
 _sm_text_clear:
@@ -1968,7 +2060,8 @@ _sm_text_clear:
 
 ; The font: the character ROM's lowercase set, its first 96 (screen codes
 ; 0-$5F), into the character set from FONT. Above anything a tile set has
-; (mkoverworld.py keeps them under it), so it is done once.
+; (mkoverworld.py keeps them under it), so it is done once. (In OWLO,
+; stlow.s's, for HICODE's room: the engine's file brings it.)
 font_copy:
         sei
         lda     $01
@@ -2131,11 +2224,11 @@ _sm_quit:
 
 ; A screen row's offset, row * 40, for the rows the edges use.
 rowlo40:
-        .repeat 25, N
+        .repeat 26, N
         .byte   <(N * 40)
         .endrep
 rowhi40:
-        .repeat 25, N
+        .repeat 26, N
         .byte   >(N * 40)
         .endrep
 
