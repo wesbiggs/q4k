@@ -418,14 +418,25 @@ leaves it paused for the screen after and the engine.
 **The screens of text are a program loaded from disk, not a part of the
 engine**: `owtown` (`src/owtown.c`, linked with `cfg/c64-owtown.cfg`, the
 flat layout with the shop's code below the charset, where it would be 6K
-of padding in the file; the talk's code is above it, in HIGH, since no
-talk follows a fight, and MAIN wanted the room for the REU cache's loader). The hand-off block (`OWB` in `include/q4k/ow.h`,
-at `$02ED`) says what for: `OWB_TALK` a conversation, `OWB_SHOP` and
+of padding in the file; the talk's code, which the inns' rumours use, is
+above it, in HIGH, since no inn follows a fight, and MAIN wanted the room
+for the REU cache's loader). The hand-off block (`OWB` in `include/q4k/ow.h`,
+at `$02ED`) says what for: `OWB_SHOP` and
 `OWB_INN` the game's own `shop.c` and `inn.c` (walking into a keeper, as a
 townsperson), `OWB_PARTY` the party screen (`I`: `shop.c`'s rows, one
-member at a time with their figure, below), `OWB_HELP` the keys (`?`). It defines the
-few variables and functions of `game.c`, `sprite.c`, `savegame.c`,
-`music.s` and `view.c` that those modules use (as the engine does), so
+member at a time with their figure, below), `OWB_HELP` the keys (`?`). **A conversation (`OWB_TALK`) is a program
+of its own**, `owtalk` (`src/owtalk.c`, `cfg/c64-owtalk.cfg`), which the
+town's overlay loads for a person (`talk_to()`: a keeper or an inn goes to
+`owtown`): `talk.c` and `gift.c`, with all its code below `$3800`
+(3.5K free there, less the C stack), the font image, `tiles_install()`
+and `actor.c`'s and `town_data.c`'s tables at `$4000-$4DC6`, and BSS at
+`$B000` as `owtown`'s, so that VIC bank 1 is free for a portrait of the
+speaker (a `.v2i`, once the library can show one in bank 1); before one
+goes there, the tables the talk reads move below `$4000`. Both programs
+link `src/ow/owstand.o`, the few variables and functions of `game.c`,
+`sprite.c`, `savegame.c`, `music.s` and `view.c` that those modules use
+(as the engine defines its own), ahead of the library, since `game.o`
+has the same names; so
 that none of those is linked, nor the map, the land generator and the
 vault behind them: adding a module that references one of them can pull
 8K back in, so read `build/owtown.map`'s module list after. `rand()`

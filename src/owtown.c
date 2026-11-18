@@ -7,11 +7,7 @@
  * (q4k/ow.h's OWB) saying what for (the party's making, after the splash
  * screen's F1, is a program of its own: src/owparty.c):
  *
- *   OWB_TALK            a conversation, when the hero walks into a
- *                       townsperson: the offline talk (src/lib/talk.c,
- *                       which reads each person's lines from the disk),
- *                       and what it hands over (src/lib/gift.c), which
- *                       moves the quest on
+ *   (OWB_TALK, a conversation, is a program of its own: src/owtalk.c)
  *   OWB_SHOP            a shop (src/lib/shop.c), arg its kind (SHOP_*)
  *   OWB_INN             an inn (src/lib/inn.c): ale and a rumour from the
  *                       inn's file on the disk, or beds; arg which inn
@@ -55,102 +51,11 @@
 #include <q4k/tiles.h>
 #include <q4k/town_data.h>
 
-/* What the game's modules here read and write of game.c's and sprite.c's:
-   defined here instead, as the engine does, so that neither is linked, nor
-   the map, the land generator and the vault that game.c brings with it.
-   The game block (owgame.h) is where they come from and go back to. */
-unsigned char land, local_w, local_h, depth;
-unsigned int  game_turn, gold;
-unsigned char potions, arrows, quest_stage, items, lore_seed;
-unsigned char looted[LOOTED_BYTES];
-unsigned char tmap[TM_SIZE];
-unsigned char home_biome;
-const TownEnt *here_ents;
-unsigned char  here_n, here_ex, here_ey;
-
-unsigned char has(unsigned char item)
-{
-    return items & item;
-}
-
-void give(unsigned char item)
-{
-    items |= item;
-}
-
-/* Which continent holds which story place (the shops' tiers follow it):
-   game.c's, from the seed. */
-unsigned char slot_of(unsigned char d)
-{
-    unsigned char p[4], i, j, t, v = lore_seed;
-
-    for (i = 0; i < 4; ++i) {
-        p[i] = i;
-    }
-    for (i = 3; i > 0; --i) {
-        v = v * 5 + 3;
-        j = (v >> 5) % (i + 1);
-        t = p[i]; p[i] = p[j]; p[j] = t;
-    }
-    return p[d];
-}
-
-void sprite_hide(void)
-{
-    VIC.spr_ena = 0;
-}
-
-/* The music the engine left paused, carried on (src/lib/ow_play.s). */
+/* The game's own variables and the few functions of game.c's and the
+   rest that the modules here use are src/ow/owstand.c's, shared with
+   owtalk. The music the engine left paused (src/lib/ow_play.s): */
 void owt_music_on(void);
-void owt_music_pause(void);
-void owt_music_resume(void);
 void owt_music_off(void);
-
-/* And of savegame.c's, music.s's and view.c's, for the same reason: the
-   drive is unit 8, the music is ow_play.s's (the talk pauses it round the
-   disk), and there is no map to put a message under. */
-unsigned char save_device = 8;
-void music_pause(void)
-{
-    owt_music_pause();
-}
-void music_resume(void)
-{
-    owt_music_resume();
-}
-void __fastcall__ view_message(const char *s)
-{
-    (void)s;
-}
-
-/* A line said on a screen of its own: what a person handed over when
-   there was nothing to read of theirs. Any key goes on. */
-static void note_screen(const char *s)
-{
-    clrscr();
-    textcolor(COLOR_YELLOW);
-    cputsxy(1, 10, s);
-    textcolor(COLOR_GRAY2);
-    cputsxy(1, 12, "Press a key.");
-    cgetc();
-}
-
-/* A conversation, and whatever it hands over (the game's quest_after_talk(),
-   gift.c): the Sigil, the keys, Garrett's arms and Dragonbane, the king's
-   reward. With nothing on the disk for the person, what they would have
-   given is given all the same, as the game does. */
-static void talk(unsigned char npc)
-{
-    const char *note;
-
-    talking_to = npc;
-    if (dialog_talk(npc, npc_names[npc], quest_after_talk) != DIALOG_OK) {
-        note = quest_after_talk(GRANT_OPEN);
-        if (note) {
-            note_screen(note);
-        }
-    }
-}
 
 /* --- I: the party ----------------------------------------------------------
 
@@ -330,8 +235,8 @@ int main(void)
 {
     unsigned char mode = OWB->mode;
 
-    if (mode < OWB_TALK || mode > OWB_HELP || mode == OWB_BACK ||
-        mode == OWB_NEW || mode == OWB_QUICK || mode == OWB_LOAD) {
+    if (mode < OWB_SHOP || mode > OWB_HELP ||
+        mode == OWB_LOAD) {     /* (a conversation is owtalk's) */
         cputs("Load OPENWORLD: it builds the world.");
         for (;;) {
         }
@@ -358,9 +263,6 @@ int main(void)
         owt_music_on();
     }
     switch (mode) {
-    case OWB_TALK:
-        talk(OWB->npc);
-        break;
     case OWB_SHOP:              /* the game's shops (shop.c) */
         eng_a = OWB->arg;
         shop_entry();

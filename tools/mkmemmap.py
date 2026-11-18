@@ -127,6 +127,7 @@ def blocks():
     cpu = read_map("ow-cpu")
     reu = read_map("ow-reu")
     town = read_map("owtown")
+    talk = read_map("owtalk")
     fight = read_map("fight")
 
     B = lambda r, key, cat, label: [r[0], r[1], key, cat, label]
@@ -225,7 +226,7 @@ def blocks():
     town_high = span(town, 0x4000, 0xAFFF)
     town_lo = [
         B(town_low, "townlow", "town",
-          "owtown low: main, talk, fight caller, C library"),
+          "owtown low: main, inn rumours, fight caller, C library"),
         B(seg(town, "OWFIGS"), "owfigs", "video",
           "Party screen's figures: sprite blocks (OWFIGS)"),
         [0x37C0, 0x37FF, "cstack", "town", "C stack (top of MAIN, grows down)"],
@@ -292,7 +293,7 @@ def blocks():
              B(overlay(cpu, "OVDHEAD", "OVDCODE"), "ovd", "ovd",
                "Dungeon overlay and its generator")] + top},
         {"id": "owtown", "name": "Text screens",
-         "sub": "owtown: talk, shop, inn, party (I)",
+         "sub": "owtown: shop, inn, party (I), help (?)",
          "blocks": low + loader + [textscr] + town_lo + [
              [0x3800, 0x3FFF, "charset", "video",
               "Text charset, with read-only data in its spare glyphs"],
@@ -302,6 +303,24 @@ def blocks():
              [town_high[1] + 1, od[1], "owdatastale", "stale",
               "OW-DATA, partly overwritten (reloaded on the way back)"],
          ] + town_bss + top},
+        {"id": "owtalk", "name": "Talk",
+         "sub": "owtalk: a conversation (VIC bank 1 kept for a portrait)",
+         "blocks": low + loader + [textscr] + [
+             B(span(talk, 0x0801, 0x37FF), "talklow", "town",
+               "owtalk: main, talk, gift, the C library"),
+             [0x37C0, 0x37FF, "cstack", "town",
+              "C stack (top of MAIN, grows down)"],
+             [0x3800, 0x3FFF, "charset", "video",
+              "Text charset, with read-only data in its spare glyphs"],
+             B(span(talk, 0x4000, 0x4FFF), "talkhigh", "town",
+               "owtalk high: the font image and tiles_install (used once), "
+               "actor's and town_data's tables"),
+             [od[0], od[1], "owdatastale", "stale",
+              "OW-DATA, as the engine left it (reloaded on the way back)"],
+             B(seg(talk, "BSS"), "talkbss", "tbss", "owtalk BSS"),
+             B(seg(talk, "TALKBSS"), "talkbuf2", "tbss",
+               "Talk buffer (a person's lines)"),
+         ] + top},
         {"id": "fight", "name": "Fight",
          "sub": "owtown + the fight module over its high half",
          "blocks": low + loader + [

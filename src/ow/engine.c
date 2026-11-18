@@ -483,9 +483,10 @@ void save_game(void)
     sm_say(ok ? s_saved : s_unsaved);
 }
 
-/* The text screens' program (src/owtown.c): the talk, the shops, the
-   inns, the party. */
+/* The text screens' programs: src/owtown.c (the shops, the inns, the
+   party, help, a fight) and src/owtalk.c (a conversation). */
 const char owtown[] = "owtown";
+const char owtalk[] = "owtalk";
 
 #pragma code-name (push, "HICODE")    /* (MAIN is full) */
 /* A fight: owtown (src/lib/ow_fight.c) calls the fight module, and the

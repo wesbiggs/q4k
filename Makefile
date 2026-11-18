@@ -74,7 +74,7 @@ DEPFLAGS  = -Wc --create-full-dep,$(@:.o=.d) -Wc --dep-target,$@
 # rule below). dungeontest links the maps and the font, arena the fights and
 # isletest the land, so they need the game's charset and probe page as well,
 # with everything in one load (cfg/c64-flat.cfg).
-LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest,$*),flat,$(if $(filter owtown,$*),owtown,$(if $(filter openworld,$*),owboot,$(if $(filter owarena,$*),owarena,tool)))).cfg
+LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest,$*),flat,$(if $(filter owtown owtalk,$*),$*,$(if $(filter openworld,$*),owboot,$(if $(filter owarena,$*),owarena,tool)))).cfg
 
 MAINS    := $(wildcard src/*.c)
 PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
@@ -468,7 +468,7 @@ $(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py
 # makes for the game's disk too.
 # And the fights (src/lib/ow_fight.c): the module and its fields and sprites,
 # as the arena's disk has them.
-$(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST)/owtown.prg \
+$(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
 	    $(DIST)/owparty.prg \
 	    $(BUILD)/music/.stamp $(BUILD)/talk/.stamp $(DIST)/fight.prg \
 	    $(BUILD)/fight/disk/.stamp $(OWSETS)
@@ -478,7 +478,8 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 	    -write $(DIST)/ow-save.prg ow-save -write $(DIST)/ow-data.prg ow-data \
 	    -write $(DIST)/ow-cpu.prg ow-cpu -write $(DIST)/ow-reu.prg ow-reu \
 	    $(foreach f,$(OWOVL),-write $(f) $(notdir $(f))) \
-	    -write $(DIST)/owtown.prg owtown -write $(DIST)/owparty.prg owparty \
+	    -write $(DIST)/owtown.prg owtown -write $(DIST)/owtalk.prg owtalk \
+	    -write $(DIST)/owparty.prg owparty \
 	    -write $(DIST)/fight.prg fight \
 	    $$(for f in $(BUILD)/ow/sets/t.*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/fight/disk/[fs].*; do printf ' -write %s %s' $$f $${f##*/}; done) \
@@ -497,10 +498,10 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 OWCACHE_FILES := $(DIST)/ow-data.prg=ow-data \
     $(DIST)/ow-cpu.prg=ow-cpu $(DIST)/ow-reu.prg=ow-reu \
     $(foreach e,cpu reu,$(foreach o,hi world town dungeon,$(DIST)/ow-$(e).$(o)=ow-$(e).$(o))) \
-    $(DIST)/owtown.prg=owtown --glob '$(BUILD)/ow/sets/t.*' \
+    $(DIST)/owtown.prg=owtown $(DIST)/owtalk.prg=owtalk --glob '$(BUILD)/ow/sets/t.*' \
     $(DIST)/fight.prg=fight --glob '$(BUILD)/music/m.*' \
     --glob '$(BUILD)/fight/disk/[fs].*' $(DIST)/owparty.prg=owparty
-OWCACHE_DEPS := $(DIST)/ow-data.prg $(OWENG) $(OWOVL) $(DIST)/owtown.prg \
+OWCACHE_DEPS := $(DIST)/ow-data.prg $(OWENG) $(OWOVL) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
     $(DIST)/fight.prg $(DIST)/owparty.prg $(OWSETS) $(BUILD)/music/.stamp \
     $(BUILD)/fight/disk/.stamp tools/mkowcache.py include/q4k/owcache.inc
 
@@ -513,6 +514,21 @@ $(BUILD)/ow/owcdir.o: $(BUILD)/ow/owcdir.s
 
 $(BUILD)/owcache.reu: $(OWCACHE_DEPS)
 	tools/mkowcache.py image $@ 512 $(OWCACHE_FILES)
+
+# The screens of text, owtown (shops, inns, the party, help, a fight) and
+# owtalk (a conversation), with what both define of game.c's and the rest
+# (src/ow/owstand.c), ahead of the library: game.o has the same names.
+$(BUILD)/ow/owstand.o: src/ow/owstand.c
+	@mkdir -p $(dir $@)
+	cc65 $(CFLAGS) --create-full-dep $(@:.o=.d) --dep-target $@ -o $(@:.o=.s) $<
+	ca65 -t c64 -o $@ $(@:.o=.s)
+-include $(BUILD)/ow/owstand.d
+
+$(DIST)/owtown.prg $(DIST)/owtalk.prg: $(DIST)/%.prg: $(BUILD)/%.o $(BUILD)/ow/owstand.o $(LIB) $(wildcard cfg/*.cfg)
+	@mkdir -p $(DIST)
+	$(CL65) $(LDFLAGS) -C $(LDCFG) -m $(BUILD)/$*.map \
+	    -Wl -Ln,$(BUILD)/$*.lbl -o $@ $< $(BUILD)/ow/owstand.o $(LIB)
+	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
 # The bootstrap, with the cache's table.
 $(DIST)/openworld.prg: $(BUILD)/openworld.o $(BUILD)/ow/owcdir.o $(LIB) $(wildcard cfg/*.cfg)
@@ -584,7 +600,7 @@ $(DIST)/owarena.d64: $(DIST)/owarena.prg $(DIST)/fight.prg $(DIST)/fightbot.prg 
 # leaves it as it was.
 ifneq ($(MEMMAP),)
 $(MEMMAP): tools/mkmemmap.py tools/memmap.html \
-	    $(DIST)/openworld.prg $(DIST)/owparty.prg $(OWENG) $(DIST)/owtown.prg \
+	    $(DIST)/openworld.prg $(DIST)/owparty.prg $(OWENG) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
 	    $(DIST)/fight.prg $(DIST)/ow-data.prg $(DIST)/splash-p.prg \
 	    $(DIST)/splash-n.prg $(DIST)/theme.sid $(FIGHT_STAMP) \
 	    include/q4k/owgame.h src/lib/ow_data.s
