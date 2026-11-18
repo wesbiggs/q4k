@@ -686,13 +686,15 @@ shot: dirs $(DIST)/$(PROG).prg
 	tools/screenshot.sh $(DIST)/$(PROG).prg $(BUILD)/$(PROG).png
 	@echo "wrote $(BUILD)/$(PROG).png"
 
-# Compare each program's screen against tests/golden/<name>.txt.
+# Compare each program's screen against tests/golden/<name>.txt, several at a
+# time. TESTARGS go to tools/test.sh: -j 1 for one at a time, --group
+# game|openworld|online for a third of it (CI's split), or names of units.
 test: all d64 d64-online
-	@tools/test.sh
+	@tools/test.sh $(TESTARGS)
 
 # Accept the current output as correct. Review the diff before doing this.
 bless: all d64 d64-online
-	@tools/test.sh --bless
+	@tools/test.sh --bless $(TESTARGS)
 
 # --- release ----------------------------------------------------------------
 #

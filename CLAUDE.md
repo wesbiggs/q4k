@@ -1648,8 +1648,21 @@ there), which `memcpy` then copies from forever. And one about the tests
 themselves: a `.cmd` file is read with `set -- $(cat NAME.cmd)`, never
 `eval`, which turns `\x03` into `x03` (no RUN/STOP) and `\r` into `r`.
 
-To run only the open world's goldens, four VICEs at a time, loop over
-`tests/golden/openworld*.cmd` doing `set -- $(cat $f); tools/screendump.py
-"$@"` and diff against the `.txt` (about six minutes for all of them).
-Don't edit `screendump.py` while such a run is going: the cases that start
-afterwards load the half-edited file.
+**`tools/test.sh` runs units side by side**: every golden and every case
+of its own is a unit (`--list`), run `-j N` at a time (default the CPUs),
+each printing PASS or FAIL with its seconds when it ends, then the slowest
+eight. `tools/test.sh NAME...` runs just those; `--group
+game|openworld|online` a third, which is how CI splits the suite over three
+machines (`group_of()`); `make test TESTARGS=...` passes them on. Each modem
+case has a dialogue daemon of its own (ports 25301-25305), since one
+remembers who said what. A new case is a `u_` function, a line in
+`run_unit()` and its name in `all_units()`, slowest first. **`--settle` is
+wall-clock seconds, warp or not**, and was most of the suite's time (about
+13 of CI's 21 minutes), so it ends early once what the case checks for has
+held on two looks a second apart (`settle()` in `screendump.py`):
+`--expect GOLDEN` (which `compare()` adds, except when blessing, which
+wants the end of the settle), `--until REGEX` on the dump, `--until-peek
+SYM=VALUE`. Give a new case one of them, the same as what it checks, and
+its `--settle` becomes only how long it may take; a case that fails still
+waits all of it. Don't edit `screendump.py` while a
+run is going: the cases that start afterwards load the half-edited file.

@@ -15,6 +15,7 @@ This is the assertion behind `make check`: a diffable, scriptable answer to
 
 import argparse
 import os
+import re
 import socket
 import struct
 import subprocess
@@ -228,18 +229,29 @@ def apply_pokes(mon, syms, pokes):
               % (name, offset, v, syms[name] + offset), file=sys.stderr)
 
 
+def peek_at(syms, spec):
+    """SYM|$ADDR[+OFF][:WIDTH] -> (name, offset, address, width)."""
+    name, _, width = spec.partition(":")
+    name, _, offset = name.partition("+")
+    offset = int(offset, 0) if offset else 0
+    width = int(width) if width else 1
+    if name[:1] == "$":         # an address, not a symbol: $B000
+        addr = int(name[1:], 16) + offset
+    elif name not in syms:
+        raise SystemExit("screendump: no symbol %r" % name)
+    else:
+        addr = syms[name] + offset
+    return name, offset, addr, width
+
+
+def peek_value(mon, syms, spec):
+    _, _, addr, width = peek_at(syms, spec)
+    return int.from_bytes(mon.mem_get(addr, addr + width - 1)[:width], "little")
+
+
 def report_peeks(mon, syms, peeks):
     for spec in peeks:
-        name, _, width = spec.partition(":")
-        name, _, offset = name.partition("+")
-        offset = int(offset, 0) if offset else 0
-        width = int(width) if width else 1
-        if name[:1] == "$":         # an address, not a symbol: $B000
-            addr = int(name[1:], 16) + offset
-        elif name not in syms:
-            raise SystemExit("screendump: no symbol %r" % name)
-        else:
-            addr = syms[name] + offset
+        name, offset, addr, width = peek_at(syms, spec)
         data = mon.mem_get(addr, addr + width - 1)
         if width > 8:
             # Too long to be a number: just the bytes, last one first, as
@@ -657,6 +669,17 @@ def main():
                          "its text rows on black")
     ap.add_argument("--settle", type=float, metavar="SECS",
                     help="after typing, let the machine run this long, then dump")
+    ap.add_argument("--expect", metavar="TXT",
+                    help="with --settle: stop settling as soon as the dump "
+                         "is this file (a golden), twice running a second "
+                         "apart; else settle the whole time. Then dump")
+    ap.add_argument("--until", action="append", metavar="REGEX", default=[],
+                    help="with --settle: stop settling once the dump "
+                         "matches every REGEX (twice running)")
+    ap.add_argument("--until-peek", action="append",
+                    metavar="SYM|$ADDR[+OFF][:WIDTH]=VALUE", default=[],
+                    help="with --settle: stop settling once every such "
+                         "value is what it says (twice running)")
     ap.add_argument("--timeout", type=float, default=60.0)
     ap.add_argument("--vice", action="append", metavar="ARG", default=[],
                     help="pass ARG to x64sc as well, e.g. --vice=-reu "
@@ -689,43 +712,18 @@ def main():
         if args.keys:
             mon.resume()
             mon.type_keys(args.keys)
+        legend = {} if args.raw else load_tile_legend()
         if args.settle:
             mon.resume()
-            time.sleep(args.settle)
+            settle(mon, args, legend)
         elif args.stage > args.ready:
             stage = wait_for_stage(mon, args.stage, args.timeout)
-        # Which 16K the VIC sees ($DD00 bits 1-0, inverted) and where in
-        # it the screen is ($D018 bits 7-4). The game keeps bank 0 and
-        # $0400; the smooth-scrolling prototype does not.
-        bank = (3 - (mon.mem_get(0xDD00, 0xDD00)[0] & 3)) * 0x4000
-        d018 = mon.mem_get(VIC_ADDR, VIC_ADDR)[0]
-        screen_at = bank + (d018 >> 4) * 0x400
-        screen = mon.mem_get(screen_at, screen_at + SCR_W * SCR_H - 1)
-        # $D018 bits 3-1 select the charset base. $1000 is the uppercase ROM
-        # set; $1800 is the lowercase one. Anything else is a RAM charset,
-        # and q4k's is a copy of the lowercase set with tiles patched over it.
-        charset_base = (d018 & 0x0E) << 10
-        lowercase = charset_base != 0x1000
-        rom_charset = bank in (0, 0x8000) and charset_base in (0x1000, 0x1800)
-        charset_base += bank
-        colors = mon.mem_get(COLOR_RAM, COLOR_RAM + SCR_W * SCR_H - 1)
-        # The open world's engine is the one thing in VIC bank 1 with a
-        # text window (the fight module's is bank 1 too, but --mux).
-        ow_engine = bank == 0x4000 and not args.mux
+        st = read_state(mon, args)
         if args.peek:
             syms = load_symbols(args.prg, args.lbl)
             if args.mux:
                 syms = dict(load_symbols(args.prg, args.mux), **syms)
             report_peeks(mon, syms, args.peek)
-        scratch = mon.mem_get(PROBE, PROBE + 19)
-        vic = mon.mem_get(0xD000, 0xD02E)
-        pointers = mon.mem_get(screen_at + 0x3F8, screen_at + 0x3FF)
-        if args.mux:
-            sprites = mux_sprites(mon, load_symbols(args.prg, args.mux))
-        else:
-            sprites = hw_sprites(vic, pointers)
-        sprite_data = {p * 64: mon.mem_get(bank + p * 64, bank + p * 64 + 62)
-                       for p in {sp[2] for sp in sprites}}
         if args.vicshot:
             from PIL import Image
             mon.resume()            # a frame or two drawn since the last stop
@@ -736,15 +734,18 @@ def main():
             img.save(args.vicshot)
             print("screendump: wrote %s" % args.vicshot, file=sys.stderr)
         if args.shot:
-            if rom_charset:
+            if st["rom_charset"]:
                 print("screendump: charset is in ROM; --shot needs a RAM "
                       "charset", file=sys.stderr)
             else:
-                charset = mon.mem_get(charset_base, charset_base + 0x7FF)
-                render_png(args.shot, screen, colors, charset,
-                           vic[0x20], vic[0x21],
-                           sprites=(sprites, sprite_data.__getitem__),
-                           vic=vic, text_from=19 if args.mux else SCR_H)
+                cb = st["charset_base"]
+                charset = mon.mem_get(cb, cb + 0x7FF)
+                render_png(args.shot, st["screen"], st["colors"], charset,
+                           st["vic"][0x20], st["vic"][0x21],
+                           sprites=(st["sprites"],
+                                    st["sprite_data"].__getitem__),
+                           vic=st["vic"],
+                           text_from=19 if args.mux else SCR_H)
                 print("screendump: wrote %s" % args.shot, file=sys.stderr)
         mon.quit()
     finally:
@@ -755,21 +756,111 @@ def main():
         except subprocess.TimeoutExpired:
             vice.kill()
 
+    scratch = st["scratch"]
     print("probe: stage=%d counter=%d scratch=%s | charset=%s"
           % (stage, scratch[3], " ".join("%02x" % b for b in scratch[4:20]),
-             "$%04X %s" % (charset_base,
-                           "lowercase" if lowercase else "uppercase")),
+             "$%04X %s" % (st["charset_base"],
+                           "lowercase" if st["lowercase"] else "uppercase")),
           file=sys.stderr)
-    legend = {} if args.raw else load_tile_legend()
+    print(render_text(st, args, legend))
+
+
+# How often --settle looks at the machine for --expect and --until, in
+# seconds of wall clock (each look stops it for a moment).
+SETTLE_POLL = 1.0
+
+
+def settle(mon, args, legend):
+    """Let the machine run for --settle seconds of wall clock, or less: with
+    --expect, --until or --until-peek, until what they ask for has held on
+    two looks in a row. A screen that is still on its way somewhere can
+    look done for an instant; twice, a second apart, it is done. Under warp
+    a second is a long while for the machine, and without (the modem's
+    cases) the cases have no animation that a second would catch mid-way."""
+    deadline = time.time() + args.settle
+    want = None
+    if args.expect:
+        with open(args.expect) as f:
+            want = f.read().rstrip("\n")
+    until = [re.compile(r, re.M) for r in args.until]
+    peeks = []
+    if args.until_peek:
+        syms = load_symbols(args.prg, args.lbl)
+        for spec in args.until_peek:
+            what, _, value = spec.rpartition("=")
+            peeks.append((what, int(value, 0)))
+    if want is None and not until and not peeks:
+        time.sleep(args.settle)
+        return
+    held = 0
+    while True:
+        left = deadline - time.time()
+        if left <= 0:
+            return
+        time.sleep(min(SETTLE_POLL, left))
+        done = all(peek_value(mon, syms, w) == v for w, v in peeks)
+        if done and (want is not None or until):
+            text = render_text(read_state(mon, args), args, legend)
+            done = (want is None or text.rstrip("\n") == want) \
+                and all(r.search(text) for r in until)
+        mon.resume()
+        held = held + 1 if done else 0
+        if held >= 2:
+            print("screendump: settled in %.0fs of %gs"
+                  % (args.settle - (deadline - time.time()), args.settle),
+                  file=sys.stderr)
+            return
+
+
+def read_state(mon, args):
+    """What the dump is drawn from: the screen the VIC shows, colour RAM,
+    the sprites and the probe page. Leaves the machine stopped."""
+    # Which 16K the VIC sees ($DD00 bits 1-0, inverted) and where in
+    # it the screen is ($D018 bits 7-4). The game keeps bank 0 and
+    # $0400; the smooth-scrolling prototype does not.
+    bank = (3 - (mon.mem_get(0xDD00, 0xDD00)[0] & 3)) * 0x4000
+    d018 = mon.mem_get(VIC_ADDR, VIC_ADDR)[0]
+    screen_at = bank + (d018 >> 4) * 0x400
+    screen = mon.mem_get(screen_at, screen_at + SCR_W * SCR_H - 1)
+    # $D018 bits 3-1 select the charset base. $1000 is the uppercase ROM
+    # set; $1800 is the lowercase one. Anything else is a RAM charset,
+    # and q4k's is a copy of the lowercase set with tiles patched over it.
+    charset_base = (d018 & 0x0E) << 10
+    lowercase = charset_base != 0x1000
+    rom_charset = bank in (0, 0x8000) and charset_base in (0x1000, 0x1800)
+    charset_base += bank
+    colors = mon.mem_get(COLOR_RAM, COLOR_RAM + SCR_W * SCR_H - 1)
+    scratch = mon.mem_get(PROBE, PROBE + 19)
+    vic = mon.mem_get(0xD000, 0xD02E)
+    pointers = mon.mem_get(screen_at + 0x3F8, screen_at + 0x3FF)
+    if args.mux:
+        sprites = mux_sprites(mon, load_symbols(args.prg, args.mux))
+    else:
+        sprites = hw_sprites(vic, pointers)
+    sprite_data = {p * 64: mon.mem_get(bank + p * 64, bank + p * 64 + 62)
+                   for p in {sp[2] for sp in sprites}}
+    return dict(
+        screen=screen, colors=colors, lowercase=lowercase,
+        rom_charset=rom_charset, charset_base=charset_base,
+        scratch=scratch, vic=vic, sprites=sprites, sprite_data=sprite_data,
+        # The open world's engine is the one thing in VIC bank 1 with a
+        # text window (the fight module's is bank 1 too, but --mux).
+        ow_engine=bank == 0x4000 and not args.mux)
+
+
+def render_text(st, args, legend):
+    """The dump as it is printed: what a golden holds."""
+    screen = st["screen"]
     rows = [screen[y * SCR_W : (y + 1) * SCR_W] for y in range(SCR_H)]
     if args.hex:
-        print(grid(rows, lambda c: "%02x" % c))
+        out = [grid(rows, lambda c: "%02x" % c)]
     else:
         # A sprite goes in as a code no byte can hold, so it cannot be
         # mistaken for anything the charset draws.
         if not args.raw:
             rows = [list(row) for row in rows]
-            for cx, cy in sprite_cells(sprites, sprite_data.__getitem__,
+            for cx, cy in sprite_cells(st["sprites"],
+                                       st["sprite_data"].__getitem__,
                                        bool(args.mux)):
                 rows[cy][cx] = SPRITE_CODE
         # The open world's engine: rows 22-23 are its text window (smooth.s),
@@ -777,15 +868,16 @@ def main():
         def cell(c, y):
             if c == SPRITE_CODE:
                 return SPRITE_MARK
-            if ow_engine and y >= OW_TEXT_ROW and c >= OW_FONT:
+            if st["ow_engine"] and y >= OW_TEXT_ROW and c >= OW_FONT:
                 return to_text(c - OW_FONT, True)
-            return to_text(c, lowercase, legend)
-        print(grid(rows, cell, by_row=True))
+            return to_text(c, st["lowercase"], legend)
+        out = [grid(rows, cell, by_row=True)]
 
     if args.color:
+        colors = st["colors"]
         crows = [colors[y * SCR_W : (y + 1) * SCR_W] for y in range(SCR_H)]
-        print()
-        print(grid(crows, lambda c: "%x" % (c & 0x0F)))
+        out += ["", grid(crows, lambda c: "%x" % (c & 0x0F))]
+    return "\n".join(out)
 
 
 if __name__ == "__main__":
