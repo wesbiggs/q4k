@@ -15,7 +15,8 @@
  *
  * The caller fills in the block at FIGHT (the party, the monster, which
  * field and whose sprites) and calls fight_call(); the module loads the two
- * files it names from the disk, takes the screen (VIC bank 1, its own raster
+ * files it names from the disk (unless the sprites' name is empty: then the
+ * caller has, as the open world's ow_fight.c does through its REU cache), takes the screen (VIC bank 1, its own raster
  * interrupt), fights, puts the machine back as it found it and returns
  * BATTLE_*, or FIGHT_NODISK if a file would not load, with the party as the
  * fight left it. It shares the caller's zero page and C stack, clears its

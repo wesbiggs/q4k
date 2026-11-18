@@ -593,7 +593,7 @@ static void back_home(void)
 {
     area = AREA_HOME;
     sm_npc_n = 0;               /* the place's people stay in it */
-    sm_tileset(ts_overworld);
+    tileset(ts_overworld);
     sm_torus = 1;
     area_w = area_h = 64;
     wx = out_wx;

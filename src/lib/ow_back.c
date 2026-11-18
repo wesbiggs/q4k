@@ -37,7 +37,7 @@ void ow_back(void)
 
     OWB->mode = OWB_BACK;
     /* Where OW-DATA was: the tile sets and the towns' maps. */
-    while (!cbm_load("ow-data", 8, 0)) {
+    while (!ow_cload("ow-data", 0)) {
         cputs("Put the disk back and press a key.\r\n");
         cgetc();
     }

@@ -10,14 +10,14 @@
 ;
 
         .export _ov_enter, _ov_can_step, _ov_arrived, _ov_bump, _ov_after
-        .export _ov_idle, _ov_look
+        .export _ov_idle, _ov_look, _ov_gen
         .import __SLOTW_START__, __SLOTT_START__, __SLOTD_START__
         .assert __SLOTW_START__ = __SLOTT_START__, lderror, "ovl: the overlays must share the slot"
         .assert __SLOTW_START__ = __SLOTD_START__, lderror, "ovl: the overlays must share the slot"
 
         .import _w_enter, _w_can_step, _w_arrived, _w_after, _w_idle
         .import _t_enter, _t_arrived, _t_bump, _t_can_step, _t_idle
-        .import _w_bump, _w_look, _t_look, _d_look
+        .import _w_bump, _w_look, _t_look, _d_look, _w_gen
         .import _d_enter, _d_arrived, _d_bump, _d_idle, _d_can_step
 
 _ov_enter       = __SLOTW_START__ + 0
@@ -27,6 +27,8 @@ _ov_bump        = __SLOTW_START__ + 9
 _ov_after       = __SLOTW_START__ + 12
 _ov_idle        = __SLOTW_START__ + 15
 _ov_look        = __SLOTW_START__ + 18
+_ov_gen         = __SLOTW_START__ + 21     ; a continent's build (ow_gen.s's
+                                           ; thread starts here)
 
         .import __VICTOP_START__
         .segment "OWHIADDR"     ; the engine's code past the screens: %O.hi
@@ -42,6 +44,7 @@ _ov_look        = __SLOTW_START__ + 18
         jmp     _w_after
         jmp     _w_idle
         jmp     _w_look
+        jmp     _w_gen          ; the build (genbuild.s)
 
         .segment "OVTADDR"
         .word   __SLOTW_START__
@@ -53,6 +56,7 @@ _ov_look        = __SLOTW_START__ + 18
         jmp     t_nothing       ; no window to stream: never called
         jmp     _t_idle         ; the people idle
         jmp     _t_look
+        jmp     t_nothing       ; (never: a build is dropped going in)
 t_nothing:
         rts
 
@@ -66,5 +70,6 @@ t_nothing:
         jmp     d_nothing       ; (never called: as the town's)
         jmp     _d_idle         ; the monsters
         jmp     _d_look
+        jmp     d_nothing       ; (never: as the town's)
 d_nothing:
         rts

@@ -1,1 +1,1 @@
-dist/openworld.prg --disk dist/openworld.d81 --splash quick --lbl build/ow-cpu.lbl --keys dawwdddddkkkkkkkkkkkkkkkkkkkk12 --settle 5 --timeout 120
+dist/openworld.prg --disk dist/openworld.d81 --fastdisk --reucache --cpu-engine --splash quick --lbl build/ow-cpu.lbl --keys dawwdddddkkkkkkkkkkkkkkkkkkkk12 --settle 5 --timeout 120

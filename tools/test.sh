@@ -192,7 +192,7 @@ if [ -f dist/openworld.d81 ]; then
 
     # P: Alaric, hurt to 5, drinks the quick start's one draught (12 back,
     # its floor) and the second P finds none.
-    hp=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
+    hp=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl --poke party+2=5 --keys pp \
         --settle 4 --peek party+2 2>&1 >/dev/null \
         | sed -n 's/.*party+2 @ .* = \([0-9]*\) .*/\1/p') || true
@@ -207,7 +207,7 @@ if [ -f dist/openworld.d81 ]; then
     # name) goes to 15 and round past black to 1, and any other key goes
     # back to the engine, whose hero is drawn in it (sm_tunic). The j's are
     # padding while owtown loads (it empties the buffer as it starts).
-    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl \
         --keys 'ijjjjjjjjj\x11\x11j' --settle 15 \
         --peek '$CECA' --peek sm_tunic \
@@ -228,7 +228,7 @@ if [ -f dist/openworld.d81 ]; then
     # dice and the field's scatter: a change to either can need the keys
     # worked out again, with --shot.) The j's are padding (no key in the
     # engine or the fight), while owtown and the module load.
-    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl --poke enc_always=1 \
         --keys "ddjjjjjjjjjjjjjjjjjjjj      $(printf 'w%.0s' $(seq 20))" \
         --settle 30 --peek party+2 --peek party+88:2 --peek party+90:2 \
@@ -251,7 +251,7 @@ if [ -f dist/openworld.d81 ]; then
     # follows the game's turn and the level, so a change to the generator,
     # the walk or the dice can want the keys worked out again, with --shot.
     ow_enter=dddssssssssssssssssdsssssaasaaaaaaa
-    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl --poke still=1 \
         --poke enc_always=2 \
         --keys "${ow_enter}aaaaaaaa$(printf 'j%.0s' $(seq 20))     eeeeeezzzz$(printf 'j%.0s' $(seq 20))" \
@@ -272,7 +272,7 @@ if [ -f dist/openworld.d81 ]; then
     # from the levels' maps (dungeon_build() and the quick start's seed).
     ow_down=aaaaaaaaaaaaaaaaaaaazssssssssssaaaaaaaaaaaaaaaaaaaaaaaazssssssss
     ow_bump=dddddddewwwweeweddddddddddddddddxxxdddddewwwwwww
-    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 \
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl --poke still=1 --poke items=55 \
         --keys "${ow_enter}${ow_down}${ow_bump}$(printf 'j%.0s' $(seq 20))" \
         --stage 3 --peek '$02ED:3' \
@@ -281,6 +281,37 @@ if [ -f dist/openworld.d81 ]; then
         echo "PASS  openworld-keeper"
     else
         echo "FAIL  openworld-keeper (hand-off ${got:-?}, not 65545: \$010009)"
+        fail=1
+    fi
+fi
+
+# The REU load cache (src/lib/ow_cache.s): into Millford and out with an
+# REU that starts empty, so the world's overlay and its tile set come back
+# from the REU (cache_hits), on the screen openworld-out has; then OW-CPU
+# with an REU (--cpu-engine) that starts full (--reucache, the image make
+# writes), which loads nothing from the disk at all (cache_misses 0).
+if [ -f dist/openworld.d81 ] && [ -f build/owcache.reu ]; then
+    log=$(mktemp "${TMPDIR:-/tmp}/q4kcache.XXXXXX")
+    peek() { sed -n "s/.*$1+0 @ .* = \([0-9]*\) .*/\1/p" "$log"; }
+    set -- $(sed 's/ow-cpu\.lbl/ow-reu.lbl/' tests/golden/openworld-out.cmd)
+    cold=$(tools/screendump.py "$@" \
+               --vice=-reu --vice=-reusize --vice=512 --peek cache_hits:2 \
+               2>"$log" | diff -q tests/golden/openworld-out.txt - >/dev/null \
+           && echo same)
+    hits=$(peek cache_hits)
+    set -- $(cat tests/golden/openworld-out.cmd)
+    full=$(tools/screendump.py "$@" --reucache --cpu-engine \
+               --peek cache_hits:2 --peek cache_misses:2 \
+               2>"$log" | diff -q tests/golden/openworld-out.txt - >/dev/null \
+           && echo same)
+    fhits=$(peek cache_hits)
+    fmiss=$(peek cache_misses)
+    rm -f "$log"
+    if [ "$cold" = same ] && [ "${hits:-0}" -gt 0 ] && [ "$full" = same ] \
+            && [ "${fhits:-0}" -gt 0 ] && [ "$fmiss" = 0 ]; then
+        echo "PASS  openworld-cache"
+    else
+        echo "FAIL  openworld-cache (empty: ${cold:-another screen}, ${hits:-?} hits; full: ${full:-another screen}, ${fhits:-?} hits, ${fmiss:-?} misses)"
         fail=1
     fi
 fi

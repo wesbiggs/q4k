@@ -2084,7 +2084,8 @@ unsigned char fight_run(void)
     if (dev < 8) {
         dev = 8;
     }
-    if (!cbm_load(fq_field, dev, 0) || !cbm_load(fq_sprite, dev, 0)) {
+    if (fq_sprite[0] &&         /* (none: the caller has loaded them) */
+        (!cbm_load(fq_field, dev, 0) || !cbm_load(fq_sprite, dev, 0))) {
         return FIGHT_NODISK;
     }
     unpack();

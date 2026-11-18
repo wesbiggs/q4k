@@ -74,7 +74,7 @@ DEPFLAGS  = -Wc --create-full-dep,$(@:.o=.d) -Wc --dep-target,$@
 # rule below). dungeontest links the maps and the font, arena the fights and
 # isletest the land, so they need the game's charset and probe page as well,
 # with everything in one load (cfg/c64-flat.cfg).
-LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest,$*),flat,$(if $(filter owtown,$*),owtown,$(if $(filter openworld,$*),owboot,$(if $(filter owarena,$*),owarena,tool)))).cfg
+LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest,$*),flat,$(if $(filter owtown owtalk,$*),$*,$(if $(filter openworld,$*),owboot,$(if $(filter owarena,$*),owarena,tool)))).cfg
 
 MAINS    := $(wildcard src/*.c)
 PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
@@ -153,7 +153,7 @@ endif
 # only: the online build's open world is the same).
 MEMMAP := $(if $(filter 1,$(ONLINE)),,docs/memmap.html)
 
-all: dirs assets $(PRGS) $(DIST)/openworld.d81 $(DIST)/owarena.d64 \
+all: dirs assets $(PRGS) $(DIST)/openworld.d81 $(BUILD)/owcache.reu $(DIST)/owarena.d64 \
      $(DIST)/theme.sid $(BUILD)/music/.stamp $(MEMMAP)
 
 # Assembly cannot see tiles.h; it has its own generated copy of the codes.
@@ -229,6 +229,17 @@ $(GEN_OW): assets/overworld.txt $(wildcard assets/*_tiles.txt) \
            assets/places_common.txt assets/tiles.txt assets/monsters.txt \
            tools/mkoverworld.py tools/figures.py
 	tools/mkoverworld.py
+
+# The open world's tile sets, a file each on its disk (t.overworld ...),
+# which the engine loads into SHORE on the way into an area.
+OWSETS := $(BUILD)/ow/sets/.stamp
+
+$(OWSETS): assets/overworld.txt $(wildcard assets/*_tiles.txt) \
+           assets/places_common.txt assets/tiles.txt assets/monsters.txt \
+           tools/mkoverworld.py tools/figures.py
+	@mkdir -p $(@D)
+	tools/mkoverworld.py --sets $(@D)
+	@touch $@
 
 # The multicolour arena's sprites (the ones linked into the fight), and
 # further down the files of its disk: the fields, drawn with the prototype's
@@ -360,6 +371,25 @@ $(BUILD)/ow/ow_dungeon.o: src/lib/dungeon.c | $(BUILD)/lib/dungeon.o
 	$(CL65) $(filter-out -Osir,$(CFLAGS)) -Or --code-name OVDCODE \
 	    --rodata-name MAPDATA $(DEPFLAGS) -c -o $@ $<
 
+# The generators the open world builds with, in the overlay that uses them:
+# the land's (isle_gen.s, OW_WORLD) and the build's thread (genbuild.s) in
+# the world's, the towns' (tgen.s, OW_TOWN, town_gen.c, and town_data.c's
+# maps) in the town's. Linked ahead of the library, as ow_dungeon.o is, so
+# that its MAPCODE copies are not; tools/owslots.py knows them by name.
+# The C ones through build/ow/NAME.s, never src/lib/NAME.s (cl65 writes
+# that for the library's).
+$(BUILD)/ow/ow_isle.o: src/lib/isle_gen.s
+	@mkdir -p $(dir $@)
+	$(CL65) $(ASFLAGS) --asm-define OW_WORLD=1 -c -o $@ $<
+$(BUILD)/ow/ow_tgen.o: src/lib/tgen.s
+	@mkdir -p $(dir $@)
+	$(CL65) $(ASFLAGS) --asm-define OW_TOWN=1 -c -o $@ $<
+$(BUILD)/ow/ow_town_gen.o $(BUILD)/ow/ow_town_data.o: $(BUILD)/ow/ow_%.o: src/lib/%.c
+	@mkdir -p $(dir $@)
+	cc65 $(CFLAGS) --code-name OVTCODE --rodata-name OVTCODE \
+	    --create-full-dep $(@:.o=.d) --dep-target $@ -o $(@:.o=.s) $<
+	ca65 -t c64 -o $@ $(@:.o=.s)
+
 # Each part is compiled twice, and cl65 would write both compilations'
 # assembly to the same src/ow/NAME.s: under make -j the two raced, and an
 # object could come out of the other engine's code, or not assemble. So
@@ -383,7 +413,7 @@ $(BUILD)/ow/ovl.o: src/ow/ovl.s
 
 # The dungeon's monsters' sprites (tools/mkfields.py), and what they do
 # square by square (foes.s), in its overlay.
-$(BUILD)/ow/foe_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o: $(BUILD)/ow/%.o: src/ow/%.s
+$(BUILD)/ow/foe_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(BUILD)/ow/genbuild.o: $(BUILD)/ow/%.o: src/ow/%.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) -c -o $@ $<
 
@@ -393,16 +423,17 @@ $(BUILD)/ow/ow_sfx.o: src/lib/sfx.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) --asm-define OW_SFX=1 -c -o $@ $<
 
+OWGEN := $(patsubst %,$(BUILD)/ow/%.o,ow_isle genbuild ow_tgen ow_town_gen ow_town_data)
 OWOBJ = $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-$*.o) $(BUILD)/ow/ovl.o \
         $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o $(BUILD)/ow/foe_art.o \
-        $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o
+        $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(OWGEN)
 
 # The overlays come out of the same link (ld65's %O.world, ...).
 $(DIST)/ow-%.world $(DIST)/ow-%.town $(DIST)/ow-%.dungeon $(DIST)/ow-%.hi: $(DIST)/ow-%.prg ;
 
 $(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/ow/ovl.o \
 	    $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o $(BUILD)/ow/foe_art.o $(BUILD)/ow/foes.o \
-	    $(BUILD)/ow/stlow.o $(LIB) cfg/c64-openworld.cfg tools/owslots.py
+	    $(BUILD)/ow/stlow.o $(OWGEN) $(LIB) cfg/c64-openworld.cfg tools/owslots.py
 	@mkdir -p $(DIST)
 	$(CL65) $(LDFLAGS) -C cfg/c64-openworld.cfg -m $(BUILD)/ow-$*.map \
 	    -Wl -Ln,$(BUILD)/ow-$*.lbl -o $@ $(OWOBJ) $(LIB)
@@ -437,23 +468,74 @@ $(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py
 # makes for the game's disk too.
 # And the fights (src/lib/ow_fight.c): the module and its fields and sprites,
 # as the arena's disk has them.
-$(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST)/owtown.prg \
+$(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
 	    $(DIST)/owparty.prg \
 	    $(BUILD)/music/.stamp $(BUILD)/talk/.stamp $(DIST)/fight.prg \
-	    $(BUILD)/fight/disk/.stamp
+	    $(BUILD)/fight/disk/.stamp $(OWSETS)
 	$(C1541) -format "openworld,01" d81 $@ >/dev/null
 	$(C1541) -attach $@ -write $(DIST)/openworld.prg openworld \
 	    -write $(DIST)/splash-p.prg splash-p -write $(DIST)/splash-n.prg splash-n \
 	    -write $(DIST)/ow-save.prg ow-save -write $(DIST)/ow-data.prg ow-data \
 	    -write $(DIST)/ow-cpu.prg ow-cpu -write $(DIST)/ow-reu.prg ow-reu \
 	    $(foreach f,$(OWOVL),-write $(f) $(notdir $(f))) \
-	    -write $(DIST)/owtown.prg owtown -write $(DIST)/owparty.prg owparty \
+	    -write $(DIST)/owtown.prg owtown -write $(DIST)/owtalk.prg owtalk \
+	    -write $(DIST)/owparty.prg owparty \
 	    -write $(DIST)/fight.prg fight \
+	    $$(for f in $(BUILD)/ow/sets/t.*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/fight/disk/[fs].*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/music/m.*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/talk/[0-9]*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
 
 -include $(foreach p,$(OWPARTS),$(BUILD)/ow/$(p)-cpu.d $(BUILD)/ow/$(p)-reu.d)
+-include $(BUILD)/ow/ow_town_gen.d $(BUILD)/ow/ow_town_data.d
+
+# The REU load cache (src/lib/ow_cache.s): every file the open world loads
+# through it, in the order they get rooms in the REU (the most used first).
+# tools/mkowcache.py makes the bootstrap's table of them (where each is in
+# the REU's directory, where it loads, how long it is) and this build's
+# stamp, and fails if two names share an entry; and the image of an REU
+# with all of them in it, for the tests (screendump.py --reucache).
+OWCACHE_FILES := $(DIST)/ow-data.prg=ow-data \
+    $(DIST)/ow-cpu.prg=ow-cpu $(DIST)/ow-reu.prg=ow-reu \
+    $(foreach e,cpu reu,$(foreach o,hi world town dungeon,$(DIST)/ow-$(e).$(o)=ow-$(e).$(o))) \
+    $(DIST)/owtown.prg=owtown $(DIST)/owtalk.prg=owtalk --glob '$(BUILD)/ow/sets/t.*' \
+    $(DIST)/fight.prg=fight --glob '$(BUILD)/music/m.*' \
+    --glob '$(BUILD)/fight/disk/[fs].*' $(DIST)/owparty.prg=owparty
+OWCACHE_DEPS := $(DIST)/ow-data.prg $(OWENG) $(OWOVL) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
+    $(DIST)/fight.prg $(DIST)/owparty.prg $(OWSETS) $(BUILD)/music/.stamp \
+    $(BUILD)/fight/disk/.stamp tools/mkowcache.py include/q4k/owcache.inc
+
+$(BUILD)/ow/owcdir.s: $(OWCACHE_DEPS)
+	@mkdir -p $(@D)
+	tools/mkowcache.py dir $@ $(OWCACHE_FILES)
+
+$(BUILD)/ow/owcdir.o: $(BUILD)/ow/owcdir.s
+	$(CL65) $(ASFLAGS) -c -o $@ $<
+
+$(BUILD)/owcache.reu: $(OWCACHE_DEPS)
+	tools/mkowcache.py image $@ 512 $(OWCACHE_FILES)
+
+# The screens of text, owtown (shops, inns, the party, help, a fight) and
+# owtalk (a conversation), with what both define of game.c's and the rest
+# (src/ow/owstand.c), ahead of the library: game.o has the same names.
+$(BUILD)/ow/owstand.o: src/ow/owstand.c
+	@mkdir -p $(dir $@)
+	cc65 $(CFLAGS) --create-full-dep $(@:.o=.d) --dep-target $@ -o $(@:.o=.s) $<
+	ca65 -t c64 -o $@ $(@:.o=.s)
+-include $(BUILD)/ow/owstand.d
+
+$(DIST)/owtown.prg $(DIST)/owtalk.prg: $(DIST)/%.prg: $(BUILD)/%.o $(BUILD)/ow/owstand.o $(LIB) $(wildcard cfg/*.cfg)
+	@mkdir -p $(DIST)
+	$(CL65) $(LDFLAGS) -C $(LDCFG) -m $(BUILD)/$*.map \
+	    -Wl -Ln,$(BUILD)/$*.lbl -o $@ $< $(BUILD)/ow/owstand.o $(LIB)
+	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
+
+# The bootstrap, with the cache's table.
+$(DIST)/openworld.prg: $(BUILD)/openworld.o $(BUILD)/ow/owcdir.o $(LIB) $(wildcard cfg/*.cfg)
+	@mkdir -p $(DIST)
+	$(CL65) $(LDFLAGS) -C cfg/c64-owboot.cfg -m $(BUILD)/openworld.map \
+	    -Wl -Ln,$(BUILD)/openworld.lbl -o $@ $< $(BUILD)/ow/owcdir.o $(LIB)
+	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
 # The multicolour arena (src/owarena.c) and the fight it calls: a module
 # linked on its own (src/fight/, cfg/c64-fight.cfg, include/q4k/fight.h),
@@ -518,7 +600,7 @@ $(DIST)/owarena.d64: $(DIST)/owarena.prg $(DIST)/fight.prg $(DIST)/fightbot.prg 
 # leaves it as it was.
 ifneq ($(MEMMAP),)
 $(MEMMAP): tools/mkmemmap.py tools/memmap.html \
-	    $(DIST)/openworld.prg $(DIST)/owparty.prg $(OWENG) $(DIST)/owtown.prg \
+	    $(DIST)/openworld.prg $(DIST)/owparty.prg $(OWENG) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
 	    $(DIST)/fight.prg $(DIST)/ow-data.prg $(DIST)/splash-p.prg \
 	    $(DIST)/splash-n.prg $(DIST)/theme.sid $(FIGHT_STAMP) \
 	    include/q4k/owgame.h src/lib/ow_data.s

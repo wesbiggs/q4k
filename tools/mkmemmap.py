@@ -127,6 +127,7 @@ def blocks():
     cpu = read_map("ow-cpu")
     reu = read_map("ow-reu")
     town = read_map("owtown")
+    talk = read_map("owtalk")
     fight = read_map("fight")
 
     B = lambda r, key, cat, label: [r[0], r[1], key, cat, label]
@@ -149,7 +150,9 @@ def blocks():
         [0x0000, 0x0001, "cpuport", "sys", "CPU port ($01: ROM banking)"],
         [0x0002, 0x001B, "zp", "sys", "cc65 zero page (each program's own)"],
         [0x001C, 0x00FF, "kzp", "sys", "KERNAL and BASIC zero page"],
-        [0x0100, 0x01FF, "stack", "sys", "6502 stack"],
+        [0x0100, 0x01FF, "stack", "sys",
+         "6502 stack (its bottom half: the REU cache's part of the loader, "
+         "during a load; a continent's build thread, in an engine)"],
         [0x0200, 0x02A6, "kwork", "sys", "KERNAL work area, keyboard buffer"],
         [0x02A7, 0x02EC, "owblk", "keep",
          "OW hand-off block: seed, lands, ships, REU"],
@@ -178,7 +181,7 @@ def blocks():
          "Reserved for a bigger tune"],
         [0xFFFA, 0xFFFF, "cpuvec", "sys", "CPU vectors"],
     ]
-    od = B(owdata, "owdata", "data", "OW-DATA: tile sets, town maps, constants")
+    od = B(owdata, "owdata", "data", "OW-DATA: town maps, shared tables, constants")
 
     def engine(segs):
         core = span(segs, 0x0801, 0x3FFF, skip=("MAPCODE",))
@@ -191,7 +194,7 @@ def blocks():
             B(core, "ecore", "engine",
               "Engine core: main loop, scrolling, music"),
             B(seg(segs, "MAPCODE"), "egen", "engine",
-              "Land and town generators"),
+              "isle_rnd: the generators' random bytes (they are in the overlays)"),
             [0x4000, 0x43FF, "scra", "video", "Screen A"],
             [0x4400, 0x47FF, "scrb", "video", "Screen B"],
             [0x4800, 0x4FFF, "mcchars", "video", "Multicolour characters"],
@@ -203,7 +206,10 @@ def blocks():
               "HIGH code (from .hi)"),
             B(seg(segs, "HIDATA"), "local", "ebss", "local[]: the place's map"),
             od,
-            [0xA000, 0xAFFF, "shore", "ebss", "SHORE: edges of each square"],
+            B(seg(segs, "OWCBSS"), "owcbss", "ebss",
+              "REU load cache's scratch (ow_cache.s), past OW-DATA"),
+            [0xA000, 0xAFFF, "shore", "ebss",
+             "SHORE: edges of each square (a tile set's file, t.*, on the way in)"],
             [0xB000, 0xBFFF, "world", "ebss", "WORLD: the 64 by 64 window"],
             B(seg(segs, "ALIGNBSS"), "chcol", "ebss",
               "ow_chcol (page aligned)"),
@@ -220,7 +226,7 @@ def blocks():
     town_high = span(town, 0x4000, 0xAFFF)
     town_lo = [
         B(town_low, "townlow", "town",
-          "owtown low: main, talk, fight caller, C library"),
+          "owtown low: main, inn rumours, fight caller, C library"),
         B(seg(town, "OWFIGS"), "owfigs", "video",
           "Party screen's figures: sprite blocks (OWFIGS)"),
         [0x37C0, 0x37FF, "cstack", "town", "C stack (top of MAIN, grows down)"],
@@ -287,7 +293,7 @@ def blocks():
              B(overlay(cpu, "OVDHEAD", "OVDCODE"), "ovd", "ovd",
                "Dungeon overlay and its generator")] + top},
         {"id": "owtown", "name": "Text screens",
-         "sub": "owtown: talk, shop, inn, party (I)",
+         "sub": "owtown: shop, inn, party (I), help (?)",
          "blocks": low + loader + [textscr] + town_lo + [
              [0x3800, 0x3FFF, "charset", "video",
               "Text charset, with read-only data in its spare glyphs"],
@@ -297,6 +303,24 @@ def blocks():
              [town_high[1] + 1, od[1], "owdatastale", "stale",
               "OW-DATA, partly overwritten (reloaded on the way back)"],
          ] + town_bss + top},
+        {"id": "owtalk", "name": "Talk",
+         "sub": "owtalk: a conversation (VIC bank 1 kept for a portrait)",
+         "blocks": low + loader + [textscr] + [
+             B(span(talk, 0x0801, 0x37FF), "talklow", "town",
+               "owtalk: main, talk, gift, the C library"),
+             [0x37C0, 0x37FF, "cstack", "town",
+              "C stack (top of MAIN, grows down)"],
+             [0x3800, 0x3FFF, "charset", "video",
+              "Text charset, with read-only data in its spare glyphs"],
+             B(span(talk, 0x4000, 0x4FFF), "talkhigh", "town",
+               "owtalk high: the font image and tiles_install (used once), "
+               "actor's and town_data's tables"),
+             [od[0], od[1], "owdatastale", "stale",
+              "OW-DATA, as the engine left it (reloaded on the way back)"],
+             B(seg(talk, "BSS"), "talkbss", "tbss", "owtalk BSS"),
+             B(seg(talk, "TALKBSS"), "talkbuf2", "tbss",
+               "Talk buffer (a person's lines)"),
+         ] + top},
         {"id": "fight", "name": "Fight",
          "sub": "owtown + the fight module over its high half",
          "blocks": low + loader + [

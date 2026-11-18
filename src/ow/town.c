@@ -483,7 +483,8 @@ void t_look(void)
 }
 
 /* Talk, or trade, with sprite n's person: a conversation, a shop or an
-   inn. The engine goes; src/owtown.c has the screens,
+   inn. The engine goes; src/owtalk.c has the conversation, src/owtown.c
+   the shop's and the inn's screens,
    and loads the engine back when it ends, which comes straight back here
    (engine.c's main()). Never returns. */
 static void talk_to(unsigned char n)
@@ -497,7 +498,7 @@ static void talk_to(unsigned char n)
     default:       return;      /* a villager is a wall */
     }
     OWB->npc = OWB->arg = e->param;
-    ow_leave(owtown);
+    ow_leave(e->kind == ENT_NPC ? owtalk : owtown);
 }
 
 #pragma rodata-name (push, "OVTCODE")

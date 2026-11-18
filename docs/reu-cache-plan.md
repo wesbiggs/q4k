@@ -285,3 +285,44 @@ phase 1. 2 needs phase 4.
 | `ow-data` reloaded by `ow_back()` | 10.7K | about 3.4K | a fetch |
 | Back from a talk or shop | 4 disk loads (`ow-data`, engine, `.hi`, overlay) | the same, 7K less | 4 fetches, well under 0.1 s |
 | Into a town or dungeon | 1 load (4.5K) | 2 (overlay and tile set) | 2 fetches |
+
+## What it came to (branch `claude/quirky-noether-d25gpz`)
+
+Measured from the maps after each phase, OW-CPU's (OW-REU has a little
+more), and with VICE 3.7.1 for the timings.
+
+| | Before | After 1 | After 2 | After 3 | After 4 |
+|---|---|---|---|---|---|
+| MAIN free | 1 B | 198 B | 198 B | 2428 B | 1912 B |
+| HIGH free | 21 B | 21 B | 21 B | 105 B | 105 B |
+| BSS free | 23 B | 23 B | 23 B | 23 B | 18 B |
+| `ow-data` | 10.7K | 3.9K | 3.9K | 2.8K | 2.8K |
+| COMMON free | 12 B | 7.2K | 2.2K | 3.3K | 3.3K (less 28 B of scratch) |
+| Slot | 4608 | 4608 | 9728 | 9728 | 9728 |
+| world / town / dungeon | 4573 / 4584 / 4608 | same | same | 6059 / 6518 / 4608 | same |
+
+Where it went differently from the plan:
+
+- Phase 1 needed core room the core did not have (53 bytes over): the
+  engine stopped linking cc65's `conio` (one unseen message and a
+  keyboard flush), about 250 bytes.
+- `isle_rnd` stays in the core: both overlays' generators use it, and an
+  overlay may not call another.
+- The cache's directory is laid out whole by the bootstrap from a table
+  `make` writes (each file's address and length): the KERNAL's LOAD loses a
+  file's own start address, and with lengths known in advance a miss is one
+  load and one stash, small enough for `ow_run.s`'s stub (whose cache half
+  went to `$0100-$017F`, the tape buffer being full). 256 entries, not 128,
+  so that a salt with no collision is easy to find.
+- The fight module does not link the cache (its BSS would have reached
+  `owtown`'s at `$B000`); `ow_fight.c` fetches the field and sprites for it.
+- `owtown`'s talk code went above the charset to make room in MAIN.
+- The engines' BSS was full, so the cache's scratch is a segment of its own,
+  past OW-DATA's last byte.
+- `--cpu-engine` marks the REU as one that cannot scroll (`OW_REU_BLIND`)
+  rather than choosing the engine apart from `OW->reu`, so `ow_back()`
+  picks the same engine.
+
+The open world's 21 goldens, four VICEs at a time: 142 s before, 59 s with
+`--fastdisk`, 51 s with `--reucache`. NTSC's `late` over `openworld-sail`
+went from 2 to 1 (PAL and the REU 0).

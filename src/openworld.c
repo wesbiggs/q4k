@@ -99,7 +99,7 @@ typedef char hook_is_where_ow_splash_has_it
 /* A file that has to be there. Nothing is said unless it is not. */
 static void need(const char *name, void *at)
 {
-    while (!cbm_load(name, 8, at)) {
+    while (!ow_cload(name, at)) {
         cputs("Put the disk back and press a key.\r\n");
         cgetc();
     }
@@ -186,6 +186,9 @@ int main(void)
     bordercolor(COLOR_BLACK);
     textcolor(COLOR_GRAY3);     /* for the one thing that may be said */
     clrscr();
+    if (!again) {
+        OW_TESTCPU = 0;         /* (the tests' --cpu-engine sets it later) */
+    }
     /* MEMSIZ up to the probe page before the drive is touched, as the
        game has it. */
     POKEW(0x0283, 0xCF00);
@@ -210,13 +213,17 @@ int main(void)
     OW->magic = 0;              /* until it is all there */
     OW->seed = lore_seed;
     OW->reu = ow_reu_detect();
+    if (OW->reu && OW_TESTCPU == OW_TESTCPU_ON) {
+        OW->reu = OW_REU_BLIND; /* (tests: OW-CPU, and the cache) */
+    }
+    ow_cinit();                 /* its load cache, kept or laid out anew */
     if (!again) {               /* else they are still there */
-        need("ow-data", 0);     /* to its own address, $7400 */
+        need("ow-data", 0);     /* to its own address, $8800 */
         /* The music a game starts with, to where the game keeps a tune:
            $E7C0, under the KERNAL. Not worth stopping for if it is not on
            the disk; an engine loads any other itself. */
         d = tune_file[MUSIC_HOME];
-        OW->tune = cbm_load(tune_name[d], 8, 0) ? d : OW_NO_TUNE;
+        OW->tune = ow_cload(tune_name[d], 0) ? d : OW_NO_TUNE;
     }
 
     /* Each continent, for where its places and its landing are. It is not
