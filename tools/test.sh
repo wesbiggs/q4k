@@ -66,11 +66,17 @@ result() {
     printf '%-5s %s  [%ss]%s\n' "$1" "$2" $(($(date +%s) - t0)) "${3:+  ($3)}"
 }
 
-# compare <name> <golden> <command...>
+# compare <name> <golden> <screendump command...>
+#
+# The golden goes in as --expect too, so a --settle ends as soon as the
+# screen is the golden (screendump.py's settle()): a case that passes takes
+# as long as it needs, one that fails the whole --settle. Not when blessing,
+# which wants the screen at the end of the settle.
 compare() {
     name=$1
     golden=$2
     shift 2
+    [ "$bless" = 1 ] || set -- "$@" --expect "$golden"
 
     # Capture the failure rather than letting `set -e` abort the whole run:
     # one case that will not boot should be one FAIL, not silence.
@@ -268,7 +274,7 @@ u_ow_save() {
         --settle 20 --peek wx:2 2>&1 >/dev/null | wxof) || true
     restored=$(tools/screendump.py dist/openworld.prg --disk "$saves" \
         --splash quick --lbl build/ow-cpu.lbl --keys '\x86y' \
-        --settle 40 --peek wx:2 2>&1 >/dev/null | wxof) || true
+        --settle 40 ${saved:+--until-peek wx:2=$((saved - 3))} --peek wx:2 2>&1 >/dev/null | wxof) || true
     if [ -n "$saved" ] && [ "$restored" = $((saved - 3)) ]; then
         result PASS openworld-save
     else
@@ -282,7 +288,7 @@ u_ow_save() {
 u_ow_quaff() {
     hp=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl --poke party+2=5 --keys pp \
-        --settle 4 --peek party+2 2>&1 >/dev/null \
+        --settle 4 --until-peek party+2=17 --peek party+2 2>&1 >/dev/null \
         | sed -n 's/.*party+2 @ .* = \([0-9]*\) .*/\1/p') || true
     if [ "$hp" = 17 ]; then
         result PASS openworld-quaff
@@ -321,7 +327,9 @@ u_ow_fight() {
     got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl --poke enc_always=1 \
         --keys "ddjjjjjjjjjjjjjjjjjjjj      $(printf 'w%.0s' $(seq 20))" \
-        --settle 30 --peek party+2 --peek party+88:2 --peek party+90:2 \
+        --settle 30 --until-peek party+2=4 --until-peek party+88:2=4 \
+        --until-peek party+90:2=15 \
+        --peek party+2 --peek party+88:2 --peek party+90:2 \
         2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
     if [ "$got" = "4 4 15 " ]; then
         result PASS openworld-fight
@@ -348,8 +356,9 @@ u_ow_foes() {
         --splash quick --lbl build/ow-cpu.lbl --poke still=1 \
         --poke enc_always=2 \
         --keys "${ow_enter}aaaaaaaa$(printf 'j%.0s' $(seq 20))     eeeeeezzzz$(printf 'j%.0s' $(seq 20))" \
-        --settle 30 --peek '$CECF' --peek sm_npc_x --peek party+88:2 \
-        --peek '$B318' \
+        --settle 30 --until-peek '$CECF=216' --until-peek sm_npc_x=0 \
+        --until-peek party+88:2=2 --until-peek '$B318=146' \
+        --peek '$CECF' --peek sm_npc_x --peek party+88:2 --peek '$B318' \
         2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
     if [ "$got" = "216 0 2 146 " ]; then
         result PASS openworld-foes
@@ -490,7 +499,8 @@ fight() {
         --poke quest_stage=1 --poke lore_seed=$SEED --poke grave_odds=1 \
         --poke hp_start=1 \
         --keys 'Alaric\r1ns<l                                                            ' \
-        --settle 40 2>/dev/null) || out=
+        --settle 40 --until 'The party has fallen\.' \
+        --until 'You wake in Millford' 2>/dev/null) || out=
     if printf '%s\n' "$out" | grep -q 'The party has fallen\.' \
             && printf '%s\n' "$out" | grep -q 'You wake in Millford' \
             && ! printf '%s\n' "$out" | grep -q 'Put the game disk back'; then
@@ -514,7 +524,7 @@ u_talk() {
 # (engine.h), so the game asks for the disk back, and keeps asking.
 u_nodisk() {
     out=$(tools/screendump.py dist/q4k.prg --keys 'Alaric\r1nw' --settle 8 \
-        2>/dev/null) || out=
+        --until 'Put the game disk back' 2>/dev/null) || out=
     if printf '%s\n' "$out" | grep -q 'Put the game disk back'; then
         result PASS nodisk
     else
@@ -537,7 +547,8 @@ u_reward() {
 # only that two were told and the keeper was never "busy" (no file).
 u_inn() {
     out=$(tools/screendump.py dist/q4k.prg --disk "$DISK" --poke gold=60 \
-        --keys 'Alaric\r1nwwddddd11' --settle 30 2>/dev/null) || out=
+        --keys 'Alaric\r1nwwddddd11' --settle 30 --until 'You have 50 marks' \
+        --until 'You drink\.(.|\n)*You drink\.' 2>/dev/null) || out=
     drinks=$(printf '%s\n' "$out" | grep -c 'You drink\.') || true
     if [ "$drinks" = 2 ] && ! printf '%s\n' "$out" | grep -q 'keeper is busy' \
             && printf '%s\n' "$out" | grep -q 'You have 50 marks'; then

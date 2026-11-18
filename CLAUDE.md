@@ -1657,6 +1657,12 @@ machines (`group_of()`); `make test TESTARGS=...` passes them on. Each modem
 case has a dialogue daemon of its own (ports 25301-25305), since one
 remembers who said what. A new case is a `u_` function, a line in
 `run_unit()` and its name in `all_units()`, slowest first. **`--settle` is
-wall-clock seconds, warp or not**, and is most of the suite's time (about
-13 of CI's 21 minutes before the split). Don't edit `screendump.py` while a
+wall-clock seconds, warp or not**, and was most of the suite's time (about
+13 of CI's 21 minutes), so it ends early once what the case checks for has
+held on two looks a second apart (`settle()` in `screendump.py`):
+`--expect GOLDEN` (which `compare()` adds, except when blessing, which
+wants the end of the settle), `--until REGEX` on the dump, `--until-peek
+SYM=VALUE`. Give a new case one of them, the same as what it checks, and
+its `--settle` becomes only how long it may take; a case that fails still
+waits all of it. Don't edit `screendump.py` while a
 run is going: the cases that start afterwards load the half-edited file.
