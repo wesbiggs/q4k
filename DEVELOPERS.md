@@ -326,6 +326,16 @@ thickening a stroke rightwards closes them — `W` becomes a solid band, `M`'s
 inner V fills until three rows are identical bars. They come out a shade
 lighter than their neighbours, which is a better trade than illegible.
 
+The same letters are also a proportional GEOS font, `assets/q4k-serif.cvt`
+("Q4K Serif", 8 points, in Convert format), which `make assets` writes from
+`src/lib/font_data.c` with [tools/mkcvt.py](tools/mkcvt.py). It is for
+vic2orious's `.v2t` text, such as the splash screen's:
+`build --font assets/q4k-serif.cvt`, and `font.use()` with the same path for
+the kit's `lib/font.inc`. Each glyph is trimmed to its inked columns plus one
+of spacing (a space is four wide), as vic2's own ROM font is; the ASCII codes
+the C64's set has no glyph for (`\ ^ _ ` { | } ~`) are spaces. Its info block
+is complete, so GEOS can use it too.
+
 Mixed case needs no special handling. cc65 encodes an upper-case letter in a
 string literal as shifted PETSCII, which draws as a capital, and a lower-case
 one as unshifted, which draws in lower case — the charset holds both, and

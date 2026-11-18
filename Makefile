@@ -172,6 +172,7 @@ GEN_ARENA := include/q4k/arena_data.h src/lib/arena_data.c
 GEN_NAMES := include/q4k/names_data.h
 GEN_GEO   := assets/geography.json
 GEN_FONT  := src/lib/font_data.c
+GEN_CVT   := assets/q4k-serif.cvt
 GEN_LOOT  := include/q4k/loot_data.h src/lib/loot_data.c
 GEN_VER   := include/q4k/version.h
 GEN_MUSIC := src/sid/theme_data.s
@@ -191,7 +192,7 @@ GEN_FIGHT := src/fight/fight_data.s src/ow/foe_art.s
 FONT_SOURCE ?= rom
 FONT_STYLE  ?= bold
 
-assets: $(GEN_TILES) $(GEN_TOWN) $(GEN_ARENA) $(GEN_NAMES) $(GEN_GEO) $(GEN_FONT) \
+assets: $(GEN_TILES) $(GEN_TOWN) $(GEN_ARENA) $(GEN_NAMES) $(GEN_GEO) $(GEN_FONT) $(GEN_CVT) \
         $(GEN_LOOT) $(GEN_VER) $(GEN_MUSIC) $(GEN_TUNES) $(GEN_OW) $(GEN_FIGHT)
 
 # The version lives in VERSION alone; the release workflow checks the tag
@@ -274,6 +275,11 @@ $(BUILD)/font.conf: FORCE
 
 $(GEN_FONT): tools/mkfont.py $(BUILD)/font.conf $(wildcard assets/fonts/*.bin)
 	tools/mkfont.py --source $(FONT_SOURCE) --style $(FONT_STYLE)
+
+# The same letters as a proportional GEOS font in Convert format, for
+# vic2orious's v2t text (`build --font assets/q4k-serif.cvt`).
+$(GEN_CVT): $(GEN_FONT) tools/mkcvt.py
+	tools/mkcvt.py
 
 dirs:
 	@mkdir -p $(BUILD)/lib $(DIST)
