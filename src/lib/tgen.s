@@ -55,7 +55,11 @@ ord:            .res 6
 _proc_n:        .res 1
 _proc_ents:     .res 20         ; five people: x, y, kind, param
 
+.ifdef OW_TOWN                  ; the open world's engines: in the town's
+        .segment "OVTCODE"      ; overlay (Makefile's ow_tgen.o)
+.else
         .segment "CHDATA1"
+.endif
 
 ground: .byte T_GRASS, T_GRASS, T_SWAMP, T_SHORE, T_GRASS
 scenery: .byte 0, T_TREE, 0, 0, T_BOULDER
@@ -64,7 +68,11 @@ lotx:   .byte 2, 8, 14, 2, 8, 14        ; where each lot starts, and where the
 loty:   .byte 2, 2, 2, 9, 9, 9          ; bottom wall of a building in it goes
 lotb:   .byte 7, 7, 7, 14, 14, 14
 
+.ifdef OW_TOWN
+        .segment "OVTCODE"
+.else
         .segment "MAPCODE"           ; an engine of its own: engine.h
+.endif
 
 ; ptr1 = &local[ty * 64 + tx]
 locate: lda ty

@@ -191,7 +191,7 @@ def blocks():
             B(core, "ecore", "engine",
               "Engine core: main loop, scrolling, music"),
             B(seg(segs, "MAPCODE"), "egen", "engine",
-              "Land and town generators"),
+              "isle_rnd: the generators' random bytes (they are in the overlays)"),
             [0x4000, 0x43FF, "scra", "video", "Screen A"],
             [0x4400, 0x47FF, "scrb", "video", "Screen B"],
             [0x4800, 0x4FFF, "mcchars", "video", "Multicolour characters"],

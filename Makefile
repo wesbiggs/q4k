@@ -371,6 +371,25 @@ $(BUILD)/ow/ow_dungeon.o: src/lib/dungeon.c | $(BUILD)/lib/dungeon.o
 	$(CL65) $(filter-out -Osir,$(CFLAGS)) -Or --code-name OVDCODE \
 	    --rodata-name MAPDATA $(DEPFLAGS) -c -o $@ $<
 
+# The generators the open world builds with, in the overlay that uses them:
+# the land's (isle_gen.s, OW_WORLD) and the build's thread (genbuild.s) in
+# the world's, the towns' (tgen.s, OW_TOWN, town_gen.c, and town_data.c's
+# maps) in the town's. Linked ahead of the library, as ow_dungeon.o is, so
+# that its MAPCODE copies are not; tools/owslots.py knows them by name.
+# The C ones through build/ow/NAME.s, never src/lib/NAME.s (cl65 writes
+# that for the library's).
+$(BUILD)/ow/ow_isle.o: src/lib/isle_gen.s
+	@mkdir -p $(dir $@)
+	$(CL65) $(ASFLAGS) --asm-define OW_WORLD=1 -c -o $@ $<
+$(BUILD)/ow/ow_tgen.o: src/lib/tgen.s
+	@mkdir -p $(dir $@)
+	$(CL65) $(ASFLAGS) --asm-define OW_TOWN=1 -c -o $@ $<
+$(BUILD)/ow/ow_town_gen.o $(BUILD)/ow/ow_town_data.o: $(BUILD)/ow/ow_%.o: src/lib/%.c
+	@mkdir -p $(dir $@)
+	cc65 $(CFLAGS) --code-name OVTCODE --rodata-name OVTCODE \
+	    --create-full-dep $(@:.o=.d) --dep-target $@ -o $(@:.o=.s) $<
+	ca65 -t c64 -o $@ $(@:.o=.s)
+
 # Each part is compiled twice, and cl65 would write both compilations'
 # assembly to the same src/ow/NAME.s: under make -j the two raced, and an
 # object could come out of the other engine's code, or not assemble. So
@@ -394,7 +413,7 @@ $(BUILD)/ow/ovl.o: src/ow/ovl.s
 
 # The dungeon's monsters' sprites (tools/mkfields.py), and what they do
 # square by square (foes.s), in its overlay.
-$(BUILD)/ow/foe_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o: $(BUILD)/ow/%.o: src/ow/%.s
+$(BUILD)/ow/foe_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(BUILD)/ow/genbuild.o: $(BUILD)/ow/%.o: src/ow/%.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) -c -o $@ $<
 
@@ -404,16 +423,17 @@ $(BUILD)/ow/ow_sfx.o: src/lib/sfx.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) --asm-define OW_SFX=1 -c -o $@ $<
 
+OWGEN := $(patsubst %,$(BUILD)/ow/%.o,ow_isle genbuild ow_tgen ow_town_gen ow_town_data)
 OWOBJ = $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-$*.o) $(BUILD)/ow/ovl.o \
         $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o $(BUILD)/ow/foe_art.o \
-        $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o
+        $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(OWGEN)
 
 # The overlays come out of the same link (ld65's %O.world, ...).
 $(DIST)/ow-%.world $(DIST)/ow-%.town $(DIST)/ow-%.dungeon $(DIST)/ow-%.hi: $(DIST)/ow-%.prg ;
 
 $(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/ow/ovl.o \
 	    $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o $(BUILD)/ow/foe_art.o $(BUILD)/ow/foes.o \
-	    $(BUILD)/ow/stlow.o $(LIB) cfg/c64-openworld.cfg tools/owslots.py
+	    $(BUILD)/ow/stlow.o $(OWGEN) $(LIB) cfg/c64-openworld.cfg tools/owslots.py
 	@mkdir -p $(DIST)
 	$(CL65) $(LDFLAGS) -C cfg/c64-openworld.cfg -m $(BUILD)/ow-$*.map \
 	    -Wl -Ln,$(BUILD)/ow-$*.lbl -o $@ $(OWOBJ) $(LIB)
@@ -466,6 +486,7 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 	    $$(for f in $(BUILD)/talk/[0-9]*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
 
 -include $(foreach p,$(OWPARTS),$(BUILD)/ow/$(p)-cpu.d $(BUILD)/ow/$(p)-reu.d)
+-include $(BUILD)/ow/ow_town_gen.d $(BUILD)/ow/ow_town_data.d
 
 # The multicolour arena (src/owarena.c) and the fight it calls: a module
 # linked on its own (src/fight/, cfg/c64-fight.cfg, include/q4k/fight.h),

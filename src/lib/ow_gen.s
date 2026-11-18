@@ -30,13 +30,10 @@
 ; through in one call.
 
         .export _gen_start, _gen_run, _gen_state
-        .export gen_on, gen_preempt
-        .import _isle_begin, _isle_work, _local
-        .import vault_enter, vault_leave, _sm_frame, sm_guard
+        .export gen_on, gen_preempt, gen_d, gen_leave
+        .import _ov_gen, _sm_frame
         .importzp sreg, ptr1, ptr2, ptr4, tmp1, tmp3
 
-SLOT    = $E000                 ; the one continent kept (vault.s's slot 0)
-ROWS    = 31                    ; ISLE_H
 ZP_N    = 18                    ; sreg, regsave, ptr1-4, tmp1-4
 GEN_SP  = $7F                   ; the thread's stack is $0100-$017F
 
@@ -48,19 +45,16 @@ gen_d:      .res 1
 gen_sp:     .res 1
 main_sp:    .res 1
 gen_zp:     .res ZP_N
-rows:       .res 1
 
         .segment "CODE"
-
-        .assert <_local = 0, lderror, "ow_gen: local[] must start on a page"
 
 ; void __fastcall__ gen_start(unsigned char d): begin on continent d (0-3),
 ; dropping whatever build was under way. Nothing is built until gen_run().
 _gen_start:
         sta     gen_d
-        lda     #>entry         ; a frame for gen_run() to return through:
+        lda     #>_ov_gen       ; a frame for gen_run() to return through:
         sta     $0100 + GEN_SP  ; Y, X, A, P (interrupts on), and where to
-        lda     #<entry
+        lda     #<_ov_gen       ; (the build, in the world's overlay)
         sta     $0100 + GEN_SP - 1
         lda     #$20
         sta     $0100 + GEN_SP - 2
@@ -136,51 +130,12 @@ gen_yield:
         sta     gen_zp + tmp3 - sreg
         tsx
         stx     gen_sp
-leave:  lda     #0
+gen_leave:                      ; (the build's end: genbuild.s)
+        lda     #0
         sta     gen_on
         ldx     main_sp
         txs
 unlock: cli
 back:   rts
 
-        .segment "HICODE"       ; (split so that both halves fit an engine)
-
-; The thread.
-entry:  lda     gen_d
-        jsr     _isle_begin
-:       jsr     _isle_work
-        bne     :-
-        lda     #3              ; the slot is neither land from here on
-        sta     _gen_state
-        lda     #<_local
-        sta     ptr1
-        lda     #>_local
-        sta     ptr1+1
-        lda     #<SLOT
-        sta     ptr2
-        lda     #>SLOT
-        sta     ptr2+1
-        lda     #ROWS
-        sta     rows
-@row:   jsr     sm_guard        ; not over the text window's split (smooth.s)
-        jsr     vault_enter     ; interrupts off for a row: half a millisecond
-        ldy     #63
-:       lda     (ptr1),y
-        sta     (ptr2),y
-        dey
-        bpl     :-
-        jsr     vault_leave
-        lda     ptr1
-        clc
-        adc     #64
-        sta     ptr1
-        sta     ptr2            ; (both start on a page)
-        bcc     :+
-        inc     ptr1+1
-        inc     ptr2+1
-:       dec     rows
-        bne     @row
-        sei
-        lda     #2
-        sta     _gen_state
-        jmp     leave
+; The thread itself, the build, is in the world's overlay: genbuild.s.

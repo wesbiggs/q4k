@@ -116,7 +116,11 @@ nn:             .res 1
 ee:             .res 1
 b:              .res 18 ; the ring's walkability, at twice its index
 
+.ifdef OW_WORLD                 ; the open world's engines: in the world's
+        .segment "OVWCODE"      ; overlay (Makefile's ow_isle.o)
+.else
         .segment "CHDATA1"
+.endif
 
 ; Steps through local[], N E S W; and the squares about one: the middle,
 ; the edge neighbours N E S W, then the corners NW NE SE SW.
@@ -135,7 +139,11 @@ final:  .byte T_WATER, T_GRASS, T_MOUNTAIN, T_FOREST, T_WATER, T_SWAMP
 hkind:  .byte G_TOWN, G_CASTLE, G_DUNGEON, G_LAIR, G_TOWN
 happart: .byte 0, 24, 12, 12, 10
 
+.ifdef OW_WORLD
+        .segment "OVWCODE"
+.else
         .segment "MAPCODE"           ; an engine of its own: engine.h
+.endif
 
 rnd = isle_rnd                  ; A = a random byte; clobbers X
 seed = isle_seed                ; its LFSR

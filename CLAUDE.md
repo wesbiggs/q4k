@@ -466,13 +466,19 @@ when the first stage is published, which is `owtown`'s, over its code.
 
 **The open world's engine is a core and three overlays** (`src/ow/engine.h`).
 The core (`engine.c`, `smooth.s`, and the library: the main loop, the
-scrolling, the music, what every area does, the land and town generators)
+scrolling, the music, what every area does)
 stays put; the world's overlay (`world.c`, `OVWCODE`: the overworld's window
-and streaming, the continent kept, the ships), the town's (`town.c`,
-`OVTCODE`: towns and the castle, the roofs, the people, the talk's trigger)
+and streaming, the continent kept, the ships, and the land generator with
+the thread that runs it: `build/ow/ow_isle.o`, `isle_gen.s` assembled with
+`OW_WORLD`, and `src/ow/genbuild.s`), the town's (`town.c`,
+`OVTCODE`: towns and the castle, the roofs, the people, the talk's trigger,
+and the town generator and the towns' maps: `ow_tgen.o`, `tgen.s` with
+`OW_TOWN`, and `ow_town_gen.o`, `ow_town_data.o`, compiled into the overlay
+through `build/ow/`)
 and the dungeon's (`dungeon.c`, `OVDCODE`: the levels and their stairs, with
 its own copy of the game's `dungeon_build()`, `build/ow/ow_dungeon.o`,
-linked ahead of the library so the library's `MAPCODE` copy is not) take
+linked ahead of the library so the library's `MAPCODE` copy is not, as
+the other generators' copies are) take
 turns in `SLOT` (`$5A00-$7FFF`, 9.5K, to the end of the VIC's bank), each a file of its own that ld65 writes
 beside the engine (`ow-cpu.world`, `.town`, `.dungeon`, and `ow-reu.*`,
 since each engine links its own). Stepping onto a town or a dungeon loads
@@ -485,10 +491,13 @@ between levels load nothing. Their BSS stays where it is, so the world's
 window queue, the continent kept and so on are as they were left, and the
 REU's copy of the window is put back as before. The core calls an overlay
 only through the jump table at the start of the slot (`ovl.s`: `ov_enter`,
-`ov_can_step`, `ov_arrived`, `ov_bump`, `ov_after`, `ov_idle`), and an
+`ov_can_step`, `ov_arrived`, `ov_bump`, `ov_after`, `ov_idle`, `ov_look`,
+and `ov_gen`, where a continent's build starts: the others' never run), and an
 overlay asks for another by setting `ov_want` and returning, never by
 loading it itself (it would load over its own code). `tools/owslots.py` runs
 after each link and fails it if anything else calls into an overlay's code.
+`owslots.py` knows the generators' copies by name (`part_of()`), and
+`isle_rnd`, which both use, stays in the core (`MAPCODE`, 25 bytes).
 One link makes them all, so `ow-data` (COMMON) is still one file for both
 engines. A new overlay is a file in `OWPARTS`, a code segment and a memory
 area in the cfg, a table in `ovl.s` and a line in `owslots.py`'s `SEGS`.
@@ -834,17 +843,17 @@ differs). `local[]` (`HIDATA`, the game's font image) is at `$8000` in an
 engine and in no file, and COMMON is `$8800-$9FFF`. An engine is 12.6K, MAIN only: what it has past the
 screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
-that the engine's file does not carry 5K of empty screens to the disk. The overlays are 4.4K (world), 4.4K
+that the engine's file does not carry 5K of empty screens to the disk. The overlays are 5.9K (world), 6.4K
 (town) and 4.5K (dungeon, its monsters' pictures at the end) of the slot's
-9.5K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 198
-bytes in MAIN (the land and town generators' `MAPCODE` moved there from
-HIGH; the engine no longer links cc65's `conio`: its one message is
+9.5K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 2428
+bytes in MAIN (the generators went to their overlays; the engine no longer
+links cc65's `conio`: its one message is
 written to the text screen's top row, and the keyboard's buffer is emptied
 with a poke of `$C6`), 8 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 19 in
-OWTOP (`$5280-$53FF`), 21 in HIGH (`$5400-$59FF`, where the text window's
-routines, stlow.s's helpers and the engine's words are), 5155 beside the
+OWTOP (`$5280-$53FF`), 105 in HIGH (`$5400-$59FF`, where the text window's
+routines, stlow.s's helpers and the engine's words are), 3669 beside the
 world's overlay (which has `wander()`, the overworld's encounter roll, out
-of the core), 5144 beside the town's, 5120 beside the dungeon's, 23 in BSS, and COMMON 1.7K. String
+of the core), 3210 beside the town's, 5120 beside the dungeon's, 23 in BSS, and 3.3K in COMMON (`$8800-$9FFF`). String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than
@@ -862,7 +871,9 @@ continents are within 65 of each other, so only one is ever in reach, and
 when another becomes the nearest the one kept is at least 33 away. The
 other is then built by the game's generator into `local[]` (free on the
 overworld) and copied into the slot a row at a time, **as a second thread**
-(`src/lib/ow_gen.s`): the main loop calls `gen_run(frame)` while it waits
+(`src/lib/ow_gen.s`, the core's half: starting, running and preempting it;
+the thread itself is `src/ow/genbuild.s`, in the world's overlay, entered
+at `ov_gen`): the main loop calls `gen_run(frame)` while it waits
 for the next frame, and the frame's interrupt takes the machine back by
 pushing one more frame for `$EA31`'s RTI, so the scrolling never waits. The
 thread has the bottom half of the stack page and its own copy of the ten
@@ -877,7 +888,8 @@ caller's look and the switch would otherwise give the build a whole frame
 frame a step ends in**: `seek()` and the scene check went there first and
 cost NTSC a missed frame every other step. Measured over the 59 steps of
 `openworld-sail`: `late` 0 on PAL and with the REU, 4 on NTSC without (1
-before any of this). `wx`, `wy` are the hero's world
+before any of this; 2 with VICE 3.7.1 before the generators went into the
+world's overlay, 1 after). `wx`, `wy` are the hero's world
 square; the engine's coordinates are those mod 128 (384 and 256 are both
 multiples of it, so the wrap is seamless), and `WORLD` is a window indexed
 `(Y & 63) * 64 + (X & 63)` (`sm_torus` makes `char_at` and the edges wrap
