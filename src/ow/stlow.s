@@ -354,9 +354,9 @@ _st_draw:
         ldy     #A_MP
         lda     (ptr1),y
         jsr     num
-@next:  lda     col
-        clc
-        adc     #10
+@next:  lda     col             ; nine across: eight for a name, and two
+        clc                     ; for a third member's magic before the
+        adc     #9              ; arrows at 29 ("26/26 12  Arrows")
         sta     col
         inc     mem
         jmp     @member

@@ -376,8 +376,8 @@ char_at:
 ; that takes edges (ow_bsel), a bit for each neighbour that makes one,
 ; north first and then clockwise. Three rows of neighbour flags (ow_nflag)
 ; roll down the map, so every neighbour is a load, a mask and a rotate. In a
-; place, beyond the map is the set's offmap tile (sea, or grass round the
-; castle); on the overworld (sm_torus) WORLD is a window that wraps both
+; place, beyond the map is the set's offmap tile (sea, or the forest round a
+; town or the castle); on the overworld (sm_torus) WORLD is a window that wraps both
 ; ways, row 63 beside row 0 and column 63 beside column 0, so the flags
 ; wrap too. Only the columns asked for, and one either side, are read.
 

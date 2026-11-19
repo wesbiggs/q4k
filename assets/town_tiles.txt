@@ -10,7 +10,7 @@
 # the coasts.
 
 palette green gray3 brown
-offmap grass
+offmap forest
 fallback floor
 
 tile floor black
@@ -241,7 +241,7 @@ include places_common.txt
 
 # The houses. Open ground for a wall is anything that is not one: the
 # street, the grass, a doorway.
-open floor grass shore swamp water tree sword shield bow potion book shelf bed chest boulder
+open floor grass shore swamp water tree forest sword shield bow potion book shelf bed chest boulder
 
 # Top left quarter (open to the west, north, both, diagonal, and west and
 # north again for the second variant), then bottom left (west, south, ...).
@@ -280,3 +280,41 @@ x... .... xx.. .... xx.. ....
 xx.. .... x... .... x... ....
 x... .... xx.. .... .... ....
 .... .... .... .... .... ....
+
+# Beyond the map's edges (offmap): a wood, crowns crowded together, so
+# that the town reads as a clearing in it rather than going on into grass.
+tile forest black
+.cc..cc.
+c..cc..c
+c......c
+c.c..c.c
+.c....c.
+..cbbc..
+.cc.bcc.
+c..cc..c
+c......c
+c.c..c.c
+.c....c.
+..cbbc..
+.cc.bcc.
+c..cc..c
+c......c
+.cc..cc.
+
+tile forest black
+c..cc..c
+.cc..cc.
+.c....c.
+c..c...c
+c......c
+.cbbcbc.
+..cbcc..
+.cc..cc.
+c..cc..c
+c......c
+c.c..c.c
+.c....c.
+..cbbc..
+.cc.bcc.
+c..cc..c
+.cc..cc.

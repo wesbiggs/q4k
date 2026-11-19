@@ -8,7 +8,7 @@
 # or it would not be secret.
 
 palette black gray2 brown
-offmap grass
+offmap forest
 fallback floor
 
 tile floor red
@@ -341,7 +341,7 @@ bbcc cccc bbcc cccc ..c.
 bccc cccc bbcc cccc .c.c
 bbcc cccc bbcc cccc ....
 
-open floor grass door lockeddoor water drawbridge sword shield bow potion book shelf bed chest crown boulder chestopen pass tree
+open floor grass forest door lockeddoor water drawbridge sword shield bow potion book shelf bed chest crown boulder chestopen pass tree
 
 # The wall-walk's edges, and the face: stone blocks with black mortar and a
 # white edge where the light catches them. Secret doors are walls.
@@ -362,3 +362,41 @@ edges wall secretdoor
 .aca cc.c .c.c aaca .aca c.cc
 .aaa aa.a .a.a aaaa .aaa a.aa
 .aaa .... .... .aaa .aaa ....
+
+# Beyond the map's edges (offmap): a wood at night round the moat's
+# meadow, crowns crowded together, green on the dark ground.
+tile forest green
+.cc..cc.
+cccccccc
+cc.ccc.c
+cccc.ccc
+c.cccc.c
+cccccccc
+.cc.ccc.
+..b..b..
+.cc..cc.
+cccccccc
+cc.cccc.
+ccccc.cc
+.cccccc.
+.cc.ccc.
+..b..b..
+..b..b..
+
+tile forest green
+cc..cc..
+cccccccc
+c.ccc.cc
+cccccccc
+cc.cccc.
+cccccccc
+.ccc.cc.
+..b...b.
+cc..cc..
+cccccccc
+c.cccc.c
+cccccccc
+.cccc.cc
+.ccc.cc.
+..b...b.
+..b...b.
