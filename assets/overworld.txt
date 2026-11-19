@@ -25,6 +25,11 @@
 # shore <colour> [<headland colour>] [against <tile>...]
 #                               the beaches, below: where water meets land
 #                               (or only the tiles named)
+# code <name> <hex> [pass]      a tile of the set's own ($92-$9F), which
+#                               assets/tiles.txt does not have; pass: walked
+#                               on (the road)
+# join <tile> <tile>...         the first takes edges wherever a neighbour
+#                               is neither itself nor one of the rest
 # sprite <name> [bob]           8 double-width pixels by 16 rows (bob: and
 #                                the same sunk a row, to idle between):
 #     k  $D025 (shared)   s  $D026 (shared)   t  the sprite's own colour
@@ -144,24 +149,6 @@ bbbbbbbb
 .abbbba.
 ..aaaa..
 ........
-
-tile pass yellow
-.b..cc..
-....cc.b
-...ccc..
-...cc...
-..ccc..b
-b.cc....
-..ccc...
-...cc...
-...ccc.b
-.b..cc..
-....cc..
-...ccc..
-...cc.b.
-..ccc...
-..cc....
-...cc...
 
 tile water cyan
 bbbbbbbb
@@ -361,23 +348,62 @@ bccccccb
 bbbbbbbb
 bbbbbbbb
 
-tile bridge yellow
-bbbbbbbb
+# Roads (src/lib/ow_roads.s lays them on home, joining Millford, the
+# castle, home's town and the ports): a tile of the open world's own, which
+# the game does not have, walked on as grass is. It is one tile whatever its
+# shape: the shape is its edges, drawn where a neighbour is neither road nor
+# a place it runs into (join, below), so a straight, a turn, a crossroads, a
+# fork and an end all come out of the same art. This is a road square with
+# road all round it, drawn as the sand is, so that it costs no characters of
+# its own: the set has 160 at most (the text window's letters are above),
+# and the road's edges take the last twelve. (That room came from the
+# mountain pass and the bridge, which no land of the open world has: a
+# square of either would be drawn as grass.)
+code road 0x96 pass
+tile road yellow
 cccccccc
-c.c..c.c
+ccccccac
+cccccccc
+c.cccccc
+cccccccc
+ccccbccc
 cccccccc
 cccccccc
-c.c..c.c
 cccccccc
-bbbbbbbb
-bbbbbbbb
+ccaccccc
 cccccccc
-c.c..c.c
+cccccc.c
+cccccccc
+cbcccccc
 cccccccc
 cccccccc
-c.c..c.c
-cccccccc
-bbbbbbbb
+
+join road town castle port
+
+# A road's edges: the top left quarter with no road beside it (to the west),
+# above it (north), both (the outside of a turn, rounded), and only on the
+# diagonal (the inside of a turn or a crossroads), then beside and above
+# again for the second variant; the first eight rows are the top left
+# quarter, the next eight the bottom left (west, south). The road is the
+# middle half of the square, 4 pixels of 8 across and 8 rows of 16 down,
+# with grass either side.
+edges road
+..cc .... .... ..cc ..cc ....
+.acc .a.. .... ..cc .acc .a..
+..cc .... .a.. ..cc ..cc ....
+..cc .... .... .ccc ..cc ....
+..cc cccc ...c cccc ..cc cccc
+..cc cccc ..cc cccc ..cc cccc
+.acc cccc ..cc cccc .acc cccc
+..cc cccc ..cc cccc ..cc cccc
+..cc cccc ..cc cccc ..cc cccc
+.acc cccc ..cc cccc .acc cccc
+..cc cccc ..cc cccc ..cc cccc
+..cc cccc ...c cccc ..cc cccc
+..cc .... .... .ccc ..cc ....
+..cc ..a. .a.. ..cc ..cc ..a.
+.acc .... .... ..cc .acc ....
+..cc .... .... ..cc ..cc ....
 
 # Where water meets land: the top left quarter of a water square, with land
 # to its left (west), above it (north), both, or only on the diagonal (an
@@ -406,9 +432,10 @@ ccbb bbbb ccbb bbbb ....
 # again, with open ground beside it, above it, both, or only on the diagonal;
 # an x is cut back to the background (the grass's green). They are applied to
 # each terrain's own art, every variant and every quarter, mirrored, so a new
-# terrain only needs naming on a fringe line. Open ground is grass, and the
-# places that stand on it. The same seams have to meet as the beaches'.
-open grass town castle dungeon lair pass
+# terrain only needs naming on a fringe line. Open ground is grass, the
+# places that stand on it, and roads (so that a road through a forest is a
+# clearing). The same seams have to meet as the beaches'.
+open grass town castle dungeon lair road
 
 # Where two of them meet, the lower frays toward the higher, which reads as
 # a strip of grass between them: sand against the rest, swamp against forest

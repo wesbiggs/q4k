@@ -171,6 +171,23 @@ u_checkisle() {
     fi
 }
 
+# The open world's roads on home (src/lib/ow_roads.s) are laid by the
+# bootstrap, and only a few of their squares are ever on a golden's screen:
+# the model (tools/roadref.py) is searched over every seed for a place left
+# out or a road on a mountain or water, then the C64's home, roads and all,
+# is held up against the model's for the quick start and seed 198 (where a
+# way back once went into the place it came from).
+u_ow_roads() {
+    if tools/roadref.py --check 256 >/dev/null 2>&1 \
+            && tools/roadref.py --machine 198 >/dev/null 2>&1; then
+        result PASS openworld-roads
+    else
+        result FAIL openworld-roads
+        tools/roadref.py --check 256 | tail -5 || true
+        tools/roadref.py --machine 198 || true
+    fi
+}
+
 # The dialogue gates are decided host-side, and what matters about them --
 # that the giver never knows the word, that a guess does not pass -- never
 # shows on a screen.
@@ -579,7 +596,7 @@ run_unit() {
                 inn) u_inn ;;
             esac ;;
         openworld-save|openworld-quaff|openworld-recolour|openworld-fight|\
-        openworld-foes|openworld-keeper|openworld-cache)
+        openworld-foes|openworld-keeper|openworld-cache|openworld-roads)
             [ -f dist/openworld.d81 ] || { result SKIP "$1" "no dist/openworld.d81"; return; }
             case $1 in
                 openworld-save) u_ow_save ;;
@@ -589,6 +606,7 @@ run_unit() {
                 openworld-foes) u_ow_foes ;;
                 openworld-keeper) u_ow_keeper ;;
                 openworld-cache) u_ow_cache ;;
+                openworld-roads) u_ow_roads ;;
             esac ;;
         online-dialog|online-tidal|online-sigil|online-reward|online-inn|online-fight)
             [ -f "$ON" ] && [ -f "$ONDISK" ] || { result SKIP "$1" "no $ONDISK"; return; }
@@ -621,7 +639,8 @@ all_units() {
         openworld-foes openworld-fight resave save openworld-recolour \
         online-treasuremap online-fov
     for g in tests/golden/*.txt; do basename "$g" .txt; done
-    echo openworld-quaff openworld-keeper openworld-cache owarena-arrow-ur \
+    echo openworld-quaff openworld-keeper openworld-cache openworld-roads \
+        owarena-arrow-ur \
         nodisk npcd checkmap online-title
     for n in $ONLINE_GOLDENS; do
         case $n in treasuremap|fov) ;; *) echo "online-$n" ;; esac
