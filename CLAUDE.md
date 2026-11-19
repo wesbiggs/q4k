@@ -1098,6 +1098,25 @@ upside down where the art has a top), and the generator refuses masks whose
 edges would not meet. `ow_nflag` says what each tile is to its neighbours
 (bit 0 land, bit 1 open, then one bit per `also` terrain) and
 `ow_bsel`/`ow_binv` which of those bits make an edge on it.
+**Roads** join Millford, the castle, home's own town and its four ports in
+one network, laid on home by the bootstrap right after building it
+(`ow_roads()`, `src/lib/ow_roads.s`, using `$4000-$6FFF` for its grid and
+queue): Prim's algorithm on the grid, a breadth-first search from all that
+is joined to the nearest place that is not, and the way back laid as road,
+straight where it can be, on grass, forest, sand and swamp only, never
+through a place. `tools/roadref.py` is the model, draw for draw, and
+`openworld-roads` in `tools/test.sh` searches it over every seed and holds
+the C64's home (read from the RAM under the I/O area) up against it. A road
+is one tile, `$96` (the overworld set's `code road 0x96 pass`, in no other
+set and not in `tiles.txt`, so the game never sees one): its shape --
+straight, turn, crossroads, fork -- is its edges (`edges road`), drawn where
+a neighbour is not road nor a town, castle or port (`join`, a neighbour flag
+bit of its own), and it is open ground, so forest thins and sand frays
+toward it. It rolls for wanderers half as often as grass (4 in 200, `wander()`). The overworld set is now
+at **160 characters, the most it may have**: the road's interior is the
+sand's art, and its edges took the room of the mountain pass and the
+bridge, which no land of the open world has (a square of either would draw
+as grass). Continents have no roads yet.
 **Places.** Stepping onto Millford, the castle, the Hollow Crown or home's
 generated town goes in, built the game's own way (`town_data.c`'s maps,
 `town_gen()`, `dungeon_build()`) into `local[]` and copied into `WORLD`, in a

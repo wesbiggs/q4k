@@ -87,8 +87,8 @@ def parse(path):
     tagged = read_lines(path)
     lines = [t for t, _ in tagged]
     palette = sprcols = shore = None
-    opens, fringes, drawn, also = [], {}, {}, {}
-    own_codes = {}
+    opens, fringes, drawn, also, joins = [], {}, {}, {}, {}
+    own_codes, own_pass = {}, set()
     tiles, sprites = [], []
     offmap = fallback = None
     i = 0
@@ -102,12 +102,17 @@ def parse(path):
         if f[0] == "palette":
             palette = [colour(n, lineno) for n in f[1:4]]
         elif f[0] == "code":
-            # code <name> <hex>: a tile of this set's own, which the game
-            # does not have (a roof): a code from $92-$9F, which none uses.
+            # code <name> <hex> [pass]: a tile of this set's own, which the
+            # game does not have (a roof): a code from $92-$9F, which none
+            # uses; with pass, one the hero walks on (a road).
             n = int(f[2], 16)
             if not 0x92 <= n <= 0x9F:
                 fail(lineno, "code: $92-$9F only")
             own_codes[f[1]] = n
+            if f[3:] == ["pass"]:
+                own_pass.add(n)
+            elif f[3:]:
+                fail(lineno, "code <name> <hex> [pass]")
         elif f[0] == "offmap":
             offmap = f[1]               # what lies beyond the map's edges
         elif f[0] == "fallback":
@@ -158,6 +163,11 @@ def parse(path):
             opens = f[1:]
         elif f[0] == "also":
             also[f[1]] = f[2:]
+        elif f[0] == "join":
+            # join <terrain> <tile>...: the terrain's edges are wherever a
+            # neighbour is neither itself nor one of those (a road runs into
+            # a town, and ends anywhere else).
+            joins[f[1]] = f[2:]
         elif f[0] == "fringe":
             # fringe <terrain>...: those terrains fray where they meet open
             # ground, in the masks that follow: beside, above, both and
@@ -226,7 +236,8 @@ def parse(path):
                     for r, br in zip(rows, art[base])]
         done.append((name, cols, rows, lineno))
     return (palette, sprcols, done, sprites, shore,
-            (fringes, opens, drawn, also), offmap, fallback, own_codes)
+            (fringes, opens, drawn, also, joins), offmap, fallback,
+            own_codes, own_pass)
 
 
 # The art of the last set parsed that stands `on` another tile, as drawn
@@ -296,7 +307,7 @@ def build(setname):
     worth printing about it."""
     path = os.path.join(ROOT, "assets", SET_FILE[setname])
     (palette, sprcols, tiles, sprites, shore, fringe, offmap,
-     fallback, own_codes) = parse(path)
+     fallback, own_codes, own_pass) = parse(path)
     codes = tile_codes()
     codes.update(own_codes)
 
@@ -344,9 +355,9 @@ def build(setname):
     beach = shore and [[char(art_glyph(quarter(shore[1][v], q)),
                              shore[0] if v < 4 else shore[2])
                         for v in range(5)] for q in range(4)]
-    fringes, open_names, drawn, also = fringe
+    fringes, open_names, drawn, also, joins = fringe
     for n in (list(fringes) + open_names + list(drawn) + list(also) +
-              [m for v in also.values() for m in v]):
+              [m for v in also.values() for m in v] + list(joins)):
         if n not in by_name:
             sys.exit("mkoverworld: %s: no tile %r in the set" % (setname, n))
     blend = []
@@ -390,15 +401,22 @@ def build(setname):
     against = shore[3] if shore else None
     extra = sorted({m for v in also.values() for m in v} | set(against or []))
     bit_of = {m: 1 << (2 + k) for k, m in enumerate(extra)}
-    if len(extra) > 6:
-        sys.exit("mkoverworld: also: %d terrains, 6 at most" % len(extra))
+    # A joining terrain's bit is set on it and on what it joins.
+    join_bit = {t: 1 << (2 + len(extra) + k) for k, t in enumerate(sorted(joins))}
+    if len(extra) + len(joins) > 6:
+        sys.exit("mkoverworld: also and join: %d terrains, 6 at most"
+                 % (len(extra) + len(joins)))
     slot_name = [next((n for n, c in codes.items() if c - TILE_BASE == slot),
                       None) for slot in range(TILE_SLOTS)]
     nflag, bsel, binv = [], [], []
     for name in slot_name:
         nflag.append((name not in ("water", "port", "bridge")) |
-                     (name in open_names) << 1 | bit_of.get(name, 0))
-        if shore and name == "water":
+                     (name in open_names) << 1 | bit_of.get(name, 0) |
+                     sum(b for t, b in join_bit.items()
+                         if name == t or name in joins[t]))
+        if name in joins:
+            sel, inv = join_bit[name], 0xFF     # where it is not joined
+        elif shore and name == "water":
             sel, inv = 1, 0             # where land is ...
             if against:                 # ... or only that land
                 sel = 0
@@ -464,6 +482,7 @@ def build(setname):
             "palette": palette, "charlist": chars, "quads": metatiles,
             "blend": blend, "nflag": nflag, "bsel": bsel, "binv": binv,
             "mt0": mt0, "mt1": mt1, "codes": codes, "art": mt_art,
+            "own_pass": own_pass,
             "cols": mt_cols, "by_name": by_name, "water": water,
             "overlays": dict(OVERLAYS)}
 
@@ -546,6 +565,16 @@ def main():
             flags[int(f[3], 16)] = f[4]
     passable = [1 if flags.get(TILE_BASE + slot) in ("pass", "enter") else 0
                 for slot in range(TILE_SLOTS)]
+    # ... and the sets' own that say so: the same code in another set must
+    # not be a different thing, since this table is every set's.
+    for name in SETS:
+        for code in sets[name]["own_pass"]:
+            for other in SETS:
+                if code in sets[other]["codes"].values() and \
+                        code not in sets[other]["own_pass"]:
+                    sys.exit("mkoverworld: $%02X is walked on in %s but "
+                             "not in %s" % (code, name, other))
+            passable[code - TILE_BASE] = 1
 
     rnd = random.Random(0x0C64)
     hashes = [rnd.randrange(256) for _ in range(256)]

@@ -678,11 +678,14 @@ static void to_dungeon_if(unsigned char n)
    game's encounter_roll() has it (out of 200, by the ground; towns never
    roll, and nor does a ship). Not with OWG_CALM, the tests'. (Here, not in
    the core: only the overworld rolls.) */
+#define T_ROAD 0x96             /* the overworld set's own (ow_roads.s) */
+
 static void __fastcall__ wander(unsigned char tile)
 {
     unsigned char chance;
 
     switch (tile) {
+    case T_ROAD:   chance = 4;  break;  /* half the grass's: safer */
     case T_GRASS:  chance = 8;  break;
     case T_SHORE:  chance = 7;  break;
     case T_FOREST: chance = 12; break;

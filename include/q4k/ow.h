@@ -129,6 +129,12 @@ void ow_disk_on(void);
    OW_NO_REU, OW_REU_OK, OW_REU_BLIND. */
 unsigned char ow_reu_detect(void);
 
+/* The bootstrap's: roads on home, just built in the vault, joining Millford
+   (isle_fx[0]), the castle, home's town and the four ports, through
+   isle_fx/fy and isle_port_x/y as the build left them (src/lib/ow_roads.s,
+   which uses $4000-$6FFF). */
+void ow_roads(void);
+
 /* --- The splash screen (src/lib/ow_splash.s) --------------------------- */
 
 #define OW_PAL  0
