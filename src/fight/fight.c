@@ -87,6 +87,7 @@ extern unsigned char ow_tune_on;
 #define K_M          0x4D       /* the music */
 #define K_SHIFT_M    0xCD       /* the effects */
 #define K_SPACE      0x20
+#define K_HELP       0x3F       /* ? */
 #define K_CRSR_DOWN  0x11
 #define K_CRSR_RIGHT 0x1D
 #define K_CRSR_UP    0x91
@@ -907,6 +908,8 @@ static unsigned char next_key(void)
     return bot_key();
 #endif
     v_put(V_CUR, hx, hy);
+    --vs_y[V_CUR];      /* sorted ahead of them, so in front: its art is a
+                           row lower to make up for it (mkfields.py) */
     vs_ptr[V_CUR] = SPR_CURSOR;
     for (;;) {
         frame();
@@ -981,6 +984,35 @@ static unsigned char pick_member(const char *question)
     return NONE;
 }
 
+/* ?: the fight's keys, over the text rows until a key, and the rows put
+   back. The log is kept in the flood's queue, which nothing uses while
+   the party chooses. */
+static void help(void)
+{
+    static const char *const lines[6] = {
+        "WASD/cursor step or strike, QEZX aslant",
+        "^ then a way: shoot   *: cast a spell",
+        "P  the one whose turn it is drinks",
+        "SPACE stands firm   a side gap: flee",
+        "M  music   SHIFT+M  effects",
+        "Press a key",
+    };
+    unsigned char i;
+
+    memcpy(queue_x, F_SCREEN + ROW_LOG * 40, 120);
+    memcpy(queue_y, (unsigned char *)0xD800 + ROW_LOG * 40, 120);
+    for (i = 0; i < 6; ++i) {
+        t_clear(0, ROW_FOE + i, 40);
+        t_at(0, ROW_FOE + i, i == 5 ? C_CYAN : C_WHITE);
+        t_str(lines[i]);
+    }
+    next_key();
+    memcpy(F_SCREEN + ROW_LOG * 40, queue_x, 120);
+    memcpy((unsigned char *)0xD800 + ROW_LOG * 40, queue_y, 120);
+    show_foe();
+    show_party();
+}
+
 static unsigned char quaff(void)
 {
     unsigned char healed, who;
@@ -989,10 +1021,7 @@ static unsigned char quaff(void)
         say("You have no draughts.");
         return 0;
     }
-    who = pick_member("Who drinks?");
-    if (who == NONE) {
-        return 0;
-    }
+    who = act;                  /* whose turn it is */
     healed = drink_potion(who);
     if (!healed) {
         say_who(who, " is unhurt.");
@@ -1917,6 +1946,10 @@ static unsigned char fight(void)
                             continue;
                         }
                         break;
+
+                    case K_HELP:                 /* no turn spent */
+                        help();
+                        continue;
 
                     case K_M:                    /* no turn spent */
                         fq_quiet ^= 1;

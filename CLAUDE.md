@@ -353,8 +353,9 @@ town's overlay loads for a person (`talk_to()`: a keeper or an inn goes to
 `owtown`): `talk.c` and `gift.c`, with all its code below `$3800`
 (1.2K free there, less the C stack), what runs once at the start above
 it (the font image, `charset_install()`, `actor.c`'s and `town_data.c`'s
-tables) with the portrait's code, and BSS at `$B000` as `owtown`'s, so
-that VIC bank 1 is free for a portrait of the speaker (below). Both
+tables) with the portrait's code, and BSS at `$B000` (`owtown`'s is at
+`$B100`, past the fight module's, with its talk buffer ending below the
+packed field at `$C000`), so that VIC bank 1 is free for a portrait of the speaker (below). Both
 programs (and `isletest`) link `src/ow/owstand.o`, the few variables and
 functions those modules use of what were the classic game's `game.c`,
 `sprite.c`, `savegame.c`, `music.s` and `view.c` (as the engine defines
@@ -566,7 +567,7 @@ through it: `ow_run()` (the engines, `owtown`, `owparty`), `ow_back()`'s
 sets, a tune), `ow_fight.c` (the module, the tunes, and the field and the
 sprites, which it loads itself before calling the module and says so with
 an empty sprite name: the module links no cache, or its BSS would reach
-`owtown`'s at `$B000`), and the bootstrap's `ow-data` and tune. Where things
+`owtown`'s at `$B100`), and the bootstrap's `ow-data` and tune. Where things
 are is the build's decision: `tools/mkowcache.py` knows every cacheable
 file's name, address and length (`OWCACHE_FILES` in the Makefile, the most
 used first), and writes the bootstrap's table (`build/ow/owcdir.s`) and the
@@ -1294,7 +1295,8 @@ music and the effects are the open world's: `ow_tune.s` and `ow_sfx.o`,
 ticked by `mux.s`'s frame interrupt; the block says which song (none from
 `owarena`, which loads no tune) and whether to carry on with it, and `M`
 and SHIFT+`M` turn them off and on. **The open world's keys**, the engine's
-and the fight's alike: Q E Z X diagonally (C does nothing), `M` the music,
+and the fight's alike (`?` in a fight lists the fight's over the text rows,
+`help()`): Q E Z X diagonally (C does nothing), `M` the music,
 SHIFT+`M` the effects (the fight's `next_key()` folds every other shifted
 letter onto its plain one), and in a fight the up-arrow key (`$5E`, the
 stick's button) shoots and `*` casts -- a wizard's up-arrow casts too, and

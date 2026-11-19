@@ -333,7 +333,13 @@ def static_blocks(sprites):
             out.append((n, block(fr)))
     out.append(("the arrow, filled from fight_arrow", bytes(64)))
     for n in SHOTS:
-        out.append((n, block(sprites[n][1][0])))
+        rows = sprites[n][1][0]
+        if n == "cursor":
+            # A row down, for the fight puts it a line higher than whom it
+            # marks: mux.s sorts it first, onto a lower-numbered sprite,
+            # which the VIC draws in front.
+            rows = ["." * 8] + rows
+        out.append((n, block(rows)))
     return out
 
 
