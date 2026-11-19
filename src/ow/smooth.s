@@ -2524,6 +2524,12 @@ irq:
 ; turns it off again just before the text. Black on black: a band below the
 ; map, always the same.
 ;
+; A late interrupt must not wait those 55 cycles: the write would then come
+; partway across $E7, and the left of the text's first line (the names)
+; would be black, as an NTSC machine showed. So the second interrupt writes
+; at once if it starts on $E6 or later, and the first does the second's work
+; itself if it ends on $E5 or later, when the second would be missed.
+;
 ; The first write must come after row 20's last possible bad line ($D7) and
 ; before cycle 58 of line $DF: later than that, with the map's fine scroll
 ; at 0, the VIC would count row 21 twice and show row 23 in row 22's place.
@@ -2556,7 +2562,9 @@ irq_text:
         cmp     _sm_splitline
         bcc     :+
         sta     _sm_splitline
-:       lda     #TEXTLINE
+:       cmp     #TEXTLINE       ; this late (held behind the flip's colour,
+        bcs     @text           ; on NTSC), the text's interrupt would be
+        lda     #TEXTLINE       ; missed: its work now instead
         sta     $D012
         inc     irqstep
         jmp     $EA81
@@ -2564,13 +2572,15 @@ irq_text:
         ora     #$07
         tax
         lda     #TEXTLINE
+        cmp     $D012           ; already on the line after (late): at
+        bcc     @now            ; once, for the text's first line is next
 @line:  cmp     $D012           ; to the start of the line after
-        beq     @line
+        bcs     @line
         ldy     #10             ; and into its right border: about 55 cycles
 @wait:  dey
         bne     @wait
         nop
-        stx     $D011
+@now:   stx     $D011
         lda     #IRQLINE
         sta     $D012
         lda     #0
