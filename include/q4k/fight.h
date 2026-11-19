@@ -119,7 +119,8 @@ typedef struct {
 #define SPR_WAVE     0x58
 #define SPR_BOLT     0x59
 #define SPR_CURSOR   0x5A
-#define SPR_HIT      0x5B       /* $5700-$57FF: four blocks free */
+#define SPR_HIT      0x5B
+#define SPR_CORNER   0x5C       /* $5700-$57FF: the rounded corners (corners.s) */
 
 /* The multiplexer (src/fight/mux.s): sixteen sprites to ask for, eight to
    show them with. One is on while its vs_y is not 0. */

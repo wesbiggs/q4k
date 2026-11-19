@@ -224,7 +224,7 @@ static void put_roofs(void)
     st_tchests();               /* (a chest taken, uncovered: open) */
 }
 
-/* The people, as sprites 1 to 7, but for those under a roof: where they
+/* The people (sm_npcs places them), but for those under a roof: where they
    stand, and a robe each (by who they are, so it stays theirs). */
 static void show_people(void)
 {
@@ -238,12 +238,10 @@ static void show_people(void)
         npc_ent[n] = i;
         sm_npc_x[n] = e->x + BIAS;
         sm_npc_y[n] = e->y + BIAS;
-        POKE(0x43F9 + n, NPC_FRAME);    /* both screens' sprite pointers */
-        POKE(0x47F9 + n, NPC_FRAME);    /* (t_idle() bobs them) */
-        POKE(0xD028 + n, robes[i % 7]);
+        sm_npc_ptr[n] = NPC_FRAME;      /* (t_idle() bobs them) */
+        sm_npc_col[n] = robes[i % 7];
         ++n;
     }
-    VIC.spr_mcolor = 0xFF;
     sm_npc_n = n;
 }
 
@@ -459,9 +457,9 @@ void t_idle(void)
     }
     f = NPC_FRAME + (bob ^= 1);
     for (i = sm_npc_n; i--; ) {
-        POKE(0x43F9 + i, f);
-        POKE(0x47F9 + i, f);
+        sm_npc_ptr[i] = f;
     }
+    sm_mxdirty = 1;             /* (the interrupt writes them) */
 }
 
 /* L: the town's hidden gold (assets/loot.txt, the game's), on the hero's

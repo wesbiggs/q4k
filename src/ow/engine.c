@@ -384,14 +384,15 @@ static unsigned char disk_on(void)
     for (i = 0; i < 12; ++i) {
         next_frame();
     }
-    i = VIC.spr_ena;
+    i = sm_sproff;
+    sm_sproff = 1;              /* (the interrupt writes $D015 every frame) */
     VIC.spr_ena = 0;
     return i;
 }
 
 static void disk_off(unsigned char sprites)
 {
-    VIC.spr_ena = sprites;
+    sm_sproff = sprites;
     frame = sm_frame;           /* those frames were not missed */
 }
 
@@ -1166,6 +1167,9 @@ int main(void)
             sm_sprite(hero_frame(dir, stride ^= 1));
             sm_animate();
             st_bob();           /* and the keeper with them */
+        }
+        if (sm_mxwant && !moving && (frame & 3) == 2) {
+            sm_npcs();          /* a crowd on a line: the next left out */
         }
 
         if (!moving && !flipped) {

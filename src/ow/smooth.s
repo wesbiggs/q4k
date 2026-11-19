@@ -83,7 +83,9 @@
         .import _ow_spr1, _ow_spr2
         .export _sm_tileset, _sm_blank, _sm_offtile
         .export _sm_npcs, _sm_npc_n, _sm_npc_x, _sm_npc_y, _sm_tunic
-        .export _sm_npc_ox, _sm_npc_oy
+        .export _sm_npc_ox, _sm_npc_oy, _sm_npc_ptr, _sm_npc_col, _sm_sproff
+        .export _sm_vx, _sm_vxh, _sm_vy, _sm_mxdrops   ; (for tests)
+        .export _sm_mxwant, _sm_mxdirty
         .importzp ptr1, ptr2, ptr3, ptr4, sp
         .export _sm_stack
 
@@ -161,19 +163,17 @@ ow_chq:     .res 128            ; each metatile's characters, 32 a quarter
 ow_blend:   .res 512            ; and its edges', 16 a metatile
 den:        .res 1              ; $10, or 0 while the screen is blanked
 
-; People: sprites 1-7 over the map, at squares (biased, like the hero's),
-; placed from the camera the next frame shows (sm_npcs) and written by the
-; interrupt with the fine scroll, so they move with the map.
+; People: up to seven over the map, at squares (biased, like the hero's),
+; placed from the camera the next frame shows (sm_npcs) and given the VIC's
+; sprites 3-7 by the multiplexer ("The viewport's corners", by the
+; interrupt), so they move with the map.
 _sm_tunic:  .res 1              ; the hero's colour: the leader's (G->tunic)
 _sm_npc_n:  .res 1
 _sm_npc_x:  .res 7
 _sm_npc_y:  .res 7
 _sm_npc_ox: .res 7              ; and pixels from there, signed (a dungeon's
 _sm_npc_oy: .res 7              ; monsters gliding from square to square)
-spr_xy:     .res 14             ; sprites 1-7: x, y, x, y, ...
-spr_msb:    .res 1              ; $D010
-spr_en:     .res 1              ; $D015
-spr_ready:  .res 1              ; the interrupt copies them in, once
+spr_ready:  .res 1              ; a new plan for the interrupt to take up
 camx:       .res 2              ; the camera, in pixels
 camy:       .res 2
 cnlo:       .res 1              ; copyn's count
@@ -1542,9 +1542,10 @@ _sm_reu_keep:
 
 ; ---------------------------------------------------------------------------
 ; void sm_npcs(void) -- the people's sprites from the camera just committed
-; (sm_ox/sm_fx, sm_oy/sm_fy), for the next interrupt to write. Off the
-; screen, a sprite is switched off. On the screen: x = square * 16 - camera
-; + 31 and y = square * 16 - camera + 54, as the hero's (engine.c).
+; (sm_ox/sm_fx, sm_oy/sm_fy): a plan for the next interrupt (mx_plan,
+; below). Off the screen, a person is left out. On the screen: x = square *
+; 16 - camera + 31 and y = square * 16 - camera + 54, as the hero's
+; (engine.c).
 _sm_npcs:
         lda     _sm_ox          ; camx = ox * 8 + fx
         ldx     #0
@@ -1567,14 +1568,12 @@ _sm_npcs:
         rol     camy+1
         ora     _sm_fy
         sta     camy
-        lda     #0
-        sta     spr_msb
-        lda     #1              ; the hero is always on
-        sta     spr_en
+        lda     #0              ; no new plan till this one is made
+        sta     spr_ready
         ldy     #0
 @one:   cpy     _sm_npc_n
         bcc     :+
-        jmp     @done
+        jmp     mx_plan
 :
         lda     #0              ; x = square * 16 + 31 - camx, 16 bits
         sta     cnhi
@@ -1638,31 +1637,567 @@ _sm_npcs:
         bne     @off            ; above the screen, or below it
         cpx     _sm_npclim
         bcs     @off            ; over the text window
-        tya                     ; on: x, y and the bits
-        asl     a
-        sta     dmask           ; (two bytes a sprite)
-        txa
-        ldx     dmask
-        sta     spr_xy+1,x
+        cpx     #MX_YMIN
+        bcc     @off            ; in the top border
+        txa                     ; on: where
+        sta     _sm_vy,y
         lda     cnlo
-        sta     spr_xy,x
-        lda     bit_of+1,y
-        ora     spr_en
-        sta     spr_en
+        sta     _sm_vx,y
         lda     cnhi
-        beq     @off2
-        lda     bit_of+1,y
-        ora     spr_msb
-        sta     spr_msb
-        bne     @off2
-@off:
-@off2:  iny
+        sta     _sm_vxh,y
+        iny
         jmp     @one
-@done:  lda     #1
+@off:   lda     #0
+        sta     _sm_vy,y
+        iny
+        jmp     @one
+
+; ---------------------------------------------------------------------------
+; The viewport's corners, and the multiplexer that pays for them.
+;
+; The map's four corners are rounded off: each is black where it lies
+; outside a quarter circle of three squares' radius (48 pixels) drawn in
+; from the corner, which gives the open world a look of its own. They are
+; sprites, since a character would move with the fine scroll: hi-res,
+; black, doubled both ways (48 by 42, two pixels a step, as a multicolour
+; character's), in front of everything (sprite priority goes by number:
+; the corners are 1 and 2, the people 3-7; the hero, 0, is always in the
+; middle, where no corner reaches). Sprites 1 and 2 are the top corners
+; down to line CYT + 42, and then an NMI moves them down to be the bottom
+; ones (CYB, or CYBF with the window hidden), which end before the flip's
+; interrupt at IRQLINE puts them back at the top. Their four pictures are
+; at CORNERS, the top of VIC bank 1 (the overlays' slot ends below it),
+; drawn by sm_init from mx_w.
+;
+; Why an NMI: a raster interrupt costs some 200 cycles, most of them the
+; KERNAL's way in and out, and on NTSC that was 25 frames missed on
+; openworld-sail's walk where there had been 2. The NMI is CIA 2's timer
+; A, one-shot, started by the flip's interrupt every frame to come round
+; on about line MX_NMI (anywhere from CYT + 43 to CYB will do, so an
+; interrupt held up by a dozen lines does no harm, and being started
+; afresh it cannot drift); mx_nmi saves only A, and the NMI comes into the
+; colour copy as into anything else. It is not started while sm_sproff is
+; set: an NMI can break into the KERNAL's serial transfers, which an IRQ
+; cannot, and every load and save in the engine sets that first
+; (disk_on()). With the KERNAL banked out its vector is the RAM's at $FFFA,
+; which vault.s and ow_tune.s point at vault_nmi, which comes here through
+; $0318 too.
+;
+; That leaves the people five sprites where they had seven, so they are
+; multiplexed: sm_npcs works out where each of them stands on the screen
+; (sm_vx, sm_vxh, sm_vy; 0 is off), and mx_plan sorts them top down and
+; gives the first five sprites 3-7. A sixth reuses the sprite of the
+; first, on line y + 22 of it (an event), if it stands at least three
+; lines below that; a seventh the second's. One that cannot is not drawn
+; that plan (sm_mxdrops counts them), and the next starts its sort from the
+; next person, so that of a crowd on one line each is left out in turn: the
+; engine asks for a plan every fourth frame while one is (sm_mxwant). A plan is two copies (curoff says
+; which is the interrupt's; sm_npcs makes the other and sets spr_ready), so
+; that the interrupt never reads one half made.
+;
+; The interrupts: the flip's (IRQLINE) puts the corners at the top and the
+; plan's first five sprites in, then the events (irqstep 3, irq_mid), if
+; any, then the text window's two, if it is shown. The flip's colour copy,
+; which on NTSC lasts most of the frame, is done with interrupts on, so
+; that the events come in on time; it pays a couple of lines' lead for
+; each. Its sprites but the events' are written after the copy, as they
+; always were.
+
+CORNERS  = $7F00                ; four sprite blocks: TL, TR, BL, BR
+CBLK     = (CORNERS & $3FFF) / 64
+CXL      = 31                   ; the 38 columns' first pixel
+CXR      = 31 + 304 - 48        ; and the right corner's (x > 255)
+CYT      = 54                   ; the 24 rows begin on line 55 (a sprite
+CYB      = SPLITLINE - 42       ; at y is drawn from y + 1); the window's
+CYBF     = 246 - 42             ; map ends on $DC, the full screen's on 246
+MX_NMI   = 110                  ; about where the corners go down
+MX_YMIN  = CYT - 20             ; a person's sprite higher is not seen
+MX_GAP   = 22                   ; a sprite free again this far below its y
+MX_LEAD  = 3                    ; and the next in it at least this below that
+MX_LAST  = IRQLINE - 6          ; no event later than this
+
+; A plan (curoff: 0 or PSZ into plan). The base: the people on sprites 3-7
+; from the top of the frame; the events: the later people on sprites taken
+; over part way down.
+P_BV     = 0                    ; 5: which person (an index into sm_npc_*)
+P_BX     = 5                    ; 5: x, low byte
+P_BY     = 10                   ; 5: y
+P_MSB    = 15                   ; $D010: theirs, and corner 2's
+P_EN     = 16                   ; $D015: the hero, the corners, the base
+P_EVN    = 17                   ; how many events
+P_EVM    = 18                   ; the sprites they take over, as bits
+P_EL     = 19                   ; 2: the line each comes in on
+P_EH     = 21                   ; 2: its sprite, 3-7
+P_EV     = 23                   ; 2: its person
+P_EX     = 25                   ; 2: x, low byte
+P_EY     = 27                   ; 2: y
+P_EB     = 29                   ; 2: its sprite's bit
+P_EM     = 31                   ; 2: and that bit if x > 255, else 0
+PSZ      = 33
+
+        .segment "OWCBSS"       ; (BSS is full: COMMON past OW-DATA)
+plan:       .res PSZ * 2
+_sm_npc_ptr: .res 7             ; each person's sprite pointer ...
+_sm_npc_col: .res 7             ; ... and colour (engine.h)
+_sm_vx:     .res 7              ; on the screen: x, low byte ...
+_sm_vxh:    .res 7              ; ... and high
+_sm_vy:     .res 7              ; and y, 0 if off
+_sm_mxdrops: .res 1             ; people left out of a frame, all told
+_sm_mxwant: .res 1              ; the last plan left someone out
+mxrot:      .res 1              ; the person mx_plan starts from
+ord:        .res 7              ; the people on screen, top down ...
+oky:        .res 7              ; ... and their y
+mcount:     .res 1
+key:        .res 1
+nb:         .res 1              ; the plan being made
+mxk:        .res 1
+mxj:        .res 1
+curoff:     .res 1              ; the interrupt's plan
+cyb_now:    .res 1              ; where the bottom corners are: CYB, CYBF
+nmi_at:     .res 2              ; the NMI's timer, from the flip's start
+evi:        .res 1              ; the events done this frame
+amask:      .res 1              ; mx_apply's sprites, as bits ...
+pmask:      .res 1              ; ... and those whose pictures it writes
+_sm_mxdirty: .res 1             ; a picture or a colour has changed
+atmp:       .res 1
+nline:      .res 1
+mptr:       .res 1
+mcol:       .res 1
+_sm_sproff: .res 1              ; no sprites while the disk works
+
+        .segment "CODE"
+
+; The rest of sm_npcs: the plan, from sm_vy and the rest.
+mx_plan:
+        lda     #0              ; the people on screen, sorted by y, taken
+        sta     mcount          ; from mxrot round, so that of those on
+        sta     _sm_mxwant      ; one line the first in wins
+        lda     _sm_npc_n
+        beq     @sorted
+        sta     mxk
+        ldy     mxrot
+        cpy     _sm_npc_n
+        bcc     @ins
+        ldy     #0
+@ins:   lda     _sm_vy,y
+        beq     @nexty
+        sta     key
+        ldx     mcount
+@sh:    cpx     #0
+        beq     @put
+        lda     oky-1,x
+        cmp     key
+        bcc     @put
+        beq     @put
+        sta     oky,x
+        lda     ord-1,x
+        sta     ord,x
+        dex
+        bne     @sh
+@put:   lda     key
+        sta     oky,x
+        tya
+        sta     ord,x
+        inc     mcount
+@nexty: iny
+        cpy     _sm_npc_n
+        bcc     :+
+        ldy     #0
+:       dec     mxk
+        bne     @ins
+
+@sorted:
+        lda     curoff          ; the plan that is not the interrupt's
+        eor     #PSZ
+        sta     nb
+        tax
+        lda     #%00000100      ; corner 2 is past x 255
+        sta     plan+P_MSB,x
+        lda     #%00000111      ; the hero and the corners
+        sta     plan+P_EN,x
+        lda     #0
+        sta     plan+P_EVN,x
+        sta     plan+P_EVM,x
+        sta     mxk
+@base:  lda     mxk             ; the first five: sprites 3-7
+        cmp     mcount
+        bcs     @evs
+        cmp     #5
+        bcs     @evs
+        tay                     ; y: k, x: nb + k
+        clc
+        adc     nb
+        tax
+        lda     ord,y
+        sta     plan+P_BV,x
+        tay
+        lda     _sm_vx,y
+        sta     plan+P_BX,x
+        lda     _sm_vy,y
+        sta     plan+P_BY,x
+        lda     _sm_vxh,y
+        ldy     mxk
+        ldx     nb
+        cmp     #0
+        beq     :+
+        lda     mx_bit,y
+        ora     plan+P_MSB,x
+        sta     plan+P_MSB,x
+:       lda     mx_bit,y
+        ora     plan+P_EN,x
+        sta     plan+P_EN,x
+        inc     mxk
+        bne     @base           ; (always)
+
+@evs:   lda     #0              ; the rest: events, on the sprites the
+        sta     mxj             ; first ones leave
+@ev:    lda     mxk
+        cmp     mcount
+        bcc     :+
+        jmp     @done
+:
+        ldy     mxj
+        cpy     #2
+        bcs     @drop
+        lda     oky,y           ; the line its first is done by
+        cmp     #MX_LAST - MX_GAP
+        bcs     @drop
+        adc     #MX_GAP
+        sta     key
+        adc     #MX_LEAD
+        ldy     mxk
+        cmp     oky,y
+        beq     :+
+        bcs     @drop           ; too close below it
+:       lda     nb              ; x: nb + j
+        clc
+        adc     mxj
+        tax
+        lda     key
+        sta     plan+P_EL,x
+        ldy     mxj
+        lda     mx_bit,y
+        sta     plan+P_EB,x
+        ldy     nb
+        ora     plan+P_EVM,y
+        sta     plan+P_EVM,y
+        lda     mxj
+        clc
+        adc     #3
+        sta     plan+P_EH,x
+        ldy     mxk
+        lda     ord,y
+        sta     plan+P_EV,x
+        tay
+        lda     _sm_vx,y
+        sta     plan+P_EX,x
+        lda     _sm_vy,y
+        sta     plan+P_EY,x
+        lda     _sm_vxh,y
+        beq     :+
+        lda     plan+P_EB,x
+:       sta     plan+P_EM,x
+        ldy     nb
+        lda     plan+P_EVN,y
+        clc
+        adc     #1
+        sta     plan+P_EVN,y
+        inc     mxj
+@drop2: inc     mxk
+        jmp     @ev
+@drop:  inc     _sm_mxdrops
+        lda     #1
+        sta     _sm_mxwant
+        jmp     @drop2
+@done:  lda     _sm_mxwant      ; someone left out: the next plan starts
+        beq     @ready          ; one on, and is asked for soon (engine.c)
+        ldy     mxrot
+        iny
+        cpy     _sm_npc_n
+        bcc     :+
+        ldy     #0
+:       sty     mxrot
+@ready: lda     #1
         sta     spr_ready
         rts
 
-bit_of: .byte   1, 2, 4, 8, 16, 32, 64, 128
+mx_bit: .byte   $08, $10, $20, $40, $80
+
+; The plan's base people on their sprites: those of sprites 3-7 whose bits
+; are in amask, and their bits of $D010 (corner 2's is set by sm_show and
+; left alone); their pictures and colours too if
+; their bits are in pmask. Y is curoff. Clobbers A, X.
+.macro  MXBASE  i
+        .local  skip
+        lda     amask
+        and     #($08 << i)
+        beq     skip
+        lda     plan+P_BX+i,y
+        sta     $D006+2*i
+        lda     plan+P_BY+i,y
+        sta     $D007+2*i
+        lda     pmask
+        and     #($08 << i)
+        beq     skip
+        ldx     plan+P_BV+i,y
+        lda     _sm_npc_ptr,x
+        sta     SCRA+$3FB+i
+        sta     SCRB+$3FB+i
+        lda     _sm_npc_col,x
+        sta     $D02A+i
+skip:
+.endmacro
+; pmask: all of amask's, if a picture or a colour may have changed, or
+; else only the events' sprites, which they changed. Y is curoff.
+mx_pmask:
+        lda     _sm_mxdirty
+        bne     :+
+        lda     plan+P_EVM,y
+        and     amask
+        sta     pmask
+        rts
+:       lda     amask
+        sta     pmask
+        rts
+
+mx_apply:
+        MXBASE  0
+        MXBASE  1
+        MXBASE  2
+        MXBASE  3
+        MXBASE  4
+        lda     amask
+        eor     #$FF
+        and     $D010
+        sta     atmp
+        lda     plan+P_MSB,y
+        and     amask
+        ora     atmp
+        sta     $D010
+        rts
+
+; The next of this frame's interrupts below the flip's: an event, or else
+; the text window's or the flip's. Carry clear if it is an event, with its
+; line in A.
+mx_next:
+        lda     #$FF
+        sta     nline
+        lda     _sm_sproff
+        bne     @which
+        ldx     curoff
+        lda     evi
+        cmp     plan+P_EVN,x
+        bcs     @which
+        txa
+        clc
+        adc     evi
+        tax
+        lda     plan+P_EL,x
+        cmp     nline
+        bcs     @which
+        sta     nline
+@which: lda     nline
+        cmp     #$FF
+        beq     @none
+        sta     $D012
+        lda     #3
+        sta     irqstep
+        lda     nline
+        clc
+        rts
+@none:  lda     den             ; the text window's split, unless the
+        beq     @flip           ; screen is off or the window hidden
+        lda     _sm_rows
+        cmp     #MAPROWS
+        bne     @flip
+        lda     #SPLITLINE
+        sta     $D012
+        lda     #1
+        sta     irqstep
+        sec
+        rts
+@flip:  lda     #IRQLINE
+        sta     $D012
+        lda     #0
+        sta     irqstep
+        sec
+        rts
+
+; The interrupt below the flip's (irqstep 3): whatever is due.
+irq_mid:
+        lda     #$01
+        sta     $D019
+@loop:  lda     _sm_sproff      ; an event?
+        bne     @sched
+        ldx     curoff
+        lda     evi
+        cmp     plan+P_EVN,x
+        bcs     @sched
+        txa
+        clc
+        adc     evi
+        tay
+        lda     plan+P_EL,y
+        cmp     $D012
+        beq     :+
+        bcs     @sched          ; not yet
+:       lda     plan+P_EH,y     ; the sprite: x, y
+        asl     a
+        tax
+        lda     plan+P_EX,y
+        sta     $D000,x
+        lda     plan+P_EY,y
+        sta     $D001,x
+        ldx     plan+P_EV,y     ; the person's picture and colour
+        lda     _sm_npc_ptr,x
+        sta     mptr
+        lda     _sm_npc_col,x
+        sta     mcol
+        ldx     plan+P_EH,y
+        lda     mptr
+        sta     SCRA+$3F8,x
+        sta     SCRB+$3F8,x
+        lda     mcol
+        sta     $D027,x
+        lda     plan+P_EB,y
+        eor     #$FF
+        and     $D010
+        ora     plan+P_EM,y
+        sta     $D010
+        inc     evi
+        jmp     @loop
+@sched: jsr     mx_next
+        bcs     @out
+        cmp     $D012           ; due already?
+        bcc     :+
+        bne     @out
+:       jmp     @loop
+@out:   jmp     $EA81
+
+; The NMI: CIA 2's timer A, the corners going down; any other (RESTORE),
+; the KERNAL's.
+mx_nmi:
+        pha
+        lda     $DD0D           ; (which acknowledges it)
+        lsr     a
+        bcc     @other
+        lda     cyb_now
+        sta     $D003
+        sta     $D005
+        lda     #CBLK + 2
+        sta     SCRA+$3F9
+        sta     SCRB+$3F9
+        lda     #CBLK + 3
+        sta     SCRA+$3FA
+        sta     SCRB+$3FA
+        pla
+        rti
+@other: pla
+        jmp     $FE47
+
+; The NMI's timer, from the flip's interrupt to line MX_NMI, by the
+; KERNAL's PAL flag (a Drean's 65-cycle lines put it at about 105, an old
+; NTSC's 64 at about 113).
+NMI_PAL  = (312 - IRQLINE + MX_NMI) * 63
+NMI_NTSC = (263 - IRQLINE + MX_NMI) * 65
+
+; The corners' pictures, into CORNERS: in each row of the top left one, the
+; first mx_w[row] of its 24 pixels are set; the top right is that from the
+; right, and the bottom two are those upside down.
+mx_corners:
+        ldy     #0              ; Y: the row
+@row:   lda     #0
+        sta     atmp            ; A, key, mcol: the left's three bytes
+        sta     key
+        sta     mcol
+        sta     mptr            ; mptr, nline, cnt: the right's
+        sta     nline
+        sta     cnt
+        ldx     #0              ; X: the pixel
+@px:    txa                     ; the left's: set while X < w
+        cmp     mx_w,y
+        rol     mcol            ; (carry clear: set)
+        rol     key
+        rol     atmp
+        txa                     ; the right's: set while X >= 24 - w
+        clc
+        adc     mx_w,y
+        cmp     #24
+        rol     cnt
+        rol     nline
+        rol     mptr
+        inx
+        cpx     #24
+        bne     @px
+        lda     atmp            ; the left's ones are its zeros (the
+        eor     #$FF            ; carry was clear where they belong)
+        sta     atmp
+        lda     key
+        eor     #$FF
+        sta     key
+        lda     mcol
+        eor     #$FF
+        sta     mcol
+        tya                     ; top: row * 3; bottom: (20 - row) * 3
+        sta     mxk
+        asl     a
+        adc     mxk
+        tax
+        lda     atmp
+        sta     CORNERS,x
+        lda     key
+        sta     CORNERS+1,x
+        lda     mcol
+        sta     CORNERS+2,x
+        lda     mptr
+        sta     CORNERS+64,x
+        lda     nline
+        sta     CORNERS+65,x
+        lda     cnt
+        sta     CORNERS+66,x
+        lda     #20
+        sec
+        sbc     mxk
+        sta     mxj
+        asl     a
+        adc     mxj
+        tax
+        lda     atmp
+        sta     CORNERS+128,x
+        lda     key
+        sta     CORNERS+129,x
+        lda     mcol
+        sta     CORNERS+130,x
+        lda     mptr
+        sta     CORNERS+192,x
+        lda     nline
+        sta     CORNERS+193,x
+        lda     cnt
+        sta     CORNERS+194,x
+        iny
+        cpy     #21
+        beq     :+
+        jmp     @row
+:       lda     #0              ; (the 64th bytes, and $7FFF, which the VIC
+        sta     CORNERS+63      ; shows where it shows nothing)
+        sta     CORNERS+127
+        sta     CORNERS+191
+        sta     CORNERS+255
+        ldx     #PSZ * 2 - 1    ; and both plans: nobody
+:       sta     plan,x
+        dex
+        bpl     :-
+        sta     curoff
+        sta     _sm_sproff
+        lda     #%00000100
+        sta     plan+P_MSB
+        lda     #%00000111
+        sta     plan+P_EN
+        rts
+
+; How many of a row's 24 (double) pixels are outside the circle, from the
+; top: a pixel is, if its middle is more than 48 from (48, 48).
+mx_w:   .byte   19, 16, 13, 12, 10, 9, 8, 7, 6, 5, 4, 4, 3, 2, 2, 2, 1, 1, 1, 0, 0
 
 ; The lowest a person's sprite may stand: its sixteen lines end above the
 ; band (from $DD) and the text.
@@ -1836,9 +2371,12 @@ _sm_blank:
 ; The raster interrupt, from the KERNAL's vector at $0314.
 
 irq:
-        lda     irqstep         ; the text window's two (below)?
-        beq     :+
-        jmp     irq_text
+        lda     irqstep         ; the multiplexer's (irqstep 3), or the
+        beq     :++             ; text window's two (below)?
+        cmp     #3
+        bne     :+
+        jmp     irq_mid
+:       jmp     irq_text
 :       lda     $D012
         sta     _sm_irqline
         lda     #$01
@@ -1849,17 +2387,63 @@ irq:
         sta     $D011
         lda     ts_bg           ; (the text window made it black)
         sta     $D021
-        lda     den             ; and its split, unless the screen is off
-        beq     :+              ; or the window hidden
+        lda     #CYT            ; the corners at the top
+        sta     $D003
+        sta     $D005
+        lda     #CBLK
+        sta     SCRA+$3F9
+        sta     SCRB+$3F9
+        lda     #CBLK + 1
+        sta     SCRA+$3FA
+        sta     SCRB+$3FA
+        lda     $DD0D           ; (an NMI not acknowledged, as ow_cache.s's
+        lda     _sm_sproff      ; RTI leaves one, would be the last)
+        bne     :+
+        lda     nmi_at          ; the corners' NMI, one-shot
+        sta     $DD04
+        lda     nmi_at+1
+        sta     $DD05
+        lda     #%00011001      ; start, one-shot, load
+        sta     $DD0E
+:       ldx     #CYB
         lda     _sm_rows
         cmp     #MAPROWS
-        bne     :+
-        lda     #SPLITLINE
-        sta     $D012
-        inc     irqstep
-:       lda     pendswap
-        beq     @tail
+        beq     :+
+        ldx     #CYBF
+:       stx     cyb_now
         lda     #0
+        sta     evi
+        lda     spr_ready       ; a new plan? Then every picture is
+        beq     :+              ; written again
+        lda     curoff
+        eor     #PSZ
+        sta     curoff
+        lda     #0
+        sta     spr_ready
+        lda     #1
+        sta     _sm_mxdirty
+:       ldy     curoff
+        lda     _sm_sproff
+        beq     :+
+        lda     #0
+        sta     $D015
+        beq     @next           ; (always)
+:       lda     plan+P_EN,y
+        sta     $D015
+        lda     #$F8            ; the people, with the scroll: all now,
+        ldx     pendswap        ; or on a flip only those on the sprites
+        beq     :+              ; the events take over, and the rest
+        lda     plan+P_EVM,y    ; after the colour copy
+:       and     plan+P_EN,y     ; (those there are)
+        beq     @next
+        sta     amask
+        jsr     mx_pmask
+        jsr     mx_apply
+@next:  jsr     mx_next         ; the corners going down, at least
+        lda     pendswap
+        bne     :+
+        jmp     @tail
+:       lda     #0
         sta     pendswap
         lda     pend18
         sta     $D018
@@ -1868,30 +2452,34 @@ irq:
         beq     :+
         jsr     reu_colour
         jmp     :++
-:       jsr     colour_a        ; (colour_for chose the screen)
+:       cli                     ; (the multiplexer's interrupts come in)
+        jsr     colour_a        ; (colour_for chose the screen)
+        sei
 .else
+        cli                     ; (the multiplexer's interrupts come in)
         lda     _sm_front
         bne     :+
         jsr     colour_a
         jmp     :++
 :       jsr     colour_b
 .endif
-:       lda     $D012
+:       sei
+        lda     $D012
         sta     _sm_colend
-@tail:  lda     spr_ready       ; the people, with the scroll
-        beq     @nospr
-        ldx     #13
-:       lda     spr_xy,x
-        sta     $D002,x
-        dex
-        bpl     :-
-        lda     spr_msb
-        sta     $D010
-        lda     spr_en
-        sta     $D015
-        lda     #0
-        sta     spr_ready
-@nospr: inc     _sm_frame
+        lda     _sm_sproff
+        bne     @tail
+        ldy     curoff
+        lda     plan+P_EVM,y
+        eor     #$FF
+        and     #$F8
+        and     plan+P_EN,y
+        beq     @tail
+        sta     amask
+        jsr     mx_pmask
+        jsr     mx_apply
+@tail:  lda     #0              ; every picture written
+        sta     _sm_mxdirty
+        inc     _sm_frame
         jsr     ow_tune_irq     ; the music (ow_tune.s)
         lda     $D012           ; (how late a split could be, for --peek)
         sta     _sm_irqend
@@ -2113,6 +2701,7 @@ _sm_init:
         sta     irqstep
         lda     #COLOR_WHITE
         sta     _sm_ink
+        jsr     mx_corners
         jsr     font_copy
         jmp     _sm_text_clear
 
@@ -2161,18 +2750,50 @@ _sm_show:
         sta     $D026
         lda     _sm_tunic       ; the leader's colour
         sta     $D027
-        lda     #1
-        sta     $D01C
-        sta     $D015
-        lda     #0
-        sta     $D010
+        lda     #%11111001      ; the hero and the people multicolour,
+        sta     $D01C           ; the corners not, and doubled
+        lda     #%00000110
         sta     $D017
         sta     $D01D
+        lda     #%00000100
+        sta     $D010
+        lda     #0
         sta     $D01B
+        sta     $D028           ; the corners: black, at the top
+        sta     $D029
+        lda     #CXL
+        sta     $D002
+        lda     #<CXR
+        sta     $D004
+        lda     #CYT
+        sta     $D003
+        sta     $D005
+        lda     #1
+        sta     $D015           ; (the interrupt puts the rest on)
         lda     #179            ; see engine.c: the square at 148, 84
         sta     $D000
         lda     #138
         sta     $D001
+
+        ldx     #<NMI_NTSC      ; the corners' NMI: CIA 2's timer A
+        ldy     #>NMI_NTSC
+        lda     $02A6
+        beq     :+
+        ldx     #<NMI_PAL
+        ldy     #>NMI_PAL
+:       stx     nmi_at
+        sty     nmi_at+1
+        lda     #<mx_nmi
+        sta     $0318
+        lda     #>mx_nmi
+        sta     $0319
+        lda     #0
+        sta     $DD0E           ; (the flip's interrupt starts it)
+        lda     #$7F
+        sta     $DD0D
+        lda     #$81
+        sta     $DD0D
+        lda     $DD0D
 
         lda     #$7F            ; the CIA's timer interrupt off ...
         sta     $DC0D
@@ -2200,6 +2821,15 @@ _sm_quit:
         lda     #0
         sta     $D01A           ; no raster interrupt
         sta     $D015           ; no sprites
+        sta     $DD0E           ; no NMI, and the KERNAL's handler back
+        lda     #$7F
+        sta     $DD0D
+        lda     $DD0D
+        lda     #<$FE47
+        sta     $0318
+        lda     #>$FE47
+        sta     $0319
+        lda     #0
         lda     #$FF
         sta     $D019
         lda     #<$EA31
