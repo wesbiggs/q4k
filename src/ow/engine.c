@@ -368,19 +368,31 @@ unsigned char music = 1;                /* the M key */
    So the theme plays on through a town's gate, a save and a talk. */
 static unsigned char carry_on;
 
-/* Before the disk: the music paused (silence has to reach VICE's sound
-   buffer before the drive works, or it plays its last one for as long as
-   that takes: CLAUDE.md), and the sprites, which take cycles the serial bus
-   needs. Returns the sprites to put back. */
-static unsigned char disk_on(void)
+/* The music paused where it is, to carry on with. */
+static void hush(void)
 {
-    unsigned char i;
-
     if (ow_tune_on) {
         carry_on = song_now + 1;    /* (play_for() clears it) */
     }
     ow_tune_pause();
     song_now = NONE;
+}
+
+/* Before the disk, for file `name` (or 0: the drive, whatever it is): the
+   music paused (silence has to reach VICE's sound buffer before the drive
+   works, or it plays its last one for as long as that takes: CLAUDE.md),
+   and the sprites, which take cycles the serial bus needs. Returns the
+   sprites to put back. A file the REU has comes with no drive, so the
+   music plays on through it: pausing round every load, two going into a
+   town, stuttered. */
+static unsigned char __fastcall__ disk_on(const char *name)
+{
+    unsigned char i;
+
+    if (name && ow_cached(name)) {
+        return VIC.spr_ena;
+    }
+    hush();
     for (i = 0; i < 12; ++i) {
         next_frame();
     }
@@ -430,7 +442,7 @@ void play_for(unsigned char s)
     if (f != OW->tune) {
         OW->tune = OW_NO_TUNE;
         sm_blank(1);
-        i = disk_on();
+        i = disk_on(tune_name[f]);
         ow_tune_stop();         /* (another tune: nothing to carry on with) */
         carry_on = 0;
         if (load3(tune_name[f])) {
@@ -467,7 +479,7 @@ void save_game(void)
     unsigned char s, i, ok, st[2];
 
     owg_where();
-    s = disk_on();
+    s = disk_on(0);
     VIC.bordercolor = COLOR_LIGHTBLUE;
     ok = 0;
     if (cbm_open(15, 8, 15, scratch_save) == 0) {
@@ -727,7 +739,7 @@ static void __fastcall__ load_failed(const char *name, unsigned char up)
    An overlay's ov_enter() may ask for the other in turn. */
 static void __fastcall__ fetch(const char *name)
 {
-    unsigned char s = disk_on();
+    unsigned char s = disk_on(name);
 
     while (!load3(name)) {
         load_failed(name, 1);
@@ -1033,7 +1045,11 @@ void owg_where(void)
 void __fastcall__ ow_leave(const char *name)
 {
     owg_where();
-    disk_on();                  /* the music paused where it is, and ... */
+    if (ow_cached(name)) {      /* the music paused where it is (with no */
+        hush();                 /* wait: no drive), and ... */
+    } else {
+        disk_on(0);
+    }
     OWB->song = carry_on;       /* ... the next program may carry on */
     sm_quit();
     memset((void *)0x0400, 0x20, 1000);     /* the load shows a clear screen, */

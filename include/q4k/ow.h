@@ -112,6 +112,9 @@ void __fastcall__ ow_run(const char *name);
    address, or 0 and _oserror. Never for OW-SAVE, which changes. */
 unsigned int __fastcall__ ow_cload(const char *name, void *at);
 extern unsigned int cache_hits, cache_misses;
+/* Whether ow_cload(name) would fetch it from the REU, with no drive: the
+   music need not be paused for it (VICE's sound and the serial bus). */
+unsigned char __fastcall__ ow_cached(const char *name);
 
 /* The bootstrap's: the REU's directory for the cache kept if it is this
    build's, or laid out anew (src/lib/ow_cinit.s). */

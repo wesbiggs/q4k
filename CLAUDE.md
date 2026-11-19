@@ -352,7 +352,17 @@ disk), pauses it again before `ow_back()`, and the engine's `play_for()`
 carries on with it (`ow_tune_resume()`) if its scene plays that song. The
 same goes for a town's gate, an overlay's load and a save inside the
 engine. A fight carries it on too: the module plays it (`ow_tune.s`) and
-leaves it paused for the screen after and the engine.
+leaves it paused for the screen after and the engine. **A load from the
+REU's cache does not pause it**: the pause, and its twelve frames' wait,
+are for the drive (VICE's sound buffer, the serial bus), and pausing round
+every load (two at a town's gate) stuttered. So the engine's `disk_on()`
+asks `ow_cached()` first and leaves the music alone for a cached file,
+`ow_leave()` pauses without the wait, `owtown` and `owtalk` set
+`owt_nowait` before the pause that goes back to the engine, and a talk's
+file comes through the cache too (`talk_load()`, `owstand.c`'s).
+Measured with the sound dump, a town's gate
+went from two silences (241 and 343 ms) to none, and a talk from three to
+the two program switches, about 150 ms each.
 
 **The screens of text are a program loaded from disk, not a part of the
 engine**: `owtown` (`src/owtown.c`, linked with `cfg/c64-owtown.cfg`, the
@@ -585,7 +595,8 @@ through it: `ow_run()` (the engines, `owtown`, `owparty`), `ow_back()`'s
 sets, a tune), `ow_fight.c` (the module, the tunes, and the field and the
 sprites, which it loads itself before calling the module and says so with
 an empty sprite name: the module links no cache, or its BSS would reach
-`owtown`'s, past its talk buffer at `$B000`), and the bootstrap's `ow-data` and tune. Where things
+`owtown`'s, past its talk buffer at `$B000`), the talks' and inns' files
+(`talk_load()`), and the bootstrap's `ow-data` and tune. Where things
 are is the build's decision: `tools/mkowcache.py` knows every cacheable
 file's name, address and length (`OWCACHE_FILES` in the Makefile, the most
 used first), and writes the bootstrap's table (`build/ow/owcdir.s`) and the

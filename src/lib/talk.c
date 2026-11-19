@@ -75,9 +75,7 @@ static unsigned char load(unsigned char file)
         name[2] = 0;
     }
     MEMSIZ = 0xCF00;
-    music_pause();
-    held = cbm_load(name, save_device, talk) ? file : NONE;
-    music_resume();
+    held = talk_load(name, talk) ? file : NONE;
     if (held == NONE) {
         talk[0] = T_END;
         return 0;

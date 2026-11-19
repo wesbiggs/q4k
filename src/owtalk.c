@@ -39,6 +39,7 @@ extern char _PICCODE_LOAD__[], _PICCODE_RUN__[], _PICCODE_SIZE__[];
 /* The music the engine left paused, carried on (src/lib/ow_play.s). */
 void owt_music_on(void);
 void owt_music_off(void);
+extern unsigned char owt_nowait;    /* the pause need not wait for VICE */
 
 /* A line said on a screen of its own: what a person handed over when
    there was nothing to read of theirs. Any key goes on. */
@@ -97,6 +98,7 @@ int main(void)
     land = G->land;
     owt_music_on();
     talk(OWB->npc);
+    owt_nowait = ow_cached("ow-data");  /* (no drive: no wait) */
     owt_music_off();            /* paused, for the engine to carry on with */
     owg_out();
     ow_back();                  /* the engine, which carries on from the

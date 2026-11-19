@@ -411,10 +411,11 @@ OWCACHE_FILES := $(DIST)/ow-data.prg=ow-data \
     $(foreach e,cpu reu,$(foreach o,hi world town dungeon,$(DIST)/ow-$(e).$(o)=ow-$(e).$(o))) \
     $(DIST)/owtown.prg=owtown $(DIST)/owtalk.prg=owtalk --glob '$(BUILD)/ow/sets/t.*' \
     $(DIST)/fight.prg=fight --glob '$(BUILD)/music/m.*' \
-    --glob '$(BUILD)/fight/disk/[fs].*' $(DIST)/owparty.prg=owparty
+    --glob '$(BUILD)/fight/disk/[fs].*' $(DIST)/owparty.prg=owparty \
+    --glob '$(BUILD)/talk/[0-9]*'
 OWCACHE_DEPS := $(DIST)/ow-data.prg $(OWENG) $(OWOVL) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
     $(DIST)/fight.prg $(DIST)/owparty.prg $(OWSETS) $(BUILD)/music/.stamp \
-    $(BUILD)/fight/disk/.stamp tools/mkowcache.py include/q4k/owcache.inc
+    $(BUILD)/fight/disk/.stamp $(BUILD)/talk/.stamp tools/mkowcache.py include/q4k/owcache.inc
 
 $(BUILD)/ow/owcdir.s: $(OWCACHE_DEPS)
 	@mkdir -p $(@D)

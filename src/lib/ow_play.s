@@ -22,7 +22,7 @@
 ; last note for as long as the disk takes).
 
         .export _owt_music_on, _owt_music_pause, _owt_music_resume
-        .export _owt_music_off, _owt_music_frame
+        .export _owt_music_off, _owt_music_frame, _owt_nowait
 
 SID_VOL  = $D418
 PALFLAG  = $02A6
@@ -40,6 +40,7 @@ tick:   .res 1
 vol:    .res 1
 xtra:   .res 1                  ; nonzero: owt_music_frame plays six in five
 tick5:  .res 1
+_owt_nowait: .res 1             ; nonzero: no wait (the REU, not the drive)
 
         .segment "CODE"
 
@@ -106,6 +107,8 @@ _owt_music_pause:
         sta     state
         lda     #0
         sta     SID_VOL
+        ldx     _owt_nowait
+        bne     @no
         ldx     #12
 @wait:  lda     $A2
 @same:  cmp     $A2

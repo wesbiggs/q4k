@@ -24,7 +24,7 @@
 ; read the ROM over a tune at $E7C0; the NMI's vector, read from the RAM
 ; under the KERNAL then, points at an RTI meanwhile.
 
-        .export _ow_cload, _cache_hits, _cache_misses
+        .export _ow_cload, _ow_cached, _cache_hits, _cache_misses
         .export owc_look, owc_xfer, owc_xr, owc_ent, owc_slot, owc_rti
         .import popax, __oserror
         .importzp ptr1
@@ -158,6 +158,19 @@ kload:  lda     at
         ldx     at
         ldy     at+1
         jmp     LOAD
+
+; unsigned char __fastcall__ ow_cached(const char *name): 1 if ow_cload()
+; would fetch it from the REU, 0 if it would go to the disk.
+_ow_cached:
+        sta     ptr1
+        stx     ptr1+1
+        jsr     owc_look
+        lda     #0
+        tax
+        bcc     :+
+        lda     owc_ent+7
+        and     #1
+:       rts
 
 ; owc_look: the name at ptr1 hashed (nlen its length), the magic and its
 ; entry fetched, and the transfer that would fetch it set up in owc_xr. C

@@ -57,6 +57,7 @@
    owtalk. The music the engine left paused (src/lib/ow_play.s): */
 void owt_music_on(void);
 void owt_music_off(void);
+extern unsigned char owt_nowait;    /* the pause need not wait for VICE */
 
 /* --- I: the party ----------------------------------------------------------
 
@@ -305,6 +306,7 @@ int main(void)
         help();
         break;
     }
+    owt_nowait = ow_cached("ow-data");  /* (no drive: no wait) */
     owt_music_off();            /* paused, for the engine to carry on with */
     owg_out();
     ow_back();                  /* the engine, which carries on from the

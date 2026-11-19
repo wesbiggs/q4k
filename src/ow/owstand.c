@@ -15,6 +15,8 @@
 #include <c64.h>
 
 #include <q4k/game.h>
+#include <q4k/ow.h>
+#include <q4k/savegame.h>
 #include <q4k/town_data.h>
 
 unsigned char land, local_w, local_h, depth;
@@ -55,6 +57,22 @@ void music_pause(void)
 void music_resume(void)
 {
     owt_music_resume();
+}
+/* A talk's file (savegame.h): from the REU's cache with the music playing
+   on, or from the disk with it paused round the drive (and stashed, for
+   the next time). */
+unsigned char __fastcall__ talk_load(const char *name, void *at)
+{
+    if (ow_cached(name)) {
+        return ow_cload(name, at) != 0;
+    }
+    owt_music_pause();
+    if (ow_cload(name, at)) {
+        owt_music_resume();
+        return 1;
+    }
+    owt_music_resume();
+    return 0;
 }
 void __fastcall__ view_message(const char *s)
 {
