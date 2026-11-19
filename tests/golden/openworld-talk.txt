@@ -1,26 +1,26 @@
     +----------------------------------------+
-  0 |Jbcfafabcbcfabcbcfafamzwywhmn+<+<mz!hUVf|
-  1 |a@a@adededede@a@adede@a·lklk=de@a@a@ade@|
-  2 |cbcbcfafafafabcbcfafabc^n+<+Tfabcbcbcfab|
-  3 |adedede@a@adedededede@aC=dededede@a@ade@|
-  4 |cfafafabcbcfafafafafabc~Tfafafafabcbcfab|
+  0 |DbcfafabcbcfabcbcfafaQShshUmnTDTDQS]UOPf|
+  1 |a@a@adededede@a@adede@aVlklk~de@a@a@ade@|
+  2 |cbcbcfafafafabcbcfafabc·nTDTFfabcbcbcfab|
+  3 |adedede@a@adedededede@a^~dededede@a@ade@|
+  4 |cfafafabcbcfafafafafabc·Ffafafafabcbcfab|
   5 |adede@adede@a@adede@a@adede@a@a@ade@aded|
   6 |cfafabcfafabcbcfafabcbcfafabcbcbcfabcfaf|
-  7 |·de@a@adedededede@adedededede@a@adet/gbg|
-  8 |HfabcbcfafafafafabcfafafafafabcbcfaH^]^]|
-  9 |>@adede@a@adede@a@a@ade@adedede@a@a*£[£[|
- 10 |HbcfafabcbcfafabcbcbcfabcfafafabcbcH^]^]|
- 11 |>@adedededede@ade@a#@dede@a@adededer£[£[|
- 12 |HGcfafafafafabcfabc%&fafabcbcfafafas^]^]|
- 13 |A:·dedededededede@a@ade@a@adedede@a*£[£[|
- 14 |vuHfafafafafafafabcbcfabcbcfafafabcH^]^]|
- 15 |ts>@ade@a@a@adedeOR@a@ade@a@adede@a*£[£[|
- 16 |vuHbcfabcbcbcfafaUVbcbcfabcbcfafabc|cOdO|
- 17 |ts>de@a@adedede@a@a@a@a@adedede@a@adeWjh|
- 18 |vuHGabcbcfafafabcbcbcbcbcfafafabcbcfaUUU|
- 19 |xwA:?:?34de@adede@a@a@a@ade@a@a@adede@a@|
- 20 |zyzuvyz56fabcfafabcbcbcbcfabcbcbcfafabcb|
- 21 |twxststw>de@adede@adede@a@adede@a@a·#D#·|
+  7 |:de@a@adedededede@adedededede@a@ade_<kck|
+  8 |Bfabcbcfafafafafabcfafafafafabcbcfa!)jgj|
+  9 |8@adede@a@adede@a@avuuuuuuuuuuuuuuuuuuuu|
+ 10 |Bbcfafabcbcfafabcbct_[[[[[[[[[[[[[[[[[[[|
+ 11 |8@adededevuuuuuuuuu_@dede@a@adedede_c#<k|
+ 12 |BAcfafafat_[[[[[[[[!"fafabcbcfafafaPzyzy|
+ 13 |;4:dededetxdedede@a@ade@a@adedede@a=xwxw|
+ 14 |rqBfafafatxfafafabcbcfabcbcfafafabctzyzy|
+ 15 |po8@ade@atx@adedeIL@a@ade@a@adede@a=xwxw|
+ 16 |rqBbcfabctxbcfafaOPbcbcfabcbcfafabc!)jgj|
+ 17 |po8de@a@atxdede@a@a@a@a@adedede@a@adeQjh|
+ 18 |rqBAabcbctxfafabcbcbcbcbcfafafabcbcfaOOO|
+ 19 |ts;4949/0wx@adede@a@a@a@ade@a@a@adede@a@|
+ 20 |vuvqruv12[^bcfafabcbcbcbcfabcbcbcfafabcb|
+ 21 |pstopops8de@adede@adede@a@adede@a@aX,&,W|
  22 | Alaric                      Draught 1  |
  23 | 22/22                       Arrows 0   |
  24 |                                        |

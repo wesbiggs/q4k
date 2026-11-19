@@ -6,7 +6,7 @@
  * new game) or F3 (a saved one); looks for an REU; loads what the two
  * engines share (OW-DATA) and the music (a SID file, to under the KERNAL);
  * builds Keldmarch with the game's generator into the RAM under the I/O
- * area, and each of the four continents to see where its places are (an
+ * area and lays its roads (src/lib/ow_roads.s), and each of the four continents to see where its places are (an
  * engine builds the one it needs again: there is room to keep one, beside
  * the music); moors a ship beside
  * each port and landing; leaves all of that in the hand-off block
@@ -240,7 +240,8 @@ int main(void)
         moor(4 + d, isle_dock_x, isle_dock_y, cell_x[d] * 64u,
              cell_y[d] * 64 + ISLE_TOP, 0);
     }
-    isle_build(ISLE_HOME);      /* and home, in place */
+    isle_build(ISLE_HOME);      /* and home, in place, with its roads */
+    ow_roads();
     OW->home_biome = isle_biome;
     memcpy(OW->home_fx, isle_fx, OW_PLACES);
     memcpy(OW->home_fy, isle_fy, OW_PLACES);
