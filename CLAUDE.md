@@ -1078,7 +1078,7 @@ set and not in `tiles.txt`, so the game never sees one): its shape --
 straight, turn, crossroads, fork -- is its edges (`edges road`), drawn where
 a neighbour is not road nor a town, castle or port (`join`, a neighbour flag
 bit of its own), and it is open ground, so forest thins and sand frays
-toward it. It rolls for wanderers as grass does. The overworld set is now
+toward it. It rolls for wanderers half as often as grass (4 in 200, `wander()`). The overworld set is now
 at **160 characters, the most it may have**: the road's interior is the
 sand's art, and its edges took the room of the mountain pass and the
 bridge, which no land of the open world has (a square of either would draw
