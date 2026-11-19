@@ -135,10 +135,12 @@ static unsigned char item(unsigned char row)
 static unsigned char on_map;      /* asking in the log, not the note rows */
 static unsigned char can[MAX_PARTY];
 static unsigned char taker;       /* who the last offer() went to, or NONE */
+static unsigned char handed;      /* who took what they had instead, or NONE */
+static unsigned char handed_idx;  /* and what that was, in names[] */
 static const char   *item_text;   /* what that was, for the note */
-/* "Book of " and the longest spell, Sleep: 14 with the NUL. Only 20 bytes
+/* "Book of " and the longest spell, Sleep: 14 with the NUL. Only a byte
    of BSS are free in the online build (CLAUDE.md): keep this small. */
-static char          book_text[16];
+static char          book_text[14];
 
 static void ask_line(unsigned char row, const char *petscii)
 {
@@ -197,7 +199,9 @@ static unsigned char choose(const char *what)
 }
 
 /* Offer tier `idx` of `gear` to whoever it is better for. Returns who took
-   it, or NONE. A first bow in the party comes strung, with arrows. */
+   it, or NONE. A first bow in the party comes strung, with arrows. What the
+   taker had goes on to whoever that is better for (handed), or is sold
+   back with the rest. */
 static unsigned char offer(unsigned char idx)
 {
     unsigned char i, had = party_has_bow();
@@ -207,13 +211,33 @@ static unsigned char offer(unsigned char idx)
     }
     i = choose(names[idx]);
     taker = i;
+    handed = NONE;
     if (i != NONE) {
+        handed_idx = *gear_slot(i, gear);       /* what they had */
         *gear_slot(i, gear) = idx;
         if (gear == GEAR_BOW && !had) {
             arrows += ARROW_FREE;
         }
+        for (i = 0; i < party_count; ++i) {
+            can[i] = gear_better(i, gear, handed_idx);
+        }
+        handed = choose(names[handed_idx]);
+        if (handed != NONE) {
+            *gear_slot(handed, gear) = handed_idx;
+        }
     }
-    return i;
+    return taker;
+}
+
+/* "Mira takes the old Short sword.", in eng_text, when offer() handed
+   something down (names[] is still what was offered, robes too). */
+static const char *handed_line(void)
+{
+    strcpy(eng_text, party[handed].name);
+    strcat(eng_text, " takes the old ");
+    strcat(eng_text, names[handed_idx]);
+    strcat(eng_text, ".");
+    return eng_text;
 }
 
 /* The note for a sale: who took it, even when there was no one to ask. */
@@ -232,6 +256,10 @@ static void fair_trade(void)
     strcat(eng_text, ".");
     textcolor(COLOR_LIGHTGREEN);
     cputsxy(0, NOTE_Y, eng_text);
+    if (handed != NONE) {
+        cputsxy(0, NOTE_Y + 1, handed_line());
+        return;
+    }
     str_lit(line, "A fair trade.");
     text_put(0, NOTE_Y + 1, line, COLOR_LIGHTGREEN);
 }
@@ -264,6 +292,9 @@ static void gear_give(void)
         strcat(line, " is no use to you.");
     }
     view_message(line);
+    if (who != NONE && handed != NONE) {
+        view_message(handed_line());
+    }
 }
 
 /* --- the shop ------------------------------------------------------------ */
@@ -597,10 +628,12 @@ void party_draw(void)
    than one. */
 unsigned char __fastcall__ party_spells(unsigned char who)
 {
-    unsigned char b = party[who].known, n = 0;
+    unsigned char n = 0;
 
-    for (; b; b >>= 1) {
-        n += b & 1;
+    /* (The argument is counted down in place: it is on the C stack, and
+       every static byte is wanted in the online build.) */
+    for (who = party[who].known; who; who >>= 1) {
+        n += who & 1;
     }
     return n;
 }
@@ -611,11 +644,11 @@ unsigned char __fastcall__ party_spells(unsigned char who)
    again; RETURN or RUN/STOP is done (0). The last one ready stays ready. */
 unsigned char __fastcall__ party_prepare(unsigned char who)
 {
-    static unsigned char said;
     Actor *a = &party[who];
     unsigned char i, key, bit, n;
     char *p;
 
+    key = 0;
     for (;;) {
         for (i = 20; i < 25; ++i) {
             text_clear(0, i, SCR_W);
@@ -645,14 +678,13 @@ unsigned char __fastcall__ party_prepare(unsigned char who)
                 ++n;
             }
         }
-        if (said) {
+        if (key == NONE) {      /* the last one ready, refused */
             str_lit(line, "One must stay ready.");
             text_put(0, 23, line, COLOR_LIGHTRED);
         } else {
             str_lit(line, "Number to change, RETURN when done");
             text_put(0, 23, line, COLOR_GRAY2);
         }
-        said = 0;
 
         key = cgetc();
         if (key == 0x0D || key == K_STOP) {
@@ -668,7 +700,7 @@ unsigned char __fastcall__ party_prepare(unsigned char who)
         }
         if (a->ready & bit) {
             if (a->ready == bit) {
-                said = 1;
+                key = NONE;
                 continue;
             }
             a->ready &= ~bit;
