@@ -142,7 +142,7 @@ static void page(unsigned char who)
         hint(20, "Cursor left, right  the others");
     }
     hint(21, "Cursor up, down  their colour");
-    if (party[who].cls == CL_WIZARD) {
+    if (party_spells(who) > 1) {
         hint(22, "S  prepare spells");
     }
     hint(24, "Any other key goes back");
@@ -174,7 +174,7 @@ static void party_look(void)
             c = c <= 1 ? 15 : c - 1;
             break;
         default:
-            if ((key & 0x7F) == 's' && party[who].cls == CL_WIZARD) {
+            if ((key & 0x7F) == 's' && party_spells(who) > 1) {
                 while (party_prepare(who)) {
                     page(who);
                 }

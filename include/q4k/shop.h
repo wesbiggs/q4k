@@ -28,11 +28,14 @@ extern unsigned char gear_odds;
    rows from row y, returning the row after the blank one below them;
    party_totals(): the level, the purse, the draughts and arrows, two rows
    from y; party_prepare(): one key of preparing wizard `who`'s spells, over
-   rows 20-24, 1 while they go on (redraw and call again). */
+   rows 20-24, 1 while they go on (redraw and call again); party_spells():
+   how many spells member `who` knows, and so whether preparing is worth
+   offering (more than one). */
 void party_head(void);
 unsigned char member_rows(unsigned char i, unsigned char y);
 void __fastcall__ party_totals(unsigned char y);
 void party_draw(void);
 unsigned char __fastcall__ party_prepare(unsigned char who);
+unsigned char __fastcall__ party_spells(unsigned char who);
 
 #endif /* Q4K_SHOP_H */

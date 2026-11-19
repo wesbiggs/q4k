@@ -583,7 +583,7 @@ void party_draw(void)
     p = str_num(p, maps);
     str_lit(p, ")");
     text_put(0, 21, line, COLOR_GRAY2);
-    for (i = 0; i < party_count && party[i].cls != CL_WIZARD; ++i) {
+    for (i = 0; i < party_count && party_spells(i) < 2; ++i) {
     }
     if (i < party_count) {
         str_lit(line, "1-3  a wizard's prepared spells");
@@ -593,12 +593,25 @@ void party_draw(void)
     text_put(0, 24, line, COLOR_GRAY2);
 }
 
+/* How many spells member `who` knows: preparing is offered only for more
+   than one. */
+unsigned char __fastcall__ party_spells(unsigned char who)
+{
+    unsigned char b = party[who].known, n = 0;
+
+    for (; b; b >>= 1) {
+        n += b & 1;
+    }
+    return n;
+}
+
 /* Change which of wizard `who`'s spells are prepared, a key at a time, over
    the bottom of whatever the caller has drawn: a number toggles one, while
    there is a slot for it, and returns 1 for the caller to redraw and call
-   again; RETURN or RUN/STOP is done (0). */
+   again; RETURN or RUN/STOP is done (0). The last one ready stays ready. */
 unsigned char __fastcall__ party_prepare(unsigned char who)
 {
+    static unsigned char said;
     Actor *a = &party[who];
     unsigned char i, key, bit, n;
     char *p;
@@ -607,10 +620,19 @@ unsigned char __fastcall__ party_prepare(unsigned char who)
         for (i = 20; i < 25; ++i) {
             text_clear(0, i, SCR_W);
         }
-        p = str_lit(line, "Prepare ");
-        p = str_num(p, spell_slots());
+        /* "Zed: 1 of 2 ready": room for as many as the slots, or as are
+           known if fewer. */
+        n = spell_slots();
+        i = party_spells(who);
+        if (i < n) {
+            n = i;
+        }
+        p = str_lit(line, a->name);
+        p = str_lit(p, ": ");
+        p = str_num(p, spells_ready(who));
         p = str_lit(p, " of ");
-        str_lit(p, a->name);
+        p = str_num(p, n);
+        str_lit(p, " ready");
         text_put(0, 20, line, COLOR_YELLOW);
         n = 0;
         for (i = 0; i < NUM_SPELLS; ++i) {
@@ -623,8 +645,14 @@ unsigned char __fastcall__ party_prepare(unsigned char who)
                 ++n;
             }
         }
-        str_lit(line, "RETURN when done");
-        text_put(0, 23, line, COLOR_GRAY2);
+        if (said) {
+            str_lit(line, "One must stay ready.");
+            text_put(0, 23, line, COLOR_LIGHTRED);
+        } else {
+            str_lit(line, "Number to change, RETURN when done");
+            text_put(0, 23, line, COLOR_GRAY2);
+        }
+        said = 0;
 
         key = cgetc();
         if (key == 0x0D || key == K_STOP) {
@@ -639,6 +667,10 @@ unsigned char __fastcall__ party_prepare(unsigned char who)
             continue;
         }
         if (a->ready & bit) {
+            if (a->ready == bit) {
+                said = 1;
+                continue;
+            }
             a->ready &= ~bit;
         } else if (spells_ready(who) < spell_slots()) {
             a->ready |= bit;
@@ -660,7 +692,7 @@ static unsigned char party_screen(void)
             return 1;
         }
         i = key - 0x31;
-        if (i < party_count && party[i].cls == CL_WIZARD) {
+        if (i < party_count && party_spells(i) > 1) {
             while (party_prepare(i)) {
                 party_draw();
             }
