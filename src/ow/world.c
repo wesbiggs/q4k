@@ -687,7 +687,7 @@ static void __fastcall__ wander(unsigned char tile)
     unsigned char chance;
 
     switch (tile) {
-    case T_ROAD:                /* (as the grass it was laid on) */
+    case T_ROAD:   chance = 4;  break;  /* half the grass's: safer */
     case T_GRASS:  chance = 8;  break;
     case T_SHORE:  chance = 7;  break;
     case T_FOREST: chance = 12; break;
