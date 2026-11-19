@@ -68,9 +68,15 @@ disk_show:
         cli
         rts
 
-; The KERNAL's interrupt again and the sprite off: the load is done.
+; The KERNAL's interrupt again and the sprite off: the load is done. In the
+; bottom border: the screen's mode changes at once, but turning it off only
+; takes from the next frame, so mid-frame the rest of this one would show
+; the text screen, with whatever was loaded there, for a flash (from a talk
+; or a fight back to the engine, whose file starts in it).
 disk_stop:
         sei
+:       bit     $D011           ; line 256 on: below the screen, PAL and NTSC
+        bpl     :-
         jsr     disk_off
         lda     $D011           ; the program just loaded starts with the screen
         and     #$EF            ; off (DEN): it turns it on when it is ready
