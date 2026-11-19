@@ -14,7 +14,7 @@
  * kept in the game block (owgame.h's foe_a/foe_b) for as long as the party
  * stays in, so that a level left and come back to has the same ones where
  * they were, less those killed. Each is one of the engine's people
- * (sm_npc_*, which the multiplexer shows on sprites 3-7, as a town's
+ * (sm_npc_*, which the multiplexer shows on sprites 3-6, as a town's
  * people are), one for however many the fight brings. One that can see
  * the hero, near enough to be on the screen with nothing but floor
  * between, comes for them after each of their steps, at its pace in the

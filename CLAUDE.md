@@ -191,16 +191,32 @@ pixels, which the bob moves (`sprite_cells()` in `screendump.py`, as for
 the fight's `--mux`); `--poke still=1` stops the engine's bob too, but only
 until the engine is loaded again, after a talk, say. The engine's
 sprite blocks from `$5000`: the three classes (0-5), the villager (6, 7),
-the ship (8, 9). Each member's colour is `tunic[]` in the game block, from
-the name at first (`ow_party.c`'s `tunic()`, sprite.c's `tunic_of()`
-again; `mkowsave.py` has it too), and the hero is drawn in the leader's
-(`sm_tunic`), a fight in everyone's (`ow_fight.c`). **The party screen**
+the ship (8, 9). Each member's colours are their byte of `tunic[]` in the
+game block: the clothes in the low four bits (`OWG_DRESS`), the skin in the
+high (`OWG_SKIN`; 0, as in a save from before, is light red), from the name
+at first (`ow_party.c`'s `tunic()`: the clothes as sprite.c's `tunic_of()`,
+the skin light red or brown at even odds, never the clothes' colour;
+`mkowsave.py` and `owarena.c` have it too), and the hero is drawn in the
+leader's (`sm_tunic`, `sm_skin`), a fight in everyone's (`ow_fight.c`).
+**The skin is a sprite of its own**: a multicolour sprite has one colour of
+its own, so the party's figures have their `s` pixels left out
+(`figures.py`'s `bare()`) and a second sprite draws only those
+(`skins()`): hi-res on the map (sprite 7, over the hero while on foot; the
+leader's two frames copied from `ow_skins` in OW-DATA to `$7E80-$7EFF`,
+just below the corners, so the people are multiplexed over 3-6) and on the
+party screen (sprite 1); multicolour in a fight, whose multiplexer has
+every sprite so (`V_SKIN`, 12-15, one frame a class at `SPR_SKIN`,
+`$5200`, which the module copies from `fight_skins` as a fight starts,
+since `$5400-$57FF` is full; a line lower on the bob, which `screendump.py
+--mux` leaves out of a dump's marks, as the text dump does the engine's).
+Villagers and monsters keep `$D026`'s light red. **The party screen**
 (`I`, `party_look()` in `owtown.c`) shows one member at a time, with
 `shop.c`'s rows (`party_head()`, `member_rows()`, `party_totals()`,
 `party_prepare()`, which the game's own `party_draw()` is made of) and
 their figure doubled below them: cursor left and right go through the
-party, up and down through the colours (all but black), and `S` prepares
-a wizard's spells. The figure is `src/lib/ow_figs.s` (generated, segment
+party, up and down through the clothes' colours (all but black), `K`
+round the skin's, and `S` prepares the spells of a wizard who knows more
+than one. The figure is `src/lib/ow_figs.s` (generated, segment
 `OWFIGS`, aligned to a sprite block in MAIN, which it asserts is where the
 VIC sees RAM); room for it came from moving `charset_install()`
 (`TITLECODE`/`TITLEDATA`) and the party screen's code to HIGH, which only
@@ -353,9 +369,10 @@ town's overlay loads for a person (`talk_to()`: a keeper or an inn goes to
 `owtown`): `talk.c` and `gift.c`, with all its code below `$3800`
 (1.2K free there, less the C stack), what runs once at the start above
 it (the font image, `charset_install()`, `actor.c`'s and `town_data.c`'s
-tables) with the portrait's code, and BSS at `$B000` (`owtown`'s is at
-`$B100`, past the fight module's, with its talk buffer ending below the
-packed field at `$C000`), so that VIC bank 1 is free for a portrait of the speaker (below). Both
+tables) with the portrait's code, and BSS at `$B000` as `owtown`'s (whose
+talk buffer comes first, so that the fight module's BSS may run over it:
+no inn follows a fight), so that VIC bank 1 is free for a portrait of the
+speaker (below). Both
 programs (and `isletest`) link `src/ow/owstand.o`, the few variables and
 functions those modules use of what were the classic game's `game.c`,
 `sprite.c`, `savegame.c`, `music.s` and `view.c` (as the engine defines
@@ -450,7 +467,8 @@ and the dungeon's (`dungeon.c`, `OVDCODE`: the levels and their stairs, with
 its own copy of the game's `dungeon_build()`, `build/ow/ow_dungeon.o`,
 linked ahead of the library so the library's `MAPCODE` copy is not, as
 the other generators' copies are) take
-turns in `SLOT` (`$5A00-$7EFF`, 9.25K, up to the viewport's corners at `$7F00`), each a file of its own that ld65 writes
+turns in `SLOT` (`$5A00-$7E7F`, 9.1K, up to the hero's skin at `$7E80`
+and the viewport's corners at `$7F00`), each a file of its own that ld65 writes
 beside the engine (`ow-cpu.world`, `.town`, `.dungeon`, and `ow-reu.*`,
 since each engine links its own). Stepping onto a town or a dungeon loads
 its overlay over the world's, and its way out loads the world's back
@@ -526,12 +544,12 @@ interrupt cost twice the frames on NTSC); it is not started while
 `sm_sproff` is set, which `disk_on()` does before every load and save,
 because an NMI breaks into the KERNAL's serial transfers. Their pictures
 are drawn by `sm_init()` into `$7F00-$7FFF`, which no file brings and no
-overlay may reach. The hero keeps sprite 0; the people (townsfolk, ships,
-a dungeon's monsters) are multiplexed over 3-7: `sm_npcs()` sorts them by
-y (`mx_plan`) and the first five take 3-7 from the top of the frame, a
-sixth and seventh the first and second's sprites 22 lines below them
-(an event, `irq_mid`, irqstep 3), if they stand 25 below; one that
-cannot is left out of that plan (`sm_mxdrops`), and the next starts from
+overlay may reach. The hero keeps sprite 0 and their skin 7; the people
+(townsfolk, ships, a dungeon's monsters) are multiplexed over 3-6:
+`sm_npcs()` sorts them by y (`mx_plan`) and the first four take 3-6 from
+the top of the frame, a fifth and sixth the first and second's sprites
+22 lines below them (an event, `irq_mid`, irqstep 3), if they stand 25
+below; one that cannot is left out of that plan (`sm_mxdrops`), and the next starts from
 the next person, which the engine asks for every fourth frame while
 anyone is (`sm_mxwant`): a crowd on a line takes turns. Nothing writes the
 VIC's registers for a person any more: `sm_npc_ptr[]` and `sm_npc_col[]`
@@ -567,7 +585,7 @@ through it: `ow_run()` (the engines, `owtown`, `owparty`), `ow_back()`'s
 sets, a tune), `ow_fight.c` (the module, the tunes, and the field and the
 sprites, which it loads itself before calling the module and says so with
 an empty sprite name: the module links no cache, or its BSS would reach
-`owtown`'s at `$B100`), and the bootstrap's `ow-data` and tune. Where things
+`owtown`'s, past its talk buffer at `$B000`), and the bootstrap's `ow-data` and tune. Where things
 are is the build's decision: `tools/mkowcache.py` knows every cacheable
 file's name, address and length (`OWCACHE_FILES` in the Makefile, the most
 used first), and writes the bootstrap's table (`build/ow/owcdir.s`) and the
@@ -1041,7 +1059,7 @@ map (`offmap`). Walls are two and a half dimensions: a top, and a face in the
 lower half where floor is below, which is a drawn edge (`edges wall`, top
 and bottom quarters drawn apart, not mirrored upside down). People are
 sprites, up to seven (`sm_npcs()` places them from the camera just
-committed, and the multiplexer gives them sprites 3-7: "The rounded
+committed, and the multiplexer gives them sprites 3-6: "The rounded
 viewport", below; `passable()` keeps the hero off them). Corners: the dungeon's rock rounds its outside
 corners off into the floor and nicks its inside ones, and the floor darkens
 against it (a dithered shadow, `edges floor`, with `also floor wall`); a

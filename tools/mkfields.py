@@ -330,7 +330,7 @@ def static_blocks(sprites):
     out = []
     for n in STATIC:
         for fr in sprites[n][1]:
-            out.append((n, block(fr)))
+            out.append((n, block(figures.bare(fr))))
     out.append(("the arrow, filled from fight_arrow", bytes(64)))
     for n in SHOTS:
         rows = sprites[n][1][0]
@@ -341,6 +341,13 @@ def static_blocks(sprites):
             rows = ["." * 8] + rows
         out.append((n, block(rows)))
     return out
+
+
+def skin_blocks(sprites):
+    """SPR_SKIN: the party's skins, a frame each, which the fight copies to
+    $5200, past the biggest monster's eight blocks ($5400-$57FF is full)."""
+    return [(n + " skin", figures.skin(sprites[n][1][0], multicolour=True))
+            for n in STATIC]
 
 
 def arrows(sprites):
@@ -374,6 +381,16 @@ def write_static(sprites):
            '        .segment "FIGHTSPR"',
            ""]
     for name, b in static_blocks(sprites):
+        out.append("        .byte " + ",".join("$%02X" % x for x in b)
+                   + "   ; " + name)
+    out += ["",
+            "; The party's skins (SPR_SKIN), which party_start() copies to "
+            "$5200.",
+            "",
+            "        .export _fight_skins",
+            '        .segment "RODATA"',
+            "_fight_skins:"]
+    for name, b in skin_blocks(sprites):
         out.append("        .byte " + ",".join("$%02X" % x for x in b)
                    + "   ; " + name)
     out += ["",
@@ -415,10 +432,10 @@ def write_foes(sprites):
                                                    for x in block(fr))
                        + "   ; " + name)
     out.append("")
-    out.append("; Sprites: the VIC sees bank 1, $4000-$7FFF, and the corners'")
-    out.append("; blocks are at $7F00 (smooth.s).")
-    out.append("        .assert * <= $7F00, lderror, "
-               "\"foe_art: over the corners' sprites\"")
+    out.append("; Sprites: the VIC sees bank 1, $4000-$7FFF, and the hero's")
+    out.append("; skin's blocks are at $7E80, the corners' at $7F00 (smooth.s).")
+    out.append("        .assert * <= $7E80, lderror, "
+               "\"foe_art: over the skin's and the corners' sprites\"")
     out.append("")
     open(OUT_FOES, "w").write("\n".join(out))
 

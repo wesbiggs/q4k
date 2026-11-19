@@ -504,24 +504,26 @@ def hw_sprites(vic, pointers):
             for n in range(8) if vic[0x15] & (1 << n)]
 
 
-def mux_sprites(mon, syms):
+def mux_sprites(mon, syms, marks=False):
     """The sprites the multicolour fight asks its multiplexer for (vs_* in
     src/fight/mux.s), all of them: the VIC's own eight registers hold
     whichever of them the raster had got to when the machine was stopped,
     which is no two runs the same. One is on while its y is not 0; all are
-    multicolour."""
+    multicolour. With `marks`, only those a text dump marks: not the
+    members' skins (12-15, src/fight/fight.c's V_SKIN), which stand on the
+    members, a line lower every other bob."""
     n = 16
     get = lambda name: mon.mem_get(syms[name], syms[name] + n - 1)
     x, xh, y, ptr, col = (get(k) for k in
                           ("vs_x", "vs_xh", "vs_y", "vs_ptr", "vs_col"))
     return [(x[i] | (xh[i] & 1) << 8, y[i], ptr[i], col[i], True, 1, 1)
-            for i in range(n) if y[i]]
+            for i in range(12 if marks else n) if y[i]]
 
 
 # The open world's engine (src/ow/smooth.s): sprites 1 and 2 are the
 # viewport's rounded corners, whose pictures are these blocks, and the
-# people are multiplexed over 3-7, so the VIC's registers hold whichever of
-# them the raster had got to. What the engine asked for instead: the hero,
+# people are multiplexed over 3-6 (7 is the hero's skin: ow_skin()), so
+# the VIC's registers hold whichever of them the raster had got to. What the engine asked for instead: the hero,
 # the four corners and every person on the screen (sm_vx, sm_vxh, sm_vy).
 OW_CORNER_BLOCKS = range(0xFC, 0x100)       # $7F00 in VIC bank 1
 OW_CORNER_X = (31, 31 + 304 - 48)
@@ -546,6 +548,15 @@ def ow_sprites(mon, syms, vic, pointers):
                                            "sm_npc_ptr", "sm_npc_col"))
     return hero + corners + [(x[i] | (xh[i] & 1) << 8, y[i], ptr[i], col[i],
                               True, 1, 1) for i in range(min(n, 7)) if y[i]]
+
+
+def ow_skin(vic, pointers):
+    """The engine's sprite 7, the hero's skin (hi-res, over sprite 0 on
+    foot): drawn by --shot, not marked in a dump, as the fight's are not."""
+    if not vic[0x15] & 0x80:
+        return []
+    return [(vic[14] | (0x100 if vic[0x10] & 0x80 else 0), vic[15],
+             pointers[7], vic[0x2E], False, 1, 1)]
 
 
 def draw_sprites(px, size, margin, vic, sprites, fetch):
@@ -848,17 +859,21 @@ def read_state(mon, args):
     ow_engine = bank == 0x4000 and not args.mux
     syms = load_symbols(args.prg, args.lbl) if ow_engine and args.lbl else {}
     if args.mux:
-        sprites = mux_sprites(mon, load_symbols(args.prg, args.mux))
+        syms = load_symbols(args.prg, args.mux)
+        sprites = mux_sprites(mon, syms)
+        marked = mux_sprites(mon, syms, marks=True)
     elif "sm_vy" in syms:
-        sprites = ow_sprites(mon, syms, vic, pointers)
+        marked = ow_sprites(mon, syms, vic, pointers)
+        sprites = marked + ow_skin(vic, pointers)
     else:
-        sprites = hw_sprites(vic, pointers)
+        sprites = marked = hw_sprites(vic, pointers)
     sprite_data = {p * 64: mon.mem_get(bank + p * 64, bank + p * 64 + 62)
                    for p in {sp[2] for sp in sprites}}
     return dict(
         screen=screen, colors=colors, lowercase=lowercase,
         rom_charset=rom_charset, charset_base=charset_base,
         scratch=scratch, vic=vic, sprites=sprites, sprite_data=sprite_data,
+        marked=marked,
         # The open world's engine is the one thing in VIC bank 1 with a
         # text window (the fight module's is bank 1 too, but --mux).
         ow_engine=ow_engine)
@@ -875,7 +890,7 @@ def render_text(st, args, legend):
         # mistaken for anything the charset draws.
         if not args.raw:
             rows = [list(row) for row in rows]
-            for cx, cy in sprite_cells(st["sprites"],
+            for cx, cy in sprite_cells(st["marked"],
                                        st["sprite_data"].__getitem__,
                                        bool(args.mux),
                                        OW_CORNER_BLOCKS if st["ow_engine"]

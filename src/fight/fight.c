@@ -134,6 +134,8 @@ extern unsigned char ow_tune_on;
 #define V_FOE    4
 #define V_SHOT   10
 #define V_CUR    11
+#define V_SKIN   12             /* 12-15: each member's skin, over them */
+extern const unsigned char fight_skins[];   /* fight_data.s: SPR_SKIN's */
 
 #define ROW_FOE   19
 #define ROW_NAMES 20
@@ -314,9 +316,18 @@ static void poses(void)
    feet. */
 static void frame(void)
 {
+    unsigned char i;
+
     if (!(++tick & 15)) {
         anim ^= 1;
         poses();
+    }
+    /* Each member's skin is a sprite of its own (one frame: the bob is it
+       sunk a row, tools/figures.py), standing where they do. */
+    for (i = 0; i < party_count; ++i) {
+        vs_x[V_SKIN + i]  = vs_x[i];
+        vs_xh[V_SKIN + i] = vs_xh[i];
+        vs_y[V_SKIN + i]  = vs_y[i] ? vs_y[i] + anim : 0;
     }
     mx_plan();
 #ifndef FIGHT_BOT
@@ -1258,6 +1269,7 @@ static void party_start(void)
 {
     unsigned char i, k, x, y, cx, cy, hx0 = F_INFO[FI_HX], hy0 = F_INFO[FI_HY];
 
+    memcpy((void *)(SPR_SKIN * 64 + 0x4000), fight_skins, 3 * 64);
     for (i = 0; i < party_count; ++i) {
         cx = hx0 + form_x[i];
         cy = hy0 + form_y[i];
@@ -1285,7 +1297,10 @@ static void party_start(void)
         if (party[i].hp) {
             v_put(i, mem_x[i], mem_y[i]);
         }
-        vs_col[i] = fq_tunic[i];
+        vs_col[i] = fq_tunic[i] & 15;           /* their clothes, */
+        k = fq_tunic[i] >> 4;                   /* their skin (0: light red) */
+        vs_col[V_SKIN + i] = k ? k : 10;
+        vs_ptr[V_SKIN + i] = SPR_SKIN + party[i].cls;
     }
 }
 
@@ -1740,7 +1755,7 @@ static void level_up(void)
         pause(2);
     }
     for (i = 0; i < party_count; ++i) {
-        vs_col[i] = fq_tunic[i];
+        vs_col[i] = fq_tunic[i] & 15;
     }
 }
 

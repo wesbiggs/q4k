@@ -183,17 +183,25 @@ static void make_party(void)
     ask("Then to Millford...");
 }
 
-/* A member's colour from their name, as the game's sprite.c's tunic_of():
-   the same name always gets the same one, never black or white
-   (tools/mkowsave.py has it too). The party screen changes it. */
+/* A member's colours from their name, as the game's sprite.c's tunic_of()
+   picks the clothes: the same name always gets the same ones, clothes never
+   black or white, and skin light red or brown, even odds, and never the
+   clothes' (tools/mkowsave.py and src/owarena.c have it too). The high four
+   bits are the skin, the low the clothes (OWG_SKIN, OWG_DRESS). The party
+   screen changes them. */
 static unsigned char tunic(const char *name)
 {
-    unsigned char h = 0;
+    unsigned char h = 0, c, k;
 
     while (*name) {
         h = (unsigned char)((h << 1) | (h >> 7)) ^ *name++;
     }
-    return (unsigned char)(2 + h % 14);
+    c = (unsigned char)(2 + h % 14);
+    k = h & 0x10 ? COLOR_BROWN : COLOR_LIGHTRED;
+    if (c == k) {
+        ++c;                    /* (9 or 10: 10 or 11) */
+    }
+    return (unsigned char)((k << 4) | c);
 }
 
 void ow_new_game(unsigned char quick)

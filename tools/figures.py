@@ -10,6 +10,11 @@ its feet, which stay where they are (bob()).
 
 A sprite's pixels: . nothing, k the first shared colour ($D025, black), s
 the second ($D026, light red: skin), t the sprite's own colour.
+
+The party's skin is their own colour too, which a multicolour sprite has
+only one of: so a member is two sprites, the figure with its skin left out
+(party()) and a hi-res one of only the skin (skins()), in the member's skin
+colour, at the same place. A skin's two frames are its figure's.
 """
 
 import os
@@ -77,8 +82,30 @@ def block(rows):
     return bytes(data + [0] * (64 - len(data)))
 
 
+def bare(rows):
+    """A party figure with its skin left out, for skin() to draw."""
+    return [r.replace("s", ".") for r in rows]
+
+
+def skin(rows, multicolour=False):
+    """Only the skin, hi-res: each double-width s is two pixels set; or,
+    multicolour, in the sprite's own colour (where every sprite is
+    multicolour, as the fight's are)."""
+    on = "t" if multicolour else "s"
+    return block(["".join(on if c == "s" else "." for c in r)
+                  for r in rows])
+
+
 def party():
-    """The classes' frames, in order, as (name, 64 bytes): six blocks."""
+    """The classes' frames, in order, as (name, 64 bytes): six blocks,
+    without their skin."""
     sprites, _ = read()
-    return [(name, block(fr)) for name in CLASSES
+    return [(name, block(bare(fr))) for name in CLASSES
+            for fr in sprites[name][1]]
+
+
+def skins():
+    """Each class's skin, the two frames as party()'s: six blocks."""
+    sprites, _ = read()
+    return [(name + " skin", skin(fr)) for name in CLASSES
             for fr in sprites[name][1]]

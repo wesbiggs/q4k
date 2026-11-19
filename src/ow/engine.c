@@ -955,7 +955,10 @@ static void take_block(void)
         memcpy(ship_x, OW->ship_x, sizeof ship_x);
         memcpy(ship_y, OW->ship_y, sizeof ship_y);
     }
-    sm_tunic = G->tunic[0];
+    sm_tunic = OWG_DRESS(G->tunic[0]);
+    sm_skin  = OWG_SKIN(G->tunic[0]);
+    memcpy((void *)0x7E80, ow_skins + (party[0].cls << 7), 128);
+                                /* (smooth.s's SKINS: the leader's skin) */
     land = G->land;
     if (land != ISLE_HOME) {
         isle_biome = OW->ibiome[land];

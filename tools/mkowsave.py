@@ -63,11 +63,17 @@ def actor(name, hp):
 
 
 def tunic(name):
-    """A member's colour from their name: src/lib/ow_party.c's tunic()."""
+    """A member's colours from their name: src/lib/ow_party.c's tunic(),
+    the skin in the high four bits (light red or brown) and the clothes in
+    the low, never the same."""
     h = 0
     for c in petscii(name):
         h = ((h << 1) | (h >> 7)) & 255 ^ c
-    return 2 + h % 14
+    dress = 2 + h % 14
+    skin = 9 if h & 0x10 else 10
+    if dress == skin:
+        dress += 1
+    return skin << 4 | dress
 
 
 def where(seed, town, at):

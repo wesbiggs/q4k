@@ -533,7 +533,9 @@ def write_figs(hero):
            "; The party's figures for the party screen (src/owtown.c): each "
            "class's",
            "; two frames, 64 bytes a block, as the engines and the fight have "
-           "them.",
+           "them,",
+           "; then each class's skin, the same way (a hi-res sprite over the "
+           "figure).",
            "",
            "        .export _ow_figs",
            '        .segment "OWFIGS"',
@@ -591,6 +593,7 @@ def main():
     ow = sets["overworld"]
     sprites, sprcols = ow["sprites"], ow["sprcols"]
     hero = figures.party()
+    skins = figures.skins()
     codes = tile_codes()
 
     # Which tiles can be walked onto, from assets/tiles.txt: the same in
@@ -622,7 +625,7 @@ def main():
       "tools/mkoverworld.py -- do not edit.")
     w("")
     w('        .export _ow_spr1, _ow_spr2, _ow_pass')
-    w('        .export ow_rnd, ow_qvar, ow_sprites, ow_nsprites')
+    w('        .export ow_rnd, ow_qvar, ow_sprites, ow_nsprites, _ow_skins')
     w("")
     w("; All of it is only read, and the same in both engines, so it goes in")
     w("; the file they share, OW-DATA (cfg/c64-openworld.cfg), whose load")
@@ -660,9 +663,16 @@ def main():
     for name, b in hero + [(n, figures.block(r)) for n, r in sprites]:
         w("        .byte " + ",".join("$%02X" % x for x in b) + "   ; " + name)
     w("")
+    w("; The hero's skin, hi-res, a sprite of its own in the leader's skin")
+    w("; colour (tools/figures.py): each class's two frames, of which the")
+    w("; engine copies the leader's into the VIC's bank (engine.c).")
+    w("_ow_skins:")
+    for name, b in skins:
+        w("        .byte " + ",".join("$%02X" % x for x in b) + "   ; " + name)
+    w("")
 
     open(OUT, "w").write("\n".join(out))
-    write_figs(hero)
+    write_figs(hero + skins)
     for name in SETS:
         st = sets[name]
         print("mkoverworld: %-9s %3d characters, %2d metatiles, %5d bytes"

@@ -240,6 +240,9 @@ def blocks():
              "Sprite blocks (%d): the three classes, the villager, the ship, "
              "two frames each" % nspr],
             B(seg(segs, "OWTOP"), "owtop", "engine", "OWTOP code (from .hi)"),
+            [0x7E80, 0x7EFF, "skins", "video",
+             "The leader's skin: two sprite blocks for sprite 7 (copied "
+             "from ow_skins)"],
             B(seg(segs, "HICODE"), "hicode", "engine",
               "HIGH code (from .hi)"),
             B(seg(segs, "HIDATA"), "local", "ebss", "local[]: the place's map"),
@@ -382,17 +385,21 @@ def blocks():
              [0x4400, 0x47FF, "ffacts", "video", "Field: facts, colours, flags"],
              [0x4800, 0x4BFF, "fchars", "video", "Field: characters"],
              [0x4C00, 0x4FFF, "fletters", "video", "Letters (from ROM)"],
-             [0x5000, 0x53FF, "fmon", "video", "Monster's sprites (s.*)"],
+             [0x5000, 0x51FF, "fmon", "video",
+              "Monster's sprites (s.*, eight blocks at most)"],
+             [0x5200, 0x52BF, "fskins", "video",
+              "The party's skins: a block a class (fight_skins, copied)"],
              B(seg(fight, "FIGHTSPR"), "fparty", "fight",
                "Party's sprites (two frames a class), shots, cursor, arrow"),
              B(seg(fight, "FIGHTCNR"), "fcorners", "fight",
                "The rounded corners: four sprite blocks (corners.s)"),
              B(fmod, "fmodule", "fight",
                "Fight module: jump, block, code, data"),
-             B(seg(fight, "BSS"), "fbss", "fbss", "Fight module BSS"),
+             # (owtown's talk buffer, first in its BSS, is under the fight's
+             # BSS: no inn follows a fight.)
+             B(seg(fight, "BSS"), "fbss", "fbss",
+               "Fight module BSS, over owtown's idle talk buffer"),
              [town_bss[0][0], town_bss[0][1], "townbss", "tbss", "owtown BSS"],
-             [town_bss[1][0], town_bss[1][1], "talkbuf", "tbss",
-              "Talk buffer (idle)"],
              [0xC000, packed[1], "packed", "fbss",
               "Packed field file, as loaded (the largest, %s)"
               % os.path.basename(field)],

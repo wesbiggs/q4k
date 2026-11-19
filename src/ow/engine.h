@@ -54,10 +54,12 @@ void __fastcall__ sm_reu_keep(unsigned char out);
 extern unsigned char sm_offtile;
 extern unsigned char sm_npc_n, sm_npc_x[7], sm_npc_y[7];
 extern unsigned char sm_tunic;          /* the hero's colour, on foot */
+extern unsigned char sm_skin;           /* and their skin's (sprite 7) */
+extern const unsigned char ow_skins[];  /* each class's skin, two frames */
 extern unsigned char still;             /* a test's: nothing idles */
 extern signed char sm_npc_ox[7], sm_npc_oy[7];   /* pixels off the square */
 /* Each person's sprite block (as a sprite pointer) and colour: the
-   multiplexer (smooth.s) gives them the VIC's sprites 3-7, a frame at a
+   multiplexer (smooth.s) gives them the VIC's sprites 3-6, a frame at a
    time, so nothing writes the VIC's own registers for them. */
 extern unsigned char sm_npc_ptr[7], sm_npc_col[7];
 extern unsigned char sm_sproff;         /* nonzero: no sprites at all */

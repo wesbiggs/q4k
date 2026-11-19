@@ -9,7 +9,8 @@
  *
  *   $4000-$4BFF  the field: screen, facts and characters, one file (f.*)
  *   $4C00-$4FFF  the letters, copied from the ROM
- *   $5000-$53FF  the monster's sprites, one file (s.*)
+ *   $5000-$51FF  the monster's sprites, one file (s.*: eight blocks at most)
+ *   $5200-$52BF  the party's skins, which the fight copies there
  *   $5400-$57FF  FIGHT: the party's sprites, the shots ...
  *   $5800-       ... a jump to the fight, this block, and the fight
  *
@@ -43,7 +44,9 @@ typedef struct {
     Actor         party[MAX_PARTY];
     unsigned char party_count, party_level;
     unsigned char potions, arrows;
-    unsigned char tunic[MAX_PARTY];     /* each member's colour */
+    unsigned char tunic[MAX_PARTY];     /* each member's colours: skin in
+                                           the high four bits (0 light red),
+                                           clothes in the low (owgame.h) */
     /* What they fight: a Monster of battle.h, with its name in place. */
     char          name[FIGHT_NAME];
     unsigned char hp, atk, def, colour, speed, size, shot, reach, kind;
@@ -113,6 +116,8 @@ typedef struct {
 
 /* Sprite blocks, as the VIC counts them in bank 1. */
 #define SPR_MONSTER  0x40       /* $5000: the monster's file */
+#define SPR_SKIN     0x48       /* $5200: a class's skin, multicolour, over
+                                   the figure (fight_skins, copied there) */
 #define SPR_PARTY    0x50       /* $5400: two frames a class */
 #define SPR_ARROW    0x56       /* one block, filled for the way it flies */
 #define SPR_FIRE     0x57

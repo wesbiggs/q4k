@@ -128,16 +128,25 @@ static const char *sprite_of(const Monster *m)
     return "s.keeper";
 }
 
-/* The colour of a member's tunic, from their name: sprite.c's tunic_of(),
-   which would bring the game's own sprites with it. */
+/* A member's colours from their name, as the game's sprite.c's tunic_of()
+   picks the clothes: the same name always gets the same ones, clothes never
+   black or white, and skin light red or brown, even odds, and never the
+   clothes' (src/lib/ow_party.c's, which this cannot link). The high four
+   bits are the skin, the low the clothes (OWG_SKIN, OWG_DRESS). The party
+   screen changes them. */
 static unsigned char tunic(const char *name)
 {
-    unsigned char h = 0;
+    unsigned char h = 0, c, k;
 
     while (*name) {
         h = (unsigned char)((h << 1) | (h >> 7)) ^ *name++;
     }
-    return (unsigned char)(2 + h % 14);
+    c = (unsigned char)(2 + h % 14);
+    k = h & 0x10 ? COLOR_BROWN : COLOR_LIGHTRED;
+    if (c == k) {
+        ++c;                    /* (9 or 10: 10 or 11) */
+    }
+    return (unsigned char)((k << 4) | c);
 }
 
 /* The best of `kind` up to `tier` that member `who` may carry. */

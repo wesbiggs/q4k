@@ -64,8 +64,9 @@ void owt_music_off(void);
    it: their class, idling between its two frames (assets/monsters.txt,
    tools/figures.py), doubled, in their colour from the game block. The
    cursor keys go left and right through the party and up and down through
-   the colours (all but black, the outline), which is seen on the figure as
-   it changes: the hero on the map is drawn in the leader's, and a fight
+   the colours of their clothes (all but black, the outline), and K round
+   their skin's, which is seen on the figure as it changes (the skin is a
+   hi-res sprite of its own over the figure, as everywhere): the hero on the map is drawn in the leader's, and a fight
    has everyone's. The rows are shop.c's, as the game's party screen has
    them. The figure is a multicolour sprite whose frames are
    src/lib/ow_figs.s, which the cfg puts on a sprite block in VIC bank 0
@@ -85,21 +86,30 @@ extern const unsigned char ow_figs[];
 
 static unsigned char fig_bob;
 
+/* Member `who`'s clothes and skin on the figure (OWG_DRESS, OWG_SKIN). */
+static void colours(unsigned char who)
+{
+    VIC.spr0_color = OWG_DRESS(G->tunic[who]);
+    VIC.spr1_color = OWG_SKIN(G->tunic[who]);
+}
+
 /* The figure for member `who`, doubled, below their rows. */
 static void figure(unsigned char who)
 {
     VIC.spr0_x      = (unsigned char)(24 + FIG_COL * 8);
     VIC.spr_hi_x    = 24 + FIG_COL * 8 > 255;
     VIC.spr0_y      = 50 + FIG_ROW * 8;
-    VIC.spr0_color  = G->tunic[who];
+    VIC.spr1_x      = VIC.spr0_x;       /* their skin, hi-res, over it */
+    VIC.spr1_y      = VIC.spr0_y;
+    VIC.spr_hi_x   |= VIC.spr_hi_x << 1;
+    colours(who);
     VIC.spr_mcolor0 = COLOR_GRAY1;      /* the outline: black on the map and
                                            in a fight, but this is black */
-    VIC.spr_mcolor1 = COLOR_LIGHTRED;
     VIC.spr_mcolor  = 1;
-    VIC.spr_exp_x   = 1;
-    VIC.spr_exp_y   = 1;
+    VIC.spr_exp_x   = 3;
+    VIC.spr_exp_y   = 3;
     fig_bob = 0xFF;                     /* (fig_key() sets the frame) */
-    VIC.spr_ena     = 1;
+    VIC.spr_ena     = 3;
 }
 
 /* A key, with the figure idling meanwhile: every sixteenth jiffy it shifts
@@ -112,8 +122,10 @@ static unsigned char fig_key(unsigned char who)
         b = (PEEK(0xA2) >> 4) & 1;
         if (b != fig_bob) {
             fig_bob = b;
-            POKE(0x07F8, (unsigned char)((unsigned int)ow_figs >> 6)
-                         + (party[who].cls << 1) + b);
+            b += (unsigned char)((unsigned int)ow_figs >> 6)
+                 + (party[who].cls << 1);
+            POKE(0x07F8, b);
+            POKE(0x07F9, b + 6);        /* (the skins follow the figures) */
         }
     }
     return cgetc();
@@ -141,7 +153,7 @@ static void page(unsigned char who)
     if (party_count > 1) {
         hint(20, "Cursor left, right  the others");
     }
-    hint(21, "Cursor up, down  their colour");
+    hint(21, "Cursor up, down  clothes   K  skin");
     if (party_spells(who) > 1) {
         hint(22, "S  prepare spells");
     }
@@ -159,7 +171,7 @@ static void party_look(void)
         }
         draw = 1;
         key = fig_key(who);
-        c = G->tunic[who];
+        c = OWG_DRESS(G->tunic[who]);
         switch (key) {
         case K_CRSR_RIGHT:
             who = who + 1 == party_count ? 0 : who + 1;
@@ -174,6 +186,15 @@ static void party_look(void)
             c = c <= 1 ? 15 : c - 1;
             break;
         default:
+            if ((key & 0x7F) == 'k') {
+                /* The skin: round every colour but black, the outline. */
+                c = OWG_SKIN(G->tunic[who]);
+                c = c == 15 ? 1 : c + 1;
+                G->tunic[who] = (c << 4) | OWG_DRESS(G->tunic[who]);
+                colours(who);
+                draw = 0;
+                continue;
+            }
             if ((key & 0x7F) == 's' && party_spells(who) > 1) {
                 while (party_prepare(who)) {
                     page(who);
@@ -182,8 +203,9 @@ static void party_look(void)
             }
             goto done;
         }
-        G->tunic[who] = c;      /* the colour: only the figure changes */
-        VIC.spr0_color = c;
+        /* the clothes: only the figure changes */
+        G->tunic[who] = (G->tunic[who] & 0xF0) | c;
+        colours(who);
         draw = 0;
     }
 done:

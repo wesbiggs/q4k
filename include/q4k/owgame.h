@@ -62,11 +62,15 @@ typedef struct {
     unsigned char ship_y[OWG_SHIPS];
     unsigned char quiet;                /* bit 0 music off, bit 1 effects,
                                            OWG_CALM nothing wanders out */
-    unsigned char tunic[MAX_PARTY];     /* each member's colour: their
-                                           figure's own (the hero, the party
-                                           screen, a fight); from the name
-                                           at first (ow_party.c), and then
-                                           the party screen's to change */
+    unsigned char tunic[MAX_PARTY];     /* each member's colours: their
+                                           clothes' in the low four bits
+                                           (OWG_DRESS) and their skin's in
+                                           the high (OWG_SKIN; 0 is light
+                                           red, as before there was one),
+                                           for the hero, the party screen
+                                           and a fight; from the name at
+                                           first (ow_party.c), and then the
+                                           party screen's to change */
     /* The dungeon's monsters (src/ow/dungeon.c): OWG_FOES a level, placed
        the first time a level is seen after the way in from the world (a
        bit a level in foe_made, cleared on the way in) and kept, where they
@@ -112,5 +116,9 @@ void ow_new_game(unsigned char quick);
    it goes into the game's variables -- the party, the pay, a level, a stone,
    or waking in Millford -- and is said on a screen of text. */
 void __fastcall__ ow_fight(unsigned char kind, unsigned char arg);
+
+/* A member's two colours, from their byte of OwGame's tunic[]. */
+#define OWG_DRESS(c) ((c) & 15)
+#define OWG_SKIN(c)  ((c) >> 4 ? (c) >> 4 : 10)     /* 10: light red */
 
 #endif /* Q4K_OWGAME_H */

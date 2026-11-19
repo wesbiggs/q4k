@@ -82,7 +82,7 @@
         .import ow_qvar, ow_rnd, ow_sprites, ow_nsprites
         .import _ow_spr1, _ow_spr2
         .export _sm_tileset, _sm_blank, _sm_offtile
-        .export _sm_npcs, _sm_npc_n, _sm_npc_x, _sm_npc_y, _sm_tunic
+        .export _sm_npcs, _sm_npc_n, _sm_npc_x, _sm_npc_y, _sm_tunic, _sm_skin
         .export _sm_npc_ox, _sm_npc_oy, _sm_npc_ptr, _sm_npc_col, _sm_sproff
         .export _sm_vx, _sm_vxh, _sm_vy, _sm_mxdrops   ; (for tests)
         .export _sm_mxwant, _sm_mxdirty
@@ -94,6 +94,8 @@ SCRB     = $4400
 CHARS    = $4800
 SPRITES  = $5000
 SPRBLOCK = (SPRITES & $3FFF) / 64
+SKINS    = $7E80                ; the leader's skin, two frames (engine.c
+SKINBLOCK = (SKINS & $3FFF) / 64 ; copies them from ow_skins): sprite 7
 WORLD    = $B000                ; 64x64, page aligned
 SHORE    = $A000                ; the same, for water: land round it (below)
 D018_A   = ((SCRA & $3FFF) / $400) * 16 + ((CHARS & $3FFF) / $800) * 2
@@ -165,9 +167,12 @@ den:        .res 1              ; $10, or 0 while the screen is blanked
 
 ; People: up to seven over the map, at squares (biased, like the hero's),
 ; placed from the camera the next frame shows (sm_npcs) and given the VIC's
-; sprites 3-7 by the multiplexer ("The viewport's corners", by the
-; interrupt), so they move with the map.
+; sprites 3-6 by the multiplexer ("The viewport's corners", by the
+; interrupt), so they move with the map. Sprite 7 is the hero's skin,
+; hi-res, standing on the hero (sprite 0) while on foot.
 _sm_tunic:  .res 1              ; the hero's colour: the leader's (G->tunic)
+_sm_skin:   .res 1              ; and their skin's
+skin_on:    .res 1              ; $80 while sprite 7 is shown, or 0
 _sm_npc_n:  .res 1
 _sm_npc_x:  .res 7
 _sm_npc_y:  .res 7
@@ -1176,10 +1181,21 @@ _sm_commit:
 ; void __fastcall__ sm_sprite(unsigned char frame) -- the hero's frame, in
 ; both screens' sprite pointers, so a flip does not change it.
 _sm_sprite:
+        tax
         clc
         adc     #SPRBLOCK
         sta     SCRA + $3F8
         sta     SCRB + $3F8
+        ldy     #0              ; a class's frame (0-5) has its skin over
+        cpx     #6              ; it, in sprite 7; a ship has none
+        bcs     :+
+        txa
+        and     #1
+        adc     #SKINBLOCK      ; (carry clear)
+        sta     SCRA + $3FF
+        sta     SCRB + $3FF
+        ldy     #$80
+:       sty     skin_on
         rts
 
 ; void sm_animate(void) -- water flows a pixel east: each row of each water
@@ -1661,8 +1677,8 @@ _sm_npcs:
 ; sprites, since a character would move with the fine scroll: hi-res,
 ; black, doubled both ways (48 by 42, two pixels a step, as a multicolour
 ; character's), in front of everything (sprite priority goes by number:
-; the corners are 1 and 2, the people 3-7; the hero, 0, is always in the
-; middle, where no corner reaches). Sprites 1 and 2 are the top corners
+; the corners are 1 and 2, the people 3-6, the hero's skin 7; the hero,
+; 0, is always in the middle, where no corner reaches). Sprites 1 and 2 are the top corners
 ; down to line CYT + 42, and then an NMI moves them down to be the bottom
 ; ones (CYB, or CYBF with the window hidden), which end before the flip's
 ; interrupt at IRQLINE puts them back at the top. Their four pictures are
@@ -1683,10 +1699,11 @@ _sm_npcs:
 ; which vault.s and ow_tune.s point at vault_nmi, which comes here through
 ; $0318 too.
 ;
-; That leaves the people five sprites where they had seven, so they are
+; That leaves the people four sprites where they had seven (7 is the
+; hero's skin), so they are
 ; multiplexed: sm_npcs works out where each of them stands on the screen
 ; (sm_vx, sm_vxh, sm_vy; 0 is off), and mx_plan sorts them top down and
-; gives the first five sprites 3-7. A sixth reuses the sprite of the
+; gives the first four sprites 3-6. A sixth reuses the sprite of the
 ; first, on line y + 22 of it (an event), if it stands at least three
 ; lines below that; a seventh the second's. One that cannot is not drawn
 ; that plan (sm_mxdrops counts them), and the next starts its sort from the
@@ -1696,7 +1713,7 @@ _sm_npcs:
 ; that the interrupt never reads one half made.
 ;
 ; The interrupts: the flip's (IRQLINE) puts the corners at the top and the
-; plan's first five sprites in, then the events (irqstep 3, irq_mid), if
+; plan's first four sprites in, then the events (irqstep 3, irq_mid), if
 ; any, then the text window's two, if it is shown. The flip's colour copy,
 ; which on NTSC lasts most of the frame, is done with interrupts on, so
 ; that the events come in on time; it pays a couple of lines' lead for
@@ -1716,7 +1733,7 @@ MX_GAP   = 22                   ; a sprite free again this far below its y
 MX_LEAD  = 3                    ; and the next in it at least this below that
 MX_LAST  = IRQLINE - 6          ; no event later than this
 
-; A plan (curoff: 0 or PSZ into plan). The base: the people on sprites 3-7
+; A plan (curoff: 0 or PSZ into plan). The base: the people on sprites 3-6
 ; from the top of the frame; the events: the later people on sprites taken
 ; over part way down.
 P_BV     = 0                    ; 5: which person (an index into sm_npc_*)
@@ -1727,7 +1744,7 @@ P_EN     = 16                   ; $D015: the hero, the corners, the base
 P_EVN    = 17                   ; how many events
 P_EVM    = 18                   ; the sprites they take over, as bits
 P_EL     = 19                   ; 2: the line each comes in on
-P_EH     = 21                   ; 2: its sprite, 3-7
+P_EH     = 21                   ; 2: its sprite, 3-6
 P_EV     = 23                   ; 2: its person
 P_EX     = 25                   ; 2: x, low byte
 P_EY     = 27                   ; 2: y
@@ -1819,10 +1836,10 @@ mx_plan:
         sta     plan+P_EVN,x
         sta     plan+P_EVM,x
         sta     mxk
-@base:  lda     mxk             ; the first five: sprites 3-7
+@base:  lda     mxk             ; the first four: sprites 3-6
         cmp     mcount
         bcs     @evs
-        cmp     #5
+        cmp     #4
         bcs     @evs
         tay                     ; y: k, x: nb + k
         clc
@@ -1921,9 +1938,9 @@ mx_plan:
         sta     spr_ready
         rts
 
-mx_bit: .byte   $08, $10, $20, $40, $80
+mx_bit: .byte   $08, $10, $20, $40
 
-; The plan's base people on their sprites: those of sprites 3-7 whose bits
+; The plan's base people on their sprites: those of sprites 3-6 whose bits
 ; are in amask, and their bits of $D010 (corner 2's is set by sm_show and
 ; left alone); their pictures and colours too if
 ; their bits are in pmask. Y is curoff. Clobbers A, X.
@@ -1965,7 +1982,6 @@ mx_apply:
         MXBASE  1
         MXBASE  2
         MXBASE  3
-        MXBASE  4
         lda     amask
         eor     #$FF
         and     $D010
@@ -2429,8 +2445,9 @@ irq:
         sta     $D015
         beq     @next           ; (always)
 :       lda     plan+P_EN,y
+        ora     skin_on         ; (the hero's skin, on foot)
         sta     $D015
-        lda     #$F8            ; the people, with the scroll: all now,
+        lda     #$78            ; the people, with the scroll: all now,
         ldx     pendswap        ; or on a flip only those on the sprites
         beq     :+              ; the events take over, and the rest
         lda     plan+P_EVM,y    ; after the colour copy
@@ -2471,7 +2488,7 @@ irq:
         ldy     curoff
         lda     plan+P_EVM,y
         eor     #$FF
-        and     #$F8
+        and     #$78
         and     plan+P_EN,y
         beq     @tail
         sta     amask
@@ -2750,9 +2767,11 @@ _sm_show:
         sta     $D026
         lda     _sm_tunic       ; the leader's colour
         sta     $D027
-        lda     #%11111001      ; the hero and the people multicolour,
-        sta     $D01C           ; the corners not, and doubled
-        lda     #%00000110
+        lda     _sm_skin        ; and their skin, hi-res over it
+        sta     $D02E
+        lda     #%01111001      ; the hero and the people multicolour,
+        sta     $D01C           ; the corners and the skin not, and
+        lda     #%00000110      ; the corners doubled
         sta     $D017
         sta     $D01D
         lda     #%00000100
@@ -2772,8 +2791,10 @@ _sm_show:
         sta     $D015           ; (the interrupt puts the rest on)
         lda     #179            ; see engine.c: the square at 148, 84
         sta     $D000
+        sta     $D00E
         lda     #138
         sta     $D001
+        sta     $D00F
 
         ldx     #<NMI_NTSC      ; the corners' NMI: CIA 2's timer A
         ldy     #>NMI_NTSC
