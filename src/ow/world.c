@@ -412,7 +412,7 @@ static unsigned char ship_held(unsigned char s)
         && quest_stage < Q_EMBER + OW->slot[s];
 }
 
-/* The ships within sight, as sprites 1-7 (sm_npcs places them). */
+/* The ships within sight, up to seven (sm_npcs places them). */
 static void show_ships(void)
 {
     unsigned char i, n = 0;
@@ -435,12 +435,10 @@ static void show_ships(void)
         }
         sm_npc_x[n] = ship_x[i] & 127;
         sm_npc_y[n] = ship_y[i] & 127;
-        POKE(0x43F9 + n, SHIP_FRAME + 1);
-        POKE(0x47F9 + n, SHIP_FRAME + 1);
-        POKE(0xD028 + n, COLOR_BROWN);
+        sm_npc_ptr[n] = SHIP_FRAME + 1;
+        sm_npc_col[n] = COLOR_BROWN;
         ++n;
     }
-    VIC.spr_mcolor = 0xFF;
     sm_npc_n = n;
 }
 

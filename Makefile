@@ -550,7 +550,7 @@ $(DIST)/openworld.prg: $(BUILD)/openworld.o $(BUILD)/ow/owcdir.o $(LIB) $(wildca
 # monster's sprites (s.*), which tools/mkfields.py makes. The music and the
 # effects are the open world's (ow_tune.s from the library, and ow_sfx.o,
 # ahead of the library's sfx.s), called from the fight's interrupt.
-FIGHTOBJ := $(patsubst %,$(BUILD)/fight/%.o,head block fight mux fight_data) \
+FIGHTOBJ := $(patsubst %,$(BUILD)/fight/%.o,head block fight mux fight_data corners) \
             $(BUILD)/ow/ow_sfx.o
 FIGHT_STAMP := $(BUILD)/fight/disk/.stamp
 

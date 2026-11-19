@@ -491,7 +491,7 @@ and the dungeon's (`dungeon.c`, `OVDCODE`: the levels and their stairs, with
 its own copy of the game's `dungeon_build()`, `build/ow/ow_dungeon.o`,
 linked ahead of the library so the library's `MAPCODE` copy is not, as
 the other generators' copies are) take
-turns in `SLOT` (`$5A00-$7FFF`, 9.5K, to the end of the VIC's bank), each a file of its own that ld65 writes
+turns in `SLOT` (`$5A00-$7EFF`, 9.25K, up to the viewport's corners at `$7F00`), each a file of its own that ld65 writes
 beside the engine (`ow-cpu.world`, `.town`, `.dungeon`, and `ow-reu.*`,
 since each engine links its own). Stepping onto a town or a dungeon loads
 its overlay over the world's, and its way out loads the world's back
@@ -529,11 +529,11 @@ gets a bloodstain: `foes.s`'s `stain`, the dungeon set's `blood` at
 `0x92`, written into `WORLD` only, so it is still floor underfoot),
 so that a level left by the stairs and come back to has the same ones
 where they were left, and a fight's round trip through `owtown` too. Each
-is a sprite, 1 to 6, through the town's people's `sm_npc_*` (with
+is a sprite, multiplexed with the town's people's through `sm_npc_*` (with
 `sm_npc_ox/oy`, pixels off the square, for the glide), one picture a kind
 (`tools/mkfields.py` writes `src/ow/foe_art.s` from `assets/monsters.txt`,
 `OVDART`, aligned to a block after the overlay's code, and asserted below
-`$8000`, where the VIC's bank ends: only one frame was given room), however many
+`$7F00`, where the corners' blocks start: only one frame was given room), however many
 the fight brings. After each step of the hero's, each that sees them (no
 farther than the screen, 10 by 6, and nothing but floor on the line)
 comes for them at its speed in the arena (`Monster.speed`, tenths of a
@@ -552,6 +552,40 @@ a wasp). `foes.s` has a copy of what the map needs of `bestiary.c`
 room) and `dungeon.c` of the wanderers'
 `from`: change a monster there and here. `OWG_CALM` places none, unless
 `--poke enc_always=2`.
+
+**The rounded viewport.** Every map screen of the open world (the
+overworld, towns, dungeons, both window and full screen) and the arena
+has its four corners rounded off: black outside a quarter circle of three
+squares' radius (48 pixels), drawn by sprites, since characters would move
+with the fine scroll. Two hi-res black sprites doubled both ways (48 by
+42), real sprites 1 and 2 in the engine and 0 and 1 in the arena (the lower
+the number, the nearer: they hide anyone walking into a corner), are the
+top corners and then the bottom ones. In the engine (`src/ow/smooth.s`,
+"The viewport's corners") the move is an NMI, CIA 2's timer A, started
+one-shot by the flip's interrupt each frame for about line 110 (a raster
+interrupt cost twice the frames on NTSC); it is not started while
+`sm_sproff` is set, which `disk_on()` does before every load and save,
+because an NMI breaks into the KERNAL's serial transfers. Their pictures
+are drawn by `sm_init()` into `$7F00-$7FFF`, which no file brings and no
+overlay may reach. The hero keeps sprite 0; the people (townsfolk, ships,
+a dungeon's monsters) are multiplexed over 3-7: `sm_npcs()` sorts them by
+y (`mx_plan`) and the first five take 3-7 from the top of the frame, a
+sixth and seventh the first and second's sprites 22 lines below them
+(an event, `irq_mid`, irqstep 3), if they stand 25 below; one that
+cannot is left out of that plan (`sm_mxdrops`), and the next starts from
+the next person, which the engine asks for every fourth frame while
+anyone is (`sm_mxwant`): a crowd on a line takes turns. Nothing writes the
+VIC's registers for a person any more: `sm_npc_ptr[]` and `sm_npc_col[]`
+(engine.h) say their picture and colour, and `sm_mxdirty` that one
+changed. `screendump.py` reads the plan's list (`sm_vx`, `sm_vxh`,
+`sm_vy`) rather than the VIC's eight, marks no corner, and draws all four
+in `--shot`. In the arena (`src/fight/mux.s`) the plan has six real
+sprites for its sixteen, and the corners go down at line 100 among the
+events. **What they cost**: the VIC's sprite fetches for two sprites on
+84 lines, about 600 cycles a frame, which the CPU's scrolling on NTSC
+cannot spare: missed frames (`late`) over `openworld-sail`'s 59 steps went
+from 2 to about 26 there (with the corners on but not shown, 5); PAL 0 to
+1; the REU's engine stayed at 0 on both.
 
 **The open world's disk icon is resident at `$CF14`.** `src/lib/ow_disk.s`
 (segment `OWDISK`, `cfg/c64-owboot.cfg`) holds the code, the sprite's picture
@@ -903,15 +937,15 @@ screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
 that the engine's file does not carry 5K of empty screens to the disk. The overlays are 5.9K (world), 6.4K
 (town) and 4.5K (dungeon, its monsters' pictures at the end) of the slot's
-9.5K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 1912
+9.25K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 540
 bytes in MAIN (the generators went to their overlays, and the REU cache's
-loader came in; the engine no longer links cc65's `conio`: its one message is
+loader came in, and then the corners' multiplexer, 1.4K; the engine no longer links cc65's `conio`: its one message is
 written to the text screen's top row, and the keyboard's buffer is emptied
 with a poke of `$C6`), 8 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 19 in
 OWTOP (`$5280-$53FF`), 105 in HIGH (`$5400-$59FF`, where the text window's
 routines, stlow.s's helpers and the engine's words are), 3669 beside the
 world's overlay (which has `wander()`, the overworld's encounter roll, out
-of the core), 3210 beside the town's, 5120 beside the dungeon's, 18 in BSS, and 3.3K in COMMON (`$8800-$9FFF`, less the cache's 28 bytes of scratch). String
+of the core: 3468 now), 2995 beside the town's, 4864 beside the dungeon's, 34 in BSS, and 3.1K in COMMON (`$8800-$9FFF`, less `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans). String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than
@@ -1094,9 +1128,9 @@ one into the engine's tables in BSS and the character set; a set says its palett
 map (`offmap`). Walls are two and a half dimensions: a top, and a face in the
 lower half where floor is below, which is a drawn edge (`edges wall`, top
 and bottom quarters drawn apart, not mirrored upside down). People are
-sprites 1-7 (`sm_npcs()` places them from the camera just committed, the
-interrupt writes them with the fine scroll; `passable()` keeps the hero off
-them). Corners: the dungeon's rock rounds its outside
+sprites, up to seven (`sm_npcs()` places them from the camera just
+committed, and the multiplexer gives them sprites 3-7: "The rounded
+viewport", below; `passable()` keeps the hero off them). Corners: the dungeon's rock rounds its outside
 corners off into the floor and nicks its inside ones, and the floor darkens
 against it (a dithered shadow, `edges floor`, with `also floor wall`); a
 town's cobbles fray into the grass (`fringe floor`, the overworld's masks)
@@ -1280,7 +1314,8 @@ runs, and three archers by a draught and a half at the Gaoler.
 `arrow_to()` fills for the way it is about to fly from `fight_arrow[]`:
 eight pictures of 32 bytes, by `DIR_*`, that `mkfields.py` makes from
 three drawn in `assets/monsters.txt` (`arrow`, `arrow_r`, `arrow_ur`) by
-mirroring; `$5700-$57FF` (four blocks) are free. `owarena-arrow-ur` in
+mirroring; `$5700-$57FF` (four blocks) are the rounded corners
+(`src/fight/corners.s`, `SPR_CORNER`: "The rounded viewport"). `owarena-arrow-ur` in
 `tools/test.sh` checks the block after a shot up-right, and golden
 `owarena-dragon` casts a spark up-left into Maldrath. **`tools/balance.py --ow`** measures
 this fight: `owarena`'s `*` loads `FIGHTBOT` (the module built with

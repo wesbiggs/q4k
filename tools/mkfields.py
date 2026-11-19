@@ -408,9 +408,10 @@ def write_foes(sprites):
                                                    for x in block(fr))
                        + "   ; " + name)
     out.append("")
-    out.append("; Sprites: the VIC sees bank 1, $4000-$7FFF, and nothing above.")
-    out.append("        .assert * <= $8000, lderror, "
-               "\"foe_art: past the VIC's bank\"")
+    out.append("; Sprites: the VIC sees bank 1, $4000-$7FFF, and the corners'")
+    out.append("; blocks are at $7F00 (smooth.s).")
+    out.append("        .assert * <= $7F00, lderror, "
+               "\"foe_art: over the corners' sprites\"")
     out.append("")
     open(OUT_FOES, "w").write("\n".join(out))
 

@@ -12,7 +12,7 @@
         .export _foe_sees, _foe_closer, _foe_glide, _foe_room, _foe_turn
         .export _foe_muster, _foe_who, _foe_spawn, _foe_top, _foe_nat
         .export _tx, _ty, _glide, _pace, _speeds, _pending, _base
-        .import _foe_art, _sm_npc_n, _rand
+        .import _foe_art, _sm_npc_n, _rand, _sm_npc_ptr, _sm_npc_col
         .import _dun_up_x, _dun_up_y, _dun_dn_x, _dun_dn_y
         .import _local, _sm_npc_x, _sm_npc_y, _sm_npc_ox, _sm_npc_oy
         .import _hx, _hy, _dirdx, _dirdy, _dir, _moving, _speed
@@ -524,16 +524,13 @@ _foe_muster:
         lda     k_speed,y
         sta     _speeds,x
         lda     k_colour,y
-        sta     $D028,x
+        sta     _sm_npc_col,x   ; (the multiplexer's: smooth.s)
         lda     k_art,y
         clc
         adc     #<((_foe_art - $4000) / 64)
-        sta     $43F9,x         ; both screens' sprite pointers
-        sta     $47F9,x
+        sta     _sm_npc_ptr,x
         dex
         bpl     @one
-        lda     #$FF
-        sta     $D01C           ; multicolour, as the hero
         rts
 
 ; void __fastcall__ foe_spawn(unsigned char any) -- the level's monsters

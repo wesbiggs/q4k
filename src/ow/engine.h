@@ -55,6 +55,13 @@ extern unsigned char sm_npc_n, sm_npc_x[7], sm_npc_y[7];
 extern unsigned char sm_tunic;          /* the hero's colour, on foot */
 extern unsigned char still;             /* a test's: nothing idles */
 extern signed char sm_npc_ox[7], sm_npc_oy[7];   /* pixels off the square */
+/* Each person's sprite block (as a sprite pointer) and colour: the
+   multiplexer (smooth.s) gives them the VIC's sprites 3-7, a frame at a
+   time, so nothing writes the VIC's own registers for them. */
+extern unsigned char sm_npc_ptr[7], sm_npc_col[7];
+extern unsigned char sm_sproff;         /* nonzero: no sprites at all */
+extern unsigned char sm_mxwant;  /* the last plan left someone out */
+extern unsigned char sm_mxdirty; /* a picture or colour changed */
 void sm_npcs(void);
 void sm_redraw_box(void);
 void sm_shores_rect(void);

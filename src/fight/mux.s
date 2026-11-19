@@ -3,19 +3,27 @@
 ;
 ; The fight asks for up to sixteen sprites (vs_*: the party, six monsters or
 ; the four quarters of a big one, a shot, the cursor) and the VIC shows
-; eight, so a sprite's registers are used again further down the screen once
-; what they were showing has been drawn. mx_plan() works out who gets which,
-; in the main program; the raster interrupt only carries it out.
+; eight, two of which are the field's rounded corners: so the six others'
+; registers are used again further down the screen once what they were
+; showing has been drawn. mx_plan() works out who gets which, in the main
+; program; the raster interrupt only carries it out.
+;
+; The corners, as the open world's (src/ow/smooth.s): the field is black
+; outside a quarter circle of three squares' radius in each corner. Real
+; sprites 0 and 1, hi-res, black, doubled both ways (48 by 42), in front of
+; everything (the lower a sprite's number, the nearer it is drawn), are the
+; top two to line 92 and then, from an interrupt at LINE_CNR, the bottom
+; two, whose pictures are at SPR_CORNER (src/fight/corners.s).
 ;
 ; The plan. The sprites wanted are sorted by how high they stand. The first
-; eight take the eight real sprites, in order, and are set before the frame
+; six take real sprites 2-7, in order, and are set before the frame
 ; begins. Each one after that wants the real sprite given out longest ago
 ; (they are given out in turn, so that is the next in turn as well), which
 ; is free once the raster is 22 lines past the y it was given: a sprite at
 ; y is drawn on lines y+1 to y+21. If the newcomer stands at least 3 lines
 ; below that it gets an `event` -- on that line the interrupt rewrites that
 ; sprite's registers -- and otherwise there is no room for it this frame.
-; Squares are 16 lines apart and a sprite 21 tall, so the ninth sprite on
+; Squares are 16 lines apart and a sprite 21 tall, so the seventh sprite on
 ; two neighbouring rows is the one that goes, and when any did the next plan
 ; starts its sort one sprite on, so that among those level with each other
 ; it is another's turn: a crowd flickers, and nobody vanishes.
@@ -27,12 +35,14 @@
 ; The frame. One raster interrupt, moved down the screen:
 ;
 ;   line 251  below the last text row: the background back to the field's,
-;             the new plan if there is one, the first eight sprites, and
+;             the new plan if there is one, the corners at the top, the
+;             first six sprites, and
 ;             the music and the effects, once a frame (ow_tune.s, as
 ;             the open world's engines call it), and the KERNAL's own work
 ;             (the keyboard, the clock) through $EA31
 ;   events    each on the line its sprite comes free; several at once when
-;             their lines are within two of each other
+;             their lines are within two of each other; and the corners
+;             going down, at LINE_CNR, in among them
 ;   line 198  inside the solid black row under the field: the background to
 ;             black, for the text. Nothing shows of when, in a row with no
 ;             background in it, so it needs no stable raster.
@@ -57,6 +67,13 @@ FI_COLOUR = 32
 
 LINE_TOP  = 251                 ; the frame's first interrupt
 LINE_TEXT = 198                 ; the background goes black
+LINE_CNR  = 100                 ; the corners go down (from 93 to 150)
+NREAL     = 6                   ; real sprites for the plan: 2-7
+SPR_CORNER = $5C                ; (include/q4k/fight.h)
+CNR_XL    = 24                  ; the field: 40 columns, rows 0-17
+CNR_XR    = 24 + 320 - 48       ; (past 255)
+CNR_YT    = 50                  ; lines 51-92
+CNR_YB    = 51 + 18 * 8 - 43    ; lines 152-194
 TALL      = 22                  ; lines from a sprite's y until it is done
 MARGIN    = 3                   ; and from there to the next one's y
 
@@ -72,8 +89,8 @@ _mx_drops: .res 1
 _mx_most:  .res 1
 
 ; The two plans, sixteen entries each (the second's are at +16): what to
-; write, and for the ninth entry on, the line to write it on. Entry j uses
-; real sprite j & 7.
+; write, and for the seventh entry on, the line to write it on. Entry j uses
+; real sprite real_of[j].
 p_x:    .res 32
 p_y:    .res 32
 p_msb:  .res 32                 ; its bit of $D010, or 0
@@ -88,6 +105,7 @@ phase:  .res 1                  ; which interrupt is next: 0 top, 1 an
                                 ; event, 2 the text's
 evi:    .res 1                  ; the next event's entry
 evend:  .res 1                  ; one past the last
+cdown:  .res 1                  ; the corners have gone down this frame
 d010:   .res 1                  ; $D010 as it stands
 bgcol:  .res 1
 
@@ -119,7 +137,8 @@ oldirq: .res 2
 
 bits:   .byte $01,$02,$04,$08,$10,$20,$40,$80
 nbits:  .byte $FE,$FD,$FB,$F7,$EF,$DF,$BF,$7F
-ena:    .byte $00,$01,$03,$07,$0F,$1F,$3F,$7F,$FF
+ena:    .byte $03,$07,$0F,$1F,$3F,$7F,$FF   ; the corners, and n of the plan's
+real_of: .byte 2,3,4,5,6,7,2,3,4,5,6,7,2,3,4,5   ; an entry's real sprite
 
         .segment "CODE"
 
@@ -190,11 +209,11 @@ _mx_plan:
         bcs     @done
         ldx     ord,y           ; X: the sprite
         ldy     m
-        cpy     #8
+        cpy     #NREAL
         bcc     @take           ; (its line is not looked at)
         cpy     #NV
         bcs     @drop
-        lda     asgy-8,y        ; when the one eight before is done
+        lda     asgy-NREAL,y    ; when the one six before is done
         clc
         adc     #TALL
         sta     line
@@ -220,8 +239,8 @@ _mx_plan:
         lda     _vs_xh,x
         beq     :+
         stx     tmpx
-        lda     m
-        and     #7
+        ldx     m
+        lda     real_of,x
         tax
         lda     bits,x
         ldx     tmpx
@@ -262,9 +281,12 @@ _mx_wait:
 irq:    lda     $D019
         sta     $D019
         lda     phase
-        beq     top
-        cmp     #1
-        beq     events
+        bne     :+
+        jmp     top
+:       cmp     #1
+        bne     :+
+        jmp     events
+:
 
         lda     #0              ; the text's background
         sta     $D021
@@ -273,9 +295,24 @@ irq:    lda     $D019
         sta     $D012
         jmp     $EA81
 
-events: ldx     evi
+events: lda     cdown           ; the corners down?
+        bne     :+
+        lda     $D012
+        cmp     #LINE_CNR - 2
+        bcc     :+
+        jsr     corners_down
+:       ldx     evi
+        cpx     evend
+        beq     @sched
+        lda     p_line,x        ; an event, if its line is here
+        sec
+        sbc     #2
+        cmp     $D012
+        bcs     @sched
 @e:     txa
-        and     #7
+        and     #15
+        tay
+        lda     real_of,y
         tay                     ; Y: the real sprite
         lda     p_ptr,x
         sta     SPRPTR,y
@@ -294,22 +331,53 @@ events: ldx     evi
         lda     p_y,x
         sta     $D001,y
         inx
-        cpx     evend
-        beq     @last
-        lda     p_line,x        ; the next: if its line is here already, or
-        sec                     ; the one after this, do it now
+        stx     evi
+        jmp     events          ; the next, if it is here already, or the
+@sched: jsr     sched           ; one after this
+        bcs     :+
+        sec
         sbc     #2
         cmp     $D012
-        bcc     @e
+        bcc     events
+:       jmp     $EA81
+
+; The next interrupt after the top's or an event's: the corners going down,
+; or the next event, whichever is first, at phase 1 (carry clear, the line
+; in A); else the text's.
+sched:  lda     #$FF
+        ldx     cdown
+        bne     :+
+        lda     #LINE_CNR
+:       ldx     evi
+        cpx     evend
+        beq     :+
+        cmp     p_line,x
+        bcc     :+
         lda     p_line,x
+:       cmp     #$FF
+        beq     @text
         sta     $D012
-        stx     evi
-        jmp     $EA81
-@last:  lda     #LINE_TEXT
+        ldx     #1
+        stx     phase
+        clc
+        rts
+@text:  lda     #LINE_TEXT
         sta     $D012
         lda     #2
         sta     phase
-        jmp     $EA81
+        sec
+        rts
+
+corners_down:
+        lda     #CNR_YB
+        sta     $D001
+        sta     $D003
+        lda     #SPR_CORNER + 2
+        sta     SPRPTR
+        lda     #SPR_CORNER + 3
+        sta     SPRPTR + 1
+        inc     cdown
+        rts
 
 top:    lda     bgcol
         sta     $D021
@@ -320,62 +388,67 @@ top:    lda     bgcol
         sta     cur
         lda     #0
         sta     pending
-:       ldx     cur
+:       lda     #CNR_YT         ; the corners at the top
+        sta     $D001
+        sta     $D003
+        lda     #SPR_CORNER
+        sta     SPRPTR
+        lda     #SPR_CORNER + 1
+        sta     SPRPTR + 1
+        ldx     cur
         lda     #0
-        sta     d010
-        ; The first eight, whether the plan has that many or not: the ones
+        sta     cdown
+        ; The first six, whether the plan has that many or not: the ones
         ; it has not are not enabled.
-        .repeat 8, S
+        .repeat NREAL, S
         lda     p_x + S,x
-        sta     $D000 + 2 * S
+        sta     $D004 + 2 * S
         lda     p_y + S,x
-        sta     $D001 + 2 * S
+        sta     $D005 + 2 * S
         lda     p_ptr + S,x
-        sta     SPRPTR + S
+        sta     SPRPTR + 2 + S
         lda     p_col + S,x
-        sta     $D027 + S
+        sta     $D029 + S
         .endrepeat
         ldy     p_cnt,x
-        cpy     #9
+        cpy     #NREAL + 1
         bcs     @more
-        ; Eight or fewer: only their bits of $D010 count.
+        ; Six or fewer: only their bits of $D010 count.
         lda     ena,y
         sta     $D015
         jsr     msbs
-        lda     #LINE_TEXT
-        sta     $D012
-        lda     #2
-        sta     phase
-        bne     @out            ; (always)
+        txa                     ; (no events)
+        sta     evi
+        sta     evend
+        bcc     @out            ; (always: msbs clears carry)
 @more:  lda     #$FF
         sta     $D015
         jsr     msbs
-        tya                     ; the events: entries 8 to count - 1
+        tya                     ; the events: entries 6 to count - 1
         clc
         adc     cur
         sta     evend
         txa
-        ora     #8
+        clc
+        adc     #NREAL
         sta     evi
-        lda     p_line + 8,x
-        sta     $D012
-        lda     #1
-        sta     phase
-@out:   inc     _mx_frame
+@out:   jsr     sched
+        inc     _mx_frame
         jsr     ow_tune_irq     ; the music and the effects (ow_tune.s)
         jmp     $EA31
 
-; $D010 for the first eight entries of the plan at X.
+; $D010 for the first six entries of the plan at X, and the right corner's.
+; Carry clear.
 msbs:   lda     p_msb,x
         ora     p_msb + 1,x
         ora     p_msb + 2,x
         ora     p_msb + 3,x
         ora     p_msb + 4,x
         ora     p_msb + 5,x
-        ora     p_msb + 6,x
-        ora     p_msb + 7,x
+        ora     #$02
         sta     d010
         sta     $D010
+        clc
         rts
 
 ; ---------------------------------------------------------------------------
@@ -456,11 +529,11 @@ _mx_start:
 
         lda     #0
         sta     $D015
-        sta     $D017
-        sta     $D01D
         sta     $D01B
         sta     $D010
         sta     $D020
+        sta     $D027           ; the corners' black
+        sta     $D028
         sta     $D025           ; the sprites' black
         sta     phase
         sta     pending
@@ -469,8 +542,15 @@ _mx_start:
         sta     p_cnt + 16
         lda     #10             ; and light red
         sta     $D026
-        lda     #$FF
-        sta     $D01C
+        lda     #$FC            ; all multicolour but the corners, which
+        sta     $D01C           ; are doubled
+        lda     #$03
+        sta     $D017
+        sta     $D01D
+        lda     #CNR_XL
+        sta     $D000
+        lda     #<CNR_XR
+        sta     $D002
         lda     INFO + FI_PAL
         sta     bgcol
         sta     $D021
@@ -513,6 +593,8 @@ _mx_stop:
         sta     $D01A
         sta     $D015
         sta     $D01C
+        sta     $D017
+        sta     $D01D
         lda     #$FF
         sta     $D019
         lda     oldirq

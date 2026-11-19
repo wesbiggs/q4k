@@ -533,6 +533,36 @@ def mux_sprites(mon, syms):
             for i in range(n) if y[i]]
 
 
+# The open world's engine (src/ow/smooth.s): sprites 1 and 2 are the
+# viewport's rounded corners, whose pictures are these blocks, and the
+# people are multiplexed over 3-7, so the VIC's registers hold whichever of
+# them the raster had got to. What the engine asked for instead: the hero,
+# the four corners and every person on the screen (sm_vx, sm_vxh, sm_vy).
+OW_CORNER_BLOCKS = range(0xFC, 0x100)       # $7F00 in VIC bank 1
+OW_CORNER_X = (31, 31 + 304 - 48)
+OW_CORNER_Y = (54, 0xDC - 42, 246 - 42)     # top; bottom, with the window
+                                            # and without
+
+
+def ow_sprites(mon, syms, vic, pointers):
+    hero = [sp for sp in hw_sprites(vic, pointers)[:1]
+            if vic[0x15] & 1]
+    def get(name, n=7):
+        return mon.mem_get(syms[name], syms[name] + n - 1)
+    rows = get("sm_rows", 1)[0]
+    bottom = OW_CORNER_Y[1] if rows == 22 else OW_CORNER_Y[2]
+    corners = [(x, y, OW_CORNER_BLOCKS[i * 2 + j], 0, False, 2, 2)
+               for i, y in enumerate((OW_CORNER_Y[0], bottom))
+               for j, x in enumerate(OW_CORNER_X)]
+    if get("sm_sproff", 1)[0] or not vic[0x15] & 1:
+        return hero + corners
+    n = get("sm_npc_n", 1)[0]
+    x, xh, y, ptr, col = (get(k) for k in ("sm_vx", "sm_vxh", "sm_vy",
+                                           "sm_npc_ptr", "sm_npc_col"))
+    return hero + corners + [(x[i] | (xh[i] & 1) << 8, y[i], ptr[i], col[i],
+                              True, 1, 1) for i in range(min(n, 7)) if y[i]]
+
+
 def draw_sprites(px, size, margin, vic, sprites, fetch):
     """Overlay the sprites, the way the VIC would.
 
@@ -574,15 +604,18 @@ OW_TEXT_ROW = 22        # and its first row (src/ow/smooth.s)
 SPRITE_CODE = 0x100
 
 
-def sprite_cells(sprites, fetch, square=False):
+def sprite_cells(sprites, fetch, square=False, skip=()):
     """The screen cell under the middle of each hi-res sprite's pixels, and
     of the 16 by 16 a multicolour one is drawn in (or every one, with
     `square`), doubled if it is: the figures of the multicolour fight and of
     the open world (tools/figures.py) shift their feet between two frames,
     so that the middle of their pixels is not always the same cell, and
-    which of the two a dump catches is the harness's timing."""
+    which of the two a dump catches is the harness's timing. Sprites whose
+    block is in `skip` (the open world's corners) are not marked."""
     cells = set()
     for x, y, block, _, multi, wide, tall in sprites:
+        if block in skip:
+            continue
         if square or multi:
             cx = (x - 24 + 8 * wide) // 8
             cy = (y - 50 + 8 * tall - 1) // 8
@@ -833,8 +866,12 @@ def read_state(mon, args):
     scratch = mon.mem_get(PROBE, PROBE + 19)
     vic = mon.mem_get(0xD000, 0xD02E)
     pointers = mon.mem_get(screen_at + 0x3F8, screen_at + 0x3FF)
+    ow_engine = bank == 0x4000 and not args.mux
+    syms = load_symbols(args.prg, args.lbl) if ow_engine and args.lbl else {}
     if args.mux:
         sprites = mux_sprites(mon, load_symbols(args.prg, args.mux))
+    elif "sm_vy" in syms:
+        sprites = ow_sprites(mon, syms, vic, pointers)
     else:
         sprites = hw_sprites(vic, pointers)
     sprite_data = {p * 64: mon.mem_get(bank + p * 64, bank + p * 64 + 62)
@@ -845,7 +882,7 @@ def read_state(mon, args):
         scratch=scratch, vic=vic, sprites=sprites, sprite_data=sprite_data,
         # The open world's engine is the one thing in VIC bank 1 with a
         # text window (the fight module's is bank 1 too, but --mux).
-        ow_engine=bank == 0x4000 and not args.mux)
+        ow_engine=ow_engine)
 
 
 def render_text(st, args, legend):
@@ -861,7 +898,9 @@ def render_text(st, args, legend):
             rows = [list(row) for row in rows]
             for cx, cy in sprite_cells(st["sprites"],
                                        st["sprite_data"].__getitem__,
-                                       bool(args.mux)):
+                                       bool(args.mux),
+                                       OW_CORNER_BLOCKS if st["ow_engine"]
+                                       else ()):
                 rows[cy][cx] = SPRITE_CODE
         # The open world's engine: rows 22-23 are its text window (smooth.s),
         # whose letters are screen codes from OW_FONT. As text, not tiles.
