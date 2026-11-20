@@ -664,8 +664,9 @@ void w_look(void)
 
 /* Into dungeon n, if its seal is broken: the Sigil for the Hollow Crown,
    the Tidal and Ashen Keys for the others. Else a refusal, and the hero
-   stays on the square. */
-static const unsigned char dungeon_key[NUM_DUNGEONS] = {
+   stays on the square. game.h's table, defined here as engine.c defines
+   the others of game.c's that the engine uses (game.c is not linked). */
+const unsigned char dungeon_key[NUM_DUNGEONS] = {
     IT_SIGIL, IT_TIDAL, IT_ASHEN
 };
 

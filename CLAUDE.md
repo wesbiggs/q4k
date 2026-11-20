@@ -801,7 +801,7 @@ that check will say so; it runs in `make test`. It is assembly because in C it
 came to 1.3K, when HIGH had 700 bytes.
 
 Which continent holds which story place is a shuffle of `lore_seed`
-(`slot_of()` in `game.c`; `homepath.py` has it too): slot 0 is Wardlow, 1 the
+(`slot_of()` in `src/lib/slot.c`; `homepath.py` has it too): slot 0 is Wardlow, 1 the
 Drowned Stair, 2 Ashcombe, 3 Blackpit, which is the order the quest wants
 them in. A port opens when `quest_stage >= Q_EMBER + slot` -- until then the
 captain "will not sail yet" -- so the continents open one at a time and the

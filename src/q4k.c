@@ -51,7 +51,6 @@
 #define K_S           0x53
 #define K_D           0x44
 #define K_Q           0x51
-#define K_T           0x54
 #define K_L           0x4C
 #define K_I           0x49
 #define K_P           0x50
@@ -504,23 +503,6 @@ static void quaff(void)
     strcat(eng_text, " drinks a draught.");
     view_message(eng_text);
     ++game_turn;
-}
-
-/* Talk to whoever is next to you. */
-static void try_talk(void)
-{
-    signed char e;
-
-    e = entity_at(hero.x, hero.y - 1);
-    if (e < 0) { e = entity_at(hero.x, hero.y + 1); }
-    if (e < 0) { e = entity_at(hero.x - 1, hero.y); }
-    if (e < 0) { e = entity_at(hero.x + 1, hero.y); }
-
-    if (e < 0) {
-        view_message("There is nobody here.");
-        return;
-    }
-    interact((unsigned char)e);
 }
 
 /* main() is in boot.c, which runs the title screen and then this, in the

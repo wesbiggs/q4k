@@ -13,7 +13,8 @@
  * the first time the level is seen after the way in from the world and
  * kept in the game block (owgame.h's foe_a/foe_b) for as long as the party
  * stays in, so that a level left and come back to has the same ones where
- * they were, less those killed. Each is a sprite (1 to 6, as a town's
+ * they were, less those killed. Each is one of the engine's people
+ * (sm_npc_*, which the multiplexer shows on sprites 3-7, as a town's
  * people are), one for however many the fight brings. One that can see
  * the hero, near enough to be on the screen with nothing but floor
  * between, comes for them after each of their steps, at its pace in the
@@ -78,7 +79,7 @@ unsigned char foe_room(void);
    finds it. A monster that gets beside the hero sets pending. Its square
    into the game block, if it moved. */
 unsigned char __fastcall__ foe_turn(unsigned char i);
-/* The level's monsters (from base) onto the screen as sprites 1 to 6. */
+/* The level's monsters (from base) onto the screen as people 0 to 5. */
 void foe_muster(void);
 /* The level's monsters into the game block (from base); none if !any. */
 void __fastcall__ foe_spawn(unsigned char any);
@@ -86,7 +87,7 @@ extern unsigned char foe_top, foe_nat;
 /* The monster next to the hero that way, or NONE. */
 unsigned char __fastcall__ foe_who(unsigned char d);
 
-/* Sprite i + 1 is monster base + i of the game block; one that is dead is
+/* Person i is monster base + i of the game block; one that is dead is
    at square (0, 0), which is never on the screen. */
 static unsigned char think = FOES;      /* the next to take its turn */
 extern unsigned char pending;           /* 1 + the one that reached them */
@@ -110,7 +111,7 @@ static void spawn(void)
     foe_spawn(!(G->quiet & OWG_CALM) || enc_always);
 }
 
-/* The level's monsters onto the screen as sprites: after build_area(),
+/* The level's monsters onto the screen as people: after build_area(),
    which empties the people, and before show_area(), which places them. */
 static void muster(void)
 {

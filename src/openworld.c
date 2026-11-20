@@ -49,23 +49,6 @@ static const unsigned char cell_y[4] = { 0, 1, 2, 1 };
 #define ISLE_TOP 16
 #define ISLE_ROWS 31
 
-/* Which continent holds which story place: a shuffle of the seed, as
-   game.c's slot_of() has it. */
-unsigned char slot_of(unsigned char d)
-{
-    unsigned char p[4], i, j, t, v = lore_seed;
-
-    for (i = 0; i < 4; ++i) {
-        p[i] = i;
-    }
-    for (i = 3; i > 0; --i) {
-        v = v * 5 + 3;
-        j = (v >> 5) % (i + 1);
-        t = p[i]; p[i] = p[j]; p[j] = t;
-    }
-    return p[d];
-}
-
 /* Ship i beside landing (x, y): on the first square of water next to it,
    north, east, south or west. The land is home in the vault, or a
    continent still in local[]; (ox, oy) is where it starts in the world. */
