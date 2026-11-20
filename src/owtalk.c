@@ -32,6 +32,10 @@
 #include <q4k/tiles.h>
 #include <q4k/town_data.h>
 
+/* The portrait's code (src/ow/picshow.s), which the file brings into VIC
+   bank 1 and the portrait then takes: cfg/c64-owtalk.cfg. */
+extern char _PICCODE_LOAD__[], _PICCODE_RUN__[], _PICCODE_SIZE__[];
+
 /* The music the engine left paused, carried on (src/lib/ow_play.s). */
 void owt_music_on(void);
 void owt_music_off(void);
@@ -67,6 +71,7 @@ static void talk(unsigned char npc)
 
 int main(void)
 {
+    memcpy(_PICCODE_RUN__, _PICCODE_LOAD__, (unsigned int)_PICCODE_SIZE__);
     if (OWB->mode != OWB_TALK) {
         cputs("Load OPENWORLD: it builds the world.");
         for (;;) {

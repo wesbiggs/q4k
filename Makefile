@@ -87,7 +87,7 @@ LIBOBJ   := $(filter-out $(BUILD)/lib/dungeon.o $(BUILD)/lib/sfx.o \
 # the open world's cfgs place. Their variables stay in BSS and DATA.
 ENG_MAP   := town_data town_gen loot_data
 ENG_FIGHT := bestiary
-ENG_TALK  := talk inn gift
+ENG_TALK  := talk talkscr inn gift
 ENG_SHOP  := shop help
 ENGMODS   := $(ENG_MAP) $(ENG_FIGHT) $(ENG_TALK) $(ENG_SHOP)
 
@@ -389,6 +389,7 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 	    -write $(DIST)/ow-cpu.prg ow-cpu -write $(DIST)/ow-reu.prg ow-reu \
 	    $(foreach f,$(OWOVL),-write $(f) $(notdir $(f))) \
 	    -write $(DIST)/owtown.prg owtown -write $(DIST)/owtalk.prg owtalk \
+	    $(foreach f,$(PORTRAIT_FILES),-write $(f) $(notdir $(f))) \
 	    -write $(DIST)/owparty.prg owparty \
 	    -write $(DIST)/fight.prg fight \
 	    $$(for f in $(BUILD)/ow/sets/t.*; do printf ' -write %s %s' $$f $${f##*/}; done) \
@@ -438,8 +439,34 @@ $(BUILD)/ow/owstand.o: src/ow/owstand.c
 $(DIST)/owtown.prg $(DIST)/owtalk.prg $(DIST)/isletest.prg: $(DIST)/%.prg: $(BUILD)/%.o $(BUILD)/ow/owstand.o $(LIB) $(wildcard cfg/*.cfg)
 	@mkdir -p $(DIST)
 	$(CL65) $(LDFLAGS) -C $(LDCFG) -m $(BUILD)/$*.map \
-	    -Wl -Ln,$(BUILD)/$*.lbl -o $@ $< $(BUILD)/ow/owstand.o $(LIB)
+	    -Wl -Ln,$(BUILD)/$*.lbl -o $@ $< $(EXTRA_$*) $(BUILD)/ow/owstand.o $(LIB)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
+
+# owtalk's portraits (src/ow/talkpic.c): its own talk screen, and vic2orious's
+# v2i.inc and v2t.inc (assets/vic2/lib, version 6) round picshow.s, -t none
+# as the splash's are. Each portrait in assets/portraits is NAME-n.v2i and
+# NAME-p.v2i (NTSC and PAL); PORTRAITS says whose number (town_data.h's
+# NPC_*) each name is, and the disk has it as v.NUMBERn and v.NUMBERp.
+EXTRA_owtalk := $(BUILD)/ow/talkpic.o $(BUILD)/ow/picshow.o
+$(DIST)/owtalk.prg: $(EXTRA_owtalk)
+$(BUILD)/ow/talkpic.o: src/ow/talkpic.c
+	@mkdir -p $(dir $@)
+	cc65 $(CFLAGS) --create-full-dep $(@:.o=.d) --dep-target $@ -o $(@:.o=.s) $<
+	ca65 -t c64 -o $@ $(@:.o=.s)
+-include $(BUILD)/ow/talkpic.d
+$(BUILD)/ow/picshow.o: src/ow/picshow.s src/ow/vic2/font.inc assets/vic2/lib/v2i.inc assets/vic2/lib/v2t.inc
+	@mkdir -p $(dir $@)
+	ca65 -t none -I assets/vic2/lib -I src/ow/vic2 -o $@ $<
+
+PORTRAITS := princess:3
+PORTRAIT_FILES := $(foreach p,$(PORTRAITS),$(foreach s,n p,$(BUILD)/portraits/v.$(word 2,$(subst :, ,$(p)))$(s)))
+define PORTRAIT_RULE
+$(BUILD)/portraits/v.$(2)$(3): assets/portraits/$(1)-$(3).v2i tools/mkportrait.py
+	@mkdir -p $$(dir $$@)
+	tools/mkportrait.py $$< $$@
+endef
+$(DIST)/openworld.d81: $(PORTRAIT_FILES)
+$(foreach p,$(PORTRAITS),$(foreach s,n p,$(eval $(call PORTRAIT_RULE,$(word 1,$(subst :, ,$(p))),$(word 2,$(subst :, ,$(p))),$(s)))))
 
 # The bootstrap, with the cache's table.
 $(DIST)/openworld.prg: $(BUILD)/openworld.o $(BUILD)/ow/owcdir.o $(LIB) $(wildcard cfg/*.cfg)
@@ -518,7 +545,7 @@ $(MEMMAP): tools/mkmemmap.py tools/memmap.html \
 	    $(DIST)/openworld.prg $(DIST)/owparty.prg $(OWENG) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
 	    $(DIST)/fight.prg $(DIST)/ow-data.prg $(DIST)/splash-p.prg \
 	    $(DIST)/splash-n.prg $(DIST)/theme.sid $(FIGHT_STAMP) \
-	    include/q4k/owgame.h src/lib/ow_data.s
+	    include/q4k/owgame.h src/lib/ow_data.s $(PORTRAIT_FILES)
 	tools/mkmemmap.py $@
 endif
 

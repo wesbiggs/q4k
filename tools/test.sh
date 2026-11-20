@@ -181,6 +181,37 @@ u_ow_save() {
     rm -f "$saves" "$base"
 }
 
+# The princess's portrait (src/ow/talkpic.c): from the castle's gate to
+# the tower, a step into her, padding while owtalk loads (it empties the
+# buffer as it starts), and 2 asks about her father. The screen is a
+# bitmap, which a text dump cannot read, so this reads the machine: the
+# question's row is white and the answer's light green, beside the PAL
+# portrait (cells 17 on: $4000 + 40 * row + 17), and the VIC is in bitmap
+# mode. Then RUN/STOP goes back to the engine, where she stood.
+PRINCESS='ddddddddddddssssdsssdsdddddddddddddddddddsssssddddddsdwwwwwwwwssdddddwwdwwwwawwdddw'
+u_ow_portrait() {
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
+        --splash quick --lbl build/ow-cpu.lbl --poke still=1 \
+        --keys "${PRINCESS}jjjjjjjjjjj2" --settle 30 \
+        --until-peek '$4061=16' --until-peek '$4089=208' \
+        --peek '$4061' --peek '$4089' --peek '$D011' \
+        2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
+    if [ "$got" != "16 208 59 " ]; then
+        result FAIL openworld-portrait "question, answer, \$D011: ${got:-?}; not 16 208 59"
+        return
+    fi
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
+        --splash quick --lbl build/ow-cpu.lbl --poke still=1 \
+        --keys "${PRINCESS}jjjjjjjjjjj2jjjjjjjjjj\\x03jjjjjjjjjj" --stage 2 --settle 30 \
+        --until-peek '$D011=27' --peek hx --peek hy \
+        2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
+    if [ "$got" = "53 38 " ]; then
+        result PASS openworld-portrait
+    else
+        result FAIL openworld-portrait "back in the engine at ${got:-?}; not 53 38"
+    fi
+}
+
 # P: Alaric, hurt to 5, drinks the quick start's one draught (12 back,
 # its floor) and the second P finds none.
 u_ow_quaff() {
@@ -325,7 +356,8 @@ run_unit() {
         checkisle) u_checkisle ;;
         owarena-arrow-ur) u_arrow ;;
         openworld-save|openworld-quaff|openworld-recolour|openworld-fight|\
-        openworld-foes|openworld-keeper|openworld-cache|openworld-roads)
+        openworld-foes|openworld-keeper|openworld-cache|openworld-roads|\
+        openworld-portrait)
             [ -f dist/openworld.d81 ] || { result SKIP "$1" "no dist/openworld.d81"; return; }
             case $1 in
                 openworld-save) u_ow_save ;;
@@ -336,6 +368,7 @@ run_unit() {
                 openworld-keeper) u_ow_keeper ;;
                 openworld-cache) u_ow_cache ;;
                 openworld-roads) u_ow_roads ;;
+                openworld-portrait) u_ow_portrait ;;
             esac ;;
         *)
             if [ -f "tests/golden/$1.txt" ]; then
@@ -352,8 +385,8 @@ all_units() {
     echo openworld-save checkisle openworld-foes openworld-fight \
         openworld-recolour
     for g in tests/golden/*.txt; do basename "$g" .txt; done
-    echo openworld-quaff openworld-keeper openworld-cache openworld-roads \
-        owarena-arrow-ur checkmap
+    echo openworld-portrait openworld-quaff openworld-keeper openworld-cache \
+        openworld-roads owarena-arrow-ur checkmap
 }
 
 # Which half of the suite a unit is in, for CI's two machines: the open

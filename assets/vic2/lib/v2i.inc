@@ -1,0 +1,1011 @@
+; v2i: displays a .v2i image (hires or multicolour bitmap + per-line multiplexed sprites,
+; docs/v2i-format.md)
+; on a C64. ca65 source: .include it in the host program. API in docs/v2i-lib.md; in short
+; (A/Y = address: A low, Y high):
+;
+;   v2i_init       take over the machine (ROMs and CIA interrupts off, VIC bank v2i_bank,
+;                  own IRQ/NMI vectors); saves the VIC and CIA2 bank registers for
+;                  v2i_exit; detects PAL/NTSC (v2i_detect). v2i_bank (1-3, default
+;                  V2I_BANK, which is 3) is read here: set it first to pick another bank
+;   v2i_detect     v2i_system = V2I_PAL, V2I_NTSC or V2I_OTHER (also before v2i_init)
+;   v2i_info       A/Y = .v2i, or just its first part (header, thumbnail, metadata): check
+;                  it and set the image info, v2i_tptr and v2i_mptr/v2i_mlen (any time, no
+;                  v2i_init needed). C=1: A = V2I_ERR_FORMAT
+;   v2i_thumb      after v2i_info, A/Y = room for 8 sprite blocks (64-byte aligned, in the
+;                  VIC bank in use): show the thumbnail with sprites 0-7 at v2i_tx/v2i_ty
+;                  (any time, any bank and screen). C=1: none; else A = its background
+;   v2i_show       A/Y = .v2i: unpack it into VIC bank v2i_bank (stopped only); the kernel's
+;                  sprite pointers are set for that bank, and the kernel is changed in place
+;                  (show a loaded file once, or load it again). C=1: not shown, A =
+;                  V2I_ERR_FORMAT (not a version 6 .v2i), V2I_ERR_SYSTEM (made for the other
+;                  video system, or an unsupported VIC-II) or V2I_ERR_BANK (the file lies in
+;                  the bank: $4000-$7fff for bank 1, $8000-$bfff for bank 2, $c000-$ffff for
+;                  bank 3; load it elsewhere)
+;   v2i_errmsg     A = error from v2i_show: A/Y = zero-terminated message (PETSCII)
+;   v2i_frame      A = colour: frame around the image (needs the ring of cells around it;
+;                  hires images only)
+;   v2i_start      raster IRQ on: the image is displayed, v2i_hook is called every frame
+;   v2i_stop       raster IRQ off, sprites off, screen blank
+;   v2i_exit       v2i_stop, restore the registers saved by v2i_init, KERNAL back on, CLI
+;
+; The kernel and the IRQ touch only $02, the first 3 bytes at V2I_ZP and VIC registers.
+; Memory: the image is in VIC bank v2i_bank (base B = $4000 * bank): screen at B, sprite
+; pointers at B+$3f8, sprite blocks from B+$400, bitmap at B+$2000. v2i_show clears
+; B-B+$3f3f (and colour RAM for a multicolour image, which is not in the bank). Zero page:
+; $02 (the kernels' sync code) and V2I_ZP_SIZE bytes from V2I_ZP (default $10).
+; Text beside the image: v2t.inc, which follows V2I_BANK at assembly time (its bitmap and
+; screen are the image's bank's, unless V2T_BITMAP / V2T_SCREEN are defined).
+
+.ifndef V2I_ZP
+V2I_ZP = $10
+.endif
+
+; .v2i header offsets
+V2I_H_KLEN = 8
+V2I_H_BLEN = 10
+V2I_H_SLEN = 12
+V2I_H_PLEN = 14
+V2I_H_BDST = 16
+V2I_H_SDST = 18
+V2I_H_SYS  = 24
+V2I_H_FLAGS = 25
+V2I_H_SIZE = 26
+.ifndef V2I_BANK
+V2I_BANK = 3                          ; VIC bank of the image (v2i_bank; 1-3)
+.endif
+
+V2I_VERSION = 6
+V2I_F_META = 1                          ; flags: metadata (2-byte length, ASCII text)
+V2I_F_MC   = 2                          ; flags: multicolour: background and colour RAM
+                                        ; stream follow the sprite stream
+V2I_F_THUMB = 4                         ; flags: thumbnail (first, right after the header)
+
+; video systems (v2i_system, header byte V2I_H_SYS); kernels are made for one of them
+V2I_PAL    = 0                          ; 6569 (and 8565): 63 cycles x 312 lines
+V2I_NTSC   = 1                          ; 6567R8 (and 8562): 65 cycles x 263 lines
+V2I_OTHER  = $ff                        ; anything else (6567R56A, ...): not supported
+
+V2I_IRQ_LINE = 9                        ; raster IRQ line, kernel entry (IRQ_LINE in convert.py)
+
+V2I_ERR_FORMAT = 1
+V2I_ERR_SYSTEM = 2
+V2I_ERR_BANK = 3                         ; the file lies in the VIC bank
+
+; zero page
+v2i_save_a = V2I_ZP + 0                 ; IRQ register save (keep in zero page: the kernel
+v2i_save_x = V2I_ZP + 1                 ; entry window depends on the prologue's timing)
+v2i_save_y = V2I_ZP + 2
+v2i_hdr    = V2I_ZP + 3                 ; 2 bytes each
+v2i_ptr    = V2I_ZP + 5
+v2i_src    = V2I_ZP + 7
+v2i_dst    = V2I_ZP + 9
+v2i_scr    = V2I_ZP + 11
+V2I_ZP_SIZE = 13
+
+; ---- take over the machine: ROMs out, CIA interrupts off, VIC bank 3, our vectors
+v2i_init:
+        sei
+        lda v2i_bank                    ; bank base = bank * $4000: its high byte is 64 * bank
+        .repeat 6
+        asl
+        .endrepeat
+        sta v2i_bhi
+        lda $01
+        sta v2i_save01
+        lda #$35                        ; RAM at $a000/$e000, I/O visible
+        sta $01
+        ldx #$2e
+:       lda $d000,x
+        sta v2i_vic,x
+        dex
+        bpl :-
+        ldx #V2I_ZP_SIZE-1              ; our zero page is BASIC's ($13 CHANNL, $16
+:       lda V2I_ZP,x                    ; TEMPPT, ...): v2i_exit puts it back
+        sta v2i_savezp,x
+        dex
+        bpl :-
+        lda $dd00
+        sta v2i_savedd00
+        lda $dd02
+        sta v2i_savedd02
+        jsr v2i_detect
+        lda #$7f
+        sta $dc0d
+        sta $dd0d
+        lda $dc0d
+        lda $dd0d
+        lda #0
+        sta $d01a
+        sta $d015
+        sta $d020
+        sta $d021
+        lda #$0b                        ; display off while setting up
+        sta $d011
+        lda #<v2i_irq
+        sta $fffe
+        lda #>v2i_irq
+        sta $ffff
+        lda #<v2i_nmi
+        sta $fffa
+        lda #>v2i_nmi
+        sta $fffb
+        lda $dd02
+        ora #$03
+        sta $dd02
+        lda #3                          ; $dd00 bits 0-1 select the bank inverted: 3 - bank
+        sec
+        sbc v2i_bank
+        sta v2i_bits
+        lda $dd00
+        and #$fc
+        ora v2i_bits
+        sta $dd00
+        lda #$ff
+        sta $dc02                       ; CIA1 port A output (keyboard columns)
+        lda #0
+        sta $dc03
+        rts
+
+; ---- v2i_system from the last raster line (up to one frame; any time, KERNAL on or off)
+v2i_detect:
+        php
+        sei
+@d0:    lda $d012                       ; wait until the line counter goes back (old -
+@d1:    cmp $d012                       ; new >= 0 only there, also across $ff -> $100)
+        beq @d1
+        bmi @d0
+        ldx #V2I_PAL
+        cmp #<311
+        beq @sys
+        ldx #V2I_NTSC
+        cmp #<262
+        beq @sys
+        ldx #V2I_OTHER
+@sys:   stx v2i_system
+        plp
+        rts
+
+; ---- start/stop the raster interrupt that runs the kernel
+v2i_start:
+        lda #0                          ; border and background (not in the kernel: on
+        sta $d020                       ; the 85xx a colour write shows a grey dot, and
+        lda v2i_bg                      ; its entry line is visible on NTSC)
+        sta $d021
+        lda #V2I_IRQ_LINE
+        sta $d012
+        lda #$3b
+        sta $d011
+        lda #1
+        sta $d019
+        sta $d01a
+        cli
+        rts
+
+v2i_stop:
+        sei
+        lda #0
+        sta $d01a
+        sta $d015
+        sta $d01d                       ; a multicolour kernel's X-expanded sprites
+        lda #$08                        ; and multicolour mode
+        sta $d016
+        lda #$0b
+        sta $d011
+        lda #1
+        sta $d019
+        rts
+
+; ---- give the machine back: VIC registers, bank and our zero page as v2i_init found
+; them, ROMs and the KERNAL's CIA1 timer interrupt on
+v2i_exit:
+        jsr v2i_stop
+        lda v2i_savedd02
+        sta $dd02
+        lda $dd00
+        and #$fc
+        sta v2i_ptr
+        lda v2i_savedd00
+        and #$03
+        ora v2i_ptr
+        sta $dd00
+        ldx #$2e                        ; (writes to the read-only ones do nothing)
+:       lda v2i_vic,x
+        sta $d000,x
+        dex
+        bpl :-
+        lda #$0f
+        sta $d019
+        lda v2i_save01
+        sta $01
+        ldx #V2I_ZP_SIZE-1              ; (after the last use of v2i_ptr)
+:       lda v2i_savezp,x
+        sta V2I_ZP,x
+        dex
+        bpl :-
+        lda #$81                        ; CIA1 timer A interrupt (KERNAL keyboard scan)
+        sta $dc0d
+        lda $dc0d
+        cli
+        rts
+
+v2i_nmi:
+        rti
+
+; Entry timing matters only loosely: the kernel's sync phase absorbs a range of entry
+; cycles, but keep this prologue as it is.
+v2i_irq:
+        sta v2i_save_a
+        stx v2i_save_x
+        sty v2i_save_y
+        jsr v2i_kjump
+        lda #1
+        sta $d019
+        inc v2i_ticks
+        jsr v2i_hjump
+        lda v2i_save_a
+        ldx v2i_save_x
+        ldy v2i_save_y
+        rti
+; The vectors are the operands of these jumps (not jmp (abs): the 6502 reads a vector at
+; $xxff from $xxff/$xx00, and where the vectors land depends on the host's length).
+v2i_kjump:
+        nop                             ; 2 + 3 cycles, as jmp (v2i_kvec) took: keep it
+        jmp v2i_rts
+v2i_kvec = v2i_kjump + 2
+v2i_hjump:
+        jmp v2i_rts
+v2i_hook = v2i_hjump + 1                ; called after the kernel every frame, may use A/X/Y
+v2i_rts:
+        rts
+
+; ---- unpack the image at A/Y into VIC bank 3 and point the IRQ at its kernel
+v2i_badfmt:
+        lda #V2I_ERR_FORMAT
+        sec
+v2i_ret:
+        rts
+v2i_badsys:
+        lda #V2I_ERR_SYSTEM
+        sec
+        rts
+v2i_show:
+        jsr v2i_info                    ; ptr = the kernel stream (relocation table, kernel)
+        bcs v2i_ret
+        lda #0
+        sta v2i_bg
+        ldy #V2I_H_SYS                  ; made for this machine?
+        lda (v2i_hdr),y
+        cmp v2i_system
+        bne v2i_badsys
+        jsr v2i_inbank                  ; the file must not lie in the VIC bank
+        bcc :+
+        jmp v2i_badbank
+:
+        lda v2i_row                     ; first raster line below the image
+        clc
+        adc v2i_rows
+        asl
+        asl
+        asl
+        adc #$33
+        sta v2i_end
+        lda #$34                        ; all RAM (sprites live partly under I/O)
+        sta $01
+        jsr v2i_clear                   ; the bank: $0000-$3f3f from its base
+        jsr v2i_reloc                   ; the kernel: its sprite pointers for this bank
+        ldy #V2I_H_KLEN
+        jsr v2i_advance                 ; ptr = bitmap stream
+        ldy #V2I_H_BDST                 ; bitmap rows, decoded straight into place
+        jsr v2i_unpack
+        ldy #V2I_H_BLEN
+        jsr v2i_advance
+        ldy #V2I_H_SDST                 ; screen (colour) rows
+        jsr v2i_unpack
+        ldy #V2I_H_SLEN
+        jsr v2i_advance
+        lda #0                          ; sprite blocks from pointer 16 on ($400 in the bank)
+        sta v2i_dst
+        lda v2i_bhi
+        clc
+        adc #4
+        sta v2i_dst+1
+        jsr v2i_unpack_to_dst
+        lda #$35
+        sta $01
+        lda v2i_mc
+        beq @done
+        ldy #V2I_H_PLEN                 ; multicolour: background, stream length (skipped),
+        jsr v2i_advance                 ; colour RAM rows
+        ldy #0
+        lda (v2i_ptr),y
+        sta v2i_bg
+        clc
+        lda v2i_ptr
+        adc #3
+        sta v2i_ptr
+        bcc :+
+        inc v2i_ptr+1
+:       lda #0                          ; clear colour RAM (v2i_unrle skips zero runs)
+        ldx #0
+:       sta $d800,x
+        sta $d900,x
+        sta $da00,x
+        sta $db00,x
+        inx
+        bne :-
+        clc                             ; dst = screen destination + $d800 ($d800 + 40 * row)
+        ldy #V2I_H_SDST
+        lda (v2i_hdr),y
+        sta v2i_dst
+        iny
+        lda (v2i_hdr),y
+        adc #$d8
+        sta v2i_dst+1
+        jsr v2i_unpack_to_dst
+@done:  clc
+        rts
+
+; ---- clear the VIC bank: $0000-$3f3f from its base (the bank's last 192 bytes, $3f40-
+; $3fff, are left alone, as before). The bank is shown only while stopped.
+v2i_clear:
+        lda #0
+        sta v2i_dst
+        lda v2i_bhi
+        sta v2i_dst+1
+        ldx #63                         ; 63 pages, then 64 bytes
+@pg:    lda #0
+        ldy #0
+@b:     sta (v2i_dst),y
+        iny
+        bne @b
+        inc v2i_dst+1
+        dex
+        bne @pg
+        lda #0
+        ldy #0
+@e:     sta (v2i_dst),y
+        iny
+        cpy #$40
+        bne @e
+        rts
+
+; ---- relocate the kernel for the bank: the table at ptr (count, then the offset of the
+; high byte of each sprite pointer write, from the kernel's first byte) gets the bank's
+; high byte + 3 (the pointers $f8-$ff in the bank's screen). Sets v2i_kvec to the kernel.
+; The table is read, not changed, and the low bytes stay: a second show relocates again.
+v2i_reloc:
+        ldy #0
+        lda (v2i_ptr),y
+        sta v2i_rcnt
+        iny
+        lda (v2i_ptr),y
+        sta v2i_rcnt+1
+        lda v2i_rcnt                    ; kernel = ptr + 2 + 2 * count
+        asl
+        sta v2i_rcode
+        lda v2i_rcnt+1
+        rol
+        sta v2i_rcode+1
+        clc
+        lda v2i_rcode
+        adc v2i_ptr
+        sta v2i_rcode
+        lda v2i_rcode+1
+        adc v2i_ptr+1
+        sta v2i_rcode+1
+        clc
+        lda v2i_rcode
+        adc #2
+        sta v2i_rcode
+        bcc :+
+        inc v2i_rcode+1
+:       lda v2i_rcode
+        sta v2i_kvec
+        lda v2i_rcode+1
+        sta v2i_kvec+1
+        lda v2i_bhi
+        clc
+        adc #3
+        sta v2i_relhi
+        clc                             ; src = the table's entries, ptr + 2
+        lda v2i_ptr
+        adc #2
+        sta v2i_src
+        lda v2i_ptr+1
+        adc #0
+        sta v2i_src+1
+@rel:   lda v2i_rcnt
+        ora v2i_rcnt+1
+        beq @done
+        ldy #0
+        lda (v2i_src),y                 ; dst = kernel + offset
+        clc
+        adc v2i_rcode
+        sta v2i_dst
+        iny
+        lda (v2i_src),y
+        adc v2i_rcode+1
+        sta v2i_dst+1
+        ldy #0
+        lda v2i_relhi
+        sta (v2i_dst),y
+        clc
+        lda v2i_src
+        adc #2
+        sta v2i_src
+        bcc :+
+        inc v2i_src+1
+:       lda v2i_rcnt
+        bne :+
+        dec v2i_rcnt+1
+:       dec v2i_rcnt
+        jmp @rel
+@done:  rts
+
+; ---- C=1 if the file (from v2i_hdr, through its streams: v2i_ptr is its kernel stream)
+; overlaps the VIC bank (bank base .. base + $3fff). Its end: the four stream lengths in
+; the header, plus the multicolour stream (background, colour RAM length, colour RAM).
+v2i_inbank:
+        lda v2i_ptr                     ; end = ptr
+        sta v2i_dst
+        lda v2i_ptr+1
+        sta v2i_dst+1
+        ldy #V2I_H_KLEN
+        ldx #4
+@add:   clc
+        lda v2i_dst
+        adc (v2i_hdr),y
+        sta v2i_dst
+        iny
+        lda v2i_dst+1
+        adc (v2i_hdr),y
+        sta v2i_dst+1
+        iny
+        dex
+        bne @add
+        lda v2i_mc
+        beq @end
+        ldy #1                          ; colour RAM length (after the background)
+        clc
+        lda (v2i_dst),y
+        adc #3
+        sta v2i_src
+        iny
+        lda (v2i_dst),y
+        adc #0
+        sta v2i_src+1
+        clc
+        lda v2i_dst
+        adc v2i_src
+        sta v2i_dst
+        lda v2i_dst+1
+        adc v2i_src+1
+        sta v2i_dst+1
+@end:   lda v2i_dst+1                   ; end <= base (end high < base high, or = with low 0)?
+        cmp v2i_bhi
+        bcc @before
+        bne @after
+        lda v2i_dst
+        beq @before
+@after: lda v2i_bhi                     ; start >= base + $4000? (never for bank 3)
+        cmp #$c0
+        beq @overlap
+        clc
+        adc #$40
+        sta v2i_src
+        lda v2i_hdr+1
+        cmp v2i_src
+        bcs @clear
+@overlap:
+        sec
+        rts
+@before:
+@clear: clc
+        rts
+
+v2i_badbank:
+        lda #V2I_ERR_BANK
+        sec
+        rts
+
+; ---- A/Y = a .v2i, or as much of it as its header, thumbnail and metadata: check magic
+; and version, set the image info (v2i_cols .. v2i_mc), v2i_tptr (the thumbnail, 0 if
+; none), v2i_mptr and v2i_mlen (the metadata text and its length, 0 if none), and
+; v2i_ptr (the kernel). C=1: not a version 5 .v2i, A = V2I_ERR_FORMAT
+v2i_ibad:
+        jmp v2i_badfmt
+v2i_info:
+        sta v2i_hdr
+        sty v2i_hdr+1
+        ldy #2                          ; "V2I"
+:       lda (v2i_hdr),y
+        cmp v2i_magic,y
+        bne v2i_ibad
+        dey
+        bpl :-
+        ldy #3
+        lda (v2i_hdr),y
+        cmp #V2I_VERSION
+        bne v2i_ibad
+        ldy #V2I_H_FLAGS
+        lda (v2i_hdr),y
+        sta v2i_flags
+        and #V2I_F_MC
+        sta v2i_mc
+        ldy #4                          ; size and position
+:       lda (v2i_hdr),y
+        sta v2i_cols-4,y
+        iny
+        cpy #8
+        bne :-
+        ldx #5                          ; no thumbnail, no metadata
+        lda #0
+:       sta v2i_tptr,x
+        dex
+        bpl :-
+        clc                             ; ptr = what follows the header
+        lda v2i_hdr
+        adc #V2I_H_SIZE
+        sta v2i_ptr
+        lda v2i_hdr+1
+        adc #0
+        sta v2i_ptr+1
+        lda v2i_flags
+        and #V2I_F_THUMB
+        beq @meta
+        lda v2i_ptr                     ; thumbnail: 4 bytes, then 64 per sprite
+        sta v2i_tptr
+        lda v2i_ptr+1
+        sta v2i_tptr+1
+        ldy #3
+        lda (v2i_ptr),y
+        tax
+        lda #4
+        jsr v2i_skip
+:       dex
+        bmi @meta
+        lda #64
+        jsr v2i_skip
+        jmp :-
+@meta:  lda v2i_flags
+        and #V2I_F_META
+        beq @done
+        ldy #0                          ; metadata: length, text
+        lda (v2i_ptr),y
+        sta v2i_mlen
+        iny
+        lda (v2i_ptr),y
+        sta v2i_mlen+1
+        lda #2
+        jsr v2i_skip
+        lda v2i_ptr
+        sta v2i_mptr
+        lda v2i_ptr+1
+        sta v2i_mptr+1
+        clc
+        lda v2i_ptr
+        adc v2i_mlen
+        sta v2i_ptr
+        lda v2i_ptr+1
+        adc v2i_mlen+1
+        sta v2i_ptr+1
+@done:  clc
+        rts
+
+v2i_skip:                               ; ptr += A
+        clc
+        adc v2i_ptr
+        sta v2i_ptr
+        bcc :+
+        inc v2i_ptr+1
+:       rts
+
+; ---- the thumbnail of the .v2i v2i_info looked at, on sprites 0..n-1 (n = v2i_tn, up to
+; 8) at X = v2i_tx (9 bits), Y = v2i_ty: their data copied to A/Y (n blocks of 64 bytes,
+; 64-byte aligned, inside the VIC bank in use), pointers set in the screen in use ($dd00,
+; $d018), colours, positions, unexpanded hires sprites in front of the picture, $d015 =
+; sprites 0..n-1 (the others off). Any time, KERNAL on or off. C=1: no thumbnail; else
+; A = its background colour (the pixels no sprite covers: the host's to paint)
+v2i_thumb:
+        sta v2i_dst
+        sty v2i_dst+1
+        lda v2i_tptr+1
+        bne :+
+        sec
+        rts
+:       sta v2i_src+1
+        lda v2i_tptr
+        sta v2i_src
+        lda $dd00                       ; scr = VIC bank + ($d018 >> 4) * $400 + $3f8
+        and #3
+        eor #3
+        lsr
+        ror
+        ror                             ; (bank << 6: the base's high byte)
+        sta v2i_scr+1
+        lda $d018
+        lsr
+        lsr
+        and #$3c
+        ora v2i_scr+1
+        ora #>$03f8
+        sta v2i_scr+1
+        lda #<$03f8
+        sta v2i_scr
+        lda v2i_dst+1                   ; first block = (dst & $3fff) >> 6
+        and #$3f
+        sta v2i_tblk
+        lda v2i_dst
+        asl
+        rol v2i_tblk
+        asl
+        rol v2i_tblk
+        ldy #2
+        lda (v2i_src),y
+        sta v2i_tbg
+        iny
+        lda (v2i_src),y
+        sta v2i_tn
+        lda #4                          ; src = first sprite: colour, 63 bytes
+        clc
+        adc v2i_src
+        sta v2i_src
+        bcc :+
+        inc v2i_src+1
+:       lda #0
+        ldx v2i_tx+1                    ; X >= 256: all of them
+        beq :+
+        lda #$ff
+:       sta $d010
+        lda #0
+        sta $d017
+        sta $d01b
+        sta $d01c
+        sta $d01d
+        ldx #0
+@spr:   cpx v2i_tn
+        beq @on
+        txa
+        asl
+        tay
+        lda v2i_tx
+        sta $d000,y
+        lda v2i_ty
+        sta $d001,y
+        txa                             ; pointer
+        tay
+        clc
+        adc v2i_tblk
+        sta (v2i_scr),y
+        ldy #0
+        lda (v2i_src),y
+        sta $d027,x
+:       iny                             ; (src),1..63 -> (dst),0..62
+        lda (v2i_src),y
+        dey
+        sta (v2i_dst),y
+        iny
+        cpy #63
+        bne :-
+        lda #64
+        clc
+        adc v2i_src
+        sta v2i_src
+        bcc :+
+        inc v2i_src+1
+:       lda #64
+        clc
+        adc v2i_dst
+        sta v2i_dst
+        bcc :+
+        inc v2i_dst+1
+:       inx
+        bne @spr
+@on:    lda #0                          ; $d015 = 2^n - 1
+:       dex
+        bmi :+
+        sec
+        rol
+        bne :-                          ; (always: a 1 was rotated in)
+:       sta $d015
+        lda v2i_tbg
+        clc
+        rts
+
+; ---- A = error from v2i_show: A/Y = a message for it (zero-terminated PETSCII)
+v2i_errmsg:
+        ldx #0
+        cmp #V2I_ERR_BANK
+        bne :+
+        ldx #8
+        bne @ret
+:       cmp #V2I_ERR_SYSTEM
+        bne @ret
+        ldx #2
+        lda v2i_system
+        beq @ret                        ; PAL machine: the image is for NTSC
+        ldx #4
+        cmp #V2I_NTSC
+        beq @ret
+        ldx #6
+@ret:   lda v2i_msgs,x
+        ldy v2i_msgs+1,x
+        rts
+v2i_msgs:  .word v2i_msg_fmt, v2i_msg_ntsc, v2i_msg_pal, v2i_msg_vic, v2i_msg_bank
+v2i_msg_fmt:  .byte "NOT A V2I FILE (VERSION 6)", 0
+v2i_msg_bank: .byte "THE FILE IS IN THE VIC BANK: LOAD IT ELSEWHERE", 0
+v2i_msg_ntsc: .byte "THIS IMAGE IS FOR AN NTSC C64", 0
+v2i_msg_pal:  .byte "THIS IMAGE IS FOR A PAL C64", 0
+v2i_msg_vic:  .byte "UNSUPPORTED VIC-II (PAL 6569/8565 OR NTSC 6567R8/8562 ONLY)", 0
+
+
+; ---- frame in the ring of cells around the image (rows fy0..fy1, columns fx0..fx1),
+; rings white, white, black, white from the outside in, in cell colour A ($10: white on
+; black); nothing if the ring does not fit on the screen
+v2i_fno:
+        rts
+v2i_frame:
+        ldx v2i_mc                      ; hires only (a multicolour bitmap shows the pattern
+        bne v2i_fno                     ; differently)
+        sta v2i_fcol
+        lda v2i_col                     ; fx0 = col0 - 1, fx1 = col0 + cols
+        beq v2i_fno
+        sta v2i_fx0
+        dec v2i_fx0
+        clc
+        adc v2i_cols
+        sta v2i_fx1
+        cmp #40
+        bcs v2i_fno
+        lda v2i_row                     ; fy0 = row0 - 1, fy1 = row0 + rows
+        beq v2i_fno
+        sta v2i_fy0
+        dec v2i_fy0
+        clc
+        adc v2i_rows
+        sta v2i_fy1
+        cmp #25
+        bcs v2i_fno
+        lda v2i_fx0                     ; top and bottom rows
+        sta v2i_fx
+@tb:    ldx #V2I_FP_T
+        lda v2i_fx
+        cmp v2i_fx0
+        bne :+
+        ldx #V2I_FP_TL
+:       cmp v2i_fx1
+        bne :+
+        ldx #V2I_FP_TR
+:       stx v2i_fpat
+        lda v2i_fy0
+        sta v2i_fy
+        txa
+        jsr v2i_fcell
+        lda v2i_fy1
+        sta v2i_fy
+        lda v2i_fpat
+        clc
+        adc #V2I_FP_BL - V2I_FP_TL
+        jsr v2i_fcell
+        inc v2i_fx
+        lda v2i_fx1
+        cmp v2i_fx
+        bcs @tb
+        ldx v2i_fy0                     ; left and right columns
+        inx
+        stx v2i_fy
+@lr:    lda v2i_fy
+        cmp v2i_fy1
+        bcs @done
+        lda v2i_fx0
+        sta v2i_fx
+        lda #V2I_FP_L
+        jsr v2i_fcell
+        lda v2i_fx1
+        sta v2i_fx
+        lda #V2I_FP_R
+        jsr v2i_fcell
+        inc v2i_fy
+        bne @lr
+@done:  rts
+
+v2i_fcell:                              ; cell (fx, fy) = frame pattern A, colour fcol
+        pha
+        ldx v2i_fy
+        jsr v2i_rowaddr
+        lda v2i_fx
+        clc
+        adc v2i_scr
+        sta v2i_scr
+        bcc :+
+        inc v2i_scr+1
+:       lda v2i_fcol
+        ldy #0
+        sta (v2i_scr),y
+        lda v2i_fx                      ; dst += fx * 8
+        asl
+        asl
+        asl
+        bcc :+
+        inc v2i_dst+1
+:       clc
+        adc v2i_dst
+        sta v2i_dst
+        bcc :+
+        inc v2i_dst+1
+:       pla
+        tax
+@cp:    lda v2i_frame_pat,x
+        sta (v2i_dst),y
+        inx
+        iny
+        cpy #8
+        bne @cp
+        rts
+
+; frame cells, 8 bitmap bytes each (1 = foreground), the innermost ring next to the image
+V2I_FP_TL = 0
+V2I_FP_T  = 8
+V2I_FP_TR = 16
+V2I_FP_L  = 24
+V2I_FP_R  = 32
+V2I_FP_BL = 40
+V2I_FP_B  = 48
+V2I_FP_BR = 56
+v2i_frame_pat:
+        .byte $00, $00, $00, $00, $0f, $0f, $0c, $0d
+        .byte $00, $00, $00, $00, $ff, $ff, $00, $ff
+        .byte $00, $00, $00, $00, $f0, $f0, $30, $b0
+        .byte $0d, $0d, $0d, $0d, $0d, $0d, $0d, $0d
+        .byte $b0, $b0, $b0, $b0, $b0, $b0, $b0, $b0
+        .byte $0d, $0c, $0f, $0f, $00, $00, $00, $00
+        .byte $ff, $00, $ff, $ff, $00, $00, $00, $00
+        .byte $b0, $30, $f0, $f0, $00, $00, $00, $00
+
+; dst = $e000 + X * 320, scr = $c000 + X * 40 (bitmap and screen address of char row X)
+v2i_rowaddr:
+        lda #0                          ; dst = bank base + $2000, scr = bank base
+        sta v2i_dst
+        lda v2i_bhi
+        clc
+        adc #$20
+        sta v2i_dst+1
+        lda #0
+        sta v2i_scr
+        lda v2i_bhi
+        sta v2i_scr+1
+        cpx #0
+        beq @done
+@mul:   clc
+        lda v2i_dst
+        adc #<320
+        sta v2i_dst
+        lda v2i_dst+1
+        adc #>320
+        sta v2i_dst+1
+        clc
+        lda v2i_scr
+        adc #40
+        sta v2i_scr
+        bcc :+
+        inc v2i_scr+1
+:       dex
+        bne @mul
+@done:  rts
+
+v2i_advance:                            ; ptr += word at (hdr),y
+        clc
+        lda v2i_ptr
+        adc (v2i_hdr),y
+        sta v2i_ptr
+        iny
+        lda v2i_ptr+1
+        adc (v2i_hdr),y
+        sta v2i_ptr+1
+        rts
+
+v2i_unpack:                             ; dst = bank base + word at (hdr),y; decode (ptr) -> (dst)
+        lda (v2i_hdr),y
+        sta v2i_dst
+        iny
+        lda (v2i_hdr),y
+        clc
+        adc v2i_bhi
+        sta v2i_dst+1
+v2i_unpack_to_dst:
+        lda v2i_ptr
+        sta v2i_src
+        lda v2i_ptr+1
+        sta v2i_src+1
+        ; fall through
+
+; zero-run-length decode (src) -> (dst): $00,n = n zero bytes, $00,$00 ends. Zero runs
+; are skipped, not written: (dst) must be zero already (v2i_show clears the bank first).
+; Literals cost 18 cycles a byte: src and dst share Y until a run adds it to both.
+v2i_unrle:
+        ldy #0
+@lit:   lda (v2i_src),y
+        beq @run
+        sta (v2i_dst),y
+        iny
+        bne @lit
+        inc v2i_src+1
+        inc v2i_dst+1
+        bne @lit                        ; (always)
+@run:   tya                             ; src += Y, dst += Y
+        clc
+        adc v2i_src
+        sta v2i_src
+        bcc :+
+        inc v2i_src+1
+        clc
+:       tya
+        adc v2i_dst
+        sta v2i_dst
+        bcc :+
+        inc v2i_dst+1
+:       ldy #1                          ; n
+        lda (v2i_src),y
+        beq @done
+        clc                             ; dst += n
+        adc v2i_dst
+        sta v2i_dst
+        bcc :+
+        inc v2i_dst+1
+:       lda v2i_src                     ; src += 2
+        clc
+        adc #2
+        sta v2i_src
+        bcc :+
+        inc v2i_src+1
+:       ldy #0
+        jmp @lit
+@done:  rts
+
+; ---- data and state
+
+v2i_magic: .byte "V2I"
+v2i_system: .byte V2I_PAL               ; set by v2i_init
+v2i_ticks: .byte 0                      ; incremented every frame
+
+; image info, set by v2i_show
+v2i_cols:  .byte 0                      ; size in cells
+v2i_rows:  .byte 0
+v2i_col:   .byte 0                      ; position in cells
+v2i_row:   .byte 0
+v2i_mc:    .byte 0                      ; V2I_F_MC for a multicolour image, else 0
+v2i_bg:    .byte 0                      ; background colour ($d021, v2i_start)
+v2i_end:   .byte 0                      ; first raster line below the image (the kernel
+                                        ; returns and v2i_hook runs about then)
+; set by v2i_info (with the image info above)
+v2i_tptr:  .word 0                      ; thumbnail, 0 if none
+v2i_mptr:  .word 0                      ; metadata text ("key: value" lines, ASCII, each
+v2i_mlen:  .word 0                      ; ending in $0a), and its length; 0 if none
+v2i_flags: .byte 0                      ; header flags (V2I_F_*)
+; thumbnail position for v2i_thumb (sprite coordinates), and what it found
+v2i_tx:    .word 24                     ; X (0-511)
+v2i_ty:    .byte 50                     ; Y
+v2i_tn:    .byte 0                      ; sprites the thumbnail uses (0-8)
+v2i_tbg:   .byte 0                      ; its background colour
+v2i_tblk:  .byte 0                      ; (internal: first sprite block)
+
+; internal
+v2i_bank:  .byte V2I_BANK             ; VIC bank of the image, 1-3 (set before v2i_init)
+v2i_bhi:   .byte 0                      ; the bank's base high byte (v2i_init): 64 * bank
+v2i_bits:  .byte 0                      ; (internal) $dd00 bank bits
+v2i_relhi: .byte 0                      ; (internal) high byte the relocation writes
+v2i_rcnt:  .word 0                      ; (internal) relocation entries left
+v2i_rcode: .word 0                      ; (internal) the kernel's first byte
+v2i_save01: .byte 0
+v2i_savedd00: .byte 0
+v2i_savedd02: .byte 0
+v2i_vic:   .res $2f
+v2i_savezp: .res V2I_ZP_SIZE
+v2i_fx0:   .byte 0
+v2i_fx1:   .byte 0
+v2i_fy0:   .byte 0
+v2i_fy1:   .byte 0
+v2i_fx:    .byte 0
+v2i_fy:    .byte 0
+v2i_fpat:  .byte 0
+v2i_fcol:  .byte 0

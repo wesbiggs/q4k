@@ -81,6 +81,21 @@ def prg_end(path):
     return data[0] | data[1] << 8, (data[0] | data[1] << 8) + len(data) - 3
 
 
+def rle_len(d, o):
+    """Bytes a .v2i stream at o decodes to ($00, n: n zeros; $00, $00 ends)."""
+    n = 0
+    while True:
+        b = d[o]
+        o += 1
+        if b:
+            n += 1
+        elif d[o]:
+            n += d[o]
+            o += 1
+        else:
+            return n
+
+
 def sid_range(path):
     d = open(path, "rb").read()
     off = int.from_bytes(d[6:8], "big")
@@ -131,6 +146,29 @@ def blocks():
     fight = read_map("fight")
 
     B = lambda r, key, cat, label: [r[0], r[1], key, cat, label]
+
+    # owtalk's, the same with a portrait or without; and the largest
+    # portrait (tools/mkportrait.py's files): its file, and its sprites.
+    talk_lo = [
+        B(span(talk, 0x0801, 0x37FF), "talklow", "town",
+          "owtalk: main, talk, gift, the portrait's talk, the C library"),
+        [0x37C0, 0x37FF, "cstack", "town", "C stack (top of MAIN, grows down)"],
+        [0x3800, 0x3FFF, "charset", "video",
+         "Text charset, with read-only data in its spare glyphs"]]
+    talk_high = span(talk, 0x4000, 0x7FFF)
+    talk_top = [
+        B(seg(talk, "BSS"), "talkbss", "tbss", "owtalk BSS"),
+        B(seg(talk, "TALKBSS"), "talkbuf2", "tbss",
+          "Talk buffer (a person's lines)")]
+    pic_end, pic_spr = 0x8000, 0x4400
+    pdir = os.path.join(ROOT, "build", "portraits")
+    for f in sorted(os.listdir(pdir)) if os.path.isdir(pdir) else ():
+        data = open(os.path.join(pdir, f), "rb").read()
+        pic_end = max(pic_end, prg_end(os.path.join(pdir, f))[1])
+        d = data[2:]
+        o = 26 + sum(d[8 + 2 * i] | d[9 + 2 * i] << 8 for i in range(3))
+        n = rle_len(d, o)
+        pic_spr = max(pic_spr, 0x4400 + n - 1)
 
     g_addr = define(os.path.join(ROOT, "include/q4k/owgame.h"), "OWG_ADDR")
     g_size = define(os.path.join(ROOT, "include/q4k/owgame.h"), "OWG_SIZE")
@@ -308,22 +346,30 @@ def blocks():
               "OW-DATA, partly overwritten (reloaded on the way back)"],
          ] + town_bss + top},
         {"id": "owtalk", "name": "Talk",
-         "sub": "owtalk: a conversation (VIC bank 1 kept for a portrait)",
-         "blocks": low + loader + [textscr] + [
-             B(span(talk, 0x0801, 0x37FF), "talklow", "town",
-               "owtalk: main, talk, gift, the C library"),
-             [0x37C0, 0x37FF, "cstack", "town",
-              "C stack (top of MAIN, grows down)"],
-             [0x3800, 0x3FFF, "charset", "video",
-              "Text charset, with read-only data in its spare glyphs"],
-             B(span(talk, 0x4000, 0x4FFF), "talkhigh", "town",
+         "sub": "owtalk: a conversation with someone with no portrait",
+         "blocks": low + loader + [textscr] + talk_lo + [
+             B(talk_high, "talkhigh", "town",
                "owtalk high: the font image and charset_install (used once), "
-               "actor's and town_data's tables"),
+               "actor's and town_data's tables, the portrait's code "
+               "(copied up)"),
              [od[0], od[1], "owdatastale", "stale",
               "OW-DATA, as the engine left it (reloaded on the way back)"],
-             B(seg(talk, "BSS"), "talkbss", "tbss", "owtalk BSS"),
-             B(seg(talk, "TALKBSS"), "talkbuf2", "tbss",
-               "Talk buffer (a person's lines)"),
+         ] + talk_top + top},
+        {"id": "owtalkpic", "name": "Portrait",
+         "sub": "owtalk: a conversation with a portrait (src/ow/talkpic.c)",
+         "blocks": low + loader + [textscr] + talk_lo + [
+             [0x4000, 0x43E7, "picscreen", "video",
+              "Portrait: screen (cell colours), the words' too"],
+             [0x43F8, 0x43FF, "picptrs", "video", "Portrait: sprite pointers"],
+             [0x4400, pic_spr, "picspr", "video",
+              "Portrait: sprite blocks (the largest portrait's)"],
+             [0x6000, 0x7F3F, "picbitmap", "video",
+              "Bitmap: the portrait, and the talk's words drawn by v2t"],
+             [0x8000, pic_end, "picfile", "town",
+              "The portrait's file, its kernel run in place (the largest)"],
+         ] + talk_top + [
+             B(seg(talk, "PICCODE"), "piccode", "town",
+               "The portrait's code: v2i.inc, v2t.inc, keys"),
          ] + top},
         {"id": "fight", "name": "Fight",
          "sub": "owtown + the fight module over its high half",

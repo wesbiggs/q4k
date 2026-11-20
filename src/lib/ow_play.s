@@ -22,7 +22,7 @@
 ; last note for as long as the disk takes).
 
         .export _owt_music_on, _owt_music_pause, _owt_music_resume
-        .export _owt_music_off
+        .export _owt_music_off, _owt_music_frame
 
 SID_VOL  = $D418
 PALFLAG  = $02A6
@@ -38,6 +38,8 @@ state:  .res 1                  ; 0 off, 1 playing, 2 paused
 skip:   .res 1                  ; nonzero: one call in six is skipped
 tick:   .res 1
 vol:    .res 1
+xtra:   .res 1                  ; nonzero: owt_music_frame plays six in five
+tick5:  .res 1
 
         .segment "CODE"
 
@@ -57,17 +59,25 @@ _owt_music_on:
         sta     $FFFB
         lda     HDR_PLAY
         sta     call+1
+        sta     play+1
         lda     HDR_PLAY+1
         sta     call+2
+        sta     play+2
         lda     HDR_VOL
         sta     vol
         ldy     #0              ; 60 Hz: every call; the frame rate on PAL:
-        lda     HDR_CIA,x       ; five in six
-        bne     :+
+        sty     xtra            ; five in six (and by the frame, a 60 Hz
+        lda     HDR_CIA,x       ; one six times in five frames on PAL)
+        beq     @vbi
         lda     PALFLAG
+        sta     xtra
+        jmp     :+
+@vbi:   lda     PALFLAG
         beq     :+
         iny
 :       sty     skip
+        lda     #5
+        sta     tick5
         pla
         sta     $01
         lda     #6
@@ -150,6 +160,26 @@ call:   jsr     $FFFF           ; the tune's play
         pla
         sta     $01
 chain:  jmp     $EA31           ; (what the interrupt was)
+
+; void owt_music_frame(void): the tune's turn, once a frame, from an
+; interrupt that is not the KERNAL's and runs with it out ($01 = $35): the
+; talk's portrait (src/ow/picshow.s), which turns the KERNAL's off. Every
+; frame, and on PAL a tune made for 60 Hz twice on every fifth.
+_owt_music_frame:
+        lda     state
+        cmp     #1
+        bne     fr_no
+        cld
+        lda     xtra
+        beq     @one
+        dec     tick5
+        bne     @one
+        lda     #5
+        sta     tick5
+        jsr     play
+@one:
+play:   jmp     $FFFF           ; the tune's play (its rts returns from here)
+fr_no:  rts
 
 ; An NMI while the KERNAL is out: vault.s's vault_nmi.
 owt_nmi:

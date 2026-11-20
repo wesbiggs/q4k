@@ -351,16 +351,15 @@ member at a time with their figure, below), `OWB_HELP` the keys (`?`). **A conve
 of its own**, `owtalk` (`src/owtalk.c`, `cfg/c64-owtalk.cfg`), which the
 town's overlay loads for a person (`talk_to()`: a keeper or an inn goes to
 `owtown`): `talk.c` and `gift.c`, with all its code below `$3800`
-(3.5K free there, less the C stack), the font image, `charset_install()`
-and `actor.c`'s and `town_data.c`'s tables at `$4000-$4DC6`, and BSS at
-`$B000` as `owtown`'s, so that VIC bank 1 is free for a portrait of the
-speaker (a `.v2i`, once the library can show one in bank 1); before one
-goes there, the tables the talk reads move below `$4000`. Both programs
-(and `isletest`) link `src/ow/owstand.o`, the few variables and functions
-those modules use of what were the classic game's `game.c`, `sprite.c`,
-`savegame.c`, `music.s` and `view.c` (as the engine defines its own),
-ahead of the library; read `build/owtown.map`'s module list after adding
-a module, in case it pulls in more than it should. `rand()`
+(1.2K free there, less the C stack), what runs once at the start above
+it (the font image, `charset_install()`, `actor.c`'s and `town_data.c`'s
+tables) with the portrait's code, and BSS at `$B000` as `owtown`'s, so
+that VIC bank 1 is free for a portrait of the speaker (below). Both
+programs (and `isletest`) link `src/ow/owstand.o`, the few variables and
+functions those modules use of what were the classic game's `game.c`,
+`sprite.c`, `savegame.c`, `music.s` and `view.c` (as the engine defines
+its own), ahead of the library; read `build/owtown.map`'s module list
+after adding a module, in case it pulls in more than it should. `rand()`
 starts from the same seed in every program, so `owtown` seeds it from the
 game's turn (the engine counts its steps into `game_turn`) and seed, or
 every visit would hear the same rumour. The rumours are the inns' own
@@ -396,6 +395,41 @@ harness typing its keys a bufferful at a time (the talk and the engine
 each empty the buffer as they start), hence the `j` padding (`x` is a step now). **Never
 `--poke` an engine's label in a test that starts in `owtown`**: pokes land
 when the first stage is published, which is `owtown`'s, over its code.
+
+**The talk's portraits.** A person with a portrait (`PORTRAITS` in the
+Makefile: the princess so far) talks beside it: `talk.c` draws and reads
+keys through `include/q4k/talkscr.h`'s `ts_*`, which in the game are the
+text screen's (`src/lib/talkscr.c`'s `tsc_*`, named `ts_*` by
+`talkts.s`), and in `owtalk` `src/ow/talkpic.c`'s, which load
+`v.NUMBERn` or `v.NUMBERp` (by `$02A6`; `tools/mkportrait.py` makes them
+from `assets/portraits/NAME-n.v2i` and `-p.v2i`, version 6 hires
+pictures at the top left, at most 24 by 16 cells, without their thumbnail
+and metadata) at `$8000` and show it with vic2orious's `v2i.inc` in VIC
+bank 1, then draw the name and what is said beside it, the topics below
+and the hint in row 24 with `v2t.inc` (`src/ow/picshow.s`,
+`assets/vic2/`, the font the character ROM's, `src/ow/vic2/font.inc`).
+Anyone else, or a portrait that will not load, gets the text screen. The
+picture's code is `PICCODE`, which the file brings into bank 1 and
+`owtalk.c` copies to `$BE00-$CCFF` before anything (138 bytes free there);
+the file loads at `$8000` and stays, since its kernel runs in it
+(`$8000-$AFFF`: 12K, so `mkportrait.py` refuses more). `v2i_show` clears
+`$4000-$7F3F`, which takes what the file brought there, `npc_names[]`'s
+letters (`town_data.c`'s MAPDATA) among them: `ts_open()` copies the name
+first. While it is up the KERNAL is out and the picture's raster interrupt
+runs: **nothing may call the KERNAL between `ts_ready()` (after the
+person's lines are loaded) and `ts_close()`**; keys are `picshow.s`'s
+`pt_key()`, the KERNAL's keyboard buffer if it has any (the tests type
+there) or else the matrix (1-9, 0, RUN/STOP); the music is
+`ow_play.s`'s `owt_music_frame()`, from `v2i_hook` (six in five frames
+for a 60 Hz tune on PAL). The pictures' kernels write `$02`, so owtalk's
+cc65 zero page starts at `$03`; `v2i.inc`'s is `$22`, `v2t.inc`'s `$2F`.
+Lines are 8 pixels, a character row each, so that no two share a row's
+colours; the words wrap by the font's widths and start a new page at the
+bottom. The `openworld-portrait` case in `tools/test.sh` walks to the
+princess, asks about her father and reads the colours of the question's
+and the answer's rows (a text dump cannot read a bitmap), then leaves.
+`--vicshot` shows it. The splash is still the kit's version 5: see
+`assets/vic2/README.md`'s to-do.
 
 **The open world's engine is a core and three overlays** (`src/ow/engine.h`).
 The core (`engine.c`, `smooth.s`, and the library: the main loop, the

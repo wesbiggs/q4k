@@ -23,19 +23,13 @@
 #include <q4k/music.h>
 #include <q4k/panel.h>
 #include <q4k/savegame.h>
-#include <q4k/sprite.h>
+#include <q4k/talkscr.h>
 #include <q4k/text.h>
 #include <q4k/town_data.h>
 #include <q4k/view.h>
 
 /* Read-only data goes in the charset's spare glyphs (CHDATA2 in the cfgs). */
 #pragma rodata-name ("CHDATA2")
-
-#define TR_Y      3    /* transcript */
-#define TR_H     12
-#define MENU_Y   17    /* topics, two columns of five rows: 1-9, then 0 */
-#define COL_W    20
-#define HINT_Y   23
 
 /* An entry in a file: flags, the stages as lo << 4 | hi, a topic's label,
    the text. tools/mktalk.py says more. */
@@ -151,11 +145,12 @@ static void say(unsigned char *e)
     if (!e) {
         return;
     }
-    panel_wrap(text_of(e), COLOR_LIGHTGREEN);
+    ts_say(text_of(e), COLOR_LIGHTGREEN, 1);
     if (*e & T_GIVE) {
         note = gift(GRANT_OPEN);
         if (note) {
-            panel_lit(note, COLOR_YELLOW);
+            str_lit(seg, note);
+            ts_say(seg, COLOR_YELLOW, 0);
         }
     }
 }
@@ -167,14 +162,12 @@ static unsigned char menu(void)
     unsigned char i;
     unsigned char *e;
 
-    for (i = 0; i < 5; ++i) {
-        text_clear(0, MENU_Y + i, SCR_W);
-    }
+    ts_topic(TS_ALL, 0);
     for (i = 0; (e = find(T_TOPIC, i)) != 0; ++i) {
         seg[0] = KEY_1 + i;
         seg[1] = 0x20;
         strcpy(seg + 2, (char *)e + 2);
-        text_put(i & 1 ? COL_W : 0, MENU_Y + (i >> 1), seg, COLOR_WHITE);
+        ts_topic(i, seg);
     }
     return i;
 }
@@ -186,35 +179,28 @@ unsigned char dialog_talk(unsigned char npc, const char *name,
     unsigned char *e;
 
     gift = given;
-    sprite_hide();
-    clrscr();
-    textcolor(COLOR_YELLOW);
-    cputsxy(0, 0, name);
-    textcolor(COLOR_GRAY1);
-    chlinexy(0, 1, SCR_W);
-    chlinexy(0, MENU_Y - 1, SCR_W);
-    textcolor(COLOR_GRAY2);
-    cputsxy(0, HINT_Y, "Number to ask, RUN/STOP leaves");
-    panel_begin(TR_Y, TR_H);
+    ts_open(name);
 
     /* Always from the disk: another engine may have had the slot since. */
     held = NONE;
     if (!load(npc)) {
         return DIALOG_ENOLINE;
     }
+    ts_ready(npc);              /* nothing more from the disk */
 
     say(pick());
     for (;;) {
         n = menu();
-        key = cgetc();
+        key = ts_key();
         if (key == KEY_STOP) {
+            ts_close();
             return DIALOG_OK;
         }
         key -= KEY_1;
         if (key < n) {
             e = find(T_TOPIC, key);
             str_asc(str_lit(seg, "> "), (char *)e + 2);
-            panel_line(seg, COLOR_WHITE);
+            ts_ask(seg);
             say(e);
         }
     }
