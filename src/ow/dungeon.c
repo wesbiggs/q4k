@@ -102,9 +102,6 @@ static void spawn(void)
 {
     unsigned char top;
 
-    /* dungeon_build() seeded the dice from the level, the same every
-       visit: these are new with every way in. */
-    srand(G->game_turn + steps + depth);
     a = G->party_level + depth - 1;
     for (top = 0; top < WANDERERS && w_from[top] <= a; ++top) {
     }
@@ -119,6 +116,11 @@ static void muster(void)
 {
     unsigned char m = 1 << (depth - 1);
 
+    /* dungeon_build() seeded the dice from the level, the same every
+       visit: from here on (the monsters placed, L, a chest) they are new
+       with every turn, on every way onto the level, a level seen before
+       and a return from a fight or a talk too. */
+    srand(G->game_turn + steps + depth);
     st_chests();                /* (the chests emptied, drawn open) */
     base = (depth - 1) * FOES;
     if (!(G->foe_made & m)) {

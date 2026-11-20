@@ -508,6 +508,13 @@ static void step_world(void)
     wy += dirdy[dir];
     hx = wx & 127;
     hy = wy & 127;
+    /* The land underfoot, which what wanders out is chosen by (a land's
+       natives, ow_fight.c) and a save keeps: the cell's, or as it was out
+       on the open sea, where nothing wanders. */
+    s = grid[wy >> 6][wx >> 6];
+    if (s) {
+        land = s == CELL_HOME ? ISLE_HOME : s - 1;
+    }
     if (!boat) {
         s = ship_at(wx, wy);
         if (s != NONE) {

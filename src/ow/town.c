@@ -424,14 +424,16 @@ void t_enter(void)
 /* Whether a step that way can be taken: as anywhere in a place, except
    out of Millford before Garrett has armed the party (the game's rule:
    nobody leaves without a weapon). */
+static unsigned char gate_shut(unsigned char d)
+{
+    return quest_stage == Q_START && town_index == TOWN_MILLFORD &&
+        (unsigned char)(hx + dirdx[d] - BIAS) == ex &&
+        (unsigned char)(hy + dirdy[d] - BIAS) == ey;
+}
+
 unsigned char __fastcall__ t_can_step(unsigned char d)
 {
-    if (quest_stage == Q_START && town_index == TOWN_MILLFORD &&
-        (unsigned char)(hx + dirdx[d] - BIAS) == ex &&
-        (unsigned char)(hy + dirdy[d] - BIAS) == ey) {
-        return 0;               /* (t_bump says no) */
-    }
-    return place_step(d);
+    return !gate_shut(d) && place_step(d);  /* (t_bump says why not) */
 }
 
 /* At the end of a step: out by the way out, to the world's overlay, or in
@@ -509,7 +511,7 @@ void __fastcall__ t_bump(unsigned char d)
 {
     unsigned char i, x = hx + dirdx[d], y = hy + dirdy[d];
 
-    if (x - BIAS == ex && y - BIAS == ey) {
+    if (gate_shut(d)) {         /* (not any way out that is merely blocked) */
         refuse(unarmed);
         return;
     }
