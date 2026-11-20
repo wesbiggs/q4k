@@ -387,6 +387,11 @@ static unsigned char disk_on(void)
     i = sm_sproff;
     sm_sproff = 1;              /* (the interrupt writes $D015 every frame) */
     VIC.spr_ena = 0;
+    /* And the corners' NMI, which the last frame's interrupt started (one
+       shot: it would come about 10 ms from now, as the load begins), and
+       which no interrupt starts again while sm_sproff is set: an NMI
+       breaks into the KERNAL's serial transfers. */
+    CIA2.cra = 0;
     return i;
 }
 
