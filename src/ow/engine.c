@@ -327,7 +327,7 @@ unsigned char __fastcall__ place_step(unsigned char d)
 }
 
 /* A direction held down: the stick, or a key still down in the matrix.
-   Q, E, Z and C are the diagonals. */
+   Q, E, Z and X are the diagonals (the keyboard's codes 62, 14, 12, 23). */
 static unsigned char held(void)
 {
     unsigned char k = PEEK(0xCB), shift = PEEK(0x28D) & 1;
@@ -336,7 +336,7 @@ static unsigned char held(void)
     if (j == 5  || k == 62) return DIR_UL;
     if (j == 9  || k == 14) return DIR_UR;
     if (j == 6  || k == 12) return DIR_DL;
-    if (j == 10 || k == 20) return DIR_DR;
+    if (j == 10 || k == 23) return DIR_DR;
     if ((j & 1) || k == 9)  return DIR_UP;
     if ((j & 2) || k == 13) return DIR_DOWN;
     if ((j & 4) || k == 10) return DIR_LEFT;
