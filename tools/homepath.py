@@ -29,7 +29,7 @@ ISLE_NAMES = {"story": 0, "town": 1}
 
 
 def slot_of(seed, d):
-    """src/lib/game.c's slot_of(), in Python."""
+    """src/lib/slot.c's slot_of(), in Python."""
     p = [0, 1, 2, 3]
     v = seed
     for i in (3, 2, 1):

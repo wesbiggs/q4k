@@ -2829,7 +2829,6 @@ _sm_quit:
         sta     $0318
         lda     #>$FE47
         sta     $0319
-        lda     #0
         lda     #$FF
         sta     $D019
         lda     #<$EA31

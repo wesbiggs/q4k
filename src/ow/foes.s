@@ -5,7 +5,7 @@
 ; has the room for this and not that.
 ;
 ; Squares are the engine's (biased by BIAS, as sm_npc_x/y and hx/hy are).
-; Monster i is sprite i + 1: sm_npc_x/y[i] its square, 0 if it is dead,
+; Monster i is person i: sm_npc_x/y[i] its square, 0 if it is dead,
 ; and sm_npc_ox/oy[i] the pixels it is drawn off it while it glides there.
 ;
 
@@ -467,7 +467,7 @@ _foe_turn:
         rts
 
 ; void foe_muster(void) -- the level's monsters (from base) onto the screen
-; as sprites 1 to 6: where they are, what they look like, how fast they go,
+; as people 0 to 5: where they are, what they look like, how fast they go,
 ; none gliding; sm_npc_n 0 if none is alive.
 _foe_muster:
         lda     #0
@@ -505,7 +505,7 @@ _foe_muster:
         sta     _sm_npc_n
 @dead:  lda     FOE_B,y         ; its kind: b's top three bits, then a's two
                                 ; (a dead one's runs past the tables: its
-                                ; sprite is off, so what it gets is unseen)
+                                ; square is 0, never shown, so what it gets is unseen)
         lsr     a
         lsr     a
         lsr     a

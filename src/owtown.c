@@ -19,7 +19,8 @@
  *                       above $4000: what runs after it is below)
  *
  * The music the engine was playing carries on here where it paused
- * (src/lib/ow_play.s), but for a fight, which has none yet.
+ * (src/lib/ow_play.s); a fight plays its own scene's (ow_fight.c's
+ * fight_music()), carrying on with the engine's if it is the same song.
  *
  * It reads and writes the game through the game block (q4k/owgame.h), and
  * when it is done the engine is loaded back (ow_back()) and carries on from

@@ -33,12 +33,12 @@
 #define AREA_CASTLE  2
 #define AREA_DUNGEON 3
 
-#define OWG_GATE     0xFF
+#define OWG_GATE     0xFF       /* x: at the town's own gate, not a square */
 
 #define OWG_CALM     4          /* quiet: no wandering monsters (the tests'
                                    quick start and the disk's save) */
 #define OWG_HIDE     8          /* quiet: SPACE hid the party's status
-                                   under the map (src/ow/status.c) */       /* x: at the town's own gate, not a square */
+                                   under the map (src/ow/stlow.s) */
 
 typedef struct {
     Actor         party[MAX_PARTY];     /* first: the engines' cfg names it */

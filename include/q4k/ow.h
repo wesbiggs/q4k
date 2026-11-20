@@ -45,7 +45,7 @@ typedef struct {
     unsigned char home_fx[OW_PLACES], home_fy[OW_PLACES];
     unsigned char ipx[4][2], ipy[4][2];  /* each continent's places */
     unsigned char ibiome[4];
-    unsigned char slot[4];      /* which story place: game.c's slot_of() */
+    unsigned char slot[4];      /* which story place: slot.c's slot_of() */
     unsigned int  ship_x[OW_SHIPS];      /* in the world, 384 by 256 */
     unsigned char ship_y[OW_SHIPS];
     unsigned char hook;         /* the tests' way to press F1 or F3: below */

@@ -56,7 +56,7 @@ def cap(text):
 
 
 def slot_of(seed, d):
-    """src/lib/game.c's slot_of(), which tools/homepath.py has as well."""
+    """src/lib/slot.c's slot_of(), which tools/homepath.py has as well."""
     p = [0, 1, 2, 3]
     v = seed & 255
     for i in (3, 2, 1):

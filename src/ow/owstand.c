@@ -36,23 +36,6 @@ void give(unsigned char item)
     items |= item;
 }
 
-/* Which continent holds which story place (the shops' tiers follow it):
-   game.c's, from the seed. */
-unsigned char slot_of(unsigned char d)
-{
-    unsigned char p[4], i, j, t, v = lore_seed;
-
-    for (i = 0; i < 4; ++i) {
-        p[i] = i;
-    }
-    for (i = 3; i > 0; --i) {
-        v = v * 5 + 3;
-        j = (v >> 5) % (i + 1);
-        t = p[i]; p[i] = p[j]; p[j] = t;
-    }
-    return p[d];
-}
-
 void sprite_hide(void)
 {
     VIC.spr_ena = 0;

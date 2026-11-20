@@ -2,11 +2,12 @@
  * Open world: what the engine's three parts share.
  *
  * The engine is a core (engine.c and smooth.s: the main loop, the scrolling,
- * the music, what every area does) and two overlays that take turns in one
- * slot of memory (cfg/c64-openworld.cfg's SLOT): the world's (world.c: the
- * overworld, the ships and the continents), the town's (town.c: towns and
- * the castle, their roofs and their people, and the conversations) and the
- * dungeon's (dungeon.c, with the dungeon generator). Stepping into a town or
+ * the music, what every area does) and three overlays that take turns in
+ * one slot of memory (cfg/c64-openworld.cfg's SLOT): the world's (world.c:
+ * the overworld, the ships and the continents), the town's (town.c: towns
+ * and the castle, their roofs and their people, and who to talk to: the
+ * conversation itself is a program of its own, src/owtalk.c) and the
+ * dungeon's (dungeon.c, with the dungeon generator and its monsters). Stepping into a town or
  * a dungeon loads its overlay over the world's, and its way out loads the
  * world's back; what each keeps in BSS stays put while another is in, so
  * the overworld comes back as it was left.
@@ -166,7 +167,8 @@ void __fastcall__ loot_found(unsigned char draughts, unsigned int amount);
 unsigned char __fastcall__ take_bit(unsigned char bit);
 void __fastcall__ look_nothing(unsigned char ground);
 extern unsigned char grave_odds;
-/* A way that is shut: the refusal's sound, and why, in grey. */
+/* A way that is shut: the refusal's sound, and why, in cyan (sm_ink is
+   0-7 only: light grey would be a multicolour character). */
 void __fastcall__ refuse(const char *why);
 
 void next_frame(void);

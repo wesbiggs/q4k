@@ -124,24 +124,6 @@ unsigned char place_at(unsigned char x, unsigned char y)
     return PLACE_NONE;
 }
 
-/* A shuffle of 0-3 from the game's seed, which is a byte: not every order
-   comes up, but the common ones do and no seed gives a sequence a player
-   could tell was not drawn by chance. */
-unsigned char slot_of(unsigned char d)
-{
-    unsigned char p[4], i, j, t, v = lore_seed;
-
-    for (i = 0; i < 4; ++i) {
-        p[i] = i;
-    }
-    for (i = 3; i > 0; --i) {
-        v = v * 5 + 3;
-        j = (v >> 5) % (i + 1);
-        t = p[i]; p[i] = p[j]; p[j] = t;
-    }
-    return p[d];
-}
-
 unsigned char has(unsigned char item)
 {
     return (items & item) != 0;
