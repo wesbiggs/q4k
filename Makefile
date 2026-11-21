@@ -457,6 +457,11 @@ FIGHTOBJ := $(patsubst %,$(BUILD)/fight/%.o,head block fight mux fight_data corn
             $(BUILD)/ow/ow_sfx.o
 FIGHT_STAMP := $(BUILD)/fight/disk/.stamp
 
+# -Or (SMALLMODS): a tenth smaller. A static pattern rule, naming its
+# targets: as a plain one it also matched $(BUILD)/%.o: src/%.c above, and
+# GNU make 3.81 (macOS's /usr/bin/make) takes the first rule that matches,
+# not the most specific as 3.82 and later do, so it built fight.c with
+# -Osir, 329 bytes bigger.
 $(BUILD)/fight/block.o $(BUILD)/fight/fight.o: $(BUILD)/fight/%.o: src/fight/%.c
 	@mkdir -p $(dir $@)
 	$(CL65) $(filter-out -Osir,$(CFLAGS)) -Or $(DEPFLAGS) -c -o $@ $<
