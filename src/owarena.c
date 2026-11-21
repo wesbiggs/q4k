@@ -29,7 +29,7 @@
  * For the tests, poked: auto_seed makes the next fight's dice the same
  * every time, and auto_hp starts everyone on that much health.
  *
- *   *        play by itself, for tools/balance.py --ow: the fight poked
+ *   *        play by itself, for tools/balance.py: the fight poked
  *            (auto_mon, level, group, ground, and a party of auto_n with
  *            classes and arms auto_cls/w/a/b), auto_runs times, with the
  *            module's autoplayer (FIGHTBOT: the module built with

@@ -10,7 +10,7 @@ The game plays standard SID files (PSID): a 6502 player and its song data,
 with an init routine (the song number in A) and a play routine called 60 or
 50 times a second. It keeps one tune at a time under the KERNAL, at
 $E800-$FFF9, and loads each from the disk when a scene wants it
-(src/lib/tune.c, src/lib/music.s). assets/music.txt is the map from scene to
+(play_for() in src/ow/engine.c, src/lib/ow_tune.s). assets/music.txt is the map from scene to
 (SID file, song); `map` makes it into include/q4k/music_map.h and
 src/lib/music_map.c, which are committed like the other generated sources.
 
@@ -50,7 +50,7 @@ MAP_SRC = "assets/music.txt"
 MAP_H = "include/q4k/music_map.h"
 MAP_C = "src/lib/music_map.c"
 
-AREA_LO, AREA_HI = 0xE800, 0xFFFA       # the tune's (cfg/sid.cfg, music.s)
+AREA_LO, AREA_HI = 0xE800, 0xFFFA       # the tune's (cfg/sid.cfg, ow_tune.s)
 HEADER_AT = 0xE7C0                      # 64 bytes between vault slot 0 and it
 HEADER_SIZE = 0x40
 MAX_SONGS = HEADER_SIZE - 6

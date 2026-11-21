@@ -1,43 +1,43 @@
 # Quest for the King — working notes
 
-Grid-based RPG roguelike for the Commodore 64 (Ultima III lineage).
-cc65 + VICE on macOS. See DEVELOPERS.md for the workflow and README.md for
-the story and how to play.
+Grid-based RPG roguelike for the Commodore 64 (Ultima III lineage): an open
+world that scrolls smoothly over multicolour tiles. cc65 + VICE on macOS.
+See DEVELOPERS.md for the workflow and README.md for the story and how to
+play.
 
 ## Where to look
 
 This file is long; search it for the **bold** lead-ins named here.
 
-- **Two games share the code.** The game proper (`q4k.prg`, `dist/q4k.d64`:
-  sections Memory, Music, The land, The party, Testing) and the open world
-  (`openworld.prg`, `dist/openworld.d81`), the smooth-scrolling one, which is
-  where most work happens now even though its section still calls it a
-  prototype. The open world borrows the game's modules but none of its
-  memory map.
-- **The open world**, in the order a session usually needs it: "The
-  smooth-scrolling prototype" (the disk, the bootstrap, the world, streaming,
-  the REU, places and roofs); "The open world's engine is a core and three
-  overlays" (`src/ow/`, the slot, `ovl.s`'s jump table, what fits where);
-  "The text window, and `L`" (the two lines under the map, `sm_say()`);
-  "The music carries on"; "The screens of text are a program" (`owtown`:
-  talk, shops, inns, party, help, and `ow_back()`); "Fights in the open
-  world"; "The open world's game lives in a block" (`OwGame`, saves); "The
-  story in the open world" (gates and refusals). Keys are listed at the top
-  of `src/ow/engine.c`; how the screen is built is at the top of
-  `src/ow/smooth.s`.
-- **Space** is the usual constraint: free bytes per region are in each
-  section ("Memory" for the game, the open world's "Memory" and the engine's
-  overlay paragraph). Read the `.map` after a change; `make` prints
-  `owslots:` and `mkengines:` lines with the slot sizes.
-- **The open world's memory map** is a page, `docs/memmap.html` (checked
-  in): every mode's blocks and what is free, drawn by `tools/mkmemmap.py`
-  (what each block is) into `tools/memmap.html` (the page) from the
-  linker maps, the disk's data files, `OWG_SIZE` and the engine's sprite
-  count. `make` reruns it after any of those programs relinks; it stamps
-  the date and the commit the build came from (and whether the tree had
-  changes on top), refuses blocks that overlap, and rewrites the file only
-  when an address moved, so the stamp is when the map last changed. A new
-  segment or program is a line in `blocks()` there.
+- **One game.** The open world (`openworld.prg`, `dist/openworld.d81`). The
+  classic game it grew out of, which moved a square at a time (`q4k.prg` on
+  a `.d64`, with an experimental networked build and a dialogue host), was
+  retired: tag `v0.11.0` builds it. Many library modules are the classic
+  game's, and their comments still say "the game's" this or that; the files
+  they name (`battle.c`, `game.c`, `sprite.c`, `music.s` ...) are in that
+  tag's history.
+- **The open world**, in the order a session usually needs it: "The open
+  world" (the disk, the bootstrap, the world, streaming, the REU, places and
+  roofs); "The open world's engine is a core and three overlays" (`src/ow/`,
+  the slot, `ovl.s`'s jump table, what fits where); "The text window, and
+  `L`" (the two lines under the map, `sm_say()`); "The music carries on";
+  "The screens of text are a program" (`owtown`: talk, shops, inns, party,
+  help, and `ow_back()`); "Fights in the open world"; "The open world's game
+  lives in a block" (`OwGame`, saves); "The story in the open world" (gates
+  and refusals). Keys are listed at the top of `src/ow/engine.c`; how the
+  screen is built is at the top of `src/ow/smooth.s`.
+- **Space** is the usual constraint: free bytes per region are in the open
+  world's "Memory" paragraph and the engine's overlay paragraph. Read the
+  `.map` after a change; `make` prints `owslots:` lines with the slot sizes.
+- **The memory map** is a page, `docs/memmap.html` (checked in): every
+  mode's blocks and what is free, drawn by `tools/mkmemmap.py` (what each
+  block is) into `tools/memmap.html` (the page) from the linker maps, the
+  disk's data files, `OWG_SIZE` and the engine's sprite count. `make` reruns
+  it after any of those programs relinks; it stamps the date and the commit
+  the build came from (and whether the tree had changes on top), refuses
+  blocks that overlap, and rewrites the file only when an address moved, so
+  the stamp is when the map last changed. A new segment or program is a line
+  in `blocks()` there.
 - **Tests**: "Testing" (twice: the rules, then the harness), and "Debugging
   a hang in VICE" for when a screen test just times out.
 
@@ -51,147 +51,73 @@ This file is long; search it for the **bold** lead-ins named here.
   costs nothing in programs that don't call it.
 - Anything with `main()` goes directly in `src/` and becomes its own `.prg`.
 
-## Memory
+## The library's segments
 
-Set up in `cfg/c64-q4k.cfg`, which **both builds** link with: the game
-(offline) and the experimental networked one have the same layout and the same engines, and differ
-only in who talks (see "The two builds" below). A core stays in memory and one
-slot holds one engine at a time, loaded from the disk.
+Every program has its own cfg (`cfg/`): the bootstrap's (`c64-owboot`), the
+engines' (`c64-openworld`), `owtown`'s, `owtalk`'s, the fight module's, the
+arena's, `isletest`'s (`c64-flat`, everything in one load) and the lean
+`c64-tool` (`owparty`). The library's modules are compiled once, so where
+their code goes is a segment name chosen in the Makefile and placed by each
+cfg:
 
-- `$0801-$37FF` **MAIN** -- the core's code and rodata, with the C stack at
-  its top.
-- `$3800-$3FFF` **charset**, built at runtime. Must be in VIC bank 0 and not
-  at `$1000`/`$1800`, where the VIC sees character ROM whatever RAM holds.
-  Its reverse-video half is mostly glyphs the game never draws, and
-  `charset_install()` copies only the ones it does, so three runs of them are
-  free for read-only data: `CHDATA1` (112 bytes, `$3C90`), `CHDATA2` (248,
-  `$3D08`) and `CHDATA3` (448, `$3E40`), each a linker segment of its own. A
-  module puts its rodata there with `#pragma rodata-name ("CHDATA3")` after
-  its includes (inn, sprite and the lot are there, and so are a few strings of `q4k.c` and
-  `help.c` that did not fit anywhere else, as `static const char[]` between
-  two pragmas; the land and town generators' tables are in `CHDATA1`). They
-  are the core's, so they are there whatever the slot holds; 9 bytes are free
-  in `CHDATA1`, 123 in `CHDATA2` (157 online) and 206 in `CHDATA3`, which
-  starts at `$3E58`, past the party's three class glyphs (`$C8-$CA`).
-  `$A0` is the input cursor, `$C0-$C7`
-  the bow shot's sprite block, `$C8-$CA` the warrior, archer and wizard, and
-  `$80-$91` the actors: leave those alone,
-  and check `assets/tiles.txt` before using any glyph above `$91` on screen.
-- `$4000-$83FF` **the slot**: one engine at a time -- the map's (`e.map`),
-  the fight's, the talk's (people and inns) or the shop's -- loaded by
-  `engine_call()` (`src/lib/engine.c`, `include/q4k/engine.h`; ENGINES.md has
-  the design and its choices). At the start it holds the title screen, which
-  the PRG brings: `title.o`, `charset_define.o` and the glyph table with
-  `tiles_install()` in `tiles_data.c` (marked by `tools/mktiles.py`), in the
-  segments `TITLECODE`/`TITLEDATA`; `boot.c`'s `main()` runs it, then loads
-  the map's engine over it for good. The Makefile's `ENG_*` lists say which
-  modules are in which engine: only their code and constants move, while their
-  BSS and DATA stay in the core. **An engine may call the core and itself,
-  nothing else**; the core and other engines reach it only through its
-  `*_entry`. `tools/mkengines.py` checks that after every link and fails the
-  build otherwise. Scratch that lasts only while its engine runs follows its
-  code: the fight's arrays (`overlay.s`, `FIGHTBSS`) and the offline talk's
-  buffer (`talkbuf.s`, `TALKBSS`). The music is not in the slot: it is a SID
-  file loaded under the KERNAL when a scene wants it (see Music). The game
-  needs its disk, and asks for it back if an engine's load fails. The map's engine is
-  the biggest, 15731 bytes of the slot's 17408, then the fight's (14800). The
-  shop's engine also holds the screens the map opens that are not a place:
-  the help screen and the party screen (`I`), through `shop_entry()` with
-  `SHOP_HELP`/`SHOP_PARTY`; the quest's next-step table (`quest.c`) is in the
-  core, since both the map and the help screen print it.
-- `$8400-$C0FF` **HIGH** -- the rest of the core: `HIDATA` for bulk tables
-  and `HICODE` for code that will not fit below. Core modules listed in the
-  Makefile's `HIMODS` are compiled with `--code-name HICODE --rodata-name
-  HIDATA`; an engine's modules go to their engine whatever that list says.
-  Changing either needs the objects rebuilt, because a target-specific
-  `CFLAGS` will not invalidate them on its own. About 6.0K are free in HIGH
-  (5.3K online), 5.1K in MAIN (less the stack) and 257 bytes in BSS -- but
-  **only 20 online**, so anything new that lives in BSS has to be paid for
-  there first. The party is why: `Actor` is kept small (no level, glyph or
-  `alive`; a fallen member is one with no health) because four are in
-  memory and four more in the save's buffer. The Makefile's `SMALLMODS` (loot, shop, inn, help, battle, arms,
-  dialog, dungeon, talk and gift) are built with `-Or`, not `-Osir`: without
-  `-Os` cc65 stops inlining shifts and the like, which is about a tenth
-  smaller. The fight is in it on the grounds that a turn-based flood fill can
-  afford to be slower; nothing whose timing was measured is. Changing `cfg/`
-  relinks everything.
-- **The two builds.** The game is the offline build: `make`, in `build/`
-  and `dist/`, links `talk.c` and `talkbuf.s`. The networked build, which is
-  experimental (`make online`, `ONLINE=1`, `-DQ4K_ONLINE`, in `build/online/`
-  and `dist/online/`), links `dialog.c` (in the talk's engine) and `line.c`
-  and `modem.c` (in the core, because the title screen asks for the host
-  before any engine is loaded) instead. Both are called the same way
-  (`include/q4k/dialog.h`), and `Q4K_ONLINE` is tested only there and in
-  `title.c`; keep it that way. Measure both builds after a change to either;
-  `tools/screendump.py` finds `build/online/q4k.lbl` for
-  `dist/online/q4k.prg`, and `tools/modes.py` groups either map by mode.
-- **The test programs** that link the game's modules (dungeontest, arena,
-  isletest) use the same objects, engine segments and all, and link with
-  `cfg/c64-flat.cfg`, which puts every engine's segments in HIGH in one load.
-  `cfg/c64-tool.cfg` is for the small tools.
-- **The C stack is at the top of MAIN, not where the cfg used to say.** cc65's
-  startup points `sp` at `__MAIN_START__ + __MAIN_SIZE__`, `$3800`, and it
-  grows down through MAIN's spare bytes and then the dead ONCE
-  segment. Painting `$3700-$37FF` and running a save and a long walk found
-  the stack no deeper than 31 bytes, so what is left is plenty, but measure
-  again before spending more of it.
-- `$CF14-$CFFF` **BSS2**, 236 bytes of the probe page the probe does not use
-  (it keeps `$CF00-$CF13`; `screendump.py` reads that much). Above the RS-232
-  buffers, so it is not contiguous with BSS, and ld65 does not clear it: put
-  something there with `#pragma bss-name (push, "BSS2")` only if it is always
-  written before it is read. `fov_lit` (192 bytes), the fight's copy of a
-  continent's monster, `native`, where each of the party stands in a fight
-  and the foes' health are there; 5 bytes of BSS2 are left.
-  Anything that needs the probe page longer must move the bound in both the
-  cfg and `screendump.py`.
-- `$C100-$CCFF` **BSS**, then the RS-232 buffers at `$CD00-$CEFF`
-  (`modem_open()` raises `MEMSIZ` to `$CF00`, and the KERNAL takes them from
-  just below it; the offline build keeps them free too, so that the layout is
-  one file) and the probe page at `$CF00`. HIGH's top 4K is RAM under BASIC
-  ROM (banked out at startup).
-- **The RAM under the ROMs** (`src/lib/vault.s`). `$D000-$DFFF`, under the I/O
-  area, holds the home continent for the whole game, 64 by 64 bytes of tiles;
-  `$E000-$E7BF`, under the KERNAL, holds a continent put away while a town or
-  a dungeon is in `local[]` (1984 bytes; getting in and out of all-RAM is
-  `vault_bank.s`, apart so that a program can have it without the copies); the rest under the KERNAL is the
-  music's, a tune's header at `$E7C0` and the tune at `$E800-$FFF9` (see
-  Music). Reaching the vault takes the machine to all-RAM (`$01 = $34`), which
-  takes the KERNAL and the I/O area away, so interrupts are off for as long as
-  it lasts and the only code that may run is in ordinary RAM and calls nothing
-  of the KERNAL's. An NMI cannot be turned off and its vector is read from RAM
-  under the KERNAL too, so `vault_enter` (and the music, which plays with the
-  KERNAL out) points it at `vault_nmi`, which banks the KERNAL in, runs its
-  handler and banks it out again: the modem's RS-232 is NMI-driven, and a
-  byte arriving while a tune plays would otherwise stop it for good (tested:
-  the online dialog hangs with a bare RTI there and a slow tune). Everything is a
-  copy of a screenful or a row (`vault_row`, `vault_tile`, `vault_park`,
-  `vault_unpark`, about 30 ms at the worst) except building home, which the
-  generator does in place, a few seconds with nothing else running.
+- `HIMODS` (arms, panel, actor, quest) go to `HICODE`/`HIDATA`, and the
+  `ENG_` lists to the segments named for the classic game's engines
+  (`MAPCODE`, `TALKCODE`, `SHOPCODE` ...): the generators and the towns'
+  tables, the bestiary, the talk and the inn, the shop and help. Changing
+  either needs the objects rebuilt, because a target-specific `CFLAGS` will
+  not invalidate them on its own.
+- `SMALLMODS` (shop, inn, help, arms, talk, gift) are built with `-Or`, not
+  `-Osir`: without `-Os` cc65 stops inlining shifts and the like, which is
+  about a tenth smaller. Nothing whose timing was measured is on it.
+- `dungeon.c`, `sfx.s`, `isle_gen.s` and `tgen.s` (with `town_gen.c` and
+  `town_data.c`) are built again into the engine's own segments
+  (`ow_dungeon.o`, `ow_sfx.o`, `ow_isle.o` ...), linked ahead of the library
+  so that its copies are not.
+- **The charset's spare glyphs.** A program with the game's character set
+  (owtown, owtalk, owparty) has it at `$3800`, built at runtime
+  (`charset_install()`), whose reverse-video half is mostly glyphs nothing
+  draws, so three runs of it are free for read-only data: `CHDATA1` (112
+  bytes, `$3C90`), `CHDATA2` (248, `$3D08`) and `CHDATA3` (448, `$3E40`),
+  each a segment of its own. A module puts its rodata there with `#pragma
+  rodata-name ("CHDATA3")` after its includes (inn and talk do; the land and
+  town generators' tables are in `CHDATA1`). `$A0` is the input cursor and
+  `$80-$91` the actors: check `assets/tiles.txt` before using any glyph above
+  `$91` on screen.
 - `local[]`, the town, dungeon or continent map, **is the font image** (2K of
-  HIDATA), reused once `charset_install()` has copied it to `$3800`. Install
-  the charset before anything writes a map; `charset_install()` refuses a
-  second copy, since by then it would copy the map. Its last row (64 bytes) is
-  also the row buffer home is drawn through (`world_view()` copies a row out of
-  the vault into it), so a continent is 64x31, not 64x32, and nothing else may
-  keep anything in that row while the overworld is drawn. (The ship draws home
-  while a continent is still being built into the rest of local[].)
-- `$0340-$03FF` **hero sprite** data (blocks 13 to 15, in the cassette
-  buffer). Sprites must sit in VIC bank 0 like the charset; all three are in
-  use. Nothing else may use the tape buffer.
-- More sprite blocks come out of the **charset's reverse half**; see the
-  glyph list above before taking one.
-
-The PRG is one contiguous load, so MAIN and the charset gap are `fill = yes`.
-That is why the small tools use `cfg/c64-tool.cfg` instead: without it a
-1.4K hello world becomes a 14K one.
+  HIDATA, `src/lib/local.s`), reused once `charset_install()` has copied it
+  to `$3800`. Install the charset before anything writes a map;
+  `charset_install()` refuses a second copy, since by then it would copy the
+  map. A continent is 64x31 of it, not 64x32. In an engine it is at `$8000`
+  and in no file.
+- **The RAM under the ROMs** (`src/lib/vault.s`). `$D000-$DFFF`, under the
+  I/O area, holds home for the whole game, 64 by 64 bytes of tiles, which the
+  bootstrap builds in place; `$E000-$E7BF`, under the KERNAL, the continent
+  the engine keeps (getting in and out of all-RAM is `vault_bank.s`); the
+  rest under the KERNAL is the music's, a tune's header at `$E7C0` and the
+  tune at `$E800-$FFF9` (see Music). Reaching the vault takes the machine to
+  all-RAM (`$01 = $34`), which takes the KERNAL and the I/O area away, so
+  interrupts are off for as long as it lasts and the only code that may run
+  is in ordinary RAM and calls nothing of the KERNAL's. An NMI cannot be
+  turned off and its vector is read from RAM under the KERNAL too, so
+  `vault_enter` (and the music, which plays with the KERNAL out) points it
+  at `vault_nmi`, which banks the KERNAL in, runs its handler and banks it
+  out again.
+- **The probe page**, `$CF00-$CFFF`, is every cfg's, for the test harness
+  (`include/q4k/probe.h`): don't place data there. Above what the probe uses,
+  `$CF14` on is the disk icon's (below) in the engines, and `BSS2` in the
+  programs that link the game's modules. ld65 does not clear `BSS2`.
+- **`__RSBUF__`** (`$CD00`) is where owtown's, owtalk's and the flat cfg's
+  BSS stops: the classic game kept the KERNAL's RS-232 buffers there, and
+  nothing opens the modem now. The game block is at `$CE3F` above it.
+  Check `docs/memmap.html` before taking any of `$CD00-$CE3E`.
 
 ## Things that will bite you
 
 **cl65 makes `foo.s` from `foo.c` in the source directory on its way to
 `foo.o`, and deletes it afterwards.** An assembly module whose name matches a C
-module's is overwritten and then deleted, with no complaint. The continent
-land generator is `isle_gen.s` (next to `isle.c`) for that reason, and the
-towns' is `tgen.s` (next to `town_gen.c`). The same goes for one `.c` compiled
+module's is overwritten and then deleted, with no complaint. The land
+generator is `isle_gen.s` for that reason (the classic game had an
+`isle.c` beside it), and the towns' is `tgen.s` (next to `town_gen.c`). The same goes for one `.c` compiled
 twice: the open world's parts (`src/ow/*.c`, once for each engine) raced on
 `src/ow/NAME.s` under `make -j`, and an engine linked the other's code or
 did not assemble, with nothing said (it hung at start with the stack
@@ -199,11 +125,11 @@ pointer past its top). Those are now `cc65` and `ca65` through
 `build/ow/NAME-cpu.s` and `-reu.s` (`OWPART` in the Makefile).
 
 **Screen codes are not ASCII and not PETSCII.** They index the active charset.
-q4k runs the lowercase/mixed set (`VIC.addr = 0x17`, i.e. `$D018 = $17`) because
-cc65's `conio` emits codes for that set — leave it in the boot-default
+The screens of text run the lowercase/mixed set (`VIC.addr = 0x17`, i.e.
+`$D018 = $17`) because cc65's `conio` emits codes for that set — leave it in the boot-default
 uppercase set and every letter `cputs()` writes renders as line-art. In the
 lowercase set `$41-$5A` are `A-Z`, `$01-$1A` are `a-z`, `$20-$3F` are ASCII 1:1,
-`$A0` is a solid block. `make shot PROG=charset` shows all 256.
+`$A0` is a solid block.
 
 **VICE halts the CPU whenever a binary-monitor command arrives**, including on
 the initial connect. Every read must be followed by `MON_CMD_EXIT` (`0xAA`) or
@@ -213,16 +139,16 @@ write another monitor client, remember it.
 **cc65 re-encodes character literals to PETSCII at compile time.** `'a'`
 assembles as `$41`, `'A'` as `$C1`, `"PING"` as `$D0 $C9 $CE $C7`, and `'\r'`
 as `$0A`. This is correct for `conio`, which expects PETSCII — and wrong for
-every byte that touches the wire, the screen directly, or data from the host.
-It has caused three separate bugs so far: garbled text output, a protocol that
-sent shifted PETSCII, and range tests in `ascii_to_screen()` that compared
-ASCII input against PETSCII bounds (uppercase fell through the lowercase
-branch and came out as `$E1-$FA`). **Rule: any comparison or literal involving
-non-PETSCII data uses numeric constants.** `modem_put_literal()` exists to
-convert literals deliberately; `modem_puts()` sends ASCII buffers untouched.
+every byte that touches the screen directly, the files on the disk (the
+talk's are ASCII), or the keyboard's matrix. It has caused three separate
+bugs so far: garbled text output, a protocol that sent shifted PETSCII, and
+range tests in `ascii_to_screen()` that compared ASCII input against PETSCII
+bounds (uppercase fell through the lowercase branch and came out as
+`$E1-$FA`). **Rule: any comparison or literal involving non-PETSCII data
+uses numeric constants.**
 
-**`$CF00-$CFFF` is reserved** for the probe page by `cfg/c64-q4k.cfg`. Don't
-place game data there (bar BSS2, above).
+**`$CF00-$CFFF` is reserved** for the probe page by every cfg. Don't place
+game data there (bar what "The library's segments" says).
 
 **Colour RAM is write-only-ish nybbles at `$D800`** and is *not* covered by the
 VIC bank switch — it stays at `$D800` regardless of where the screen matrix is.
@@ -236,14 +162,13 @@ the music, the effects and whether the party's lines are hidden, and the
 dungeon monster last fled from with how many of it were left: `fled`). ld65 does not clear it. The engines' cfg names its party `party`
 (it comes first), and they copy the rest in (`take_block()`) and out
 (`owg_where()`, before a save or another program); a program that links
-the game's own `actor.c`/`game.c` uses `owg_in()`/`owg_out()`
+the game's own `actor.c` uses `owg_in()`/`owg_out()`
 (`src/lib/owgame.c`). A save is this block as it is, in `ow-save` (193
 bytes, `OWG_SIZE`: the whole of `$CE3F-$CEFF`, so a new field must move the
 bound first -- `OWG_ADDR`, the engines' cfg (`_party` and BSS), `foes.s`'s
 `FOE_A`, `stlow.s`'s offsets (engine.c checks them), `mkowsave.py` -- and the engines' BSS has 23
 bytes below it; it is what `tools/mkowsave.py` writes too and the engine
-checks): F1 in an engine writes it, after Y to "Save over the saved game? (scratching the old file first, as
-`savegame.c` does; the border is light blue while the drive works, red
+checks): F1 in an engine writes it, after Y to "Save over the saved game? (scratching the old file first; the border is light blue while the drive works, red
 for a second if it would not, and the text window says which), and
 F3 (after Y to its own question) goes back through the bootstrap with `OWB_LOAD`, which loads it and
 builds its world (the game goes on as it was if there is no save). The
@@ -281,9 +206,7 @@ VIC sees RAM); room for it came from moving `tiles_install()`
 (`TITLECODE`/`TITLEDATA`) and the party screen's code to HIGH, which only
 a fight overwrites and neither runs after one. Golden `openworld-colour`
 is the screen, and `openworld-recolour` in `tools/test.sh` changes
-Alaric's colour and checks the engine's hero has it. The game proper is
-untouched: its hero is still the three-sprite hi-res figure and its
-townsfolk glyphs.
+Alaric's colour and checks the engine's hero has it.
 
 **The story in the open world** is the game's: `owtown`'s conversations
 hand over what `gift.c`'s `quest_after_talk()` says (Garrett's arms, the
@@ -433,17 +356,15 @@ and `actor.c`'s and `town_data.c`'s tables at `$4000-$4DC6`, and BSS at
 `$B000` as `owtown`'s, so that VIC bank 1 is free for a portrait of the
 speaker (a `.v2i`, once the library can show one in bank 1); before one
 goes there, the tables the talk reads move below `$4000`. Both programs
-link `src/ow/owstand.o`, the few variables and functions of `game.c`,
-`sprite.c`, `savegame.c`, `music.s` and `view.c` that those modules use
-(as the engine defines its own), ahead of the library, since `game.o`
-has the same names; so
-that none of those is linked, nor the map, the land generator and the
-vault behind them: adding a module that references one of them can pull
-8K back in, so read `build/owtown.map`'s module list after. `rand()`
+(and `isletest`) link `src/ow/owstand.o`, the few variables and functions
+those modules use of what were the classic game's `game.c`, `sprite.c`,
+`savegame.c`, `music.s` and `view.c` (as the engine defines its own),
+ahead of the library; read `build/owtown.map`'s module list after adding
+a module, in case it pulls in more than it should. `rand()`
 starts from the same seed in every program, so `owtown` seeds it from the
 game's turn (the engine counts its steps into `game_turn`) and seed, or
 every visit would hear the same rumour. The rumours are the inns' own
-files, which the offline talk already reads whole (a few hundred bytes
+files, which the talk already reads whole (a few hundred bytes
 each): a REL file would let one rumour be read without the rest, which
 nothing here needs. Golden `openworld-ale` buys a mug at Millford's inn. **The party's
 making is a program of its own**, `owparty` (`src/owparty.c`, 7K, with
@@ -644,21 +565,6 @@ and stashes and marks (`cpost`); that half, with the name, is copied to
 KERNAL fetched back byte for byte; and `openworld-cache` in
 `tools/test.sh` (below).
 
-## Treasure maps
-
-A fight won on the overworld drops a map one time in `treasure_odds` (10;
-`--poke treasure_odds=1` makes it every time). It picks a random plain
-(`TF_PASS`) square of the land the hero is on, and the map says how far east
-or west and north or south of a place it is, in leagues, a league being a
-square: the nearest one on that land (`place_near.s`; `anchor_name()` in
-`loot.c` names it). `tmap[]` holds four of them, six rows of four bytes
-(land + 1, x, y, the anchor's x, y, and which of the land's places it is;
-land 0 is an empty slot) and is saved with the game (`Q4K7`). `I` lists them
-(`treasure_maps()`), and `L` on the square (`dig()` in `loot.c`) digs it up and
-tears the map. Dungeon fights drop nothing: only home is readable from the
-vault wherever you stand, and a continent's tiles are not in `local[]`.
-Nothing is stored for a map beyond those bytes, and nothing needs `looted[]`.
-
 ## Music
 
 **SID files, one scene at a time.** Every tune is a standard SID file (PSID):
@@ -667,31 +573,24 @@ play routine called 60 or 50 times a second. `assets/music.txt` maps each
 scene (`home`, `isle`, `town`, `castle`, `dungeon`, `sea`, `fight`, `boss`,
 `talk`, `inn`, `shop`) to a SID file and one of its songs; `tools/mksid.py
 map` makes that into `include/q4k/music_map.h` (`MUSIC_HOME` ...) and
-`src/lib/music_map.c`. The code says which scene it is in with
-`music_scene()` (`src/lib/tune.c`, in the core): the map loop each turn,
-from where the party stands (`map_music()` in `q4k.c`), and the fight
-(`fightcall.c`), a conversation, an inn, a shop (`q4k.c`) and a voyage
-(`sail.c`) before they start. A scene whose file is not the one in memory
-loads it from the disk (`m.NAME`), with the music paused and the sprites
-hidden, and starts its song; the same file with another song only starts
-that song; the same file and song carries on, which is why the theme now
-plays straight through a fight. A file that will not load leaves the music
-off without asking for the disk (the music is not worth stopping for), until
-a scene wants another. The help and party screens keep whatever is playing.
+`src/lib/music_map.c`. The engine picks the scene from where the hero is
+(`play_for()` in `src/ow/engine.c`), the fight from what it is
+(`fight_music()` in `src/lib/ow_fight.c`); a scene whose file is not the one
+in memory loads it from the disk (`m.NAME`), and the same file and song
+carries on. "The music carries on", above, is how it crosses programs.
 
 **Where it lives.** One tune at a time, in the RAM under the KERNAL: the disk
 file loads at `$E7C0`, a 64-byte header that `mksid.py` writes (init, play,
 song count, the volume to restore after a pause, a byte a song for its
 speed), then the tune at its own address, which must be inside
-`$E800-$FFF9` (6K). `src/lib/music.s` reads the header into its own code
-(`music_play()`), and calls play from cc65's interruptor chain with the
-KERNAL banked out (`$01 = $35`) and back in after; see the RAM under the
-ROMs, under Memory, for the NMI that this needs. **The KERNAL's interrupt is
-60 Hz on PAL as well as NTSC** (its CIA timer is `$4025` on PAL, `$4295` on
-NTSC; measured: 151 jiffies in 125 PAL frames): a song made for the frame
-rate (PSID speed "VBI") is called five times in six on PAL, 50 Hz, and a
-"CIA" one every time. (The old built-in player took PAL for 50 Hz and played
-the theme about 18% fast there.)
+`$E800-$FFF9` (6K). The engine's player is `src/lib/ow_tune.s`, called from
+its raster interrupt; the screens of text play it on from the KERNAL's
+interrupt (`src/lib/ow_play.s`), with the KERNAL banked out (`$01 = $35`)
+and back in after; see the RAM under the ROMs for the NMI that this needs.
+**The KERNAL's interrupt is 60 Hz on PAL as well as NTSC** (its CIA timer is
+`$4025` on PAL, `$4295` on NTSC; measured: 151 jiffies in 125 PAL frames): a
+song made for the frame rate (PSID speed "VBI") is called five times in six
+on PAL, 50 Hz, and a "CIA" one every time.
 
 **What `mksid.py disk` checks** before a tune goes on the disk, by running
 init and 2000 calls of play for every song, on both clocks, in a small
@@ -706,7 +605,7 @@ is refused. A tune refused for its address needs relocating to `$E800`
 The tunes the build makes are `build/sid/NAME.sid`, the rest go in
 `assets/music/NAME.sid`; `make` also copies the theme to `dist/theme.sid`,
 which plays in any SID player. A new SID file costs nothing in memory and a
-few blocks on the disk (283 were free).
+few blocks on the disk.
 
 **The theme** is one of those SID files. `assets/theme.txt` is the score
 (`~` slurs a note into the next, `v` adds vibrato); `tools/mkmusic.py` turns
@@ -724,36 +623,35 @@ reason. (`HARMONY = "long"` in `tools/mkmusic.py` moves it only on
 long notes instead, and `h` marks in the score force a move there). The
 generator works the harmony out; the score is just the tune.
 
-**Pausing.** `music_pause()`/`music_resume()` wrap the disk code, which the
-interrupt would steal cycles from. Pausing stops the calls, zeroes the
+**Pausing.** The disk code pauses the tune round its transfers, which the
+interrupt would steal cycles from (`ow_tune_pause()`, and the talk's
+`music_pause()`, which is `ow_play.s`'s). Pausing stops the calls, zeroes the
 master volume and leaves the gates alone, so the notes carry on where they
 were; it also *waits twelve jiffies*: with the drive emulated, VICE makes no
 new sound while the drive works and replays its last audio buffer, so a note
 sounding at the moment the disk starts is held for as long as the disk takes
 (a five-second drone on a save; the SID itself had been told to stop, as
-`-sounddev dump` shows). Silence has to reach that buffer first. `M` stops
-the tune (its voices let go) and starts its song again from the top.
+`-sounddev dump` shows). Silence has to reach that buffer first.
 
 **Listening and measuring.** `x64sc ... -sound -sounddev dump -soundarg
 out.dump`, through `tools/screendump.py --vice=...` (its `+sound` comes
 first, so `--vice=-sound` overrides it), writes every SID register write
 with its cycle delta in warp mode: that is how the SID theme was checked
-against the old player, note for note and frame for frame. (Without warp,
-with `--rs232`, the dump writes register snapshots instead.) To hear it:
-`-sound -soundrecdev wav -soundrecarg out.wav` with the game past its title
-screen, `-warp` and `-silent` stripped (or `-sounddev wav -soundarg out.wav`
-if VICE's coreaudio device is unavailable). `--peek music_state` says
-whether it is playing; the tune's own variables are under the KERNAL.
+against the old player, note for note and frame for frame. (Without warp
+the dump writes register snapshots instead.) To hear it: `-sound
+-soundrecdev wav -soundrecarg out.wav` with the game past its title screen,
+`-warp` and `-silent` stripped (or `-sounddev wav -soundarg out.wav` if
+VICE's coreaudio device is unavailable). `--peek ow_tune_on` says whether
+it is playing; the tune's own variables are under the KERNAL.
 
-Sound effects are on voice 3, from the same interrupt, and work whether or not
-the music is on (with a tune playing they leave the volume register to it) (`M` mutes only the music, `X` only the effects; both are handled in the
-map loop in `q4k.c` and in the fight loop in `battle.c`, and cost no turn):
-`sfx_step(tile)` for a step, which picks a sound by terrain from a table
-indexed by screen code and gives the two feet slightly different pitches, and
-`sfx_play(SFX_MELEE / SFX_BOW)`. `sfx_delay()` waits until a quarter of a
-second after the last effect began, so back-to-back hits in a fight do not
-blend, and returns at once with the effects off. Each sound is a short table
-of steps in `music.s` -- frames, waveform, pitch, pitch change per frame. Two things about the SID cost an afternoon.
+Sound effects are on voice 3 (`src/lib/sfx.s`, built into the engine and
+the fight as `ow_sfx.o` with `OW_SFX`), from the same interrupt, and work
+whether or not the music is on (with a tune playing they leave the volume
+register to it). `M` turns the music off and on, `SHIFT+M` the effects.
+`sfx_step(tile)` is a step, a sound by terrain from a table indexed by
+screen code, with the two feet at slightly different pitches;
+`sfx_play(SFX_*)` the rest. Each sound is a short table of steps in `sfx.s`
+-- frames, waveform, pitch, pitch change per frame. Two things about the SID cost an afternoon.
 Noise gets *quieter* as its pitch rises: a full-level burst at a high pitch
 measured 17 dB under a pulse thump, so crackle wants low pitches. And the
 envelope's attack can start up to 32 ms late when its rates change (the ADSR
@@ -801,37 +699,14 @@ that check will say so; it runs in `make test`. It is assembly because in C it
 came to 1.3K, when HIGH had 700 bytes.
 
 Which continent holds which story place is a shuffle of `lore_seed`
-(`slot_of()` in `src/lib/slot.c`; `homepath.py` has it too): slot 0 is Wardlow, 1 the
+(`slot_of()` in `src/lib/slot.c`): slot 0 is Wardlow, 1 the
 Drowned Stair, 2 Ashcombe, 3 Blackpit, which is the order the quest wants
-them in. A port opens when `quest_stage >= Q_EMBER + slot` -- until then the
-captain "will not sail yet" -- so the continents open one at a time and the
-captains need no state of their own. Home's places are `home_fx/fy` (copied out
-of `isle_fx/fy` when it is built, because building a continent overwrites
-those) and a continent's are `isle_fx/fy`; `place_at()` says which place a
-square is, and `q4k.c`'s `arrive()` turns that into a town or a dungeon.
-
-Going in to a town or a dungeon from the overworld remembers where
-(`ret_x/ret_y`) and, from a continent, puts it away in slot 0; coming out puts
-it back. `land` says which one you are on (4 is home) and is saved.
-
-Four ports, one on each of home's coasts. A ship (`src/lib/sail.c`) takes you
-to the continent of its own: the voyage is a camera, not a ship. The ship
-(`T_SHIP`, a screen code written over the view with the hero sprite hidden)
-stays in the middle of the viewport and the land moves. Leaving, the home coast
-slides off the far edge until the view is open sea; arriving, the new coast
-slides on from that same view, so there is no seam, and the last frame is the
-one the map draws next. `world_view()` is the one drawing routine for both: any
-position on home or on a continent in local[], plus a window (`world_x0..y1`)
-outside which it draws only sea. Positions are biased by 64 so that going a
-little off a map stays a small positive `unsigned char`, which cc65 does
-cheaply; signed arithmetic tripled the code. After the slide on, the camera
-pans to where the map's own clamped camera would be, so a landing near the
-edge still ends without a jump. The continent is built (`isle_work()`, a
-couple of pieces a frame) while the old coast slides away; it is about two
-seconds of 6502, and a ship left standing at sea for that long looked like a
-hang. Home is the same in the other order, except that it is already built.
-Stepping onto the port is the only trigger, so arriving on one does not sail
-again.
+them in. A ship at one of home's ports sails when `quest_stage >= Q_EMBER +
+slot` (`ship_held()`, "The story in the open world"), so the continents open
+one at a time. Home's places are `home_fx/fy` (copied out of `isle_fx/fy`
+when it is built, because building a continent overwrites those) and a
+continent's are `isle_fx/fy`; the bootstrap hands them to the engine in the
+hand-off block.
 
 Every land has a town of its own, made by `src/lib/tgen.s` (in C it came to
 1.8K): an inn, a shop (a smithy, an armourer or a bowyer), a third building
@@ -844,16 +719,15 @@ inside the door and what the building sells is on the corners of its top row.
 the C64 builds the same towns. The ground and the scenery in the lots follow the
 land's biome. Home's biome is `home_biome`.
 
-Home is built when the story first needs it (stepping out of Millford, or
-loading a game past it) and the first time takes a few seconds with nothing
-else running: see Memory.
+The bootstrap builds home into the vault and each continent once, for where
+its places and its landing are; the engine builds a continent again into the
+continent it keeps when it comes near (below).
 
-## The smooth-scrolling prototype
+## The open world
 
-The open world (`make run PROG=openworld`) is a standalone experiment, not
-the game: a world from the game's generator, walked with a camera that
-glides a pixel or two a frame over 16x16 multicolour metatiles (2x2
-characters), for the TeensyROM+/REU ideas. The game links none of it.
+The open world (`make run`) is a world from the land's generator, walked
+with a camera that glides a pixel or two a frame over 16x16 multicolour
+metatiles (2x2 characters), with the TeensyROM+ and an REU in mind.
 
 **It is made for VICE and the TeensyROM, not a real 1541.** Loads are
 cheap there, so loading another overlay or program from the disk is a fair
@@ -896,7 +770,7 @@ lands are built, then `owparty` makes the party and the game starts at
 Millford's gate), or F3, a saved one: `ow-save`, the game block, which the
 disk comes with one of from `tools/mkowsave.py` (seed 7, a lone warrior at
 the castle). The tests' `--splash quick` (`OW_KEY_QUICK`, `$87`, no key on
-the matrix) is the prototype's old start: a lone warrior, Alaric, with every
+the matrix) is the old quick start: a lone warrior, Alaric, with every
 dungeon's key, on the overworld outside Millford, made without asking;
 golden `openworld-party` is the F1 path.
 **While the picture is up nothing else can happen**: the KERNAL is out, so
@@ -1001,7 +875,7 @@ permission is asked. The continents' places go in as they do in the game
 **The music** is the game's: the same SID files at the same place, and
 the game's scenes (`assets/music.txt`: home, isle, sea, town, castle,
 dungeon), through `play_for()` in `engine.c`. `src/lib/ow_tune.s` is the
-player: `music.s` without the effects, called from the raster interrupt
+player (the classic game's `music.s` without the effects), called from the raster interrupt
 after colour RAM is rewritten (so with the CPU scrolling a note can come 12
 ms late on the frames the screen flips), every frame for a tune made for the
 frame rate and six times in five frames on PAL for a 60 Hz one. `OW->tune`
@@ -1149,7 +1023,7 @@ with a door, found on the way in (`find_buildings()`: a flood from where
 you stand is the outside, region 1; every other area another region; the
 ones a door touches get roofs) -- in the castle that is the four towers and
 the throne room. Its squares and its walls are drawn as `roof`, its middle
-row as `ridge`, on codes $92/$93 that only the prototype's sets have (`code
+row as `ridge`, on codes $92/$93 that only the open world's sets have (`code
 roof 0x92`): thatch in towns (the walls' art and edges), slate in the castle;
 its doors stay, its people are hidden. What you can walk on is read from
 `local[]`, which has no roofs (`tile_at()`). Stepping into a building's
@@ -1166,9 +1040,9 @@ its exit square; the dungeon's stairs go down and
 up, and up from level 1 is out. The overworld is put away going in: in the
 REU when there is one (`sm_reu_keep`, 8K, so coming out takes a third of a
 second), otherwise rebuilt from the vault and `sm_shores()` (1.3 s). The
-prototype defines the few of `game.c`'s and `actor.c`'s variables the
-generators use itself, so neither is linked (with them came the view, the
-sprite and the arms, 6K it has no room for). Going in takes about 0.75 s, the
+engine defines the few of the game's variables the generators use itself
+(as `owstand.c` does for owtown), so `actor.c` is not linked (with it would
+come the arms, room it does not have). Going in takes about 0.75 s, the
 dungeon 1.6 s (its generator). The goldens `openworld-town` and
 `openworld-dungeon` (and their `-reu` twins) freeze mid-step inside;
 `openworld-out` goes into Millford and out, and walks to where its people
@@ -1193,10 +1067,10 @@ the harness, which types ten keys at a time, reads the screen mid-step.
 
 ## The multicolour arena
 
-`make run PROG=owarena` (disk `dist/owarena.d64`): the game's fight on the
-prototype's multicolour metatiles, with the party, the monsters and the shots
-all sprites. Like the prototype it is a standalone experiment; the game links
-none of it. Two parts, and the split is the point:
+`make run PROG=owarena` (disk `dist/owarena.d64`): the open world's fight on
+its multicolour metatiles, with the party, the monsters and the shots all
+sprites, and a menu to pick any fight with. Two parts, and the split is the
+point:
 
 **The fight is a module** (`src/fight/`, `include/q4k/fight.h`,
 `cfg/c64-fight.cfg`): one file, `FIGHT`, linked on its own with no BASIC stub
@@ -1222,7 +1096,7 @@ The module is 17.5K, 14K of it `fight.c` (`-Or`).
   (`FI_*`: palette, where everyone starts, a boulder's four characters, a
   colour for each character, a flag for each square) and its characters at
   `$4800`, 128 at most. `tools/mkfields.py` draws it from `assets/fields.txt`
-  (20 squares by 9) with a tile set of the prototype's, read by
+  (20 squares by 9) with a tile set of the open world's, read by
   `mkoverworld.py` (`build()` returns the set as well as its blob), applying
   `smooth.s`'s edge rules itself -- so the 6502 has no tile code at all.
   Outdoors is `assets/field_tiles.txt`, which includes `overworld.txt` and
@@ -1265,11 +1139,11 @@ are the ROM's lowercase set copied to characters `$80-$FF` (`mx_font()`;
 health, 20-21 the party (a column of ten each, draughts and arrows in the
 fourth), 22-24 the log.
 
-**The rules are `battle.c`'s**, ported by hand, not shared: the flood, the
-lone monster's banked turns, `LONE_HP`, `ARCHER_EYE`, the spells. Change one
-and change the other. What differs: the field is 20 by 9, not 21 by 19 (so
-two to four boulders, and long ranges mean less), there is no autoplayer,
-and **it is eight ways**, as the open world walks: Q, E, Z and X (or the
+**The rules are the classic game's `battle.c`'s** (tag `v0.11.0`), ported
+by hand: the flood, the lone monster's banked turns, `LONE_HP`,
+`ARCHER_EYE`, the spells, and the autoplayer. What differs from it: the
+field is 20 by 9, not 21 by 19 (so two to four boulders, and long ranges
+mean less), and **it is eight ways**, as the open world walks: Q, E, Z and X (or the
 stick's diagonals) step and strike diagonally; the flood goes
 eight ways, a monster strikes from any of the eight squares round someone
 (a big one from twelve places), and neither side squeezes diagonally
@@ -1291,7 +1165,7 @@ names up to three more things drawn `on` the tile set's ground (in
 `puddle` costs 20; `thicket`, 15, is drawn but no field scatters it), which `mkfields.py` writes as four
 characters and a flag each at `FI_SCAT`; `scatter()` puts down two to four
 things that block, boulders or trees, and one to three patches of slow
-ground where it is quicker. **What those cost** (`balance.py --ow`, 40
+ground where it is quicker. **What those cost** (`balance.py`, 40
 runs; the autoplayer steps aside for a clear line): the keepers, fought
 on floors that scatter nothing new, got harder for every party with a
 ranged member, since their shots wait for the warrior to be out of the
@@ -1317,7 +1191,7 @@ three drawn in `assets/monsters.txt` (`arrow`, `arrow_r`, `arrow_ur`) by
 mirroring; `$5700-$57FF` (four blocks) are the rounded corners
 (`src/fight/corners.s`, `SPR_CORNER`: "The rounded viewport"). `owarena-arrow-ur` in
 `tools/test.sh` checks the block after a shot up-right, and golden
-`owarena-dragon` casts a spark up-left into Maldrath. **`tools/balance.py --ow`** measures
+`owarena-dragon` casts a spark up-left into Maldrath. **`tools/balance.py`** measures
 this fight: `owarena`'s `*` loads `FIGHTBOT` (the module built with
 `-DFIGHT_BOT`: `battle.c`'s autoplayer, eight ways, which waits for no
 frame) and fights the poked fight `auto_runs` times, counting into `res_*`
@@ -1325,7 +1199,7 @@ and the block's `rounds`, then probe stage 5. `--disk` points it at another
 copy of the arena's disk, so variants of the module can run side by side.
 `ARCHER_EYE` and `WIZ_GUARD` are `#ifndef` for such a sweep (`-D`).
 **Measured against the game's own fight** (40 runs a fight, the keepers,
-`balance.py` and `balance.py --ow`): eight ways, a lone warrior, W+Z and
+the classic game's `balance.py` and this one): eight ways, a lone warrior, W+Z and
 W+A+Z drank what they do in the game, give or take half a draught, but
 three archers drank up to 2.5 more (7.1 at the Gaoler against 4.6): a foe
 that closes in diagonally reaches them as fast as they back off. And three
@@ -1382,214 +1256,115 @@ with `-DOWARENA_AUTO=7`, which goes straight into a fight, and run it with
 
 ## The party
 
-`actor.h`. Up to three made on the title screen (`party_make()`), a fourth
-place kept for a computer-run companion (not written yet; the panel has room
-for its two rows only by pushing the level and gold rows down onto the
-place's, so that layout wants revisiting then). The gold, draughts, arrows,
-`party_level` and `party_xp` are shared; health, arms (`weapon`, `armour`,
-`bow`, indices into the lists in `arms.c`) and a wizard's magic and spells
-(`known`/`ready` bits) are each member's. What a class may carry is
+`actor.h`. Up to three made by `owparty` (`party_make()`), a fourth place
+kept for a computer-run companion (not written yet). The gold, draughts,
+arrows, `party_level` and `party_xp` are shared; health, arms (`weapon`,
+`armour`, `bow`, indices into the lists in `arms.c`) and a wizard's magic and
+spells (`known`/`ready` bits) are each member's. What a class may carry is
 `gear_allowed()`, and "better" is by attack or defence, never by index: the
 staff is after Dragonbane in the weapon list and the robes and hunting bow
 were put in at index 1, so the shops' tier tables are offset for mail and
-bows. Whatever a shop sells or a monster drops is `offer()`ed in `shop.c`,
-which asks who takes it when more than one would be better for it. Home's
-generated town always has the magic shop as its third building (`tgen.s`,
-and `townref.py` with it), which sells robes and the spellbooks.
+bows. Whatever a shop sells is `offer()`ed in `shop.c`, which asks who takes
+it when more than one would be better for it. Home's generated town always
+has the magic shop as its third building (`tgen.s`, and `townref.py` with
+it), which sells robes and the spellbooks.
 
 In a fight each living member takes a turn, then the monsters: the flood
 fill starts from every member at once, so a monster goes for whoever it can
-reach soonest, and `aim()` hits the first member in its line. A member at 0
-health has fallen; `get_up()` stands them up on 1 after a fight won or fled.
-**The balance** comes from the arena playing itself: `make` builds
-`dist/arena.prg` with a second copy of the fight, `battle_bot.o`
-(`-DFIGHT_BOT`), whose autoplayer plays the party; `tools/balance.py` pokes it
-with a keeper or a group of wanderers, a party, its level and the arms of
-that point in the story, runs dozens of fights four VICEs at a time, and
-prints wins and losses, draughts and rounds. A lone warrior was the original
-tuning (two or three draughts a keeper, five or six for Maldrath) and still
-is; a party should be near it. What makes it so, all at the top of
-`battle.c`: a monster that comes alone gets `LONE_HP` quarters more health
-and `LONE_ATK` more attack for each member past the first (its health is
-16-bit, in BSS2, so Maldrath's 250 can grow), and takes (n + 1) / 2 turns a
-round, banked between the members' turns (`lone_bank`); an archer's arrows
-get `ARCHER_EYE`; a wizard's wards turn `WIZ_GUARD` of each blow, their
-spells grow with the level, and they get a point of magic back each round.
-Measure again (`tools/balance.py`, about two minutes a fight at 40 runs)
-after touching any of it, or a monster, or the arms. Three wizards and
-three archers come out harder than a mixed party, by design: they are
-the extremes.
-
-## The joystick
-
-Both builds. `src/lib/stick.s`
-waits for a key or port 2, reading the stick once a jiffy (the debounce) and
-repeating a held direction; directions come back as the cursor keys and the
-button as `STICK_FIRE` (`$FE`, which no key types). `wait_key()` in `q4k.c`
-and `next_key()` in `battle.c` call it; the map turns the button into `>`
-or `<`, the fight into `F`. Menus, shops and the title still use `cgetc()`.
-The tests never touch `$DC00`, so a stick-only path has no golden.
+reach soonest. A member at 0 health has fallen; `get_up()` stands them up on
+1 after a fight won or fled. **The balance**, all at the top of
+`src/fight/fight.c`: a monster that comes alone gets `LONE_HP` quarters more
+health and `LONE_ATK` more attack for each member past the first, and takes
+(n + 1) / 2 turns a round, banked between the members' turns (`lone_bank`);
+an archer's arrows get `ARCHER_EYE`; a wizard's wards turn `WIZ_GUARD` of
+each blow, their spells grow with the level, and they get a point of magic
+back each round. A lone warrior was the original tuning (two or three
+draughts a keeper, five or six for Maldrath); a party should be near it.
+Measure again (`tools/balance.py`, about two minutes a fight at 40 runs:
+"The multicolour arena") after touching any of it, or a monster, or the
+arms. Three wizards and three archers come out harder than a mixed party,
+by design: they are the extremes.
 
 ## Testing
 
 **Do not run the full suite (`make test`) locally.** Push a branch and let
 the GitHub Actions workflow (`.github/workflows/test.yml`, which runs on every
-push to any branch) run it, and watch that result instead.
+push to any branch) run it, and watch that result instead. `tools/test.sh
+NAME...` runs a few units, which is fine.
 
 **A cloud session can run single tests itself.** `sudo tools/cloud-setup.sh`
 first: with a GitHub token it installs CI's headless VICE 3.10; without one,
 Ubuntu's VICE 3.7.1 with the ROMs taken from VICE 3.10's source tarball and an
 `x64sc` wrapper that runs it on Xvfb (DEVELOPERS.md has the details). Then
-`tools/screendump.py ... | diff -u tests/golden/NAME.txt -` checks one screen
-in seconds instead of a CI round. On 3.7.1, CI's result is still the one that
-counts.
+`tools/test.sh NAME` checks one case in seconds instead of a CI round. On
+3.7.1, CI's result is still the one that counts.
 
-Call `probe_stage(n)` at points worth asserting on, then
-`make check` / `make test`. Goldens live in `tests/golden/<prog>.txt` and cover
-the whole 40x25 screen, so any layout change shows up as a diff. Re-bless
-deliberately, never reflexively.
+Call `probe_stage(n)` at points worth asserting on. Goldens live in
+`tests/golden/<name>.txt` and cover the whole 40x25 screen, so any layout
+change shows up as a diff. Re-bless deliberately, never reflexively.
 
-**cc65's `rand()` starts from a fixed seed**, so without help every
-playthrough meets the same monsters on the same squares — and the opening of
-that sequence happens to be a long quiet one, which looks exactly like
-encounters being broken.
-
-Sampling a timer at startup is **not** a fix, though it passes a casual
-glance. `srand(CIA1_TIMER)` at a fixed point after boot gave the same seed
-two runs in four when measured: the machine is doing the same thing at the
-same cycle on every boot. What is genuinely unrepeatable is how long the
-player takes to press a key, so `wait_key()` counts the wait and
-`rng_stir()` folds that plus the CIA timer into an accumulator that
-`reseed()` draws from. `dungeon_build()` seeds deliberately, from the
-dungeon, the level and the game's `lore_seed` -- the same level on every
-visit, different dungeons in the next game -- so anything that calls it
-reseeds afterwards, and a screen test that enters a dungeon must pin
-`--poke lore_seed=N` or it meets a new layout every run.
-
-`src/rngtest.c` measures `rand()`'s distribution after `srand()`; it is what
-ruled the generator out when the encounter rate looked wrong.
-
-**NPCs will invent geography** unless they are told where things are. The
-land is made fresh for every game, so the host works it out: the C64 already
-sends `lore_seed` with every request, and `host/geo.py` builds the same lands
-with `tools/isleref.py` (cached per seed) and gives each NPC a compass point
-and a rough walk to every place on their land, to the harbours, and to what
-lies across each one. Nothing extra goes over the wire and the 6502 pays
-nothing. `tools/mkgeo.py` writes who lives where and every name the host uses into
-`assets/geography.json`, from `towns.txt`, `places.txt` and `names.txt` (the
-lands, the towns a land makes for itself, their inns: `tools/mknames.py` turns
-that file into `include/q4k/names_data.h` for `isle.c` and `town_gen.c`, so
-the game and the host cannot disagree).
-Change how the generator places things and the model changes with it, so the
-NPCs stay right; `host/test_npcd.py` checks that `geo.slot_of` and the port
-order agree with the game. Keep leagues and coordinates out of `assets/canon.md`
-and the NPCs' lines: the host supplies the bearings.
+**cc65's `rand()` starts from a fixed seed**, the same in every program, so
+without help every visit hears the same rumour and every fight goes the
+same way. Sampling a timer at startup is **not** a fix, though it passes a
+casual glance: `srand(CIA1_TIMER)` at a fixed point after boot gave the same
+seed two runs in four when measured, because the machine is doing the same
+thing at the same cycle on every boot. What is genuinely unrepeatable is how
+long the player takes to press a key: the splash's seed is the frames the
+player took, `owtown` seeds from the game's turn and seed, and the arena
+folds its waits into `rng_stir()`/`reseed()` (`arms.c`). `dungeon_build()`
+seeds deliberately, from the dungeon, the level and the game's `lore_seed`
+-- the same level on every visit, different dungeons in the next game.
 
 **Measure before optimising on this machine; the intuitions do not
-transfer.** Field of view clears the squares lit last turn, and the obvious
-6502 move -- walk the array with a pointer instead of an index -- measured
-*slower* than the indexed loop it replaced (27.1ms against 18.5ms), because
-cc65 keeps the pointer out of zero page. What actually helped was not
-touching all 399 squares at all: keeping a list of what was lit took it to
-4.4ms. `--peek` plus the jiffy clock at `$A2` over 64 iterations is enough
-resolution to settle questions like this in a couple of minutes.
+transfer.** The classic game's field of view cleared the squares lit last
+turn, and the obvious 6502 move -- walk the array with a pointer instead of
+an index -- measured *slower* than the indexed loop it replaced (27.1ms
+against 18.5ms), because cc65 keeps the pointer out of zero page. What
+actually helped was not touching all 399 squares at all: keeping a list of
+what was lit took it to 4.4ms. `--peek` plus the jiffy clock at `$A2` over
+64 iterations is enough resolution to settle questions like this in a couple
+of minutes.
 
 **Disk access needs MEMSIZ raised first.** `$0283` points at the top of
-BASIC memory, which is `$A000` on a stock machine — below this
-game's BSS. Leave it there and KERNAL SAVE writes nothing and LOAD
-walks into the weeds, both without an error you can see. `savegame.c` and
-`modem.c` both raise it to `$CF00` before touching the drive.
+BASIC memory, which is `$A000` on a stock machine — below this game's BSS.
+Leave it there and KERNAL SAVE writes nothing and LOAD walks into the weeds,
+both without an error you can see. The bootstrap, `ow_run.s`'s loader and
+`talk.c` raise it to `$CF00` before touching the drive.
 
 **`cbm_save`'s last argument is a byte count, not an end address** — unlike
 almost every other save routine on this machine. Passing an end address
 produces a two-byte file containing only the load address, and a silent one:
 the call returns success.
 
-**Fights are rarer, and there is no `R`.** `encounter_roll()`
-rolls out of 200, so the percentages in it are halves; the only way out of a
-fight is the gap in a side (below). `L` where nothing is hidden raises the dead one time in
-`grave_odds` (5; `--poke grave_odds=0` for never), except in towns and with
-`no_encounters` set. In a dungeon each level counts as one more hero level
-when `battle_wander()` picks what turns up and how many.
-
-**The arenas have an exit on each side.** The middle row (`LOCAL_H / 2`) is
-open at both edges and every other edge square is a wall, so walking off
-the side at that row is a flight that always works (`can_flee` only: not from
-a keeper or Maldrath), after however many blows the thing behind you has had
-on the way. `scatter()` in `battle.c` puts eight to eleven boulders down at the
-start of each fight, only where the square and all eight round it are open
-(`open9.s`), so they can cut nothing off; not for Maldrath, who is two
-squares across. Fights are therefore not the same twice, and their goldens
-come from `rand()`'s sequence.
-
-**A screen test that walks in the open is flaky by construction.** Overworld
-and dungeon squares roll for wandering monsters, and the seed now comes from
-the player's own timing, so the roll differs every run. Walk inside a town
-(towns never roll), or pass `--poke no_encounters=1` to switch the rolls
-off anywhere. This is what turned the save test red one run in several,
-with a rat on the screen instead of the map.
-
-**Every test that gets past the title screen makes a party first.** The
-title asks a name, a class (`1`-`3`) and whether another will answer, so a
-lone warrior is `Alaric\r1n` and the q4k case's three are
-`Alaric\r1yMira\r2yZed\r3`. The party is made after the pokes, so a poke of
-a member's health is overwritten: `--poke hp_start=N` starts everyone the
-title makes on N health instead (the fight and inn checks use it).
-
-**A test that has to be somewhere on the overworld walks there.** Home is
-made from the seed when you step out of Millford, so there is no position to
-poke in advance: start in Millford with `--poke quest_stage=1` (nobody leaves
-before Garrett has talked to them) and `--poke lore_seed=N`, and type the way.
-`tools/homepath.py SEED FROM TO` works the keys out from the model of the
-generator (`--land D` for a continent, `hop` to step off a landing and back),
-and `tools/mkcmds.py` writes the `.cmd` files that use it; the daemon tests in
-`tools/test.sh` call it inline. Change the generator or the seed and rerun
-`mkcmds.py`, then look at what moved before blessing. Pokes are applied at the
-title screen, before the game starts, so `lore_seed` and `quest_stage` stay
-(`game_init()` runs earlier still).
+**A test that walks the overworld meets nothing** only because the quick
+start's game block has `OWG_CALM`: the rolls come from the game's turn, so a
+change to the walk changes them. `--poke enc_always=1` makes every roll a
+fight, for a test that wants one.
 
 **People block movement**, so two NPCs in a line make the inner one
-unreachable. `tools/checkmap.py` checks this; run `make test` after editing
+unreachable. `tools/checkmap.py` checks this; run it after editing
 `assets/towns.txt`.
 
 ## Testing: the harness
 
 `tools/screendump.py --keys "..."` types into the KERNAL's keyboard buffer
 (`$0277`/`$C6`) directly — VICE's own key injection proved unreliable — which
-is how to drive turn-based input, and typed dialogue, without a human.
+is how to drive the game without a human.
 `--shot` renders a PNG from emulated memory (screen RAM + colour RAM + the
 charset), so it can capture a screen mid-conversation; VICE's own
 `-exitscreenshot` only fires on quit.
 
-Note that `make check` opens a real VICE window that takes keyboard focus.
-Typing into it while a test runs will change the result.
-
-**Do not measure anything mid-fight from the probe page.** `publish()` only
-runs between turns, so a battle still in progress never reaches it: an
-encounter rate of about 8 percent read as a flat zero across 127 rolls, and
-the bug was entirely in the measurement. `--peek enc_rolls --peek
-enc_fights` reads the counters directly and gets it right. Those two are
-deliberately non-static so they have labels.
+**Do not measure anything mid-fight from the probe page.** The probe is
+published between turns, so a fight still in progress never reaches it (the
+classic game read an encounter rate of about 8 percent as a flat zero that
+way). `--peek` a counter directly instead.
 
 **The hero is a sprite, not a screen code**, so screen RAM holds the
-terrain under them. `screendump.py` puts `@` wherever an enabled sprite sits
-in its text dump (a hi-res one by the middle of its pixels, a multicolour
-one by the middle of its square, which its bob does not move), which is how
-the goldens still record where the hero is standing; `--raw` and `--hex` show plain screen RAM. `--shot` draws sprites
-too. Any screen that takes over from the map must call `sprite_hide()`.
-The sprite is one member of the party at a time (`sprite_as()`): the leader
-on the map, whoever's turn it is in a fight, where the rest are their class's
-glyph (`K`, `A`, `M` in a dump). Each class has its own frames, in HIDATA.
-
-**A `save` or `load` failure in `make test` is known flakiness: ignore it.**
-Unless your change touches `savegame.c`, the disk, or what those two screens
-show, do not rerun the suite to chase it, and do not try to diagnose it
-mid-task. Sessions have lost a lot of time doing exactly that. Say in your
-report that it failed and move on. A diff that shows your own change (a
-moved wall, say) is not flakiness: re-bless that. But `make bless` can
-catch a flaky run too (it has, twice), so read `git diff tests/` after
-blessing; a save golden missing "Restored." should be hand-edited from
-the committed one instead.
+terrain under them. `screendump.py` puts `@` wherever a sprite sits in its
+text dump (a multicolour one by the middle of its square, which its bob does
+not move; the engine's people from the multiplexer's plan, the fight's with
+`--mux`), which is how the goldens record where everyone stands; `--raw` and
+`--hex` show plain screen RAM. `--shot` draws sprites too.
 
 **Header dependencies are tracked** through cc65's `--create-full-dep`
 (`build/**/*.d`), so regenerating `include/q4k/*.h` -- a new tile moving
@@ -1597,15 +1372,7 @@ every actor's code, say -- rebuilds whatever includes it. Before this,
 stale objects quietly used the old values: new furniture drew in the
 keeper's red, and villagers once drew as drawbridges. A build dir from
 before the change has no `.d` files, so clean it once. The `HIMODS` caveat
-under Memory still stands: flags are not dependencies.
-
-**Open question: do three sprites upset disk access?** When the tunic went
-in as a third sprite, the save/load tests failed 7 runs in 20 against 20 in
-20 with two sprites -- but another session was editing and testing in the
-same checkout at the time, so the comparison is not trustworthy. Recheck
-with the machine otherwise idle, around 20 runs of each case. If three
-sprites really do fail, hide them during disk access in `savegame.c`: every
-enabled sprite takes CPU cycles from the KERNAL's serial-bus code.
+under "The library's segments" still stands: flags are not dependencies.
 
 `--peek SYM[+OFF][:WIDTH]` (or `$ADDR` for an address) prints any global after the run (wider than 8
 bytes, just the bytes as hex, last first); `--poke
@@ -1614,16 +1381,11 @@ file ld65 emits next to the binary. Prefer it over adding debug
 hooks to the game: the quest, the inventory and the party struct are all
 reachable from a test this way, and none of it ships.
 
-**The game needs its disk in every test past the title screen**, since it
-loads its engines from it: the `.cmd` files pass `--disk dist/q4k.d64` (the
-online cases swap in `dist/online/`), and the save tests start from a copy
-of that disk, not a blank one. Without it the game stops after the title
-screen with "Put the game disk back". **`make` relinks the game but does not
-rebuild its disk**: after any change that moves the core (a library module,
-say), `make d64 d64-online` before a single test, or the new PRG loads the
-old engines and a test fails with no output (`sail` did). And never
-`git stash` round a `make`: the objects built from the stashed tree are
-newer than the sources that come back, and stay.
+**The open world needs its disk**: its tests start the bootstrap with
+`--disk dist/openworld.d81 --splash quick` (see "The open world"), and
+`make` rebuilds the disk after any change. Never `git stash` round a
+`make`: the objects built from the stashed tree are newer than the sources
+that come back, and stay.
 
 **`--fastdisk`** turns the drive emulation off and has VICE serve the
 KERNAL's LOAD from the image (`+drive8truedrive` and `-trapdevice8`, or
@@ -1652,21 +1414,6 @@ way out, `openworld-out`'s screen) and with `--reucache --cpu-engine` (no
 misses). All the open world's goldens: 142 seconds before `--fastdisk`, 59
 after, 51 with the cache; what is left is mostly the bootstrap (the splash
 and building the lands) and the five that keep the drive.
-
-**The modem.** `tools/screendump.py --rs232 PORT` wires the user port to a TCP
-socket and drops warp mode. Without warp an emulated 1541 would take a minute
-for each engine, so with `--disk` it also turns the drive emulation off and
-lets VICE serve the KERNAL's LOAD from the image (`-trapdevice8`). `host/npcd.py --mock` serves deterministic canned
-lines from `assets/npcs.json`, which is what the dialogue golden test uses —
-never point a golden test at a live model.
-
-**The dialogue backend** is a local Ollama model over its OpenAI-compatible
-endpoint, called with plain `urllib` so `host/` has no third-party
-dependencies. Prompts are assembled host-side and keyed by the id the C64
-sends; the protocol carries no prompt text. Small models need the output
-policed rather than requested — see `for_c64()`, which enforces the sentence
-cap, strips stage directions and speaker labels, and clamps to ASCII. That
-policing applies to model output only; authored mock lines pass through.
 
 ## Debugging a hang in VICE
 
@@ -1706,10 +1453,8 @@ themselves: a `.cmd` file is read with `set -- $(cat NAME.cmd)`, never
 of its own is a unit (`--list`), run `-j N` at a time (default the CPUs),
 each printing PASS or FAIL with its seconds when it ends, then the slowest
 eight. `tools/test.sh NAME...` runs just those; `--group
-game|openworld|online` a third, which is how CI splits the suite over three
-machines (`group_of()`); `make test TESTARGS=...` passes them on. Each modem
-case has a dialogue daemon of its own (ports 25301-25305), since one
-remembers who said what. A new case is a `u_` function, a line in
+goldens|cases` a half, which is how CI splits the suite over two machines
+(`group_of()`); `make test TESTARGS=...` passes them on. A new case is a `u_` function, a line in
 `run_unit()` and its name in `all_units()`, slowest first. **`--settle` is
 wall-clock seconds, warp or not**, and was most of the suite's time (about
 13 of CI's 21 minutes), so it ends early once what the case checks for has

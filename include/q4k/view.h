@@ -1,9 +1,9 @@
 /*
- * q4k -- screen layout and drawing.
+ * q4k -- the text screen's layout, as the screens of text use it.
  *
- *   cols  0-20, rows 0-18   map viewport, hero always at the centre
+ *   cols  0-20, rows 0-18   once the map's viewport
  *   col   21,   rows 0-18   separator
- *   cols 22-39, rows 0-18   status panel
+ *   cols 22-39, rows 0-18   panel
  *   row  19                 rule
  *   rows 20-24              message log
  */
@@ -28,37 +28,8 @@
 #define MSG_Y       20
 #define MSG_H        5
 
-void view_init(void);
-
-/* Draw whichever scene the player is standing in. */
-void view_draw(void);
-
-/* Redraw the frame after another screen (the dialogue view) took over. */
-void view_chrome(void);
-void view_restore(void);
-void view_draw_map(void);
-void view_draw_panel(void);
-
-/* Set while the town on screen is the town as it stands. A town is one
-   viewport and never scrolls, and the hero is a sprite, so view_draw()
-   leaves it alone until something clears this: view_restore(), drawing any
-   other scene, or map_set(). Redrawing it every step had the ground under
-   each person on screen for a frame before the person went over it. */
-extern unsigned char town_drawn;
-
-/* Set for the length of a fight: view_draw_panel() then leaves rows 10 to
-   12, where the foe is named, alone. */
-extern unsigned char view_fighting;
-
-/* Append a line to the log, scrolling the oldest one off the top. */
+/* A line for the map's log, which the screens of text have none of
+   (src/ow/owstand.c drops it). */
 void view_message(const char *text);
-
-/* A number in a cleared six-column field, for the panel. */
-void view_num(unsigned char x, unsigned char y, unsigned int value);
-
-/* The panel's rows for where you are (draw.c). The core reaches it
-   through view_place_fn, which the map's engine sets: see view.c. */
-void view_place(void);
-extern void (*view_place_fn)(void);
 
 #endif /* Q4K_VIEW_H */

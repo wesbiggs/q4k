@@ -1,6 +1,6 @@
 # Quest for the King: developer notes
 
-How the game is built, tested and put together. [README.md](README.md) is
+How the game -- the open world -- is built, tested and put together. [README.md](README.md) is
 the story and how to play; [CLAUDE.md](CLAUDE.md) is the working notes --
 the traps this machine sets, and what has already been learned the hard way.
 
@@ -32,12 +32,11 @@ script). It installs cc65 from the distribution, and VICE one of three ways:
    `VICE-Team/svn-mirror`) instead: the same bytes. The package's `x64sc` is
    the GTK build and needs a display, so `/usr/local/bin/x64sc` becomes a
    wrapper that starts `Xvfb :99` when `$DISPLAY` is unset; `screendump.py`
-   and `make check` then work unchanged, and `mkfont.py` finds the character
-   ROM in `/usr/share/vice/C64`. The network needs
+   then works unchanged, and `mkfont.py` finds the character ROM in
+   `/usr/share/vice/C64`. The network needs
    `sourceforge.net` and its download mirrors (or `raw.githubusercontent.com`)
-   besides the Ubuntu archive. The screen tests checked by hand (`hello`,
-   `q4k`, and `q4k` offline from its disk) match their goldens on 3.7.1, but
-   CI's 3.10 is the reference: if the two ever disagree, CI is right.
+   besides the Ubuntu archive. CI's 3.10 is the reference for the screen
+   tests: if 3.7.1 ever disagrees, CI is right.
 3. **`Q4K_FROM_SOURCE=1`:** builds the headless 3.10 from the tarball
    (a few minutes); the `toolchain` workflow uses this.
 
@@ -47,191 +46,109 @@ on a clean runner as well as building path 1's release.
 ## Make targets
 
 ```
-make                  build every program into dist/
-make run PROG=name    launch dist/name.prg in VICE (default: hello; the game runs from its d64)
-make play             the online game, with the dialogue daemon on the modem port
-make check PROG=name  headless run, dump the screen as text
-make shot PROG=name   headless run, save a PNG screenshot
-make test             every screen test against its golden, plus checkmap
+make                  build everything: dist/openworld.d81, dist/owarena.d64
+make run              the open world in VICE, from its disk
+make run PROG=owarena the multicolour arena, from its disk
+make test             every case against its golden, and the checks
 make bless            accept current output as the new goldens
-make assets           regenerate the C and JSON built from assets/
-make d64              dist/q4k.d64: the game, its engines, and its save disk (PROG=name for another)
-make release          the release's .d64s and zip, in dist/release/
-make online           dist/online/q4k.prg and its engines: the experimental networked game
-make d64-online       dist/online/q4k.d64: that, on its disk
-make run-online       ... and play it in VICE, with no host (make play starts one)
+make assets           regenerate the C and assembly built from assets/
 make clean
 ```
 
 `make bless` is for after you have read the diff, never instead of it.
 
-Players get the game from a release and never need any of this; to play
-from a checkout instead, `make run PROG=q4k` runs the game's disk, and
-`make play` is the same thing as the online zip's `tools/play.sh`, with the
-game built from the tree.
-
 ## Testing
 
-Every test is a screen: `tests/golden/<name>.txt` is the whole 40x25 text
-screen a program should leave, and a `<name>.cmd` beside it, if there is
-one, holds the `tools/screendump.py` arguments that get it there -- keys to
-type, globals to poke. `tools/test.sh` (which `make test` runs) diffs each
-against a fresh headless run, and also runs `tools/checkmap.py`,
-`tools/checkisle.py` (the continents: nothing on any screen would show a
-square cut off from the landing) and the dialogue host's own tests. Save and
-load get a fresh disk each run.
+Most tests are a screen: `tests/golden/<name>.txt` is the whole 40x25 text
+screen a run should leave, and the `<name>.cmd` beside it holds the
+`tools/screendump.py` arguments that get it there -- the disk, keys to type,
+globals to poke. `tools/test.sh` (which `make test` runs) diffs each against
+a fresh headless run, and runs the cases of its own: the save, a fight, a
+dungeon's monsters, the REU cache, the roads (`tools/roadref.py`),
+`tools/checkmap.py` (the towns: nobody walled in) and `tools/checkisle.py`
+(the generated lands: nothing cut off, and the C64's own `isletest` against
+the model).
 
 The cases run several at a time (`-j`), each printing its time when it
 ends; `tools/test.sh NAME...` runs only those (`--list` names them). The
 `test` workflow (`.github/workflows/test.yml`) runs `make test` on every
-push to any branch, split over three machines (`--group game`,
-`openworld`, `online`), and that is the run to watch: the suite takes a while
-locally and opens VICE windows on a desktop. `make check PROG=name` or
-`tools/screendump.py dist/name.prg --keys ...` is the quick way to look at
-one screen while working.
+push to any branch, split over two machines (`--group goldens`, `cases`),
+and that is the run to watch: the whole suite takes a while locally.
+`tools/test.sh NAME` is the quick way to check one case while working.
 
 CLAUDE.md covers what the harness can do (`--keys`, `--poke`, `--peek`,
-`--shot`, the modem) and the ways a screen test goes flaky.
-
-## Releases
-
-The version lives in `VERSION` and nowhere else: `make` generates
-`include/q4k/version.h` from it, and the title screen shows it in the corner.
-Releases are tagged `v<version>`, and a tag push runs
-`.github/workflows/release.yml`, which publishes:
-
-- `q4k-<version>.d64`, the game on its disk;
-- `q4k-<version>-online.d64`, the experimental networked build on its disk,
-  as `make d64-online` makes it;
-- `q4k-<version>-online.zip`, that disk plus the dialogue host and the assets
-  it reads, laid out as in the repo so `tools/play.sh` runs from inside it.
-
-There is no `.prg` on its own any more: both builds load their engines from
-their disk ([ENGINES.md](ENGINES.md)), so the PRG alone goes no further than
-the title screen. `make release` builds the same three into `dist/release/`,
-which is the way to look at them before tagging.
-
-To cut one:
-
-1. Set the new version in `VERSION` and run `make`.
-2. Re-bless the title screen, whose golden shows the version -- read the
-   diff, which should be that one line.
-3. Add a `## <version>` section to `CHANGELOG.md`. It becomes the release's
-   notes, and the workflow refuses to publish without one.
-4. Merge to `main`, then tag it and push the tag:
-   `git tag v0.9.0 && git push origin v0.9.0`.
-
-The workflow refuses a tag that does not match `VERSION`, and checks the
-built title screen against its golden before publishing. The test workflow
-runs on the same tag push. A release already drafted by hand for the tag
-keeps its text and just gets the files.
-
-The `toolchain-vice3.10` release holds the headless VICE for
-`tools/cloud-setup.sh`. It is marked a pre-release so that it is never the
-one GitHub calls "Latest", which is the link the README gives players.
+`--shot`, `--splash`, `--reucache`) and the ways a screen test goes flaky.
 
 ## Layout
 
 ```
-src/<name>.c        a program with main() -> dist/<name>.prg
+src/openworld.c     the bootstrap: the splash, the lands, then an engine
+src/ow/             the engine (built twice, ow-cpu and ow-reu) and its overlays
+src/owtown.c        the screens of text: shops, inns, the party, help, a fight
+src/owtalk.c        a conversation
+src/owparty.c       the party's making, for a new game
+src/fight/          the fight module, loaded by owtown and by the arena
+src/owarena.c       the multicolour arena: pick any fight
+src/isletest.c      the generators' check, which tools/checkisle.py drives
 src/lib/            shared modules, archived into build/q4k.lib
-include/q4k/        public headers
-cfg/c64-q4k.cfg     the game's memory map (both builds); c64-flat.cfg for the
-                    test programs that link the game's modules in one load,
-                    c64-tool.cfg for the small tools
-assets/             tiles, towns, world canon, NPC roster
-host/               daemons that answer the C64's modem
-tools/              build, run, screenshot, screen dump, tests
-tests/              expected screen output
-VERSION             the version, and the only place it is written
-CHANGELOG.md        what each release changed; its notes on GitHub
+src/sid/            the theme's player
+include/q4k/        headers
+cfg/                each program's memory map
+assets/             tiles, towns, monsters, fields, music, what people say
+tools/              build, run, screen dump, tests
+tests/golden/       expected screens
+docs/memmap.html    the open world's memory map, drawn by make
 ```
 
-Besides the game, `make` builds six dev tools: `tiles` (the whole tile set),
-`charset` (all 256 screen codes), `dungeontest` (preview generated dungeon
-levels), `isletest` (build the land and the towns for a run of seeds and draw
-one; `tools/checkisle.py` drives it), `arena` (fight any monster on any ground, at
-any level and in any kit) and `serialtest` (a modem loopback).
-
-Generated files (`src/lib/*_data.c`, `include/q4k/tiles.h`, `town_data.h`,
-`version.h`, `assets/geography.json`) are checked in so the build needs no
-Python, and `make` regenerates any whose assets have changed. (There is no
-overworld file: the land is made by the game, from its seed.)
+Generated files (`src/lib/*_data.c`, `src/lib/ow_*.s` from the tile sets,
+`include/q4k/tiles.h`, `town_data.h` and the rest) are checked in, and
+`make` regenerates any whose assets have changed. (There is no map file:
+the lands are made by the bootstrap, from the game's seed.)
 
 ## The arena
 
-`dist/arena.prg` is a fight with anything, on any ground, without walking
-the overworld until the right thing turns up. It runs `battle.c`'s own
-fight -- `battle_fight()` -- not a copy, so what you see there is what the
-game does.
+`dist/owarena.prg` (on `dist/owarena.d64`) is a fight with anything, on any
+ground, without walking the world until the right thing turns up. It loads
+the same fight module the open world does, so what you see there is what
+the game does.
 
 ```bash
-make run PROG=arena
+make run PROG=owarena
 ```
-
-The menu lists every monster: the wanderers in level order, then the three
-keepers, then Maldrath.
 
 | key | |
 |---|---|
 | `a`-`o` | fight that monster |
-| `1`-`6` | the ground a wanderer is met on: grass, forest, shore, swamp, lair, floor |
-| `F1` | hero level, 1 to 10, with the matching full health |
-| `F3` / `F5` / `F7` | weapon / armour / bow, cycling through what the shops sell |
+| `1`-`6` | the ground a wanderer is met on; keepers are always in a dungeon room and Maldrath in his lair |
+| `+` / `-` | how many wanderers come at once / how many of the party |
+| `F1` | the party's level, 1 to 10 |
+| `F3` / `F5` / `F7` | weapon / armour / bow |
 
-Keepers are always met in a dungeon room and Maldrath in his lair, as in the
-game; wanderers can be run from and they cannot. The hero is healed and
-given three draughts before every fight, and whatever the fight changed --
-experience, gold, a level gained -- is put back afterwards, so the settings
-on the panel are what the next fight gets. Random numbers are stirred by how
-long you take to press a key, as in the game, so the same choice does not
-play out the same way twice.
-
-The menu is a golden (`tests/golden/arena.txt`), so a monster added, renamed
-or recoloured shows up in `make test`. A fight is not: the monster's
-starting square is random, so no two runs agree.
-
-It also drives headlessly, which is how to check a change from a script:
-
-```bash
-tools/screendump.py dist/arena.prg --keys 'd' --settle 3          # a wasp, on grass
-tools/screendump.py dist/arena.prg --keys '\x85\x852h     ' --settle 5 \
-    --shot build/archer.png                                       # level 3, forest, archer
-```
-
-`F1` to `F7` are `\x85`-`\x88` in `--keys`, and each space is a turn spent
-standing your ground.
+`*` has it play by itself, with the module's autoplayer (`FIGHTBOT`), which is
+how [tools/balance.py](tools/balance.py) measures the keepers and the
+wanderers against each kind of party: dozens of fights, four VICEs at a time.
+The menu and three fights are goldens (`owarena*`).
 
 ## Monsters
 
-Everything that fights lives in `src/lib/battle.c`, typed in
+Everything that fights lives in `src/lib/bestiary.c`, typed in
 `include/q4k/battle.h`:
 
 - `wanderers[]` -- each with `from`, the level it starts turning up at, and
-  kept in that order: `battle_wander()` picks evenly from those the hero has
-  reached and stops at the first it has not. The open world's dungeons show
-  them on the map, and keep their own copy of what that needs: each one's
+  kept in that order: `battle_wander()` (`src/lib/ow_fight.c`) picks evenly
+  from those the hero has reached and stops at the first it has not. The
+  dungeons show them on the map, and keep their own copy of what that needs: each one's
   picture, colour and speed in `src/ow/foes.s` (natives too), and `from` in
   `src/ow/dungeon.c`. Change a wanderer and change those.
 - `keepers[]`, one per dungeon, and `maldrath`, who is two squares by two.
 
 A `Monster` is its stats, its glyph and colour, its speed in tenths of a move
 a turn, its size, and optionally a ranged attack: `shot` (strength), `reach`
-(squares) and `kind` (`SHOT_ARROW`, `SHOT_FIRE` or `SHOT_WATER`, which pick
-the shot sprite's shape and colour and the line in the log). Leave those out
-and it only closes in. A ranged monster shoots when the hero is in a
-straight line, within reach, with nothing solid between, and strikes like
-anything else when beside them.
-
-A new monster usually wants a glyph: add a `tile ... actor <colour>` to
-`assets/tiles.txt` at the next free code (see CLAUDE.md for what is taken),
-and `make` regenerates `T_<NAME>` and `TC_<NAME>`. Then try it in the arena.
-
-A fight starts with the monster anywhere in the top third of the field that
-its whole body can stand on and that has a way through to the hero. The
-check is the monster's own pathfinding flood, so no fight starts with it
-shut in a pocket of trees; after 16 misses it falls back to the field's
-spot in `assets/arenas.txt`.
+(squares) and `kind` (`SHOT_ARROW`, `SHOT_FIRE`, `SHOT_WATER` or
+`SHOT_BOLT`). Leave those out and it only closes in. Its pictures are
+`assets/monsters.txt`'s, which `tools/mkfields.py` makes into the fight's
+sprite files (and the dungeon's, `src/ow/foe_art.s`). Then try it in the
+arena.
 
 ## Balance notes
 
@@ -245,58 +162,30 @@ shopping trip is a decision rather than small change.
 
 ## Saved games
 
-Saves go to a disk in unit 8 (`src/lib/savegame.c`). Only the character,
-the quest's progress and which squares have been explored are written:
-towns are fixed and dungeon levels regenerate exactly from their seed, so
-the map is rebuilt rather than stored. CLAUDE.md has the two traps disk
-access sets on this machine.
+F1 in the engine saves the game block (`include/q4k/owgame.h`, 193 bytes) to
+`OW-SAVE` on the disk, and F3 restores it through the bootstrap, which builds
+that game's world first. The disk comes with a save of its own
+(`tools/mkowsave.py`). Nothing of the map is stored: the lands are rebuilt
+from the seed. CLAUDE.md has the two traps disk access sets on this machine.
 
-## The map
+## What people say
 
-Home is a 64x64 map, made when the game needs it, from the game's seed, and
-kept in the RAM under the I/O area; four more continents, 64x31, are made the
-same way when you sail to them. None of it is stored in the program, and none
-of it wraps. Towns are exactly one 21x19 viewport, so they never scroll. Dungeon
-levels are `DUN_W` x `DUN_H` (48x32, in `include/q4k/game.h`) and the view
-follows the hero, clamped at the edges. Four towns are authored in
-[assets/towns.txt](assets/towns.txt) (Millford, the castle, Wardlow and
-Ashcombe) and every land has one more, made by the game. Dungeon levels are
-generated, seeded from the dungeon and depth so a level you walk back into is
-the level you left. CLAUDE.md's Memory and "The land" sections are the full
-story of where all of it lives.
+[src/lib/talk.c](src/lib/talk.c) loads what each person can say from the
+disk when you walk up to them, and the player picks a topic from a menu. The
+lines are [assets/talk.txt](assets/talk.txt), by quest stage; a line marked
+`give` is the one that hands over what the quest needs, and leaving without
+hearing it gets you nothing. The inns' rumours are
+[assets/hints.json](assets/hints.json), loaded when you buy an ale.
+[tools/mktalk.py](tools/mktalk.py) packs one file per person (`0` to `8`, by
+`NPC_*`) and per inn (`9` to `11`) onto the disk, and checks that each fits
+the talk's buffer (`TALK_SIZE` in the Makefile, 3052 bytes). People's names
+come from [assets/npcs.json](assets/npcs.json), and where they stand from
+[assets/towns.txt](assets/towns.txt).
 
-Both share `local[]`, whose rows are `LOCAL_STRIDE` (64) apart whatever the
-place's width, so a square is `LOCAL_AT(x, y)`: a shift, not a multiply.
-It has no storage of its own -- it is the 2K font image, which is dead once
-`charset_install()` has copied it to `$3800` (see `src/lib/local.s`). So the
-charset must be installed before anything writes a map, which is why
-`main()` calls `tiles_install()` before `game_init()`.
-`make shot PROG=dungeontest` draws a level at half scale, a character to
-every 2x2 block of squares, since a whole one no longer fits on screen.
-
-Dungeons are dark. A room lights up whole when you stand in it, you can see
-straight along a corridor until something stops the eye, and squares you
-have already seen stay on the map drawn dim. That is Rogue's model rather
-than a full symmetric shadowcast, and it is the right one here: the
-generator only cuts corridors along the axes, so four rays capture exactly
-what a corridor shows, for a fraction of the cost of casting at every wall.
-Measured on the emulated machine it costs 4.4ms a turn against a 34ms
-redraw.
-
-What you have seen is kept for every level of the last dungeon you were
-in, a bit per square. `fov_enter()` in `src/lib/fov.c` files the level you
-left away when you arrive on the next one, not when you leave, so dying
-down there needs no code of its own: nothing touches the map between the
-fight and walking back in. A saved game keeps only the level it was saved
-on; the other levels would cost the save blob 576 bytes of BSS it does not
-have.
-
-`tools/checkmap.py` (run by `make test`) floods each hand-drawn town from its
-arrival square and fails if any shopkeeper or treasure cannot be walked to. It
-has already caught bugs a screen test never would: a shopkeeper standing in a
-doorway blocking the smith behind him, and a shop behind a locked door. The land
-that is made by the game is checked by `tools/checkisle.py` instead, which
-searches the model of the generators for anything unreachable.
+The game used to have an experimental networked build, whose people answered
+through a language model on a host at the other end of the modem port. It
+and its host (`host/npcd.py`) were retired with the classic game; the 0.11.0
+tag has them.
 
 ## The letters
 
@@ -339,148 +228,6 @@ of spacing (a space is four wide), as vic2's own ROM font is; the ASCII codes
 the C64's set has no glyph for (`\ ^ _ ` { | } ~`) are spaces. Its info block
 is complete, so GEOS can use it too.
 
-Mixed case needs no special handling. cc65 encodes an upper-case letter in a
-string literal as shifted PETSCII, which draws as a capital, and a lower-case
-one as unshifted, which draws in lower case — the charset holds both, and
-no tile takes a letter's slot: terrain is in the graphics range at
-`$60-$7D`, and the people and monsters are in the reverse-video half at
-`$80-$90`, which the game never draws text from.
-
-## Picking tile glyphs
-
-`make shot PROG=charset` renders all 256 screen codes so you can choose by eye.
-Screen codes are neither ASCII nor PETSCII — they index the active character
-set, and q4k selects the lowercase/mixed set (`$D018 = $17`), where `$41-$5A`
-are `A-Z` and `$01-$1A` are `a-z`.
-
-## The dialogue host
-
-The game dials out over the C64's **user port** — the modem port — at 300
-baud. VICE bridges that to a TCP socket on this machine, where
-[host/npcd.py](host/npcd.py) answers: it takes the line the player typed, asks
-a local model to answer as the NPC, and sends one line back.
-
-The model is whatever [Ollama](https://ollama.com) is serving on its
-OpenAI-compatible endpoint, default `llama3.2:3b`. The daemon uses nothing but
-the Python standard library — no packages to install, no API key, no network
-egress.
-
-```bash
-ollama serve &                 # if it is not already running
-ollama pull llama3.2:3b
-
-make play                      # live dialogue
-Q4K_MOCK=1 make play           # canned replies, no model needed
-Q4K_MODEL=llama3.2:1b make play
-```
-
-Model and endpoint are configurable three ways, in increasing precedence: the
-constants at the top of [host/npcd.py](host/npcd.py), the `Q4K_MODEL` and
-`Q4K_OLLAMA_URL` environment variables, and `--model` / `--url`. Anything that
-speaks the OpenAI chat shape works — another Ollama host, llama.cpp's server,
-a compatible proxy.
-
-If Ollama is unreachable or the model is not pulled, the daemon says so and
-serves canned lines rather than failing -- but it also answers the C64's
-startup `PING` with `ERR no model`, and the C64 then plays without
-conversations, as it does when nothing answers at all. `--mock` on purpose
-answers `OK mock`, and the C64 talks through it; that is what the tests
-and `Q4K_MOCK=1` use.
-
-### Directions they can be trusted on
-
-Left to itself a model invents geography — it will send you north to a town
-that is south, over a mountain range that is not there.
-[tools/mkgeo.py](tools/mkgeo.py) measures the real map instead: compass
-bearing on the wrapping grid, and walking distance by flood fill over
-passable ground, which is what actually matters when the Sundering runs down
-the middle of the continent. The result goes to `assets/geography.json`, and
-the daemon puts the lines for wherever the speaker is standing in front of
-them, with an instruction not to guess at anything else.
-
-    from Millford: THE HOLLOW CROWN lies south, about 46 leagues on foot,
-                   though the road bends a long way round.
-
-**The C64 sends only an NPC id.** Every system prompt lives host-side and is
-looked up by that id: [assets/canon.md](assets/canon.md) is the world bible
-shared by all of them, and each character's voice and private knowledge come
-from [assets/npcs.json](assets/npcs.json). Adding a character is a JSON entry
-plus an `ent` line and a digit on the map in
-[assets/towns.txt](assets/towns.txt) — no change to the protocol, and
-nothing new on the C64.
-
-Protocol, CR-terminated ASCII both ways:
-
-```
-->  HI <npc> <stage> <seed>           open a conversation
-->  SAY <npc> <stage> <seed> <text>   say something
-->  ALE <inn> <stage> <seed>          buy the innkeeper a drink's worth
-->  PING                              at startup: is anyone there to talk?
-<-  OK <reply>   |   GIVE <g> <reply>   |   BYE <reply>   |   ERR <reason>
-```
-
-`<stage>` is one digit of quest progress. `<seed>` is two hex digits rolled
-once per game and kept in the save: the host draws that run's secrets from
-[assets/secrets.json](assets/secrets.json) with it, so the word Old Brann
-gives you for the Stair's dry hour is different every game. `GIVE` is the
-host deciding a conversation has earned something -- Vane only hands over
-the Tidal Key when you say that word. The model never makes that call;
-the host matches the player's line itself, and the model is never even told
-the word it is waiting for. `BYE` is the NPC ending the conversation after
-that reply -- a goodbye, offence taken, work to get back to. `ALE` is
-answered with an authored hint from [assets/hints.json](assets/hints.json)
-that fits the inn and the stage; no model is involved. With no host on the
-line at all, nothing is gated, so the game stays winnable without the modem.
-
-### The two builds
-
-The game, as `make` builds it, has no modem: [src/lib/talk.c](src/lib/talk.c)
-is in its library, not `dialog.c` and `line.c`. The experimental networked
-build (`make online`, `ONLINE=1`) swaps them, with `-DQ4K_ONLINE` on, and
-everything of it goes to `build/online/` and `dist/online/` so the two builds
-never share an object. That is the only difference between them: both have
-the same engines, the same memory layout and the same game, and `Q4K_ONLINE`
-is tested in two places, the title screen's call to the host and the
-networked half of `dialog.h`. Instead of a host, [src/lib/talk.c](src/lib/talk.c) loads what each
-person can say from the disk when you walk up to them, and the player picks a
-topic from a menu. The lines are [assets/talk.txt](assets/talk.txt), by quest
-stage; a line marked `give` is the one that hands over what the quest needs,
-and leaving without hearing it gets you nothing. The inns' rumours are the same
-`assets/hints.json` the host draws from, loaded when you buy an ale.
-[tools/mktalk.py](tools/mktalk.py) packs one file per person (`0` to `8`, by
-`NPC_*`) and per inn (`9` to `11`) onto the d64, so it only works from
-`make d64`'s disk, and it checks that each file fits the talk's
-buffer at the end of its engine (`TALK_SIZE` in the Makefile, 3052 bytes).
-Whoever has no file on the disk falls back to the networked
-build's no-host behaviour. Vane's dry hour is always the bone tide here.
-
-### Taming a small model
-
-Small local models follow instructions loosely, so the daemon does not trust
-the prompt to do the work:
-
-- The prompt puts the binding constraints last, phrased as what to do, and
-  insists on first person — without that the fisher talks about Old Brann in
-  the third person.
-- Replies are cut to two sentences, stripped of stage directions, speaker
-  labels and wrapping quotes, forced to printable ASCII, and trimmed to 150
-  characters at a sentence boundary.
-- An empty reply falls back to an authored line from the NPC file.
-
-What no amount of post-processing fixes is invention. `llama3.2:1b` will
-assert things the canon does not say — it put the Greenhollow grain factor,
-who sells to the castle, buying grain from a fishing town. `llama3.2:3b` gets
-that right and quotes the reeve's four unanswered letters back accurately,
-for about 1.3s a reply instead of 0.25s. Since an answer then takes several
-seconds to crawl down the line, 3B is the better trade and the default.
-
-### Why 300 baud
-
-The KERNAL's RS-232 is NMI-driven bit-banging, and its receiver drops bytes on
-sustained back-to-back traffic well before its nominal top speed. 300 baud is
-what it handles reliably — and it is what a 1983 modem ran at anyway, so an
-NPC's answer arrives at reading pace.
-
-The test harness drops VICE's warp mode whenever the modem is wired up:
-warp decouples emulated time from wall-clock time, and the C64's timeouts
-would expire in a fraction of a real second, long before any host could reply.
+The screens of text (owtown, owtalk, owparty) draw from this set. The
+engine's map and the fight have character sets of their own, made from the
+tile sets, with the ROM's lowercase letters copied into their top half.

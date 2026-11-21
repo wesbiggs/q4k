@@ -2,9 +2,8 @@
  * Quest for the King -- which continent holds which story place.
  *
  * game.h's slot_of(), on its own so that every program that needs it links
- * the one copy and nothing else of game.c's: the game, the open world's
- * bootstrap and its screens of text (each defines lore_seed itself).
- * tools/homepath.py is the same shuffle in Python.
+ * the one copy and nothing else: the open world's bootstrap and its
+ * screens of text (each defines lore_seed itself).
  */
 
 #include <q4k/game.h>

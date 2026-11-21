@@ -12,7 +12,7 @@
 #include <q4k/text.h>
 #include <q4k/view.h>
 
-/* Read-only data goes in the charset's spare glyphs: cfg/c64-q4k.cfg. */
+/* Read-only data goes in the charset's spare glyphs (CHDATA3 in the cfgs). */
 #pragma rodata-name ("CHDATA3")
 
 #define TITLE_Y   0

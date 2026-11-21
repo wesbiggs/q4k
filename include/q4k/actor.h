@@ -78,8 +78,5 @@ void          party_tick(void);
    marks them. */
 extern unsigned char party_turn;
 
-/* The sprite's colours, from a member's name: the same name always gets the
-   same tunic (sprite.c). */
-unsigned char tunic_of(const Actor *a);
 
 #endif /* Q4K_ACTOR_H */

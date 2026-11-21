@@ -3,9 +3,9 @@
 # of building it for minutes.
 #
 # It runs cloud-setup.sh itself with the build forced, so what is published
-# is exactly what the script would have built, and then builds q4k and
-# checks one screen with it before uploading anything. Runs by hand, and
-# whenever the script or this file changes. A second job checks the path
+# is exactly what the script would have built, and then builds the open
+# world and checks one screen with it before uploading anything. Runs by
+# hand, and whenever the script or this file changes. A second job checks the path
 # taken without a token: Ubuntu's VICE plus the ROMs from VICE's source.
 
 name: toolchain
@@ -38,10 +38,10 @@ jobs:
       - name: Set up the toolchain from source
         run: sudo Q4K_FROM_SOURCE=1 tools/cloud-setup.sh
 
-      - name: Check it builds and runs q4k
+      - name: Check it builds and runs the open world
         run: |
           make
-          tools/screendump.py dist/hello.prg | diff -u tests/golden/hello.txt -
+          tools/test.sh openworld
 
       - name: Pack
         run: tar -czf "vice-$VICE_VERSION-headless.tgz" -C / opt/vice
@@ -51,12 +51,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="toolchain-vice$VICE_VERSION"
-          # A pre-release, so it is never the one GitHub calls "Latest":
-          # that link is for players, and points at the game.
+          # A pre-release, so it is never the one GitHub calls "Latest".
           gh release view "$tag" >/dev/null 2>&1 \
             || gh release create "$tag" --target "$GITHUB_SHA" --prerelease \
                  --title "Toolchain: VICE $VICE_VERSION (headless)" \
-                 --notes "Headless VICE for tools/cloud-setup.sh, built on ubuntu-24.04 into /opt/vice. Not a game release."
+                 --notes "Headless VICE for tools/cloud-setup.sh, built on ubuntu-24.04 into /opt/vice."
           gh release edit "$tag" --prerelease
           gh release upload "$tag" "vice-$VICE_VERSION-headless.tgz" --clobber
 
@@ -73,11 +72,7 @@ jobs:
       - name: Set up the toolchain with Ubuntu's VICE
         run: sudo tools/cloud-setup.sh
 
-      - name: Check it builds and runs q4k
+      - name: Check it builds and runs the open world
         run: |
           make
-          make d64 d64-online
-          tools/screendump.py dist/hello.prg | diff -u tests/golden/hello.txt -
-          tools/screendump.py dist/q4k.prg --disk dist/q4k.d64 \
-              --keys 'Alaric\rwwwwwwwwwwwwaaaaw' \
-              --settle 3 | diff -u tests/golden/q4k.txt -
+          tools/test.sh openworld isletest

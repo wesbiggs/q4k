@@ -1,48 +1,29 @@
-# q4k -- Commodore 64 build
+# q4k -- Commodore 64 build: the open world
 #
 # Layout:
 #   src/<name>.c    a program with main(); builds to dist/<name>.prg
 #   src/lib/*.c|*.s shared modules; archived into a .lib so the linker
 #                   pulls in only what each program actually references
+#   src/ow/         the open world's engine; src/fight/ its fight module
 #
 # Usage:
-#   make            build every program; the game is the offline build
-#   make run        launch PROG in VICE  (make run PROG=hello)
-#   make check      headless run, dump the C64 screen as text
-#   make test       headless run, diff every program against its golden
+#   make            build everything: dist/openworld.d81, dist/owarena.d64
+#   make run        launch PROG in VICE (default openworld; PROG=owarena)
+#   make test       headless run, diff every case against its golden
 #   make bless      accept current output as the new goldens
-#   make assets     regenerate the C and JSON built from assets/
-#   make shot       headless run, save a PNG screenshot
-#   make d64        build a bootable disk image (the game's, by default)
-#   make online     the experimental networked game, in dist/online/
-#   make d64-online    ... on its disk
-#   make play          ... and play it with the NPC dialogue daemon attached
-#   make release    the files a release publishes, in dist/release/
+#   make assets     regenerate the C and assembly built from assets/
 #   make clean
 
 TARGET   := c64
-PROG     ?= hello
+PROG     ?= openworld
 
 BUILD    := build
 DIST     := dist
 
-# The game is the offline build: no modem and no host. What people say is on
-# the disk, a file each, which src/lib/talk.c loads into the talk's buffer
-# (tools/mktalk.py makes them from assets/talk.txt, and the inns' rumours from
-# assets/hints.json).
-#
-# The networked build, experimental, talks to a host over the modem instead
-# (ONLINE=1, -DQ4K_ONLINE). Everything of it goes in a directory of its own,
-# so the two builds' objects never mix; use the targets at the end, which set
-# ONLINE.
-ONLINE   ?= 0
-ifeq ($(ONLINE),1)
-BUILD    := build/online
-DIST     := dist/online
-endif
-
-# The talk's buffer, at the end of its engine (src/lib/talkbuf.s): offline,
-# one person's lines or one inn's rumours. mktalk.py checks every file
+# What people say is on the disk, a file each, which src/lib/talk.c loads
+# into the talk's buffer (src/lib/talkbuf.s; tools/mktalk.py makes the files
+# from assets/talk.txt, and the inns' rumours from assets/hints.json), one
+# person's lines or one inn's rumours at a time. mktalk.py checks every file
 # against it.
 TALK_SIZE := 0x0BEC
 
@@ -54,14 +35,12 @@ C1541    := c1541
 # --static-locals: locals become static storage -- faster on 6502 (no stack
 # frame juggling) at the cost of no recursion. Right trade for a tile RPG.
 OPT      := -Osir
-CFLAGS    = -t $(TARGET) $(OPT) --static-locals -I include \
-            $(if $(filter 1,$(ONLINE)),-DQ4K_ONLINE)
+CFLAGS    = -t $(TARGET) $(OPT) --static-locals -I include
 ASFLAGS  := -t $(TARGET) -I include --asm-include-dir include \
             --asm-define TALK_SIZE=$(TALK_SIZE)
-# openworld, the smooth-scrolling prototype, has a map of its own
-# (cfg/c64-openworld.cfg), with VIC bank 1 kept for its screens.
-# The game gets the full memory map; the demos and tools get a lean one that
-# skips the HIGH region and its contiguity padding.
+# Every program has a memory map of its own (cfg/): the bootstrap's, the
+# engines', owtown's, owtalk's, the arena's; isletest has everything in one
+# load (cfg/c64-flat.cfg) and owparty and the small ones the lean tool map.
 LDFLAGS  := -t $(TARGET)
 # Have the compiler write each object's header dependencies next to it, so
 # that editing a header -- or regenerating one from assets/, like tiles.h --
@@ -70,88 +49,58 @@ LDFLAGS  := -t $(TARGET)
 # system headers. Each header also gets an empty rule, so deleting one does
 # not break the build.
 DEPFLAGS  = -Wc --create-full-dep,$(@:.o=.d) -Wc --dep-target,$@
-# The game loads its engines from the disk (cfg/c64-q4k.cfg, and its own
-# rule below). dungeontest links the maps and the font, arena the fights and
-# isletest the land, so they need the game's charset and probe page as well,
-# with everything in one load (cfg/c64-flat.cfg).
-LDCFG     = cfg/c64-$(if $(filter dungeontest arena isletest,$*),flat,$(if $(filter owtown owtalk,$*),$*,$(if $(filter openworld,$*),owboot,$(if $(filter owarena,$*),owarena,tool)))).cfg
+LDCFG     = cfg/c64-$(if $(filter isletest,$*),flat,$(if $(filter owtown owtalk,$*),$*,$(if $(filter openworld,$*),owboot,$(if $(filter owarena,$*),owarena,tool)))).cfg
 
 MAINS    := $(wildcard src/*.c)
 PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 
-# The core's modules whose code and constants live above the character set,
-# in the HIGH region, rather than in MAIN. Both flags are needed: --code-name
-# alone leaves the string literals behind. (A module in an engine, below, goes
-# to its engine instead: being on this list as well would change nothing.)
-HIMODS   := arms panel savegame sprite world modem line actor quest
+# Modules whose code and constants live in the HIGH segments, which each
+# program's cfg places (in owtown and owtalk, above the character set). Both
+# flags are needed: --code-name alone leaves the string literals behind. (A
+# module in an ENG_ list, below, goes to that list's segments instead.)
+HIMODS   := arms panel actor quest
 
 # These are compiled without -Os, which unrolls shifts and multiplies by
-# constants and costs about a tenth of their size: the screens lose nothing
-# by it, and the fight (battle) is turn-based, so a flood fill a few
-# milliseconds slower goes unnoticed. Not the generators or the modem, whose
-# timing was measured with it. Changing this list needs the objects rebuilt,
-# as above.
-SMALLMODS  := loot shop inn help battle arms dialog dungeon talk gift
+# constants and costs about a tenth of their size: the screens of text lose
+# nothing by it. Not the generators, whose timing was measured with it.
+# Changing this list needs the objects rebuilt: flags are not dependencies.
+SMALLMODS  := shop inn help arms talk gift
 $(foreach m,$(SMALLMODS),$(eval $(BUILD)/lib/$(m).o: OPT := -Or))
 
-# The title screen is not in HIGH at all: it runs once, at the start, from the
-# engines' slot, which the PRG brings it in (cfg/c64-q4k.cfg) ...
-$(BUILD)/lib/title.o: CFLAGS += --code-name TITLECODE --rodata-name TITLEDATA
-# ... and so is what draws the game's character set, which is done before the
-# map's engine is loaded over it: charset_define.o here, and the glyphs in
-# tiles_data.c (see tools/mktiles.py, which marks them).
+# What draws the character set (charset_define.o, and the glyphs in
+# tiles_data.c: tools/mktiles.py marks them) is wanted once, at the start of
+# a program, in segments of its own.
 $(BUILD)/lib/charset_define.o: CFLAGS += --code-name TITLECODE
 
 LIBSRC   := $(wildcard src/lib/*.c) $(wildcard src/lib/*.s)
 LIBOBJ   := $(patsubst src/lib/%.c,$(BUILD)/lib/%.o,$(wildcard src/lib/*.c)) \
             $(patsubst src/lib/%.s,$(BUILD)/lib/%.o,$(wildcard src/lib/*.s))
 
-# What talks is the only difference between the two builds: the offline one
-# from the disk (talk, and its buffer), the networked one over the modem
-# (dialog, with modem and line in the core). Never both. The modem driver
-# stays in the offline build's library, for serialtest: the game never calls
-# it, so it never links it.
-OFFONLY    := talk talkbuf
-ONLINEONLY := dialog line
-ifeq ($(ONLINE),1)
-LIBOBJ   := $(filter-out $(patsubst %,$(BUILD)/lib/%.o,$(OFFONLY)),$(LIBOBJ))
-else
-LIBOBJ   := $(filter-out $(patsubst %,$(BUILD)/lib/%.o,$(ONLINEONLY)),$(LIBOBJ))
-endif
+# dungeon.c and sfx.s are built into the engine instead (ow_dungeon.o,
+# ow_sfx.o, below), and nothing links the library's copies.
+LIBOBJ   := $(filter-out $(BUILD)/lib/dungeon.o $(BUILD)/lib/sfx.o,$(LIBOBJ))
 
-# The engines (include/q4k/engine.h, cfg/c64-q4k.cfg): what is loaded into the
-# slot for each, and so not in memory otherwise. Their code and constants go
-# in the engine's segments, and their variables stay in the core's BSS and
-# DATA, so that nothing they keep is lost when another engine takes the slot.
-# Everything else is the core. The assembly modules choose their own
-# segments: isle_gen, isle_rnd, tgen and place_near are the map's, open9 the fight's,
-# overlay has the fight's arrays and talkbuf the talk's buffer; town_data puts
-# the people's ids, which only a conversation needs, with the talk.
-# tools/mkengines.py checks after every link that no engine calls another,
-# nor the core an engine.
-ENG_MAP   := scene draw fov town_data town_gen loot loot_data sail \
-             dungeon fightcall
-ENG_FIGHT := battle bestiary arena_data
-ENG_TALK  := talk dialog inn gift
+# The segments the modules of the screens of text (owtown, owtalk) and the
+# towns' tables are compiled into: names the game's engines once had, which
+# the open world's cfgs place. Their variables stay in BSS and DATA.
+ENG_MAP   := town_data town_gen loot_data
+ENG_FIGHT := bestiary
+ENG_TALK  := talk inn gift
 ENG_SHOP  := shop help
 ENGMODS   := $(ENG_MAP) $(ENG_FIGHT) $(ENG_TALK) $(ENG_SHOP)
 
 $(foreach e,MAP FIGHT TALK SHOP,$(foreach m,$(ENG_$(e)),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name $(e)CODE --rodata-name $(e)DATA)))
-# The map loop itself, in src/q4k.c: its main() is boot.c's.
-$(BUILD)/q4k.o: CFLAGS += --code-name MAPCODE --rodata-name MAPDATA
 $(foreach m,$(filter-out $(ENGMODS),$(HIMODS)),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name HICODE --rodata-name HIDATA))
 
 ifneq ($(strip $(LIBOBJ)),)
 LIB      := $(BUILD)/q4k.lib
 endif
 
-.PHONY: all run play check shot test bless d64 release clean dirs assets \
-        online d64-online run-online
-.SECONDARY: $(BUILD)/$(PROG).o $(BUILD)/q4k.o
+.PHONY: all run test bless clean dirs assets
+.SECONDARY: $(BUILD)/$(PROG).o
 
-# The open world's memory map, a page drawn from the links below (offline
-# only: the online build's open world is the same).
-MEMMAP := $(if $(filter 1,$(ONLINE)),,docs/memmap.html)
+# The open world's memory map, a page drawn from the links below.
+MEMMAP := docs/memmap.html
 
 all: dirs assets $(PRGS) $(DIST)/openworld.d81 $(BUILD)/owcache.reu $(DIST)/owarena.d64 \
      $(DIST)/theme.sid $(BUILD)/music/.stamp $(MEMMAP)
@@ -161,20 +110,15 @@ $(BUILD)/lib/isle_gen.o: include/q4k/tiles.inc
 
 # --- generated from assets ---------------------------------------------------
 #
-# The generated C and the geography the NPCs are given are checked in, so a
-# plain build needs no Python. These rules keep them from going stale: edit
+# The generated C and assembly are checked in. These rules keep them from going stale: edit
 # an asset and the next make regenerates whatever depended on it.
 
-GEN_TILES := include/q4k/tiles.h include/q4k/tiles.inc src/lib/tiles_data.c \
-            src/lib/tiles_names.c
+GEN_TILES := include/q4k/tiles.h include/q4k/tiles.inc src/lib/tiles_data.c
 GEN_TOWN  := include/q4k/town_data.h src/lib/town_data.c
-GEN_ARENA := include/q4k/arena_data.h src/lib/arena_data.c
 GEN_NAMES := include/q4k/names_data.h
-GEN_GEO   := assets/geography.json
 GEN_FONT  := src/lib/font_data.c
 GEN_CVT   := assets/q4k-serif.cvt
 GEN_LOOT  := include/q4k/loot_data.h src/lib/loot_data.c
-GEN_VER   := include/q4k/version.h
 GEN_MUSIC := src/sid/theme_data.s
 GEN_TUNES := include/q4k/music_map.h src/lib/music_map.c
 GEN_OW    := src/lib/ow_data.s src/lib/ow_figs.s
@@ -192,17 +136,8 @@ GEN_FIGHT := src/fight/fight_data.s src/ow/foe_art.s
 FONT_SOURCE ?= rom
 FONT_STYLE  ?= bold
 
-assets: $(GEN_TILES) $(GEN_TOWN) $(GEN_ARENA) $(GEN_NAMES) $(GEN_GEO) $(GEN_FONT) $(GEN_CVT) \
-        $(GEN_LOOT) $(GEN_VER) $(GEN_MUSIC) $(GEN_TUNES) $(GEN_OW) $(GEN_FIGHT)
-
-# The version lives in VERSION alone; the release workflow checks the tag
-# against it. No Python needed, so this one is plain shell.
-$(GEN_VER): VERSION
-	@printf '%s\n' '/* GENERATED from VERSION by the Makefile -- do not edit. */' \
-	    '#ifndef Q4K_VERSION_H' '#define Q4K_VERSION_H' '' \
-	    "#define Q4K_VERSION \"$$(tr -d ' \n' < VERSION)\"" '' \
-	    '#endif' > $@
-	@echo "version: $$(cat VERSION)"
+assets: $(GEN_TILES) $(GEN_TOWN) $(GEN_NAMES) $(GEN_FONT) $(GEN_CVT) \
+        $(GEN_LOOT) $(GEN_MUSIC) $(GEN_TUNES) $(GEN_OW) $(GEN_FIGHT)
 
 $(GEN_TILES): assets/tiles.txt tools/mktiles.py
 	tools/mktiles.py
@@ -210,10 +145,6 @@ $(GEN_TILES): assets/tiles.txt tools/mktiles.py
 $(GEN_TOWN): assets/towns.txt assets/tiles.txt assets/npcs.json tools/mktowns.py \
              tools/rle.py
 	tools/mktowns.py
-
-$(GEN_ARENA): assets/arenas.txt assets/tiles.txt tools/mkarenas.py \
-              tools/mktiles.py tools/checkmap.py tools/rle.py
-	tools/mkarenas.py
 
 $(GEN_LOOT): assets/loot.txt assets/towns.txt \
              assets/tiles.txt assets/npcs.json tools/mkloot.py tools/mktowns.py \
@@ -255,10 +186,6 @@ $(GEN_FIGHT): $(FIELD_SRC)
 
 $(GEN_NAMES): assets/names.txt tools/mknames.py
 	tools/mknames.py
-
-$(GEN_GEO): assets/towns.txt assets/places.txt assets/names.txt \
-            assets/tiles.txt tools/mkgeo.py tools/mknames.py
-	tools/mkgeo.py
 
 # A stamp holding the chosen font, so that changing FONT_SOURCE on the
 # command line actually rebuilds. Make compares file times, not variables:
@@ -322,23 +249,6 @@ $(DIST)/%.prg: $(BUILD)/%.o $(LIB) $(wildcard cfg/*.cfg)
 	    -Wl -Ln,$(BUILD)/$*.lbl -o $@ $< $(LIB)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
-# The arena plays itself (src/arena.c): battle.c again, with the fight's
-# autoplayer compiled in (FIGHT_BOT), linked ahead of the library so that its
-# fight is the one the arena gets. Nothing else links it. After battle.o, never
-# beside it: cl65 writes src/lib/battle.s on the way to either, and two at
-# once tread on it.
-$(BUILD)/lib/battle_bot.o: OPT := -Or
-$(BUILD)/lib/battle_bot.o: src/lib/battle.c | $(BUILD)/lib/battle.o
-	@mkdir -p $(dir $@)
-	$(CL65) $(CFLAGS) -DFIGHT_BOT --code-name FIGHTCODE --rodata-name FIGHTDATA \
-	    $(DEPFLAGS) -c -o $@ $<
-
-$(DIST)/arena.prg: $(BUILD)/arena.o $(BUILD)/lib/battle_bot.o $(LIB) $(wildcard cfg/*.cfg)
-	@mkdir -p $(DIST)
-	$(CL65) $(LDFLAGS) -C cfg/c64-flat.cfg -m $(BUILD)/arena.map \
-	    -Wl -Ln,$(BUILD)/arena.lbl -o $@ $< $(BUILD)/lib/battle_bot.o $(LIB)
-	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
-
 # The smooth-scrolling prototype: a bootstrap (openworld.prg, built as any
 # program here) and two engines from one source, with and without the REU
 # (src/ow/, -DOW_REU and --asm-define OW_REU), each with a label file for
@@ -366,13 +276,9 @@ $(BUILD)/ow/world-cpu.o $(BUILD)/ow/world-reu.o: OWSEG := --code-name OVWCODE
 $(BUILD)/ow/town-cpu.o $(BUILD)/ow/town-reu.o: OWSEG := --code-name OVTCODE
 $(BUILD)/ow/dungeon-cpu.o $(BUILD)/ow/dungeon-reu.o: OWSEG := --code-name OVDCODE
 
-# The dungeon generator, src/lib/dungeon.c, again, in the dungeon's overlay:
-# the library's copy is the game's map engine's (MAPCODE), which here is the
-# core. Linked ahead of the library, so the library's is not pulled in. Its
-# constants stay in COMMON (MAPDATA), the same bytes in both engines. After
-# the library's, never beside it: cl65 writes src/lib/dungeon.s on the way
-# to either.
-$(BUILD)/ow/ow_dungeon.o: src/lib/dungeon.c | $(BUILD)/lib/dungeon.o
+# The dungeon generator, src/lib/dungeon.c, in the dungeon's overlay. Its
+# constants stay in COMMON (MAPDATA), the same bytes in both engines.
+$(BUILD)/ow/ow_dungeon.o: src/lib/dungeon.c
 	@mkdir -p $(dir $@)
 	$(CL65) $(filter-out -Osir,$(CFLAGS)) -Or --code-name OVDCODE \
 	    --rodata-name MAPDATA $(DEPFLAGS) -c -o $@ $<
@@ -423,8 +329,8 @@ $(BUILD)/ow/foe_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(BUILD)/ow/genbuil
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) -c -o $@ $<
 
-# The sound effects (src/lib/sfx.s) again, in the engine's own segments and
-# ticking with its music: linked ahead of the library, as ow_dungeon.o is.
+# The sound effects (src/lib/sfx.s), in the engine's own segments and
+# ticking with its music.
 $(BUILD)/ow/ow_sfx.o: src/lib/sfx.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) --asm-define OW_SFX=1 -c -o $@ $<
@@ -465,15 +371,11 @@ $(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py
 	@mkdir -p $(DIST)
 	tools/mkowsave.py $@
 
-# c1541 -format makes a fresh image over whatever was there.
-# (and the game's music, m.*: the bootstrap loads the tune a game starts
-# with, an engine any other. MUSIC_STAMP is set further down, with the
-# game's own disk, so its file is spelled out here.)
-# The conversations (src/owtown.c, which the engine loads when the hero walks
-# into a townsperson): the program, and the talk's files, which tools/mktalk.py
-# makes for the game's disk too.
-# And the fights (src/lib/ow_fight.c): the module and its fields and sprites,
-# as the arena's disk has them.
+# c1541 -format makes a fresh image over whatever was there. On the disk:
+# the music, m.* (the bootstrap loads the tune a game starts with, an engine
+# any other); the screens of text and the conversations (owtown, owtalk) and
+# the talk's files (tools/mktalk.py); and the fights (src/lib/ow_fight.c):
+# the module and its fields and sprites, as the arena's disk has them.
 $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
 	    $(DIST)/owparty.prg \
 	    $(BUILD)/music/.stamp $(BUILD)/talk/.stamp $(DIST)/fight.prg \
@@ -522,15 +424,16 @@ $(BUILD)/owcache.reu: $(OWCACHE_DEPS)
 	tools/mkowcache.py image $@ 512 $(OWCACHE_FILES)
 
 # The screens of text, owtown (shops, inns, the party, help, a fight) and
-# owtalk (a conversation), with what both define of game.c's and the rest
-# (src/ow/owstand.c), ahead of the library: game.o has the same names.
+# owtalk (a conversation), with the few variables and functions the game's
+# modules read and write (src/ow/owstand.c), which the engine defines for
+# itself. isletest, the generators' check, links it too.
 $(BUILD)/ow/owstand.o: src/ow/owstand.c
 	@mkdir -p $(dir $@)
 	cc65 $(CFLAGS) --create-full-dep $(@:.o=.d) --dep-target $@ -o $(@:.o=.s) $<
 	ca65 -t c64 -o $@ $(@:.o=.s)
 -include $(BUILD)/ow/owstand.d
 
-$(DIST)/owtown.prg $(DIST)/owtalk.prg: $(DIST)/%.prg: $(BUILD)/%.o $(BUILD)/ow/owstand.o $(LIB) $(wildcard cfg/*.cfg)
+$(DIST)/owtown.prg $(DIST)/owtalk.prg $(DIST)/isletest.prg: $(DIST)/%.prg: $(BUILD)/%.o $(BUILD)/ow/owstand.o $(LIB) $(wildcard cfg/*.cfg)
 	@mkdir -p $(DIST)
 	$(CL65) $(LDFLAGS) -C $(LDCFG) -m $(BUILD)/$*.map \
 	    -Wl -Ln,$(BUILD)/$*.lbl -o $@ $< $(BUILD)/ow/owstand.o $(LIB)
@@ -545,7 +448,7 @@ $(DIST)/openworld.prg: $(BUILD)/openworld.o $(BUILD)/ow/owcdir.o $(LIB) $(wildca
 
 # The multicolour arena (src/owarena.c) and the fight it calls: a module
 # linked on its own (src/fight/, cfg/c64-fight.cfg, include/q4k/fight.h),
-# with the game's arms out of the library. Its disk holds the arena, the
+# with the party's arms out of the library. Its disk holds the arena, the
 # module, and what the module loads for a fight: a field (f.*) and the
 # monster's sprites (s.*), which tools/mkfields.py makes. The music and the
 # effects are the open world's (ow_tune.s from the library, and ow_sfx.o,
@@ -554,8 +457,7 @@ FIGHTOBJ := $(patsubst %,$(BUILD)/fight/%.o,head block fight mux fight_data corn
             $(BUILD)/ow/ow_sfx.o
 FIGHT_STAMP := $(BUILD)/fight/disk/.stamp
 
-# -Or, as the game's own fight is (SMALLMODS): a tenth smaller.
-$(BUILD)/fight/%.o: src/fight/%.c
+$(BUILD)/fight/block.o $(BUILD)/fight/fight.o: $(BUILD)/fight/%.o: src/fight/%.c
 	@mkdir -p $(dir $@)
 	$(CL65) $(filter-out -Osir,$(CFLAGS)) -Or $(DEPFLAGS) -c -o $@ $<
 
@@ -613,14 +515,8 @@ $(MEMMAP): tools/mkmemmap.py tools/memmap.html \
 	tools/mkmemmap.py $@
 endif
 
-# The game. The engines come out of the same link, as files beside the PRG:
-# tools/mkengines.py, which also checks that no engine reaches into another.
-# The disk gets them all (d64, below); the game does not go past its title
-# screen without them.
-ENGFILES := e.map e.fight e.talk e.shop
-
 # The music: SID files, one per tune, loaded when a scene wants them
-# (assets/music.txt, src/lib/tune.c). The theme is built here, its player
+# (assets/music.txt, play_for() in src/ow/engine.c). The theme is built here, its player
 # (src/sid/theme.s) linked at $E800 with cfg/sid.cfg and wrapped as a PSID,
 # which also lands in $(DIST) to play in any SID player; the rest are
 # assets/music/*.sid. tools/mksid.py checks each and writes the disk's
@@ -646,14 +542,6 @@ $(MUSIC_STAMP): assets/music.txt $(SIDS) $(wildcard assets/music/*.sid) \
                 tools/mksid.py tools/sid6502.py
 	tools/mksid.py disk $(BUILD)/music $(SIDDIR) assets/music
 
-$(DIST)/q4k.prg: $(BUILD)/q4k.o $(LIB) $(wildcard cfg/*.cfg) tools/mkengines.py
-	@mkdir -p $(DIST)
-	$(CL65) $(LDFLAGS) -C cfg/c64-q4k.cfg -m $(BUILD)/q4k.map \
-	    -Wl -Ln,$(BUILD)/q4k.lbl -o $@ $< $(BUILD)/lib/boot.o $(LIB)
-	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
-	tools/mkengines.py $(BUILD) $@
-
-ifneq ($(ONLINE),1)
 TALK_STAMP := $(BUILD)/talk/.stamp
 
 $(TALK_STAMP): assets/talk.txt assets/hints.json tools/mktalk.py \
@@ -661,112 +549,23 @@ $(TALK_STAMP): assets/talk.txt assets/hints.json tools/mktalk.py \
 	@rm -rf $(BUILD)/talk
 	tools/mktalk.py $(BUILD)/talk $(TALK_SIZE)
 	@touch $@
-endif
 
 # --- run / verify -----------------------------------------------------------
 
-# The game needs its disk (engine.h), so it runs from that, and so does the
-# smooth-scrolling prototype (its bootstrap loads an engine).
-DISKPROGS := q4k openworld owarena
-run: dirs $(DIST)/$(PROG).prg $(if $(filter q4k,$(PROG)),d64) \
-     $(if $(filter openworld,$(PROG)),$(DIST)/openworld.d81) \
-     $(if $(filter owarena,$(PROG)),$(DIST)/owarena.d64)
-	tools/run.sh $(DIST)/$(PROG).$(if $(filter openworld,$(PROG)),d81,$(if $(filter $(DISKPROGS),$(PROG)),d64,prg))
+# Both run from their disks: the open world's bootstrap loads an engine, the
+# arena its fight.
+run: all
+	tools/run.sh $(DIST)/$(PROG).$(if $(filter openworld,$(PROG)),d81,d64)
 
-# Play the networked build with NPC dialogue: starts host/npcd.py and wires
-# it to the modem port. Q4K_MOCK=1 make play  uses canned replies instead of
-# calling the model.
-play: d64-online
-	tools/play.sh
-
-check: dirs $(DIST)/$(PROG).prg
-	tools/screendump.py $(DIST)/$(PROG).prg
-
-shot: dirs $(DIST)/$(PROG).prg
-	tools/screenshot.sh $(DIST)/$(PROG).prg $(BUILD)/$(PROG).png
-	@echo "wrote $(BUILD)/$(PROG).png"
-
-# Compare each program's screen against tests/golden/<name>.txt, several at a
+# Compare each case's screen against tests/golden/<name>.txt, several at a
 # time. TESTARGS go to tools/test.sh: -j 1 for one at a time, --group
-# game|openworld|online for a third of it (CI's split), or names of units.
-test: all d64 d64-online
+# goldens|cases for half of it (CI's split), or names of units.
+test: all
 	@tools/test.sh $(TESTARGS)
 
 # Accept the current output as correct. Review the diff before doing this.
-bless: all d64 d64-online
+bless: all
 	@tools/test.sh --bless $(TESTARGS)
-
-# --- release ----------------------------------------------------------------
-#
-# What .github/workflows/release.yml publishes for a v* tag, and what a
-# player downloads instead of building:
-#
-#   q4k-<version>.d64   the game on its disk, with what everyone says:
-#                       LOAD"Q4K",8,1 then RUN; the same as `make d64`. There
-#                       is no .prg on its own: the game loads its engines
-#                       from the disk, and saves to it
-#   q4k-<version>-online.d64
-#                       the experimental networked build on its disk, which
-#                       talks to a host over the modem; `make d64-online`
-#   q4k-<version>-online.zip
-#                       that disk plus the dialogue host and what it reads,
-#                       laid out as in the repo, so tools/play.sh runs as is
-
-VERSION_NUM := $(shell tr -d ' \n' < VERSION)
-REL_NAME    := q4k-$(VERSION_NUM)
-REL_DIR     := $(DIST)/release
-REL_STAGE   := $(BUILD)/release/$(REL_NAME)-online
-REL_FILES   := README.md host/npcd.py tools/play.sh tools/run.sh \
-               assets/canon.md assets/npcs.json assets/secrets.json \
-               assets/hints.json assets/geography.json
-
-release: dirs d64 d64-online
-	@rm -rf $(BUILD)/release $(REL_DIR)
-	@mkdir -p $(REL_DIR) $(REL_STAGE)/dist/online
-	cp $(DIST)/q4k.d64 $(REL_DIR)/$(REL_NAME).d64
-	cp dist/online/q4k.d64 $(REL_DIR)/$(REL_NAME)-online.d64
-	tar -cf - $(REL_FILES) | tar -xf - -C $(REL_STAGE)
-	cp dist/online/q4k.d64 $(REL_STAGE)/dist/online/q4k.d64
-	cd $(BUILD)/release && python3 -m zipfile -c $(CURDIR)/$(REL_DIR)/$(REL_NAME)-online.zip $(REL_NAME)-online
-	@ls -l $(REL_DIR)
-
-# --- disk image -------------------------------------------------------------
-
-# The disk is also the save disk: the game saves to unit 8 and the image
-# has room, so on a TeensyROM+ (or anywhere) one mounted .d64 is both. PROG=
-# on the command line picks another program; the default is the game.
-D64PROG = $(if $(filter command line,$(origin PROG)),$(PROG),q4k)
-
-d64: dirs $(DIST)/$(D64PROG).prg $(TALK_STAMP) $(MUSIC_STAMP)
-	@rm -f $(DIST)/$(D64PROG).d64
-	$(C1541) -format "q4k $(VERSION_NUM),01" d64 $(DIST)/$(D64PROG).d64 >/dev/null
-	$(C1541) -attach $(DIST)/$(D64PROG).d64 -write $(DIST)/$(D64PROG).prg $(D64PROG) >/dev/null
-ifeq ($(D64PROG),q4k)
-	$(C1541) -attach $(DIST)/$(D64PROG).d64 \
-	    $$(for f in $(ENGFILES); do printf ' -write %s %s' $(DIST)/$$f $$f; done) \
-	    $$(for f in $(BUILD)/music/m.*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
-endif
-ifeq ($(D64PROG)$(ONLINE),q4k0)
-	$(C1541) -attach $(DIST)/$(D64PROG).d64 \
-	    $$(for f in $(BUILD)/talk/[0-9]*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
-endif
-	@echo "wrote $(DIST)/$(D64PROG).d64   (LOAD\"$(D64PROG)\",8,1 then RUN; saves go to the same disk)"
-
-# --- online -----------------------------------------------------------------
-#
-# The experimental networked game: the same game, talking to a host over the
-# modem instead of reading its lines from the disk. Only the game is built:
-# the small tools are the same either way.
-
-online:
-	$(MAKE) ONLINE=1 dirs assets dist/online/q4k.prg
-
-d64-online:
-	$(MAKE) ONLINE=1 assets d64
-
-# With no host on the line: `make play` starts one.
-run-online: d64-online
-	tools/run.sh dist/online/q4k.d64
 
 clean:
 	rm -rf $(BUILD) $(DIST)
