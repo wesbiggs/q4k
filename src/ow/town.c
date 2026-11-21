@@ -1,8 +1,9 @@
 /*
  * Open world: the town's overlay.
  *
- * Towns and the castle: built the game's way (town_data.c's maps, or
- * town_gen()) into local[] and copied into WORLD, their buildings roofed
+ * Towns and the castle: built the game's way (town_maps.c's maps, each its
+ * own size up to TOWN_MAX_W by TOWN_MAX_H, or town_gen()'s, TGEN_W by
+ * TGEN_H) into local[] and copied into WORLD, their buildings roofed
  * until the hero goes in, their people sprites; and walking into one of them
  * who has lines is a conversation (src/owtown.c, loaded over the engine).
  * Loaded into the slot over the world's when the hero steps onto a town
@@ -57,13 +58,26 @@ static unsigned char bob;               /* the people's frame: 0 or 1 */
 #define T_ROOF   0x92           /* the tile sets' own codes (mkoverworld.py) */
 #define T_RIDGE  0x93
 #define MAX_BLD  32
-#define AT(x, y) ((unsigned int)(y) * LOCAL_W + (x))
 
-static unsigned char region[LOCAL_W * LOCAL_H];        /* 0 a wall or door */
-/* For a wall, the buildings beside it (up to two, 0 for none): it is under
-   a roof if either is. Worked out once, so that a roof changing is a pass
-   over the town and no more. */
-static unsigned char owner1[LOCAL_W * LOCAL_H], owner2[LOCAL_W * LOCAL_H];
+/* Which region each square is in, 0 for a wall or a door: the biggest town
+   with a square of 0 all round, so that a square's eight neighbours are
+   always there to look at. It is the overlay's own scratch, in the slot
+   after its code (OVTBSS), since BSS has no room for it: lost when another
+   overlay loads, and found again by find_buildings() on the way in. */
+#define RW       (TOWN_MAX_W + 2)
+#define RH       (TOWN_MAX_H + 2)
+#define R(y)     (((y) + 1) * RW + 1)
+static const unsigned int rowoff[TOWN_MAX_H] = {
+    R(0),  R(1),  R(2),  R(3),  R(4),  R(5),  R(6),  R(7),  R(8),  R(9),
+    R(10), R(11), R(12), R(13), R(14), R(15), R(16), R(17), R(18), R(19),
+    R(20), R(21), R(22), R(23), R(24)
+};
+#define AT(x, y) (rowoff[y] + (x))
+
+#pragma bss-name (push, "OVTBSS")
+static unsigned char region[RW * RH];
+#pragma bss-name (pop)
+
 static unsigned char has_door[MAX_BLD], ridge_y[MAX_BLD];
 static unsigned char top_y[MAX_BLD], bot_y[MAX_BLD];
 static unsigned char left_x[MAX_BLD], right_x[MAX_BLD];
@@ -80,12 +94,14 @@ static unsigned char barrier(unsigned char t)
 }
 
 /* Everything joined to (x, y) that is not a wall or a door, as `r`. The
-   queue is in SHORE, which sm_shores() fills afresh afterwards. */
+   queue is in SHORE, which sm_shores() fills afresh afterwards: room for a
+   square each of the biggest town. */
 static void flood(unsigned char x, unsigned char y, unsigned char r)
 {
     static const signed char fx[4] = { 1, -1, 0, 0 };
     static const signed char fy[4] = { 0, 0, 1, -1 };
-    unsigned char *qx = (unsigned char *)0xA000, *qy = qx + 512;
+    unsigned char *qx = (unsigned char *)0xA000;
+    unsigned char *qy = qx + TOWN_MAX_W * TOWN_MAX_H;
     unsigned int head = 0, tail = 0;
     unsigned char d, nx, ny;
 
@@ -102,7 +118,7 @@ static void flood(unsigned char x, unsigned char y, unsigned char r)
         for (d = 0; d < 4; ++d) {
             nx = x + fx[d];
             ny = y + fy[d];
-            if (nx >= LOCAL_W || ny >= LOCAL_H || region[AT(nx, ny)] ||
+            if (nx >= local_w || ny >= local_h || region[AT(nx, ny)] ||
                 barrier(local[LOCAL_AT(nx, ny)])) {
                 continue;
             }
@@ -113,43 +129,10 @@ static void flood(unsigned char x, unsigned char y, unsigned char r)
     }
 }
 
-/* Each wall's buildings: those with a door among the eight round it. */
-static void find_owners(void)
-{
-    unsigned char x, y, dx, dy, nx, ny, r;
-    unsigned int i = 0;
-
-    for (y = 0; y < LOCAL_H; ++y) {
-        for (x = 0; x < LOCAL_W; ++x, ++i) {
-            owner1[i] = owner2[i] = 0;
-            if (region[i] || is_door(local[LOCAL_AT(x, y)])) {
-                continue;
-            }
-            for (dy = 0; dy < 3; ++dy) {
-                for (dx = 0; dx < 3; ++dx) {
-                    nx = x + dx - 1;
-                    ny = y + dy - 1;
-                    if (nx >= LOCAL_W || ny >= LOCAL_H) {
-                        continue;
-                    }
-                    r = region[AT(nx, ny)];
-                    if (!has_door[r] || r == owner1[i]) {
-                        continue;
-                    }
-                    if (!owner1[i]) {
-                        owner1[i] = r;
-                    } else {
-                        owner2[i] = r;
-                    }
-                }
-            }
-        }
-    }
-}
-
 static void find_buildings(void)
 {
     unsigned char x, y, r = 2, t;
+    unsigned int i;
 
     memset(region, 0, sizeof(region));
     memset(has_door, 0, sizeof(has_door));
@@ -158,24 +141,25 @@ static void find_buildings(void)
     memset(left_x, 0xFF, sizeof(left_x));
     memset(right_x, 0, sizeof(right_x));
     flood(hero.x, hero.y, 1);                   /* the outside */
-    for (y = 0; y < LOCAL_H; ++y) {
-        for (x = 0; x < LOCAL_W; ++x) {
+    for (y = 0; y < local_h; ++y) {
+        for (x = 0; x < local_w; ++x) {
             if (!region[AT(x, y)] && !barrier(local[LOCAL_AT(x, y)]) &&
                 r < MAX_BLD) {
                 flood(x, y, r++);
             }
         }
     }
-    for (y = 0; y < LOCAL_H; ++y) {              /* which have a door */
-        for (x = 0; x < LOCAL_W; ++x) {
+    for (y = 0; y < local_h; ++y) {              /* which have a door */
+        for (x = 0; x < local_w; ++x) {
             t = local[LOCAL_AT(x, y)];
             if (!is_door(t)) {
                 continue;
             }
-            if (x > 0)            has_door[region[AT(x - 1, y)]] = 1;
-            if (x + 1 < LOCAL_W)  has_door[region[AT(x + 1, y)]] = 1;
-            if (y > 0)            has_door[region[AT(x, y - 1)]] = 1;
-            if (y + 1 < LOCAL_H)  has_door[region[AT(x, y + 1)]] = 1;
+            i = AT(x, y);       /* (the border: region 0) */
+            has_door[region[i - 1]] = 1;
+            has_door[region[i + 1]] = 1;
+            has_door[region[i - RW]] = 1;
+            has_door[region[i + RW]] = 1;
         }
     }
     has_door[0] = has_door[1] = 0;              /* walls; the outside */
@@ -183,12 +167,31 @@ static void find_buildings(void)
         ridge_y[r] = (top_y[r] + bot_y[r] + 1) / 2;
     }
     inside = 0;
-    find_owners();
 }
 
 static unsigned char roofed(unsigned char r)
 {
     return has_door[r] && r != inside;
+}
+
+/* The roof over a wall at *p: the first building with a roof on it among
+   the eight round it, or 0. A wall between two buildings is under whichever
+   of them is roofed. This runs for every wall square a roof change redraws,
+   so roofed() is spelled out. */
+static unsigned char __fastcall__ wall_roof(const unsigned char *p)
+{
+    static const signed char round[8] = {
+        -RW - 1, -RW, -RW + 1, -1, 1, RW - 1, RW, RW + 1
+    };
+    unsigned char d, r;
+
+    for (d = 0; d < 8; ++d) {
+        r = p[round[d]];
+        if (has_door[r] && r != inside) {
+            return r;
+        }
+    }
+    return 0;
 }
 
 /* WORLD from local[], with a roof on every building you are not in: the
@@ -201,18 +204,15 @@ static void put_roofs(void)
     unsigned char x, y, t, r;
     unsigned char *w = WORLD + (unsigned int)by0 * 64;
     unsigned char *l = local + LOCAL_AT(0, by0);
-    unsigned int i;
+    const unsigned char *p;
 
     for (y = by0; y <= by1; ++y, w += 64, l += LOCAL_STRIDE) {
-        i = AT(bx0, y);
-        for (x = bx0; x <= bx1; ++x, ++i) {
+        p = region + AT(bx0, y);
+        for (x = bx0; x <= bx1; ++x, ++p) {
             t = l[x];
-            r = region[i];
-            if (!r) {                   /* a wall: either building's roof */
-                r = owner1[i];
-                if (!roofed(r)) {
-                    r = owner2[i];
-                }
+            r = *p;
+            if (!r && !is_door(t)) {    /* a wall: a building's roof */
+                r = wall_roof(p);
             }
             if (!roofed(r)) {
                 w[x] = t;
@@ -258,9 +258,9 @@ static void grow_box(unsigned char r)
     if (a < bx0) bx0 = a;
     a = top_y[r] < 2 ? 0 : top_y[r] - 2;
     if (a < by0) by0 = a;
-    a = right_x[r] + 2 >= LOCAL_W ? LOCAL_W - 1 : right_x[r] + 2;
+    a = right_x[r] + 2 >= local_w ? local_w - 1 : right_x[r] + 2;
     if (a > bx1) bx1 = a;
-    a = bot_y[r] + 2 >= LOCAL_H ? LOCAL_H - 1 : bot_y[r] + 2;
+    a = bot_y[r] + 2 >= local_h ? local_h - 1 : bot_y[r] + 2;
     if (a > by1) by1 = a;
 }
 
@@ -301,7 +301,7 @@ static unsigned char door_opens(unsigned char x, unsigned char y)
     for (d = 0; d < 4; ++d) {
         nx = x + dx[d];
         ny = y + dy[d];
-        if (nx >= LOCAL_W || ny >= LOCAL_H) {
+        if (nx >= local_w || ny >= local_h) {
             continue;
         }
         r = region[AT(nx, ny)];
@@ -354,8 +354,8 @@ static void roof_check(void)
     grow_box(r);
     if (whole) {
         bx0 = by0 = 0;
-        bx1 = LOCAL_W - 1;
-        by1 = LOCAL_H - 1;
+        bx1 = local_w - 1;
+        by1 = local_h - 1;
     }
     inside = r;
     put_roofs();
@@ -381,15 +381,23 @@ static void roof_check(void)
    from a talk, where they stood (resuming). The screen is off. */
 void t_enter(void)
 {
-    unsigned char *src = local + sizeof(local) - LOCAL_W * LOCAL_H;
+    unsigned char *src;
+    unsigned int n;
     unsigned char y, index = town_index;
 
     area = index == TOWN_CASTLE ? AREA_CASTLE : AREA_TOWN;
     play_for(area == AREA_CASTLE ? MUSIC_CASTLE : MUSIC_TOWN);
     if (index < NUM_TOWNS) {
-        rle_unpack(src, town_map[index], LOCAL_W * LOCAL_H);
-        for (y = 0; y < LOCAL_H; ++y, src += LOCAL_W) {
-            memmove(local + LOCAL_AT(0, y), src, LOCAL_W);
+        /* Unpacked into the end of local[] and moved up into its rows,
+           which never overtake what is still to move: 64 * h + w <= 2112,
+           true for anything up to 40 by 25. */
+        local_w = town_w[index];
+        local_h = town_h[index];
+        n = (unsigned int)local_w * local_h;
+        src = local + sizeof(local) - n;
+        rle_unpack(src, town_map[index], n);
+        for (y = 0; y < local_h; ++y, src += local_w) {
+            memmove(local + LOCAL_AT(0, y), src, local_w);
         }
         here_ents = town_ents + town_ent_first[index];
         here_n    = town_ent_first[index + 1] - town_ent_first[index];
@@ -400,7 +408,7 @@ void t_enter(void)
     } else {
         town_gen();             /* the people, the way out and where to stand */
     }
-    build_area(area == AREA_CASTLE ? ts_castle : ts_town, LOCAL_W, LOCAL_H);
+    build_area(area == AREA_CASTLE ? ts_castle : ts_town, local_w, local_h);
     find_buildings();           /* (from the gate: the outside is region 1) */
     ex = here_ex;
     ey = here_ey;
@@ -414,8 +422,8 @@ void t_enter(void)
         }                       /* ... and the roof off what they stand in */
     }
     bx0 = by0 = 0;
-    bx1 = LOCAL_W - 1;
-    by1 = LOCAL_H - 1;
+    bx1 = local_w - 1;
+    by1 = local_h - 1;
     put_roofs();
     show_people();
     show_area(hero.x + BIAS, hero.y + BIAS);

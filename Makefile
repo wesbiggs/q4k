@@ -76,9 +76,11 @@ LIBSRC   := $(wildcard src/lib/*.c) $(wildcard src/lib/*.s)
 LIBOBJ   := $(patsubst src/lib/%.c,$(BUILD)/lib/%.o,$(wildcard src/lib/*.c)) \
             $(patsubst src/lib/%.s,$(BUILD)/lib/%.o,$(wildcard src/lib/*.s))
 
-# dungeon.c and sfx.s are built into the engine instead (ow_dungeon.o,
-# ow_sfx.o, below), and nothing links the library's copies.
-LIBOBJ   := $(filter-out $(BUILD)/lib/dungeon.o $(BUILD)/lib/sfx.o,$(LIBOBJ))
+# dungeon.c, sfx.s and the towns' maps are built into the engine instead
+# (ow_dungeon.o, ow_sfx.o, ow_town_maps.o, below), and nothing links the
+# library's copies.
+LIBOBJ   := $(filter-out $(BUILD)/lib/dungeon.o $(BUILD)/lib/sfx.o \
+              $(BUILD)/lib/town_maps.o,$(LIBOBJ))
 
 # The segments the modules of the screens of text (owtown, owtalk) and the
 # towns' tables are compiled into: names the game's engines once had, which
@@ -114,7 +116,7 @@ $(BUILD)/lib/isle_gen.o: include/q4k/tiles.inc
 # an asset and the next make regenerates whatever depended on it.
 
 GEN_TILES := include/q4k/tiles.h include/q4k/tiles.inc src/lib/tiles_data.c
-GEN_TOWN  := include/q4k/town_data.h src/lib/town_data.c
+GEN_TOWN  := include/q4k/town_data.h src/lib/town_data.c src/lib/town_maps.c
 GEN_NAMES := include/q4k/names_data.h
 GEN_FONT  := src/lib/font_data.c
 GEN_CVT   := assets/q4k-serif.cvt
@@ -285,8 +287,8 @@ $(BUILD)/ow/ow_dungeon.o: src/lib/dungeon.c
 
 # The generators the open world builds with, in the overlay that uses them:
 # the land's (isle_gen.s, OW_WORLD) and the build's thread (genbuild.s) in
-# the world's, the towns' (tgen.s, OW_TOWN, town_gen.c, and town_data.c's
-# maps) in the town's. Linked ahead of the library, as ow_dungeon.o is, so
+# the world's, the towns' (tgen.s, OW_TOWN, town_gen.c, town_data.c and
+# the maps, town_maps.c) in the town's. Linked ahead of the library, so
 # that its MAPCODE copies are not; tools/owslots.py knows them by name.
 # The C ones through build/ow/NAME.s, never src/lib/NAME.s (cl65 writes
 # that for the library's).
@@ -296,7 +298,7 @@ $(BUILD)/ow/ow_isle.o: src/lib/isle_gen.s
 $(BUILD)/ow/ow_tgen.o: src/lib/tgen.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) --asm-define OW_TOWN=1 -c -o $@ $<
-$(BUILD)/ow/ow_town_gen.o $(BUILD)/ow/ow_town_data.o: $(BUILD)/ow/ow_%.o: src/lib/%.c
+$(BUILD)/ow/ow_town_gen.o $(BUILD)/ow/ow_town_data.o $(BUILD)/ow/ow_town_maps.o: $(BUILD)/ow/ow_%.o: src/lib/%.c
 	@mkdir -p $(dir $@)
 	cc65 $(CFLAGS) --code-name OVTCODE --rodata-name OVTCODE \
 	    --create-full-dep $(@:.o=.d) --dep-target $@ -o $(@:.o=.s) $<
@@ -335,7 +337,7 @@ $(BUILD)/ow/ow_sfx.o: src/lib/sfx.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) --asm-define OW_SFX=1 -c -o $@ $<
 
-OWGEN := $(patsubst %,$(BUILD)/ow/%.o,ow_isle genbuild ow_tgen ow_town_gen ow_town_data)
+OWGEN := $(patsubst %,$(BUILD)/ow/%.o,ow_isle genbuild ow_tgen ow_town_gen ow_town_data ow_town_maps)
 OWOBJ = $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-$*.o) $(BUILD)/ow/ovl.o \
         $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o $(BUILD)/ow/foe_art.o \
         $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(OWGEN)
@@ -395,7 +397,7 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 	    $$(for f in $(BUILD)/talk/[0-9]*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
 
 -include $(foreach p,$(OWPARTS),$(BUILD)/ow/$(p)-cpu.d $(BUILD)/ow/$(p)-reu.d)
--include $(BUILD)/ow/ow_town_gen.d $(BUILD)/ow/ow_town_data.d
+-include $(BUILD)/ow/ow_town_gen.d $(BUILD)/ow/ow_town_data.d $(BUILD)/ow/ow_town_maps.d
 
 # The REU load cache (src/lib/ow_cache.s): every file the open world loads
 # through it, in the order they get rooms in the REU (the most used first).

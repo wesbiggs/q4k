@@ -289,7 +289,9 @@ def blocks():
          "sub": "ow-cpu + town overlay (towns, the castle)",
          "blocks": low + eng + [
              B(overlay(cpu, "OVTHEAD", "OVTCODE"), "ovt", "ovt",
-               "Town overlay: roofs, people and their bob, gates")] + top},
+               "Town overlay: roofs, people and their bob, gates, the maps"),
+             B(seg(cpu, "OVTBSS"), "ovtbss", "ovt",
+               "Town overlay's scratch: the buildings' regions")] + top},
         {"id": "dungeon", "name": "Dungeon", "sub": "ow-cpu + dungeon overlay",
          "blocks": low + eng + [
              B(overlay(cpu, "OVDHEAD", "OVDCODE"), "ovd", "ovd",

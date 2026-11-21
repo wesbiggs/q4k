@@ -64,9 +64,9 @@ def main():
             sys.exit("%s: no town called %r in assets/towns.txt"
                      % (here, where))
         t = towns[town_index[where]]
-        if not (0 <= x < mktowns.W and 0 <= y < mktowns.H):
+        if not (0 <= x < t.w and 0 <= y < t.h):
             sys.exit("%s: off the map" % here)
-        tile = by_code[t.codes[y * mktowns.W + x]]
+        tile = by_code[t.codes[y * t.w + x]]
         if tile.flag in ("TF_BLOCK", "TF_WATER"):
             sys.exit("%s: is %s, which you cannot stand on"
                      % (here, tile.name))

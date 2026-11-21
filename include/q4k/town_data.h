@@ -2,8 +2,12 @@
 #ifndef Q4K_TOWN_DATA_H
 #define Q4K_TOWN_DATA_H
 
-#define LOCAL_W     21
-#define LOCAL_H     19
+/* The biggest a town may be, and the size of those the
+   game makes (tgen.s). */
+#define TOWN_MAX_W  40
+#define TOWN_MAX_H  25
+#define TGEN_W      21
+#define TGEN_H      19
 #define NUM_TOWNS   4
 #define NUM_TOWN_ENTS 16
 #define NUM_INNS    2
@@ -39,13 +43,18 @@ typedef struct {
 #define NPC_VANE        7
 #define NPC_ASH         8
 
-/* Run-length encoded: unpack with rle_unpack(). */
+/* town_maps.c: run-length encoded (rle_unpack()), town_w by
+   town_h each, with where you arrive and the way out. */
 extern const unsigned char *const town_map[NUM_TOWNS];
-extern const char *const   town_names[NUM_TOWNS];
+extern const unsigned char town_w[NUM_TOWNS];
+extern const unsigned char town_h[NUM_TOWNS];
 extern const unsigned char town_sx[NUM_TOWNS];
 extern const unsigned char town_sy[NUM_TOWNS];
 extern const unsigned char town_ex[NUM_TOWNS];
 extern const unsigned char town_ey[NUM_TOWNS];
+
+/* town_data.c */
+extern const char *const   town_names[NUM_TOWNS];
 extern const TownEnt       town_ents[NUM_TOWN_ENTS];
 extern const unsigned char town_ent_first[NUM_TOWNS + 1];
 extern const char *const   npc_ids[9];

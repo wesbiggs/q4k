@@ -19,7 +19,8 @@ import re
 import subprocess
 import sys
 
-SEGS = {"world": ("OVWHEAD", "OVWCODE"), "town": ("OVTHEAD", "OVTCODE"),
+SEGS = {"world": ("OVWHEAD", "OVWCODE"),
+        "town": ("OVTHEAD", "OVTCODE", "OVTBSS"),
         "dungeon": ("OVDHEAD", "OVDCODE", "OVDART")}
 
 
@@ -35,7 +36,8 @@ def part_of(obj):
         return "dungeon"
     if base in ("ow_isle.o", "genbuild.o"):
         return "world"
-    if base in ("ow_tgen.o", "ow_town_gen.o", "ow_town_data.o"):
+    if base in ("ow_tgen.o", "ow_town_gen.o", "ow_town_data.o",
+                "ow_town_maps.o"):
         return "town"
     for p in SEGS:
         if base.startswith(p + "-"):

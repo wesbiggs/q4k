@@ -809,7 +809,7 @@ differs). `local[]` (`HIDATA`, the game's font image) is at `$8000` in an
 engine and in no file, and COMMON is `$8800-$9FFF`. An engine is 13.1K (OW-CPU; OW-REU 12.6K), MAIN only: what it has past the
 screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
-that the engine's file does not carry 5K of empty screens to the disk. The overlays are 5.9K (world), 6.4K
+that the engine's file does not carry 5K of empty screens to the disk. The overlays are 5.9K (world), 7.2K
 (town) and 4.5K (dungeon, its monsters' pictures at the end) of the slot's
 9.25K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 540
 bytes in MAIN (the generators went to their overlays, and the REU cache's
@@ -819,7 +819,7 @@ with a poke of `$C6`), 8 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`
 OWTOP (`$5280-$53FF`), 105 in HIGH (`$5400-$59FF`, where the text window's
 routines, stlow.s's helpers and the engine's words are), 3669 beside the
 world's overlay (which has `wander()`, the overworld's encounter roll, out
-of the core: 3468 now), 2995 beside the town's, 4864 beside the dungeon's, 34 in BSS, and 3.1K in COMMON (`$8800-$9FFF`, less `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans). String
+of the core: 3468 now), 2061 beside the town's (for its maps to grow into), 4864 beside the dungeon's, 1234 in BSS, and 3.0K in COMMON (`$8800-$9FFF`, less `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans). String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than
@@ -992,7 +992,7 @@ sand's art, and its edges took the room of the mountain pass and the
 bridge, which no land of the open world has (a square of either would draw
 as grass). Continents have no roads yet.
 **Places.** Stepping onto Millford, the castle, the Hollow Crown or home's
-generated town goes in, built the game's own way (`town_data.c`'s maps,
+generated town goes in, built the game's own way (`town_maps.c`'s maps,
 `town_gen()`, `dungeon_build()`) into `local[]` and copied into `WORLD`, in a
 tile set of its own: `assets/town_tiles.txt`, `castle_tiles.txt`,
 `dungeon_tiles.txt` (sharing `places_common.txt`'s furniture, drawn `on
@@ -1029,10 +1029,17 @@ its doors stay, its people are hidden. What you can walk on is read from
 `local[]`, which has no roofs (`tile_at()`). Stepping into a building's
 doorway (or onto its floor) takes its roof off and puts back the one
 before; a door between two rooms keeps open the one already open
-(`door_opens()`). Golden `openworld-door` stands in the inn's doorway. Only the box of what changed is redone:
+(`door_opens()`). Golden `openworld-door` stands in the inn's doorway. Which
+region each square is in is `region[]`, 42 by 27 (the biggest town with a
+border of 0, so that a square's eight neighbours are always there), in
+`OVTBSS`: the town overlay's own scratch, after its code in the slot, made
+again on every way in. A wall is under the roof of the first roofed building
+among its eight neighbours, worked out as it is drawn (`wall_roof()`, which
+cost 2 to 4 jiffies a roof change against the two tables of owners it
+replaced, 800 bytes of BSS). Only the box of what changed is redone:
 roofs, `sm_shores_rect()` and `sm_redraw_box()` (the front copied to the
 back, the box drawn over it, flipped to with its colour from the screen),
-about 8 jiffies; `--poke whole=1` redoes everything instead, and the two
+about 10 jiffies at the inn's door and 16 at the throne room; `--poke whole=1` redoes everything instead, and the two
 must give the same picture (they do, going in and out of the inn and into
 the throne room). Goldens `openworld-inn` and `openworld-throne` are text
 dumps, so they record who is visible. A town's way out is
@@ -1049,6 +1056,24 @@ dungeon 1.6 s (its generator). The goldens `openworld-town` and
 would be if they had come too (they once did: nothing emptied `sm_npc_n` on
 the way out). It is a text dump, not `--hex`, since only that shows sprites,
 as `@` -- which is also how character 0 prints, so compare, do not count.
+**A town is its own size**, up to `TOWN_MAX_W` by `TOWN_MAX_H` (40 by 25):
+`assets/towns.txt`'s rows say how wide and their count how tall, and
+`tools/mktowns.py` writes the maps with `town_w[]`/`town_h[]` into
+`src/lib/town_maps.c`, which only the town overlay links (`ow_town_maps.o`;
+the people and names stay in `town_data.c`, which owtown and owtalk link
+too). The towns the game makes stay `TGEN_W` by `TGEN_H` (21 by 19,
+`tgen.s`). `t_enter()` sets `local_w`/`local_h` from them. The maps are in
+the overlay, run-length packed (Millford's 21 by 19 is 141 bytes), so it is
+the 2061 bytes free beside the town overlay that four bigger towns spend.
+Going past 40 by 25 means growing `region[]` and `rowoff[]` (`town.c`) and
+the flood's queue in SHORE, and keeping `64 * h + w <= 2112`, which lets a
+map be unpacked into the end of `local[]` and moved up into its rows. The
+view is 20 squares by 11 (12 full screen) and always centred on the hero,
+so any size scrolls and a small town just shows its off-map ground round
+it. Only seven people are shown at once (the first seven not under a
+roof, `show_people()`), so a bigger town with more people than that needs
+the nearest seven instead.
+
 **A `.byte $2C` skip hides two bytes only**: one put in front of an absolute
 load (three) ran the load's last byte as an instruction and drew wrong edges
 in a few places without crashing; use a jump.

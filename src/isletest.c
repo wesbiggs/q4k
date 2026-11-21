@@ -84,8 +84,8 @@ static unsigned int town_sum(void)
     unsigned char y, x, i;
     const unsigned char *p = (const unsigned char *)here_ents;
 
-    for (y = 0; y < LOCAL_H; ++y) {
-        for (x = 0; x < LOCAL_W; ++x) {
+    for (y = 0; y < TGEN_H; ++y) {
+        for (x = 0; x < TGEN_W; ++x) {
             sum = ((sum << 1) | (sum >> 15)) + local[LOCAL_AT(x, y)];
         }
     }

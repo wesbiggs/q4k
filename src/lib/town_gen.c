@@ -19,10 +19,10 @@ void town_gen(void)
 {
     town_tiles(land == ISLE_HOME ? home_biome : isle_biome);
 
-    here_ex   = LOCAL_W / 2;
-    here_ey   = LOCAL_H - 1;
-    local_w   = LOCAL_W;
-    local_h   = LOCAL_H;
+    here_ex   = TGEN_W / 2;
+    here_ey   = TGEN_H - 1;
+    local_w   = TGEN_W;
+    local_h   = TGEN_H;
     here_ents = proc_ents;
     here_n    = proc_n;
     hero.x    = here_ex;

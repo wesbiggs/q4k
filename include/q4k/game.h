@@ -4,8 +4,8 @@
  * (owgame.h); each program defines these variables itself (the engine,
  * src/ow/owstand.c, the bootstrap) and copies them in and out.
  *
- * Home is 64x64, in the vault under the I/O area; towns (21x19), dungeon
- * levels (DUN_W x DUN_H) and the continents over the sea (64x31) are built
+ * Home is 64x64, in the vault under the I/O area; towns (up to
+ * TOWN_MAX_W x TOWN_MAX_H, town_data.h), dungeon levels (DUN_W x DUN_H) and the continents over the sea (64x31) are built
  * into one RAM buffer, local[].
  */
 
@@ -60,7 +60,7 @@ extern unsigned char land;
  *
  * Rows are LOCAL_STRIDE apart whatever the place's width, so finding a
  * square is a shift rather than a multiply. A town fills the top-left
- * LOCAL_W x LOCAL_H of it; a dungeon level is DUN_W x DUN_H and scrolls.
+ * local_w x local_h of it; a dungeon level is DUN_W x DUN_H.
  *
  * There is no storage of its own: local[] is the font image, which is dead
  * once charset_install() has copied it to $3800 (see src/lib/local.s). So

@@ -1,13 +1,16 @@
 # Quest for the King -- town and castle interiors.
 #
-# Each is exactly one viewport, 21x19, so a town never scrolls: you walk in
-# and see the whole place, the way Ultima III's towns felt.
+# Each is its own size, up to 40 wide and 25 tall (TOWN_MAX_W and _H, which
+# tools/mktowns.py checks): its rows say how wide, their count how tall, and
+# every row must be as wide as the first. The view is 20 squares by 11 (12
+# with the text window hidden) and follows the hero, so a town scrolls; what
+# lies off its edges is drawn as its tile set's off-map ground.
 #
 #   town <id> <DISPLAY NAME>
-#   ent <char> npc <npc-id>       talks, via the dialogue daemon
-#   ent <char> shop <weapon|armour|item|bow>
-#   ent <char> inn <inn-id> <INN NAME>  ale and a bed; the id keys npcd's hints
-#   map                           then 19 rows of 21 characters
+#   ent <char> npc <npc-id>       talks: their lines are assets/talk.txt's
+#   ent <char> shop <weapon|armour|item|bow|magic>
+#   ent <char> inn <inn-id> <INN NAME>  ale and a bed; the id keys the rumours
+#   map                           then the rows, ended by a blank line
 #
 # Map characters are the tile glyphs from assets/tiles.txt, plus:
 #   $  where you arrive (drawn as floor)

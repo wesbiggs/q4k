@@ -62,7 +62,7 @@ def check_towns(by_char, walkable, loot):
             c = grid[y][x]
             return c in walkable or c in "$x"
 
-        seen = flood(passable, start, mktowns.W, mktowns.H, False)
+        seen = flood(passable, start, t.w, t.h, False)
         for (x, y), (kind, param) in sorted(ent_at.items()):
             # Reachable means you can stand next to them and walk into them.
             ok = any((x + dx, y + dy) in seen
