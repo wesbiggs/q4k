@@ -73,7 +73,7 @@ int main(void)
         }
     }
 
-    tiles_install();            /* the character set, before any text */
+    charset_install();          /* the character set, before any text */
     VIC.bordercolor = COLOR_BLACK;
     VIC.bgcolor0    = COLOR_BLACK;
     VIC.addr        = CHARSET_D018;

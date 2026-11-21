@@ -158,7 +158,7 @@ int main(void)
 {
     unsigned char s, d;
 
-    tiles_install();
+    charset_install();
     VIC.bordercolor = COLOR_BLACK;
     VIC.bgcolor0    = COLOR_BLACK;
     VIC.addr        = CHARSET_D018;

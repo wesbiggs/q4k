@@ -83,7 +83,8 @@ def colour(name, lineno, ram=False):
 
 
 def parse(path):
-    global SRC
+    global SRC, GROUND
+    GROUND = None
     tagged = read_lines(path)
     lines = [t for t, _ in tagged]
     palette = sprcols = shore = None
@@ -113,6 +114,17 @@ def parse(path):
                 own_pass.add(n)
             elif f[3:]:
                 fail(lineno, "code <name> <hex> [pass]")
+        elif f[0] == "ground":
+            # ground, then 16 rows of 8 in . a b: what every background
+            # pixel of the set shows instead, by where it is in its square
+            # (so it lines up across tiles, edges and beaches). A shared
+            # colour, since the pixel may be in anyone's character.
+            rows = lines[i:i + 16]
+            i += 16
+            for n, r in enumerate(rows):
+                if len(r) != 8 or set(r) - set(".ab"):
+                    fail(lineno + 1 + n, "want 8 of '.ab', got %r" % r)
+            GROUND = rows
         elif f[0] == "offmap":
             offmap = f[1]               # what lies beyond the map's edges
         elif f[0] == "fallback":
@@ -291,12 +303,27 @@ def quarter(rows, q):
     return rows
 
 
+# The set's `ground`, while one is being built (None: plain background).
+GROUND = None
+
+
+def grounded(rows, q, ground=None):
+    """Quarter q's 8 rows of 4, its background pixels showing the ground."""
+    ground = ground or GROUND
+    if not ground:
+        return rows
+    gx, gy = (q & 1) * 4, (q >> 1) * 8
+    return ["".join(ground[gy + y][gx + x] if ch == "." else ch
+                    for x, ch in enumerate(r)) for y, r in enumerate(rows)]
+
+
 def glyph(rows, qx, qy, values):
     """One character of a metatile, as 8 bytes."""
     out = []
-    for r in rows[qy * 8:qy * 8 + 8]:
+    part = [r[qx * 4:qx * 4 + 4] for r in rows[qy * 8:qy * 8 + 8]]
+    for r in grounded(part, qy * 2 + qx):
         b = 0
-        for ch in r[qx * 4:qx * 4 + 4]:
+        for ch in r:
             b = (b << 2) | values[ch]
         out.append(b)
     return tuple(out)
@@ -309,6 +336,10 @@ def build(setname):
     (palette, sprcols, tiles, sprites, shore, fringe, offmap,
      fallback, own_codes, own_pass) = parse(path)
     codes = tile_codes()
+    for name, n in own_codes.items():
+        if n in codes.values() and codes.get(name) != n:
+            sys.exit("mkoverworld: %s: code %s $%02X is assets/tiles.txt's"
+                     % (setname, name, n))
     codes.update(own_codes)
 
     chars = []           # (glyph bytes, colour)
@@ -342,9 +373,9 @@ def build(setname):
             chars.append(key)
         return char_of[key]
 
-    def art_glyph(rows):
+    def art_glyph(rows, q):
         return tuple(sum(PIX[ch] << (6 - 2 * k) for k, ch in enumerate(r))
-                     for r in rows)
+                     for r in grounded(rows, q))
 
     # The edges: for each metatile, quarter and kind of edge (beside, above,
     # both, diagonal), the character to draw instead of its own. With a
@@ -352,7 +383,7 @@ def build(setname):
     # sides; the fringe's terrains get their own art with the mask's squares
     # cut back to the background, and the drawn ones what is drawn; anything
     # else keeps its own character.
-    beach = shore and [[char(art_glyph(quarter(shore[1][v], q)),
+    beach = shore and [[char(art_glyph(quarter(shore[1][v], q), q),
                              shore[0] if v < 4 else shore[2])
                         for v in range(5)] for q in range(4)]
     fringes, open_names, drawn, also, joins = fringe
@@ -378,7 +409,7 @@ def build(setname):
                     art_q = drawn[name][nth][q >> 1][v]
                     if q & 1 and v != 1:
                         art_q = [r[::-1] for r in art_q]
-                    c = char(art_glyph(art_q), mt_cols[m][q])
+                    c = char(art_glyph(art_q, q), mt_cols[m][q])
                 elif name in fringes:
                     nth = by_name[name].index(m)
                     mask = quarter(fringes[name][min(nth, 1)][v], q)
@@ -386,7 +417,7 @@ def build(setname):
                            for r in art[(q >> 1) * 8:(q >> 1) * 8 + 8]]
                     cut = ["".join("." if mask[y][x] == "x" else own[y][x]
                                    for x in range(4)) for y in range(8)]
-                    c = char(art_glyph(cut), mt_cols[m][q])
+                    c = char(art_glyph(cut, q), mt_cols[m][q])
                 else:
                     c = quad[q]
                 blend.append(c)
@@ -408,6 +439,11 @@ def build(setname):
                  % (len(extra) + len(joins)))
     slot_name = [next((n for n, c in codes.items() if c - TILE_BASE == slot),
                       None) for slot in range(TILE_SLOTS)]
+    # A tile this set has no art for is drawn as its fallback, so it is the
+    # fallback to its neighbours and takes the fallback's edges.
+    fb = fallback or mt_name[0]
+    slot_name = [n if n is None or n in by_name else fb
+                 for n in slot_name]
     nflag, bsel, binv = [], [], []
     for name in slot_name:
         nflag.append((name not in ("water", "port", "bridge")) |
@@ -484,7 +520,7 @@ def build(setname):
             "mt0": mt0, "mt1": mt1, "codes": codes, "art": mt_art,
             "own_pass": own_pass,
             "cols": mt_cols, "by_name": by_name, "water": water,
-            "overlays": dict(OVERLAYS)}
+            "overlays": dict(OVERLAYS), "ground": GROUND}
 
 
 def write_figs(hero):
@@ -542,15 +578,16 @@ def write_sets(sets, where):
 
 def main():
     sets = {name: build(name) for name in SETS}
-    if len(sys.argv) == 3 and sys.argv[1] == "--sets":
-        write_sets(sets, sys.argv[2])
-        return
     # The engine's text window has the character set from FONT up for its
-    # letters (src/ow/smooth.s), so a set must stay below it.
+    # letters (src/ow/smooth.s), so a set must stay below it. (Before the
+    # sets are written too: a set's file can change when ow_data.s does not.)
     for name in SETS:
         if sets[name]["chars"] > FONT:
             sys.exit("mkoverworld: %s: %d characters, %d at most (the text's "
                      "font is above)" % (name, sets[name]["chars"], FONT))
+    if len(sys.argv) == 3 and sys.argv[1] == "--sets":
+        write_sets(sets, sys.argv[2])
+        return
     ow = sets["overworld"]
     sprites, sprcols = ow["sprites"], ow["sprcols"]
     hero = figures.party()

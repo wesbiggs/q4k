@@ -21,6 +21,7 @@ T_GRASS, T_SHORE, T_SWAMP = 0x60, 0x65, 0x66
 T_WALL, T_FLOOR, T_DOOR, T_TREE, T_BOULDER = 0x6B, 0x6C, 0x6D, 0x72, 0x73
 T_POTION, T_SWORD, T_BED, T_SHIELD, T_BOW = 0x74, 0x75, 0x76, 0x77, 0x79
 T_BOOK = 0x7F
+T_EXIT = 0x97
 
 ENT_NPC, ENT_SHOP, ENT_INN, ENT_VILLAGER = 0, 1, 2, 3
 INN_PROC = 255          # an inn the generator made: not one of the drawn ones
@@ -141,13 +142,13 @@ def build(lore_seed, land, biome):
             m[(y0 + 1) * W + x0 + w - 2] = t
 
     gate = (W // 2, H - 1)
-    m[gate[1] * W + gate[0]] = T_DOOR
+    m[gate[1] * W + gate[0]] = T_EXIT
     return m, ents, (gate[0], gate[1] - 1), gate
 
 
 GLYPH = {T_GRASS: ".", T_SHORE: ",", T_SWAMP: "%", T_WALL: "#", T_FLOOR: "_",
          T_DOOR: "+", T_TREE: "t", T_BOULDER: "o", T_POTION: "!", T_SWORD: "/",
-         T_BOOK: "j",
+         T_BOOK: "j", T_EXIT: "x",
          T_BED: "B", T_SHIELD: ")", T_BOW: "}"}
 
 

@@ -5,7 +5,7 @@
 ; at again -- so after that it is the biggest free buffer in the machine,
 ; and big enough for a dungeon level that scrolls. BSS had no room for one.
 ;
-; The price is an ordering rule: tiles_install() before anything writes a
+; The price is an ordering rule: charset_install() before anything writes a
 ; map, and never again afterwards, or the map is drawn as the font.
 
         .export _local

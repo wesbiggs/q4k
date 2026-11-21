@@ -5,7 +5,7 @@
 /* Terrain properties are indexed by screen code - TILE_BASE. */
 #define TILE_BASE   0x60
 #define TILE_COUNT  32   /* terrain only, contiguous */
-#define TILE_TOTAL  53   /* terrain + actors          */
+#define TILE_TOTAL  54   /* terrain + actors          */
 
 #define TF_PASS     0  /* walk onto it freely        */
 #define TF_BLOCK    1  /* impassable                 */
@@ -44,6 +44,7 @@
 #define T_CROWN     0x7D
 #define T_PORT      0x7E
 #define T_BOOK      0x7F
+#define T_EXIT      0x97
 #define T_PLAYER    0x8C
 #define T_VILLAGER  0x8D
 #define T_MONSTER   0x8E
@@ -98,6 +99,7 @@
 #define TC_CROWN    7
 #define TC_PORT     8
 #define TC_BOOK     3
+#define TC_EXIT     11
 #define TC_PLAYER   1
 #define TC_VILLAGER 3
 #define TC_MONSTER  10
@@ -122,8 +124,5 @@
 
 extern const unsigned char tile_flags[TILE_COUNT];
 extern const unsigned char tile_colors[TILE_COUNT];
-
-/* Copy the ROM font to RAM and patch every tile glyph in. */
-void tiles_install(void);
 
 #endif /* Q4K_TILES_H */

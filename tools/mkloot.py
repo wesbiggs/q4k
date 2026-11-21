@@ -70,7 +70,7 @@ def main():
         if tile.flag in ("TF_BLOCK", "TF_WATER"):
             sys.exit("%s: is %s, which you cannot stand on"
                      % (here, tile.name))
-        if (x, y) == t.exit:
+        if tile.name == "exit":
             sys.exit("%s: is the way out, which leaves before you could look"
                      % here)
         if any((ex, ey) == (x, y) for ex, ey, _, _ in t.placed):

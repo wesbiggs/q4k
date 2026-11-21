@@ -224,6 +224,7 @@ def compose(fd, tiles):
                                             grow[(q & 1) * 4:(q & 1) * 4 + 4]))
                     for orow, grow in zip(orows_[(q >> 1) * 8:(q >> 1) * 8 + 8],
                                           ground[(q >> 1) * 8:(q >> 1) * 8 + 8])]
+            rows = ow.grounded(rows, q, st["ground"])
             out.append(char((art_glyph(rows), 8 | col)))
         return out
 

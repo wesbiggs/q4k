@@ -32,6 +32,7 @@ T_SECRETDOOR = $7C
 T_CROWN     = $7D
 T_PORT      = $7E
 T_BOOK      = $7F
+T_EXIT      = $97
 T_PLAYER    = $8C
 T_VILLAGER  = $8D
 T_MONSTER   = $8E

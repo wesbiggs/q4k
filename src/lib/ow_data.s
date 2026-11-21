@@ -16,7 +16,7 @@ _ow_spr2:    .byte 10
 ow_nsprites: .byte 10
 
 ; Whether each tile code ($60 + index) can be walked onto.
-_ow_pass: .byte 1,1,0,1,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0
+_ow_pass: .byte 1,1,0,1,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0
 
 ; Which edge (0 none) for each quarter and each byte of what is round
 ; the square: 256 a quarter.

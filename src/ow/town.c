@@ -37,7 +37,6 @@ static const unsigned char robes[7] = {
 };
 
 
-static unsigned char ex, ey;            /* the way out */
 static unsigned char npc_ent[7];        /* which of here_ents each sprite is */
 static unsigned char bob;               /* the people's frame: 0 or 1 */
 
@@ -401,8 +400,6 @@ void t_enter(void)
         }
         here_ents = town_ents + town_ent_first[index];
         here_n    = town_ent_first[index + 1] - town_ent_first[index];
-        here_ex   = town_ex[index];
-        here_ey   = town_ey[index];
         hero.x    = town_sx[index];
         hero.y    = town_sy[index];
     } else {
@@ -410,8 +407,6 @@ void t_enter(void)
     }
     build_area(area == AREA_CASTLE ? ts_castle : ts_town, local_w, local_h);
     find_buildings();           /* (from the gate: the outside is region 1) */
-    ex = here_ex;
-    ey = here_ey;
     if (resuming) {             /* back from a talk: where they stood, ... */
         resuming = 0;
         hero.x = resume_x;
@@ -430,13 +425,12 @@ void t_enter(void)
 }
 
 /* Whether a step that way can be taken: as anywhere in a place, except
-   out of Millford before Garrett has armed the party (the game's rule:
-   nobody leaves without a weapon). */
+   out of Millford, by any way out, before Garrett has armed the party (the
+   game's rule: nobody leaves without a weapon). */
 static unsigned char gate_shut(unsigned char d)
 {
     return quest_stage == Q_START && town_index == TOWN_MILLFORD &&
-        (unsigned char)(hx + dirdx[d] - BIAS) == ex &&
-        (unsigned char)(hy + dirdy[d] - BIAS) == ey;
+        tile_at(hx + dirdx[d], hy + dirdy[d]) == T_EXIT;
 }
 
 unsigned char __fastcall__ t_can_step(unsigned char d)
@@ -444,11 +438,11 @@ unsigned char __fastcall__ t_can_step(unsigned char d)
     return !gate_shut(d) && place_step(d);  /* (t_bump says why not) */
 }
 
-/* At the end of a step: out by the way out, to the world's overlay, or in
-   or out of a building. */
+/* At the end of a step: out by a way out (any exit tile), to the world's
+   overlay, or in or out of a building. */
 void t_arrived(void)
 {
-    if (hx - BIAS == ex && hy - BIAS == ey) {
+    if (tile_at(hx, hy) == T_EXIT) {
         leave_area();
         ov_want = OV_WORLD;
     } else {

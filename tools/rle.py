@@ -9,12 +9,21 @@ runs in a 21-wide map are short: the old format -- a literal byte, or a
 count and a byte for three or more -- spent two bytes on the runs that
 matter and one on every lone square. This one takes the towns from 837
 bytes to 598 and the battle fields from 825 to 532.
+
+A map with more than sixteen tiles (up to 32) packs each run in three bits
+of length and five of index instead, so a byte covers from 1 to 8 squares;
+the palette's count says which.
 """
 
 import sys
 
-MAX_RUN = 16
-MAX_TILES = 16
+NARROW = 16             # tiles in the four-bit form
+MAX_TILES = 32
+
+
+def shape(count):
+    """The bits of index, for a palette this size."""
+    return 4 if count <= NARROW else 5
 
 
 def encode(codes):
@@ -22,23 +31,26 @@ def encode(codes):
     if len(palette) > MAX_TILES:
         sys.exit("rle: a map uses %d different tiles; the format holds %d"
                  % (len(palette), MAX_TILES))
+    bits = shape(len(palette))
+    max_run = 1 << (8 - bits)
     index = {c: i for i, c in enumerate(palette)}
     out, i = [len(palette)] + palette, 0
     while i < len(codes):
         c = codes[i]
         j = i
-        while j < len(codes) and codes[j] == c and j - i < MAX_RUN:
+        while j < len(codes) and codes[j] == c and j - i < max_run:
             j += 1
-        out.append((j - i - 1) << 4 | index[c])
+        out.append((j - i - 1) << bits | index[c])
         i = j
     return out
 
 
 def decode(data, size):
     palette = data[1:1 + data[0]]
+    bits = shape(data[0])
     out = []
     for b in data[1 + data[0]:]:
-        out += [palette[b & 0x0F]] * ((b >> 4) + 1)
+        out += [palette[b & ((1 << bits) - 1)]] * ((b >> bits) + 1)
     assert len(out) == size
     return out
 

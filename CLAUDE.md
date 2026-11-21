@@ -202,7 +202,7 @@ their figure doubled below them: cursor left and right go through the
 party, up and down through the colours (all but black), and `S` prepares
 a wizard's spells. The figure is `src/lib/ow_figs.s` (generated, segment
 `OWFIGS`, aligned to a sprite block in MAIN, which it asserts is where the
-VIC sees RAM); room for it came from moving `tiles_install()`
+VIC sees RAM); room for it came from moving `charset_install()`
 (`TITLECODE`/`TITLEDATA`) and the party screen's code to HIGH, which only
 a fight overwrites and neither runs after one. Golden `openworld-colour`
 is the screen, and `openworld-recolour` in `tools/test.sh` changes
@@ -351,7 +351,7 @@ member at a time with their figure, below), `OWB_HELP` the keys (`?`). **A conve
 of its own**, `owtalk` (`src/owtalk.c`, `cfg/c64-owtalk.cfg`), which the
 town's overlay loads for a person (`talk_to()`: a keeper or an inn goes to
 `owtown`): `talk.c` and `gift.c`, with all its code below `$3800`
-(3.5K free there, less the C stack), the font image, `tiles_install()`
+(3.5K free there, less the C stack), the font image, `charset_install()`
 and `actor.c`'s and `town_data.c`'s tables at `$4000-$4DC6`, and BSS at
 `$B000` as `owtown`'s, so that VIC bank 1 is free for a portrait of the
 speaker (a `.v2i`, once the library can show one in bank 1); before one
@@ -1043,7 +1043,12 @@ about 10 jiffies at the inn's door and 16 at the throne room; `--poke whole=1` r
 must give the same picture (they do, going in and out of the inn and into
 the throne room). Goldens `openworld-inn` and `openworld-throne` are text
 dumps, so they record who is visible. A town's way out is
-its exit square; the dungeon's stairs go down and
+any square of the `exit` tile (`x` in `towns.txt`, `$97`, past the full
+terrain block in the `$92-$9F` the sets' own codes use, so no set may take
+it): not a door, so it joins no building and gets no roof, and a set with
+no art for it draws its `fallback` (a tile a set has no art for is its
+fallback to its neighbours too). A map with more than 16 tiles packs in
+`rle.py`'s wide form (5 bits of index, runs of 8). The dungeon's stairs go down and
 up, and up from level 1 is out. The overworld is put away going in: in the
 REU when there is one (`sm_reu_keep`, 8K, so coming out takes a third of a
 second), otherwise rebuilt from the vault and `sm_shores()` (1.3 s). The

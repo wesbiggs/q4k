@@ -8,10 +8,10 @@
   6 |You have 4 marks.                       |
   7 |                                        |
   8 |You drink.                              |
-  9 |Three stones, and Garrett the smith has |
- 10 |the only anvil fit to use them. He is   |
- 11 |in Millford.                            |
- 12 |You are not weary.                      |
+  9 |The castle sells blades, mail and bows. |
+ 10 |All of it is cheaper than a burial.     |
+ 11 |You are not weary.                      |
+ 12 |                                        |
  13 |                                        |
  14 |                                        |
  15 |                                        |

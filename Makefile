@@ -68,9 +68,8 @@ HIMODS   := arms panel actor quest
 SMALLMODS  := shop inn help arms talk gift
 $(foreach m,$(SMALLMODS),$(eval $(BUILD)/lib/$(m).o: OPT := -Or))
 
-# What draws the character set (charset_define.o, and the glyphs in
-# tiles_data.c: tools/mktiles.py marks them) is wanted once, at the start of
-# a program, in segments of its own.
+# What copies the character set in (charset_define.o's charset_install())
+# is wanted once, at the start of a program, in a segment of its own.
 $(BUILD)/lib/charset_define.o: CFLAGS += --code-name TITLECODE
 
 LIBSRC   := $(wildcard src/lib/*.c) $(wildcard src/lib/*.s)

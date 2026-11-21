@@ -1,11 +1,13 @@
-# q4k tile set -- the single source of truth for terrain.
+# q4k tile set -- the single source of truth for what each square is.
 #
 #   tile <name> <map-char> <screen-code> <flag> <colour>
-#   followed by 8 rows of 8 characters: '#' = foreground, '.' = background
 #
-# The map stores screen codes directly, so drawing the viewport is a copy with
-# no translation step. Codes are contiguous from $60 (unused graphics in the
-# lowercase charset) so tile properties index as code - TILE_BASE.
+# Each line gives a name its map character (assets/towns.txt's maps), its
+# code (what local[] and the open world's maps store) and its flag. What a
+# tile looks like is not here: the open world draws each from its tile
+# set's art (assets/overworld.txt and the places' *_tiles.txt, by name).
+# Terrain codes are contiguous from $60 so that tile properties index as
+# code - TILE_BASE.
 #
 # flags: pass  walk onto it freely
 #        block impassable
@@ -14,569 +16,103 @@
 #        actor  not terrain at all -- drawn on top of it
 
 tile grass . 0x60 pass green
-........
-...#....
-..###...
-........
-........
-.......#
-.....###
-........
-
 tile forest F 0x61 pass lightgreen
-...##...
-..####..
-.######.
-########
-.######.
-...##...
-...##...
-........
-
 tile mountain ^ 0x62 block gray2
-........
-...##...
-...##...
-..####..
-..####..
-.######.
-########
-........
-
 tile pass & 0x63 pass gray2
-........
-...##...
-...##...
-..####..
-..#####.
-.######.
-########
-........
-
 tile water ~ 0x64 water blue
-........
-.##..##.
-#..##..#
-........
-........
-..##..##
-.#..##..
-........
-
 tile shore , 0x65 pass yellow
-........
-..#...#.
-........
-#...#...
-........
-..#...#.
-........
-#...#...
-
 tile swamp % 0x66 pass brown
-........
-.#..#.#.
-..##....
-#...#..#
-........
-.#.##...
-#....#.#
-........
-
 tile town T 0x67 enter lightred
-........
-...##...
-..####..
-.######.
-.#....#.
-.#.##.#.
-.#.##.#.
-........
-
 tile castle C 0x68 enter white
-........
-#.#.#.##
-########
-#......#
-########
-#..##..#
-#..##..#
-........
-
 tile dungeon D 0x69 enter gray1
-........
-..####..
-.######.
-.######.
-.##..##.
-.#....#.
-.#....#.
-........
-
 tile bridge = 0x6A pass brown
-........
-########
-#......#
-........
-........
-#......#
-########
-........
-
 tile wall # 0x6B block gray2
-########
-..#...#.
-########
-#...#...
-########
-..#...#.
-########
-#...#...
-
 tile floor _ 0x6C pass gray1
-........
-........
-...#....
-........
-........
-.......#
-........
-....#...
-
 tile door + 0x6D pass brown
-........
-.######.
-.#....#.
-.#...##.
-.#....#.
-.#....#.
-.######.
-........
-
 tile stairdn > 0x6E pass gray3
-........
-##......
-##......
-####....
-####....
-######..
-######..
-########
-
 tile stairup < 0x6F pass gray3
-........
-......##
-......##
-....####
-....####
-..######
-..######
-########
-
 tile chest * 0x70 pass yellow
-........
-..####..
-.######.
-.##..##.
-.######.
-.##..##.
-.######.
-........
-
 tile lair L 0x71 enter red
-........
-..#..#..
-.##..##.
-.######.
-.#.##.#.
-.######.
-..#..#..
-........
 
 # Scenery for the battle fields: solid, unlike the overworld's forest square,
 # which stands for a whole wood you can walk into.
 tile tree t 0x72 block green
-...#....
-..###...
-..###...
-.#####..
-.#####..
-#######.
-...#....
-........
-
 tile boulder o 0x73 block gray2
-........
-..###...
-.#####..
-####.##.
-######.#
-.######.
-..####..
-........
 
 # Furniture: what a building is for, readable from outside it. Solid, so
 # place it where it does not stand between the door and whoever is inside;
 # tools/checkmap.py will say if it does.
 tile potion ! 0x74 block violet
-..####..
-...##...
-..####..
-.##..##.
-.######.
-.######.
-..####..
-........
-
 tile sword / 0x75 block white
-......##
-.....###
-....###.
-#..###..
-.####...
-..##....
-.####...
-##..#...
-
 tile bed B 0x76 block lightred
-........
-#.......
-#.##....
-#.######
-########
-#......#
-#......#
-........
-
 tile shield ) 0x77 block lightblue
-########
-#..##..#
-#..##..#
-########
-#..##..#
-.#.##.#.
-..####..
-...##...
-
 tile shelf H 0x78 block brown
-########
-#.#.##.#
-#.#.##.#
-########
-##.#.#.#
-##.#.#.#
-########
-#......#
-
 tile bow } 0x79 block orange
-....##..
-...#.##.
-..#..##.
-..#..##.
-..#..##.
-..#..##.
-...#.##.
-....##..
-
 tile drawbridge | 0x7A pass brown
-#.#.#.#.
-#.#.#.#.
-#.###.#.
-#.#.#.#.
-###.#.#.
-#.#.#.#.
-#.#.###.
-#.#.#.#.
-
 tile lockeddoor k 0x7B block brown
-........
-.######.
-.######.
-.######.
-.######.
-.######.
-.######.
-........
 
-# Walks like floor, looks exactly like wall: keep the glyph in step with it.
+# Walks like floor, looks exactly like wall (each set draws it as its wall).
 tile secretdoor ? 0x7C pass gray2
-########
-..#...#.
-########
-#...#...
-########
-..#...#.
-########
-#...#...
 
 # Sits on the square above the king, so it hugs the bottom of the cell and
 # rests on his head.
 tile crown c 0x7D block yellow
-........
-........
-........
-.#.##.#.
-.#.##.#.
-.######.
-.######.
-........
 
 # The port: where a ship waits. Stepping onto one sets sail -- from the
 # overworld to a continent over the water, and from there home again.
 tile port P 0x7E enter orange
-...##...
-...##...
-..#..#..
-...##...
-.######.
-#..##..#
-.#.##.#.
-..####..
 
 # A spellbook, on the shelves of the magic shop.
 tile book j 0x7F block cyan
-........
-.######.
-.#....#.
-.#.##.#.
-.#....#.
-.######.
-.#.....#
-........
+
+# A town's way out: stepping onto one leaves, and a town may have any number.
+# Not a door, so it neither joins a building nor gets a roof, whatever a set
+# draws it as (one with no art for it draws its fallback). The terrain block
+# is full, so it is in $92-$9F with the sets' own codes, which must not take
+# it.
+tile exit x 0x97 pass gray1
 
 # Terrain is full at $7F. It must stay contiguous from $60,
 # so the actors below sit clear of it, after the monsters in the reverse
 # half; nothing stores them in an RLE map, which could not hold them.
-#
-# The hero is a sprite, but keeps a glyph for src/tiles.c.
 
 tile player @ 0x8C actor white
-...##...
-..####..
-...##...
-.######.
-...##...
-...##...
-..#..#..
-.##..##.
-
 tile villager v 0x8D actor cyan
-...##...
-..####..
-...##...
-..####..
-.#.##.#.
-...##...
-..#..#..
-.##..##.
-
 tile monster m 0x8E actor lightred
-........
-.#....#.
-..#..#..
-.######.
-.#.##.#.
-.######.
-.#.##.#.
-.#....#.
-
 tile dragon Y 0x8F actor red
-##....##
-.##..##.
-..####..
-.######.
-##.##.##
-.######.
-..#..#..
-.##..##.
 
-# Wandering monsters, weakest first as in battle.c. They sit in the reverse
-# half of the charset, which the game otherwise never draws from (only $A0,
-# the input cursor, is spoken for). The colour is the one the monster is
+# Wandering monsters, weakest first as in battle.c. The colour is the one the monster is
 # drawn in on a field; tools/mktiles.py passes it through as TC_<NAME>.
 # Terrain colours are avoided so nothing vanishes into the ground it
 # stands on.
 
 tile rat r 0x80 actor orange
-........
-........
-.##.....
-#####...
-.######.
-..#####.
-..#..#.#
-.......#
-
 tile goblin g 0x81 actor cyan
-.#....#.
-.######.
-.#.##.#.
-..####..
-.#.##.#.
-...##...
-..#..#..
-.##..##.
-
 tile wolf w 0x82 actor gray3
-........
-.#......
-##.....#
-####..#.
-.######.
-..#####.
-..#...#.
-.##..##.
-
 tile bandit b 0x83 actor lightred
-..####..
-.######.
-.#.##.#.
-..####.#
-.#####.#
-#.####..
-..#..#..
-.##..##.
-
 tile skeleton s 0x84 actor white
-..####..
-.#.##.#.
-..####..
-#..##..#
-.######.
-...##...
-..#..#..
-.#....#.
-
 tile ogre O 0x85 actor lightblue
-.######.
-.#.##.#.
-.######.
-########
-#.####.#
-#.####.#
-..#..#..
-.##..##.
-
 tile wraith W 0x86 actor violet
-...##...
-..####..
-.#.##.#.
-.######.
-########
-.######.
-.######.
-#.#.#.#.
-
 tile drake d 0x87 actor red
-........
-.#....#.
-##...###
-####.##.
-.######.
-..######
-..#..#..
-.##..##.
 
-# Maldrath, two squares by two, drawn as four glyphs in reading order:
-# top-left, top-right, bottom-left, bottom-right. battle.c draws the
-# square at column c, row r of him as dragontl + r * 2 + c.
+# Maldrath, two squares by two, as four codes in reading order:
+# top-left, top-right, bottom-left, bottom-right.
 
 tile dragontl Q 0x88 actor red
-..#.....
-..##....
-...##.##
-#...##..
-##..#.#.
-###.####
-####.#.#
-#####.##
-
 tile dragontr R 0x89 actor red
-.....#..
-....##..
-##.##...
-..##...#
-.#.#..##
-####.###
-#.#.####
-##.#####
-
 tile dragonbl S 0x8A actor red
-.#######
-..#.####
-.....###
-....####
-...###.#
-...##..#
-..###...
-.##.....
-
 tile dragonbr U 0x8B actor red
-#######.
-####.#..
-###.....
-####....
-#.###...
-#..##...
-...###..
-.....##.
 
-# Wandering monsters added since take the next glyphs free after
+# Wandering monsters added since take the next codes free after
 # Maldrath's, so from here on they are not in battle.c's order.
 
 tile wasp z 0x90 actor yellow
-##....##
-.##..##.
-..####..
-...##...
-..####..
-..#..#..
-..####..
-...##...
 
-# The ship, drawn over the sea square it sails on while the hero is afloat.
-# The hero is a sprite, so this is a screen code the voyage writes into the
-# map cell by hand.
+# The ship (a sprite in the open world).
 
 tile ship h 0x91 actor white
-....#...
-....##..
-....###.
-....#...
-########
-.######.
-..####..
-........
 
-# The party's classes, in a fight: everyone but whoever's turn it is stands
-# on the field as one of these, in their tunic's colour. In the charset's
-# reverse half, at $C8-$CA, where CHDATA3 used to begin (cfg/c64-q4k.cfg).
+# The party's classes.
 tile warrior K 0xC8 actor white
-...##..#
-...##..#
-.######.
-##.##.#.
-##.##...
-...##...
-..#..#..
-.##..##.
-
 tile archer A 0xC9 actor white
-.#.##...
-#..##...
-#.####..
-#.###.#.
-#..##...
-.#.##...
-..#..#..
-.##..##.
-
 tile wizard M 0xCA actor white
-...#...#
-..###..#
-...##..#
-..####.#
-.######.
-..####.#
-.######.
-########

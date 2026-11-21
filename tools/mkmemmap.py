@@ -276,7 +276,7 @@ def blocks():
              [0x37C0, 0x37FF, "cstack", "party",
               "C stack (top of MAIN, grows down)"],
              [0x3800, 0x3FFF, "charset", "video",
-              "Text charset (tiles_install)"],
+              "Text charset (charset_install)"],
              B(seg(party, "BSS"), "partybss", "party", "owparty BSS"),
              [od[0], od[1], "owdata", "data",
               "OW-DATA, untouched (still loaded again on the way out)"],
@@ -303,7 +303,7 @@ def blocks():
               "Text charset, with read-only data in its spare glyphs"],
              B(town_high, "townhigh", "town",
                "owtown high: shops, inn, arms, bestiary, party screen, "
-               "tiles_install"),
+               "charset_install"),
              [town_high[1] + 1, od[1], "owdatastale", "stale",
               "OW-DATA, partly overwritten (reloaded on the way back)"],
          ] + town_bss + top},
@@ -317,7 +317,7 @@ def blocks():
              [0x3800, 0x3FFF, "charset", "video",
               "Text charset, with read-only data in its spare glyphs"],
              B(span(talk, 0x4000, 0x4FFF), "talkhigh", "town",
-               "owtalk high: the font image and tiles_install (used once), "
+               "owtalk high: the font image and charset_install (used once), "
                "actor's and town_data's tables"),
              [od[0], od[1], "owdatastale", "stale",
               "OW-DATA, as the engine left it (reloaded on the way back)"],

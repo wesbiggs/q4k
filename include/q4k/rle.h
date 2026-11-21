@@ -11,7 +11,8 @@
 
 /* Unpack `size` bytes into `dst`. A map opens with a count and that many
    screen codes, its palette; each byte after that is a run, the high nybble
-   its length less one and the low nybble which palette entry. */
+   its length less one and the low nybble which palette entry (with more
+   than 16 in the palette, the top three bits and the low five). */
 void rle_unpack(unsigned char *dst, const unsigned char *src,
                 unsigned int size);
 

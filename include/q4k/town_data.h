@@ -44,14 +44,12 @@ typedef struct {
 #define NPC_ASH         8
 
 /* town_maps.c: run-length encoded (rle_unpack()), town_w by
-   town_h each, with where you arrive and the way out. */
+   town_h each, with where you arrive. */
 extern const unsigned char *const town_map[NUM_TOWNS];
 extern const unsigned char town_w[NUM_TOWNS];
 extern const unsigned char town_h[NUM_TOWNS];
 extern const unsigned char town_sx[NUM_TOWNS];
 extern const unsigned char town_sy[NUM_TOWNS];
-extern const unsigned char town_ex[NUM_TOWNS];
-extern const unsigned char town_ey[NUM_TOWNS];
 
 /* town_data.c */
 extern const char *const   town_names[NUM_TOWNS];

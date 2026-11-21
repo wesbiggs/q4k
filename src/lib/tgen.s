@@ -417,6 +417,6 @@ _town_tiles:
         sta tx
         lda #(H-1)
         sta ty
-        lda #T_DOOR
+        lda #T_EXIT             ; the way out: not a door, so no building's
         sta tt
         jmp put

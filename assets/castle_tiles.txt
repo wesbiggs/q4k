@@ -11,41 +11,41 @@ palette black gray2 brown
 offmap grass
 fallback floor
 
-tile floor black
-bbbbbbb.
-bbbbbbb.
-bbbbbbb.
+tile floor red
+abababa.
+bababab.
+abababa.
 ........
-bbb.bbbb
-bbb.bbbb
-bbb.bbbb
+bab.baba
+aba.abab
+bab.baba
 ........
-bbbbbbb.
-bbbbbbb.
-bbbbbbb.
+abababa.
+bababab.
+abababa.
 ........
-bbb.bbbb
-bbb.bbbb
-bbb.bbbb
+bab.baba
+aba.abab
+bab.baba
 ........
 
 tile grass green
-........
-..c.....
+.....c..
+c.c...c.
 .c.c....
 ......c.
-.....c.c
-........
-........
-........
-...c....
-..c.c...
-........
-.......c
+..c..c.c
+....c...
+..c....c
+c....c..
+...c..c.
+c.c.c..c
+....c...
+..c....c
 ......c.
-........
-.c......
-........
+c..c....
+.c....c.
+...c...c
 
 tile wall white
 aaaaaaaa
@@ -138,22 +138,58 @@ cccccccc
 cccccccc
 
 tile drawbridge black
-b.bbbbb.
-b.bbbbb.
-bbbbbb.b
-bbbbbb.b
-b.bbbbb.
-b.bbbbb.
-bbbbbb.b
-bbbbbb.b
-b.bbbbb.
-b.bbbbb.
-bbbbbb.b
-bbbbbb.b
-b.bbbbb.
-b.bbbbb.
-bbbbbb.b
-bbbbbb.b
+bb.bbb.b
+bb.bbb.b
+bb.bbb.b
+bb.....b
+bb.bbb.b
+bb.bbb.b
+bb.bbb.b
+bb.bbb.b
+bb.bbb.b
+bb.bbb.b
+bb.bbb.b
+...bbb..
+bb.bbb.b
+bb.bbb.b
+bb.bbb.b
+bb.bbb.b
+
+tile pass red
+.ccccc.c
+c.ccc.cc
+cc.c.ccc
+ccc.cccc
+cc.c.ccc
+c.ccc.cc
+.ccccc.c
+ccccccc.
+.ccccc.c
+c.ccc.cc
+cc.c.ccc
+ccc.cccc
+cc.c.ccc
+c.ccc.cc
+.ccccc.c
+ccccccc.
+
+tile chest yellow
+........
+........
+........
+.bbbbbb.
+bbbbbbbb
+bcbbbbcb
+cccccccc
+bcbccbcb
+bcbccbcb
+bbbbbbbb
+bcbbbbcb
+bbbbbbbb
+.b....b.
+........
+........
+........
 
 # Roofs over the towers and the throne room -- the closed rooms with a door
 # (openworld.c) -- while you are not in them: slate, with a ridge along the
@@ -235,12 +271,12 @@ bbbb bbbb bbbb bbbb bbbb bbbb
 ..cc c.cc c.cc c.cc ..cc c.cc
 .aaa aaaa aaaa aaaa .aaa aaaa
 
-tile chestopen yellow on floor
---------
---------
--bbbbbb-
--bcbbcb-
--bbbbbb-
+tile chestopen yellow
+........
+........
+.bbbbbb.
+.bcbbcb.
+.bbbbbb.
 bbbbbbbb
 b......b
 cccccccc
@@ -249,17 +285,53 @@ bcbccbcb
 bbbbbbbb
 bcbbbbcb
 bbbbbbbb
--b----b-
+.b....b.
+........
+........
+
+tile tree green on grass
+--------
+--....--
+-.cccc.-
+.cccccc.
+.cccccc.
+.cccccc.
+.cccccc.
+-.cccc.-
+-..ccc.-
+--.bb.--
+---bb---
+---bb---
+--.bb---
+--bbb.--
 --------
 --------
+
+tile exit yellow
+aaaaaaaa
+aaaaaaaa
+aaa..aaa
+a..bb..a
+.bbbbbb.
+.bbbbbb.
+.bccccb.
+.bbbbbb.
+.bccccb.
+.bbbbbb.
+.bccccb.
+.bbbbbb.
+.bbbbbb.
+.bbbbbb.
+.bbbbbb.
+aaaaaaaa
 
 include places_common.txt
 
-# Where the moat meets the grass (and only there: the walls stand in it as
+# Where the moat meets grass or tree (and only there: the walls stand as
 # they are), a bank of mud, the overworld's beaches in the castle's colours:
 # the water is the characters' own blue and the bank the shared brown; the
 # fifth, a quarter of grass with water on two sides, is green blades.
-shore blue green against grass
+shore blue green against grass tree
 bbcc bbbb bbbb bbcc bbb.
 bbcc bbbb bbbb bccc bb..
 bccc cbbb bbbb cccc b...
@@ -269,7 +341,7 @@ bbcc cccc bbcc cccc ..c.
 bccc cccc bbcc cccc .c.c
 bbcc cccc bbcc cccc ....
 
-open floor grass door lockeddoor water drawbridge sword shield bow potion book shelf bed chest crown boulder chestopen
+open floor grass door lockeddoor water drawbridge sword shield bow potion book shelf bed chest crown boulder chestopen pass tree
 
 # The wall-walk's edges, and the face: stone blocks with black mortar and a
 # white edge where the light catches them. Secret doors are walls.
