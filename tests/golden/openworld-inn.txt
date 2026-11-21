@@ -1,26 +1,26 @@
     +----------------------------------------+
-  0 |d,ikikikCcdcdcd,ikikikCcdghcdW@,Cghghghc|
-  1 |b=! ! !lmababeflm ! ! #ababefO@·^efefaba|
-  2 |d+#"#"#nocdcdghno"#"#">cdcdghW@,Cghghcdc|
-  3 |b·jijiji^ababab·jijiji^abefabO@·^efabefe|
-  4 |dT%%%%%%DcdcdcdT%%%%%%DcdghcdW@,Cghcdghg|
-  5 |befefababefefababefefabababefO@·^efefaba|
-  6 |dghghcdcdghghcdcdghghcdcdcdghW@,Cghghcdc|
-  7 |fefababa@efabefefF..........&R@·^abababe|
-  8 |hghcdcdcdghcdghgh,~%%%%%%%%iC@@,Ccdcdcdg|
-  9 |fefefabababefabef·^<=@@<=@@·^@@·^efababe|
- 10 |hghghcdcdcdghcdgh,C>?@@>?@@,C@@,Cghcdcdg|
- 11 |fefabababefababeflm@@@@@@@@·^@@·^ababefa|
- 12 |hghcdcdcdghcdcdghno@@@@@@@@,C@@,Ccdcdghc|
- 13 |fefefababefefabab·^<=@@<=@@·^@@·^abefefa|
- 14 |hghghcdcdghghcdcd,C>?@@>?@@,C@@,Ccdghghc|
- 15 |befefabefefababab·~........i^@@·^ababefe|
- 16 |dghghcdghghcdcdcdT%%%%%%%%%%D@@,Ccdcdghg|
- 17 |TPTPTPTPTPTPUefQTR@@@@@@@@@@@@@·^efefabe|
- 18 |@@@@@@@@@@@@·ghW@@@@@@@@@@@@@@@,Cghghcdg|
- 19 |............&PTF...............i^abefefe|
- 20 |%%%%%%%%%%%%DX·T%%%%%%%%%%%%%%%%Dcdghghg|
- 21 |fefefababefababefefefefabefefefefefabefa|
+  0 |d+ikikik*cdcdcd+ikikik*cdghcd·@+*UVUVUVQ|
+  1 |bt! ! !lmababeflm ! ! oababefW@T=STSTOPO|
+  2 |d/#"#"#nocdcdghno"#"#"Bcdcdgh·@+*UVUVQRQ|
+  3 |bTjijiji=abababTjijiji=abefabW@T=STOPSTS|
+  4 |d<>>>>>>Lcdcdcd<>>>>>>Lcdghcd·@+*UVQRUVU|
+  5 |befefababefefababefefabababefW@T=STSTOPO|
+  6 |dghghcdcdghghcdcdghghcdcdcdgh·@+*UVUVQRQ|
+  7 |fefababa@efabefefDCCCCCCCCCC#Z@T=OPOPOPS|
+  8 |hghcdcdcdghcdghgh+_>>>>>>>>i*@@+*QRQRQRU|
+  9 |fefefabababefabefT=<=@@<=@@T=@@T=STOPOPS|
+ 10 |hghghcdcdcdghcdgh+*>?@@>?@@+*@@+*UVQRQRU|
+ 11 |fefabababefababeflm@@@@@@@@T=@@T=OPOPSTO|
+ 12 |hghcdcdcdghcdcdghno@@@@@@@@+*@@+*QRQRUVQ|
+ 13 |fefefababefefababT=<=@@<=@@T=@@T=OPSTSTO|
+ 14 |hghghcdcdghghcdcd+*>?@@>?@@+*@@+*QRUVUVQ|
+ 15 |befefabefefabababT_CCCCCCCCi=@@T=OPOPSTS|
+ 16 |dghghcdghghcdcdcd<>>>>>>>>>>L@@+*QRQRUVU|
+ 17 |·X·X·X·X·X·X·efY·Z@@@@@@@@@@@@@T=STSTOPS|
+ 18 |@@@@@@@@@@@@&gh·@@@@@@@@@@@@@@@+*UVUVQRU|
+ 19 |CCCCCCCCCCCC#X·DCCCCCCCCCCCCCCCi=OPSTSTS|
+ 20 |>>>>>>>>>>>>L@@<>>>>>>>>>>>>>>>>LQRUVUVU|
+ 21 |TSTSTOPOPSTOPOPSTSTSTSTOPSTSTSTSTSTOPSTO|
  22 | Alaric                      Draught 1  |
  23 | 22/22                       Arrows 0   |
  24 |                                        |

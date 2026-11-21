@@ -390,7 +390,7 @@ static unsigned char __fastcall__ disk_on(const char *name)
     unsigned char i;
 
     if (name && ow_cached(name)) {
-        return VIC.spr_ena;
+        return sm_sproff;       /* (as it was: no drive, so no change) */
     }
     hush();
     for (i = 0; i < 12; ++i) {

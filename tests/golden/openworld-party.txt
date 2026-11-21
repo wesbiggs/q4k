@@ -1,26 +1,26 @@
     +----------------------------------------+
-  0 |·ghcdcd+#"#"#nocdcdghno"#"#">cdcdghW@,Cg|
-  1 |Sefefab·jijiji^ababab·jijiji^abefabO@·^e|
-  2 |·ghghcdT%%%%%%DcdcdcdT%%%%%%DcdghcdW@,Cg|
-  3 |SefefabefefababefefababefefabababefO@·^e|
-  4 |·ghghcdghghcdcdghghcdcdghghcdcdcdghW@,Cg|
-  5 |Sababefefababa@efabefefF..........&R@·^a|
-  6 |·cdcdghghcdcdcdghcdghgh,ikikikikikC@@,Cc|
-  7 |Sabefefefefabababefabef·jijijijiji^@@·^e|
-  8 |·cdghghghghcdcdcdghcdgh,ikikikikikC@@,Cg|
-  9 |Sababefefabababefababeflm ! ! ! ! #@@·^a|
- 10 |·cdcdghghcdcdcdghcdcdghno"#"#"#"#">@@,Cc|
- 11 |Sabefefefefababefefa@ab·jijijijiji^@@·^a|
- 12 |·cdghghghghcdcdghghcdcd,ikikikikikC@@,Cc|
- 13 |Sefababefefabefefababab·jijijijiji^@@·^a|
- 14 |·ghcdcdghghcdghghcdcdcdT%%%%%%%%%%D@@,Cc|
- 15 |VPTPTPTPTPTPTPTPTPUefQTR@@@@@@@@@@@@@·^e|
- 16 |@@@@@@@@@@@@@@@@@@·ghW@@@@@@@@@@@@@@@,Cg|
- 17 |..................&PTF...............i^a|
- 18 |%%%%%%%%%%%%%%%%%%DX·T%%%%%%%%%%%%%%%%Dc|
- 19 |bababefefefababefababefefefefabefefefefe|
- 20 |dcdcdghghghcdcdghcdcdghghghghcdghghghghg|
- 21 |fababefefefefabefefefefefabefababefefaba|
+  0 |&ghcdcd/#"#"#nocdcdghno"#"#"Bcdcdgh·@+*U|
+  1 |·efefabTjijiji=abababTjijiji=abefabW@T=S|
+  2 |&ghghcd<>>>>>>Lcdcdcd<>>>>>>Lcdghcd·@+*U|
+  3 |·efefabefefababefefababefefabababefW@T=S|
+  4 |&ghghcdghghcdcdghghcdcdghghcdcdcdgh·@+*U|
+  5 |·ababefefababa@efabefefDCCCCCCCCCC#Z@T=O|
+  6 |&cdcdghghcdcdcdghcdghgh+ikikikikik*@@+*Q|
+  7 |·abefefefefabababefabefTjijijijiji=@@T=S|
+  8 |&cdghghghghcdcdcdghcdgh+ikikikikik*@@+*U|
+  9 |·ababefefabababefababeflm ! ! ! ! o@@T=O|
+ 10 |&cdcdghghcdcdcdghcdcdghno"#"#"#"#"B@@+*Q|
+ 11 |·abefefefefababefefa@abTjijijijiji=@@T=O|
+ 12 |&cdghghghghcdcdghghcdcd+ikikikikik*@@+*Q|
+ 13 |·efababefefabefefabababTjijijijiji=@@T=O|
+ 14 |&ghcdcdghghcdghghcdcdcd<>>>>>>>>>>L@@+*Q|
+ 15 |·X·X·X·X·X·X·X·X·X·efY·Z@@@@@@@@@@@@@T=S|
+ 16 |@@@@@@@@@@@@@@@@@@&gh·@@@@@@@@@@@@@@@+*U|
+ 17 |CCCCCCCCCCCCCCCCCC#X·DCCCCCCCCCCCCCCCi=O|
+ 18 |>>>>>>>>>>>>>>>>>>L@@<>>>>>>>>>>>>>>>>LQ|
+ 19 |POPOPSTSTSTOPOPSTOPOPSTSTSTSTOPSTSTSTSTS|
+ 20 |RQRQRUVUVUVQRQRUVQRQRUVUVUVUVQRUVUVUVUVU|
+ 21 |TOPOPSTSTSTSTOPSTSTSTSTSTOPSTOPOPSTSTOPO|
  22 | Mira                        Draught 1  |
  23 | 18/18                       Arrows 0   |
  24 |                                        |
