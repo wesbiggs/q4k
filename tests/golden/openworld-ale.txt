@@ -8,10 +8,10 @@
   6 |You have 4 marks.                       |
   7 |                                        |
   8 |You drink.                              |
-  9 |The castle sells blades, mail and bows. |
- 10 |All of it is cheaper than a burial.     |
- 11 |You are not weary.                      |
- 12 |                                        |
+  9 |Old Tam will tell you about the second  |
+ 10 |army if you let him. He is the part of  |
+ 11 |it that came back.                      |
+ 12 |You are not weary.                      |
  13 |                                        |
  14 |                                        |
  15 |                                        |

@@ -48,10 +48,26 @@ def npc_count():
 
 
 def inn_ids():
-    m = re.search(r"inn_ids\[[^]]*\]\s*=\s*\{([^}]*)\}", open(TOWN_C).read())
+    """inn_ids[]'s names, string literals or the static strings
+    mktowns.py names them by (id_plough), then the generated inns'."""
+    src = open(TOWN_C).read()
+    m = re.search(r"inn_ids\[[^]]*\]\s*=\s*\{([^}]*)\}", src)
     if not m:
         die(TOWN_C, "no inn_ids")
-    return re.findall(r'"([^"]+)"', m.group(1)) + [PROC_INN]
+    strs = dict(re.findall(r'char\s+(\w+)\[\]\s*=\s*"([^"]*)"', src))
+    ids = []
+    for item in re.findall(r'"[^"]*"|\w+', m.group(1)):
+        if item.startswith('"'):
+            ids.append(item[1:-1])
+        elif item in strs:
+            ids.append(strs[item])
+        else:
+            die(TOWN_C, "inn_ids names %s, which is not a string here" % item)
+    n = re.search(r"#define\s+NUM_INNS\s+(\d+)", open(TOWN_H).read())
+    if not n or int(n.group(1)) != len(ids):
+        die(TOWN_C, "inn_ids has %d inns, NUM_INNS says %s"
+            % (len(ids), n.group(1) if n else "nothing"))
+    return ids + [PROC_INN]
 
 
 def stages(spec, where):
