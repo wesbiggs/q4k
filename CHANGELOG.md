@@ -1,10 +1,15 @@
 # Changelog
 
-Each release's section here becomes its notes on GitHub; the release
-workflow reads the one headed with the tag's version.
+Each release's section here became its notes on GitHub. The release
+workflow went with the classic build; the sections up to 0.11.0 are the
+classic game's.
 
 ## Unreleased
 
+- The classic game, which moved a square at a time (`q4k.prg` on its
+  `.d64`), is retired, with its experimental networked build and the
+  dialogue host: the open world (`dist/openworld.d81`) is the game now. The
+  0.11.0 tag builds the classic one.
 - A party: the king's letter went to strangers, and up to three of them meet
   in Millford. The title screen asks each one's name and class -- warrior,
   archer or wizard -- and Garrett arms each by class: a dagger, a hunting bow

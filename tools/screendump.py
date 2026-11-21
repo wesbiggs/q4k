@@ -5,12 +5,15 @@ Boots a .prg in x64sc with the binary monitor enabled, waits for the program
 to paint something, then reads the 40x25 screen matrix ($0400) and colour RAM
 ($D800) straight out of emulated memory and prints them as text.
 
-This is the assertion behind `make check`: a diffable, scriptable answer to
+This is the assertion behind `make test`: a diffable, scriptable answer to
 "what did my program actually put on screen", with no screenshots to eyeball.
 
-  tools/screendump.py dist/hello.prg           # text view
-  tools/screendump.py dist/hello.prg --hex     # raw screen codes (authoritative)
-  tools/screendump.py dist/hello.prg --color   # colour RAM nybbles
+  tools/screendump.py dist/owarena.prg --disk dist/owarena.d64   # text view
+  ... --hex     # raw screen codes (authoritative)
+  ... --color   # colour RAM nybbles
+
+The open world starts from its bootstrap with its disk; see "The
+smooth-scrolling prototype" in CLAUDE.md for the arguments.
 """
 
 import argparse
@@ -193,8 +196,8 @@ def load_symbols(prg, lbl=None):
     itself, which would otherwise have to carry a cheat channel it does not
     need.
     """
-    # dist/<sub>/x.prg was linked in build/<sub>/ (make online's builds are
-    # dist/online/ and build/online/), and the plain build is just dist/.
+    # dist/<sub>/x.prg was linked in build/<sub>/, and the plain build is
+    # just dist/.
     if not lbl:
         sub = os.path.relpath(os.path.dirname(os.path.abspath(prg)),
                               os.path.abspath("dist"))
@@ -283,7 +286,7 @@ def trap_device8():
     return "-virtualdev8" if "-virtualdev8" in out else "-trapdevice8"
 
 
-def launch(prg, port, rs232=None, disk=None, extra=(), fastdisk=False):
+def launch(prg, port, disk=None, extra=(), fastdisk=False):
     argv = [
         "x64sc",
         "-default",
@@ -302,33 +305,15 @@ def launch(prg, port, rs232=None, disk=None, extra=(), fastdisk=False):
             argv += ["-drive8type", "1581"]
         argv += ["-8", disk]
     argv += list(extra)
-    if disk and fastdisk and not rs232:
+    if disk and fastdisk:
         # The drive is not emulated: VICE serves the KERNAL's LOAD from the
         # image itself, which in warp mode is a few times quicker than an
         # emulated 1581. Not for a test whose point is the drive (a STOP
         # during a LOAD, a save), which keeps the true drive.
         argv += ["+drive8truedrive", trap_device8()]
-    if not rs232:
-        # Warp is free speed for a self-contained program, but it decouples
-        # emulated time from wall-clock time. With a live host on the other
-        # end of the modem the C64's timeouts would expire in a fraction of a
-        # real second, long before any answer could arrive.
-        argv.append("-warp")
-    else:
-        # User port RS-232 (the modem port), bridged to a TCP socket on the
-        # host. VICE dials out to it the first time the C64 opens the port.
-        # Without warp the disk runs at a real drive's speed too, and the game
-        # loads an engine for every conversation and back: about a minute
-        # each way. So the drive is not emulated: VICE serves the KERNAL's
-        # LOAD from the image at once instead.
-        if disk:
-            argv += ["+drive8truedrive", trap_device8()]
-        argv += [
-            "-userportdevice", "2",
-            "-rsuserdev", "0",
-            "-rsuserbaud", str(rs232[1]),
-            "-rsdev1", "127.0.0.1:%d" % rs232[0],
-        ]
+    # Warp is free speed for a self-contained program: nothing outside the
+    # machine waits on wall-clock time.
+    argv.append("-warp")
     return subprocess.Popen(
         argv,
         stdout=subprocess.DEVNULL,
@@ -661,9 +646,6 @@ def main():
                     help="stage meaning 'running and accepting input' (default: 1)")
     ap.add_argument("--raw", action="store_true",
                     help="ignore assets/tiles.txt and decode as plain PETSCII")
-    ap.add_argument("--rs232", type=int, metavar="PORT",
-                    help="bridge the user port modem to 127.0.0.1:PORT")
-    ap.add_argument("--baud", type=int, default=300)
     ap.add_argument("--splash", choices=sorted(SPLASH_KEYS),
                     help="press this key at the smooth-scrolling "
                          "prototype's splash screen (f1 a new game, f3 the "
@@ -728,9 +710,7 @@ def main():
                           os.path.abspath(__file__))), "build", "owcache.reu"),
                       "+reuimagerw"]
     port = free_port()
-    vice = launch(args.prg, port,
-                  (args.rs232, args.baud) if args.rs232 else None,
-                  args.disk, args.vice, args.fastdisk)
+    vice = launch(args.prg, port, args.disk, args.vice, args.fastdisk)
     sock = None
     try:
         sock = connect(port)
@@ -808,8 +788,7 @@ def settle(mon, args, legend):
     --expect, --until or --until-peek, until what they ask for has held on
     two looks in a row. A screen that is still on its way somewhere can
     look done for an instant; twice, a second apart, it is done. Under warp
-    a second is a long while for the machine, and without (the modem's
-    cases) the cases have no animation that a second would catch mid-way."""
+    a second is a long while for the machine."""
     deadline = time.time() + args.settle
     want = None
     if args.expect:

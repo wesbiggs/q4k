@@ -1,31 +1,25 @@
 #!/usr/bin/env python3
 """Fight the keepers and Maldrath many times over, and count what happens.
 
-    tools/balance.py [--ow] [--runs N] [--only NAME] [--party CLASSES]
+    tools/balance.py [--runs N] [--only NAME] [--party CLASSES] [--disk D64]
 
-The arena (src/arena.c) has an autoplayer: the game's own fight, compiled
-again with FIGHT_BOT, plays the party (see battle.c for what it does each
-turn). This pokes the arena with a fight, a party, its level and its arms --
-the arms each keeper was meant for, by the land whose shops sell them -- has
-it fight `--runs` times, and reads back how many it won and lost, and how
-many draughts and rounds that took, on average.
+The open world's fight (src/fight/) has an autoplayer: the module built
+again with FIGHT_BOT (FIGHTBOT on the arena's disk) plays the party, eight
+ways, on a 20 by 9 field. This pokes the multicolour arena (src/owarena.c)
+with a fight, a party, its level and its arms -- the arms each keeper was
+meant for, by the land whose shops sell them -- has it fight `--runs` times,
+and reads back how many it won and lost, and how many draughts and rounds
+that took, on average.
 
-The keepers were tuned for one hero (battle.c): "a near thing", two or three
-draughts each, and five or six for Maldrath. A party should find them about
-as near a thing. Runs go four at a time, one VICE each.
-
-With --ow it measures the open world's fight instead (src/fight/, eight
-ways, on a 20 by 9 field): the multicolour arena (src/owarena.c) loads the
-module built with its own autoplayer (FIGHTBOT) and plays the same fights
-the same way, poked the same way.
+The keepers were tuned for one hero: "a near thing", two or three draughts
+each, and five or six for Maldrath. A party should find them about as near a
+thing. Runs go four at a time, one VICE each.
 """
 
 import argparse
 import concurrent.futures
 import re
 import subprocess
-
-PRG = "dist/arena.prg"
 
 # Menu entries: the wanderers first, then the keepers, then Maldrath.
 NUM_WANDERERS = 11
@@ -36,7 +30,8 @@ FIGHTS = {
     "maldrath": (NUM_WANDERERS + 3, 10),
 }
 # Wanderers, at a level where they are common, in the biggest group the game
-# sends against a party of that size (battle_wander()): (menu entry, level,
+# sends against a party of that size (battle_wander(), as
+# src/lib/ow_fight.c has it): (menu entry, level,
 # the level it first turns up at, which kit).
 WANDER = {
     "goblins": (1, 1, 1, "start"),
@@ -61,24 +56,18 @@ KIT = {
 CLS = {"W": 0, "A": 1, "Z": 2}
 
 
-def run(fight, party, runs, ow=False, disk="dist/owarena.d64"):
+def run(fight, party, runs, disk="dist/owarena.d64"):
     group, kit = 1, fight
     if fight in WANDER:
         mon, level, start, kit = WANDER[fight]
         group = min(6, (level + len(party) - 1) // start)
     else:
         mon, level = FIGHTS[fight]
-    if ow:
-        head = ["dist/owarena.prg", "--disk", disk]
-        stage = "5"
-    else:
-        head = [PRG]
-        stage = "2"
-    args = head + [
+    args = ["dist/owarena.prg", "--disk", disk,
         "--poke", "level=%d" % level, "--poke", "auto_mon=%d" % mon,
         "--poke", "group=%d" % group,
         "--poke", "auto_runs=%d" % runs, "--poke", "auto_n=%d" % len(party),
-        "--keys", "*", "--stage", stage, "--timeout", "3600"]
+        "--keys", "*", "--stage", "5", "--timeout", "3600"]
     for i, c in enumerate(party):
         w, a, b = KIT[kit][c]
         args += ["--poke", "auto_cls+%d=%d" % (i, CLS[c]),
@@ -97,10 +86,8 @@ def run(fight, party, runs, ow=False, disk="dist/owarena.d64"):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", type=int, default=40)
-    ap.add_argument("--ow", action="store_true",
-                    help="the open world's fight (src/fight/), not the game's")
     ap.add_argument("--disk", default="dist/owarena.d64",
-                    help="with --ow: the arena's disk, to try another FIGHTBOT")
+                    help="the arena's disk, to try another FIGHTBOT")
     ap.add_argument("--only", action="append",
                     choices=sorted(FIGHTS) + sorted(WANDER))
     ap.add_argument("--wander", action="store_true",
@@ -117,7 +104,7 @@ def main():
           % ("fight", "party", "won", "lost", "stall", "draughts", "rounds"))
     with concurrent.futures.ThreadPoolExecutor(4) as pool:
         for f, p, got in pool.map(
-                lambda j: run(j[0], j[1], args.runs, args.ow, args.disk),
+                lambda j: run(j[0], j[1], args.runs, args.disk),
                 jobs):
             if not got:
                 print("%-9s %-5s did not finish" % (f, p))

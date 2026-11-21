@@ -1,7 +1,7 @@
 /*
  * q4k -- probe page: a debug mailbox the host test harness can read.
  *
- * $CF00-$CFFF is carved out of the C runtime's reach by cfg/c64-q4k.cfg, so
+ * $CF00-$CFFF is carved out of the C runtime's reach by every cfg, so
  * nothing the compiler generates will ever clobber it. The program writes
  * progress markers here; tools/screendump.py polls them over VICE's binary
  * monitor to know when the emulated machine has reached a testable state,

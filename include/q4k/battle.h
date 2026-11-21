@@ -1,10 +1,7 @@
 /*
- * Quest for the King -- fighting.
- *
- * Every fight happens on a field: a map of the ground you were crossing
- * (assets/arenas.txt), a dungeon room below ground, or Maldrath's lair. It
- * walks at you and you walk into it to strike. The caller redraws the map
- * afterwards.
+ * Quest for the King -- what a fight is fought with: the arms, the
+ * bestiary, the draughts and the dice. The fight itself is the open world's
+ * module (src/fight/, include/q4k/fight.h), which src/lib/ow_fight.c calls.
  */
 
 #ifndef Q4K_BATTLE_H
@@ -117,23 +114,8 @@ extern const Monster       maldrath;
    three to a row in two rows, so six is all it has room for. */
 #define MAX_FOES 6
 
-/* Fight `count` of `m` (1 to MAX_FOES; fewer if the field has no room for
-   them all) on the field for `ground` (an overworld tile; T_FLOOR is a
-   dungeon room, T_LAIR Maldrath's), with R to run if `can_flee`. Only
-   one-square monsters may come more than one at a time. Returns BATTLE_*.
-   The caller redraws whatever it had on screen. */
-unsigned char battle_fight(const Monster *m, unsigned char ground,
-                           unsigned char can_flee, unsigned char count);
-
 /* True if crossing `tile` should bring something out of the scenery. */
 unsigned char encounter_roll(unsigned char tile);
-
-/* The dead, for whoever digs where nothing is buried. Returns BATTLE_*. */
-unsigned char battle_undead(void);
-
-unsigned char battle_wander(void);
-unsigned char battle_boss(unsigned char dungeon);
-unsigned char battle_dragon(void);
 
 /* What one draught restores to member `who`.
  *

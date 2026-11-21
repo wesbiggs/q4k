@@ -5,8 +5,8 @@
 
 writes OUTDIR/0 .. OUTDIR/8, one per NPC (NPC_* in town_data.h), and
 OUTDIR/9 .. OUTDIR/11, the rumours of each inn (inn_ids[] in town_data.c, then
-every inn the town generator makes). The Makefile puts them on the offline
-d64 under those names, and src/lib/talk.c loads one into the talk's buffer
+every inn the town generator makes). The Makefile puts them on the open
+world's d81 under those names, and src/lib/talk.c loads one into the talk's buffer
 (src/lib/talkbuf.s) when it is needed. Each is a PRG whose load address is ignored, then entries of
 
     flags            0 a greeting or a rumour, 1 a topic; | 0x80: give

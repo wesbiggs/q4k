@@ -12,9 +12,9 @@
 # Every unit is its own VICE (or none), so they run side by side, N at a
 # time (-j, default the number of CPUs; -j 1 for one after another). Each
 # prints its result when it ends, with how long it took; a summary of the
-# slowest and of any failures comes last. --group runs one of three thirds
-# (game, openworld, online: group_of() below), which is how CI splits the
-# suite over three machines; NAMEs run just those units; --list prints them.
+# slowest and of any failures comes last. --group runs one half (goldens or
+# cases: group_of() below), which is how CI splits the suite over two
+# machines; NAMEs run just those units; --list prints them.
 set -eu
 cd "$(dirname "$0")/.."
 self=tools/test.sh
@@ -39,22 +39,6 @@ while [ $# -gt 0 ]; do
     shift
 done
 [ -n "$jobs" ] || jobs=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
-
-# The game loads its engines from its disk (include/q4k/engine.h), so every
-# case that goes past the title screen has it in unit 8: the .cmd files say
-# --disk dist/q4k.d64, and the experimental networked build's cases use
-# dist/online/q4k.d64.
-DISK=dist/q4k.d64
-ON=dist/online/q4k.prg
-ONDISK=dist/online/q4k.d64
-
-# Home is made from the game's seed, so the tests that go somewhere on it walk
-# there, with keys worked out from the model of the generator.
-SEED=0x5a
-keys() { python3 tools/homepath.py "$SEED" "$@"; }
-
-# The game's screen tests that the networked build plays as well.
-ONLINE_GOLDENS="q4k fov loot sail sailhome captain treasure treasuremap"
 
 # --- reporting ----------------------------------------------------------------
 
@@ -96,21 +80,6 @@ compare() {
     fi
 }
 
-# A dialogue daemon of the unit's own, in --mock mode so the replies are the
-# same every run. One each, on a port of its own: a daemon remembers what
-# each person has said, and deals the inns' hints from one seeded deck, so
-# two cases sharing one would hear each other's lines.
-daemon=
-daemon_start() {
-    python3 host/npcd.py --mock --port "$1" --quiet >/dev/null 2>&1 &
-    daemon=$!
-    sleep 1
-}
-daemon_stop() {
-    kill "$daemon" 2>/dev/null || true
-    wait "$daemon" 2>/dev/null || true   # reap quietly; no job-control noise
-}
-
 # --- the units ----------------------------------------------------------------
 
 # A golden: tests/golden/<name>.txt, with the arguments in <name>.cmd.
@@ -127,27 +96,8 @@ u_golden() {
     compare "$name" "$golden" tools/screendump.py "$@"
 }
 
-# The networked build's own title screen (it calls the host, and says that
-# nobody answered), and the game's screen tests played in it: everything else
-# is the same. A golden of its own, tests/golden-online-<name>.txt, wins where
-# the two builds differ.
-u_online_golden() {
-    name=$1
-    [ -f "$ON" ] && [ -f "$ONDISK" ] || { result SKIP "online-$name" "no $ONDISK"; return; }
-    golden=tests/golden-online-$name.txt
-    [ -f "$golden" ] || golden=tests/golden/$name.txt
-    # shellcheck disable=SC2046
-    set -- $(sed "s|dist/q4k\.|dist/online/q4k.|g" "tests/golden/$name.cmd")
-    compare "online-$name" "$golden" tools/screendump.py "$@"
-}
-
-u_online_title() {
-    [ -f "$ON" ] || { result SKIP online-title "no $ON"; return; }
-    compare online-title tests/golden-online-title.txt tools/screendump.py "$ON"
-}
-
-# Cheap and worth doing first: a hand-edited overworld can seal a town behind
-# the mountains, and no screen test would ever notice.
+# Cheap and worth doing first: a hand-edited town can wall a person or a
+# chest in, and no screen test would ever notice.
 u_checkmap() {
     if tools/checkmap.py >/dev/null 2>&1; then
         result PASS checkmap
@@ -188,18 +138,6 @@ u_ow_roads() {
     fi
 }
 
-# The dialogue gates are decided host-side, and what matters about them --
-# that the giver never knows the word, that a guess does not pass -- never
-# shows on a screen.
-u_npcd() {
-    if python3 host/test_npcd.py >/dev/null 2>&1; then
-        result PASS npcd
-    else
-        result FAIL npcd
-        python3 host/test_npcd.py || true
-    fi
-}
-
 # The arrow is one sprite block, filled from fight_arrow[] for the way it
 # flies (src/fight/fight.c's arrow_to()): the shore case's party shoots
 # up-right, and the block holds that picture after. --peek prints the last
@@ -219,64 +157,7 @@ u_arrow() {
     fi
 }
 
-# Saving and restoring writes to that disk. A fresh copy each run, so the
-# case does not depend on what a previous run left lying about: walk two
-# squares, save, walk two more. The load case then restores from it, so the
-# two are one unit.
-#
-# The save case used to press F3 and restore as well, but that half was
-# flaky: the screen is captured after a fixed --settle, and the restore
-# sometimes had not finished ("Loading..." on screen, no "Restored.", the
-# hero still two squares on). It failed that way in CI every time. The load
-# case restores from the title screen on a fresh machine, which covers it.
-#
-# It walks north inside Millford rather than out onto the road. Overworld
-# squares roll for wandering monsters, and now that the seed comes from the
-# player's own timing the roll differs every run -- any test that walks in
-# the open is flaky by construction. Towns never roll.
-u_save() {
-    [ -f dist/q4k.prg ] && [ -f "$DISK" ] || { result SKIP save "no $DISK"; return; }
-    # A full template: BSD mktemp takes -t <prefix>, GNU rejects it.
-    base=$(mktemp "${TMPDIR:-/tmp}/q4ksave.XXXXXX")
-    saves=$base.d64
-    cp "$DISK" "$saves"
-    compare save tests/golden-save.txt \
-        tools/screendump.py dist/q4k.prg --disk "$saves" \
-        --keys 'Alaric\r1nww\x85yww' --settle 8
-    # The same disk now holds a save: restore it from the title screen with
-    # F3, and start back where it was made rather than in a new morning.
-    compare load tests/golden-load.txt \
-        tools/screendump.py dist/q4k.prg --disk "$saves" \
-        --keys '\x86' --settle 8
-    rm -f "$saves" "$base"
-}
-
-# Saving twice must replace the first save. Scratching the old file used
-# to fail silently, so the second save said "Saved." and wrote nothing,
-# and a restore came back at the first. No screen shows the difference,
-# so compare the turn counter instead: two saves, two squares apart,
-# then restore on a fresh machine and expect the later turn.
-u_resave() {
-    [ -f dist/q4k.prg ] && [ -f "$DISK" ] || { result SKIP resave "no $DISK"; return; }
-    base=$(mktemp "${TMPDIR:-/tmp}/q4ksave.XXXXXX")
-    saves=$base.d64
-    cp "$DISK" "$saves"
-    turn() { sed -n 's/.*game_turn+0 @ .* = \([0-9]*\) .*/\1/p'; }
-    saved=$(tools/screendump.py dist/q4k.prg --disk "$saves" \
-        --keys 'Alaric\r1nww\x85yww\x85y' --settle 12 --peek game_turn:2 \
-        2>&1 >/dev/null | turn) || true
-    restored=$(tools/screendump.py dist/q4k.prg --disk "$saves" \
-        --keys '\x86' --settle 8 --peek game_turn:2 \
-        2>&1 >/dev/null | turn) || true
-    if [ -n "$saved" ] && [ "$saved" = "$restored" ]; then
-        result PASS resave
-    else
-        result FAIL resave "saved at turn ${saved:-?}, restored turn ${restored:-?}"
-    fi
-    rm -f "$saves" "$base"
-}
-
-# The open world saves the same way, its game block into OW-SAVE (F1), and
+# The open world saves its game block into OW-SAVE (F1), and
 # F3 goes back through the bootstrap to the saved game's world. Two steps
 # east of Millford, save, three more, restore: back at the first square.
 # On a copy of the disk, since the save writes it and openworld-load wants
@@ -437,164 +318,12 @@ u_ow_cache() {
     fi
 }
 
-# The networked build (make d64-online), experimental: the dialogue cases
-# need a daemon on the other end of the modem line. With the modem the
-# machine runs at its real speed (no warp: screendump.py), and screendump.py
-# serves the disk without emulating the drive, or every conversation would
-# wait a minute for its engine. So these are long, and nearly all waiting:
-# they are the ones running side by side helps most.
-u_online_dialog() {
-    daemon_start 25301
-    compare online-dialog tests/golden-online-dialog.txt \
-        tools/screendump.py "$ON" --disk "$ONDISK" --rs232 25301 \
-        --keys 'Alaric\r1nwwwwwwwwwwwwaaaawaaawhat of the blade\rcould I have a dagger\r' --settle 40
-    daemon_stop
-}
-
-# Brann -> Vane: sail to Wardlow (the south continent, for seed $5A)
-# holding the Emberstone, with the run's secrets pinned (that seed makes
-# the fishers' word "dead low").
-# Asking for the key is refused; saying the word earns it, announced in
-# the transcript. Saying goodbye then has Vane end the conversation
-# (mock mode's BYE), which waits for a key. Stepping onto a town square
-# never rolls for a monster, so this is not a walk in the open.
-u_online_tidal() {
-    daemon_start 25302
-    compare online-tidal tests/golden-online-tidal.txt \
-        tools/screendump.py "$ON" --disk "$ONDISK" --rs232 25302 \
-        --poke quest_stage=3 --poke items=8 --poke lore_seed=$SEED \
-        --poke no_encounters=1 \
-        --keys 'Alaric\r1ns<'"$(keys millford port2)$(keys dock story --land 2)"'>wwwwwwwaaaawwwmay I have the key\rdead low\rgoodbye\r' \
-        --settle 100
-    daemon_stop
-}
-
-# The king, from a new game that walks to the castle: neither his
-# greeting nor a "hello" hands over the Sigil; asking about the quest
-# has him say so, and it arrives in the transcript.
-u_online_sigil() {
-    daemon_start 25303
-    compare online-sigil tests/golden-online-sigil.txt \
-        tools/screendump.py "$ON" --disk "$ONDISK" --rs232 25303 \
-        --poke quest_stage=1 --poke lore_seed=$SEED --poke no_encounters=1 \
-        --keys 'Alaric\r1ns<'"$(keys millford castle)"'>wwwwwwwwwwwhello\rwhat is my quest\r' \
-        --settle 100
-    daemon_stop
-}
-
-# The king after Maldrath is banished (stage 9): the first word pays the
-# 1,000 gold and moves the quest to Q_REWARDED, the next only praises.
-u_online_reward() {
-    daemon_start 25304
-    compare online-reward tests/golden-online-reward.txt \
-        tools/screendump.py "$ON" --disk "$ONDISK" --rs232 25304 \
-        --poke quest_stage=9 --poke lore_seed=$SEED --poke no_encounters=1 \
-        --keys 'Alaric\r1ns<'"$(keys millford castle)"'>wwwwwwwwwwwhello\rthank you\r' \
-        --settle 100
-    daemon_stop
-}
-
-# The inn in Millford, wounded: an ale brings a hint from the daemon's
-# deck (mock mode shuffles it the same way every run), and a bed puts
-# the hero back to full health for 20 marks.
-u_online_inn() {
-    daemon_start 25305
-    compare online-inn tests/golden-online-inn.txt \
-        tools/screendump.py "$ON" --disk "$ONDISK" --rs232 25305 \
-        --poke hp_start=5 --poke gold=60 --poke lore_seed=$SEED --keys 'Alaric\r1nwwddddd12' --settle 24
-    daemon_stop
-}
-
-# A fight, there and back, in either build: the dead rise at the first L on
-# the road out of Millford (grave_odds=1), the hero has one point of health
-# (hp_start=1) and only guards (SPACE), so the first blow kills, and a key later they wake
-# in Millford. That loads the fight's engine over the map's, and the map's
-# back over it, with the map's own state (the scene, the log) intact.
-# fight <name> <prg> <disk>
-fight() {
-    out=$(tools/screendump.py "$2" --disk "$3" \
-        --poke quest_stage=1 --poke lore_seed=$SEED --poke grave_odds=1 \
-        --poke hp_start=1 \
-        --keys 'Alaric\r1ns<l                                                            ' \
-        --settle 40 --until 'The party has fallen\.' \
-        --until 'You wake in Millford' 2>/dev/null) || out=
-    if printf '%s\n' "$out" | grep -q 'The party has fallen\.' \
-            && printf '%s\n' "$out" | grep -q 'You wake in Millford' \
-            && ! printf '%s\n' "$out" | grep -q 'Put the game disk back'; then
-        result PASS "$1"
-    else
-        result FAIL "$1"
-        printf '%s\n' "$out"
-    fi
-}
-
-# Garrett at stage 0 has one greeting. Asking for the dagger hands it
-# over in the transcript and takes the topic off the renumbered menu, so
-# 3 is then Maldrath.
-u_talk() {
-    compare talk tests/golden-talk.txt \
-        tools/screendump.py dist/q4k.prg --disk "$DISK" \
-        --keys 'Alaric\r1nwwwwwwwwwwwwaaaawaaa13' --settle 30
-}
-
-# With no disk there is no map's engine to load after the title screen
-# (engine.h), so the game asks for the disk back, and keeps asking.
-u_nodisk() {
-    out=$(tools/screendump.py dist/q4k.prg --keys 'Alaric\r1nw' --settle 8 \
-        --until 'Put the game disk back' 2>/dev/null) || out=
-    if printf '%s\n' "$out" | grep -q 'Put the game disk back'; then
-        result PASS nodisk
-    else
-        result FAIL nodisk
-        printf '%s\n' "$out"
-    fi
-}
-
-# The king at stage 9: his greeting is the line that gives, so the
-# reward comes before anything is asked, and the menu is stage 10's.
-u_reward() {
-    compare reward tests/golden-reward.txt \
-        tools/screendump.py dist/q4k.prg --disk "$DISK" \
-        --poke quest_stage=9 --poke lore_seed=$SEED --poke no_encounters=1 \
-        --keys 'Alaric\r1ns<'"$(keys millford castle)"'>wwwwwwwwwww1' \
-        --settle 90
-}
-
-# Two ales in Millford's inn. Which rumours is random, so this checks
-# only that two were told and the keeper was never "busy" (no file).
-u_inn() {
-    out=$(tools/screendump.py dist/q4k.prg --disk "$DISK" --poke gold=60 \
-        --keys 'Alaric\r1nwwddddd11' --settle 30 --until 'You have 50 marks' \
-        --until 'You drink\.(.|\n)*You drink\.' 2>/dev/null) || out=
-    drinks=$(printf '%s\n' "$out" | grep -c 'You drink\.') || true
-    if [ "$drinks" = 2 ] && ! printf '%s\n' "$out" | grep -q 'keeper is busy' \
-            && printf '%s\n' "$out" | grep -q 'You have 50 marks'; then
-        result PASS inn
-    else
-        result FAIL inn
-        printf '%s\n' "$out"
-    fi
-}
-
 # run_unit <name>: one unit, whatever it needs missing is a SKIP.
 run_unit() {
     case $1 in
         checkmap) u_checkmap ;;
         checkisle) u_checkisle ;;
-        npcd) u_npcd ;;
         owarena-arrow-ur) u_arrow ;;
-        save|resave|fight|talk|nodisk|reward|inn)
-            [ -f dist/q4k.prg ] && [ -f "$DISK" ] || [ "$1" = nodisk ] \
-                || { result SKIP "$1" "no $DISK"; return; }
-            case $1 in
-                save) u_save ;;
-                resave) u_resave ;;
-                fight) fight fight dist/q4k.prg "$DISK" ;;
-                talk) u_talk ;;
-                nodisk) u_nodisk ;;
-                reward) u_reward ;;
-                inn) u_inn ;;
-            esac ;;
         openworld-save|openworld-quaff|openworld-recolour|openworld-fight|\
         openworld-foes|openworld-keeper|openworld-cache|openworld-roads)
             [ -f dist/openworld.d81 ] || { result SKIP "$1" "no dist/openworld.d81"; return; }
@@ -608,18 +337,6 @@ run_unit() {
                 openworld-cache) u_ow_cache ;;
                 openworld-roads) u_ow_roads ;;
             esac ;;
-        online-dialog|online-tidal|online-sigil|online-reward|online-inn|online-fight)
-            [ -f "$ON" ] && [ -f "$ONDISK" ] || { result SKIP "$1" "no $ONDISK"; return; }
-            case $1 in
-                online-dialog) u_online_dialog ;;
-                online-tidal) u_online_tidal ;;
-                online-sigil) u_online_sigil ;;
-                online-reward) u_online_reward ;;
-                online-inn) u_online_inn ;;
-                online-fight) fight online-fight "$ON" "$ONDISK" ;;
-            esac ;;
-        online-title) u_online_title ;;
-        online-*) u_online_golden "${1#online-}" ;;
         *)
             if [ -f "tests/golden/$1.txt" ]; then
                 u_golden "$1"
@@ -631,29 +348,23 @@ run_unit() {
 
 # Every unit, the slowest first (from CI's timings), so that what starts
 # last is short and the run does not wait on one long case at the end.
-# The modem's cases lead: they run in real time and take minutes, but are
-# nearly all waiting, so they cost the others little CPU.
 all_units() {
-    echo online-tidal online-sigil online-reward online-dialog online-inn
-    echo reward openworld-save checkisle fight online-fight talk inn \
-        openworld-foes openworld-fight resave save openworld-recolour \
-        online-treasuremap online-fov
+    echo openworld-save checkisle openworld-foes openworld-fight \
+        openworld-recolour
     for g in tests/golden/*.txt; do basename "$g" .txt; done
     echo openworld-quaff openworld-keeper openworld-cache openworld-roads \
-        owarena-arrow-ur \
-        nodisk npcd checkmap online-title
-    for n in $ONLINE_GOLDENS; do
-        case $n in treasuremap|fov) ;; *) echo "online-$n" ;; esac
-    done
+        owarena-arrow-ur checkmap
 }
 
-# Which third of the suite a unit is in, for CI's three machines.
+# Which half of the suite a unit is in, for CI's two machines: the open
+# world's goldens, and everything else (its cases of their own, the arena,
+# the generators' checks).
 group_of() {
-    case $1 in
-        online-*) echo online ;;
-        openworld*|owarena*) echo openworld ;;
-        *) echo game ;;
-    esac
+    if [ -f "tests/golden/$1.txt" ] && [ "${1#openworld}" != "$1" ]; then
+        echo goldens
+    else
+        echo cases
+    fi
 }
 
 # --- the run ------------------------------------------------------------------

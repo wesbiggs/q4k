@@ -1,10 +1,12 @@
 /*
- * Quest for the King -- game state and the scene the player is standing in.
+ * Quest for the King -- the game's state, as the generators and the screens
+ * of text read and write it. The open world keeps it in its game block
+ * (owgame.h); each program defines these variables itself (the engine,
+ * src/ow/owstand.c, the bootstrap) and copies them in and out.
  *
- * Four scenes share one set of movement and drawing code. The overworld is
- * a wrapping 64x64 map in ROM; towns (21x19), dungeon levels (DUN_W x
- * DUN_H, bigger than the screen) and the continents over the sea (64x32)
- * live in one RAM buffer, rebuilt whenever the player goes somewhere.
+ * Home is 64x64, in the vault under the I/O area; towns (21x19), dungeon
+ * levels (DUN_W x DUN_H) and the continents over the sea (64x31) are built
+ * into one RAM buffer, local[].
  */
 
 #ifndef Q4K_GAME_H
@@ -13,13 +15,7 @@
 #include <q4k/loot_data.h>
 #include <q4k/town_data.h>
 
-#define SCENE_WORLD    0   /* home, the continent the story starts on */
-#define SCENE_TOWN     1
-#define SCENE_DUNGEON  2
-#define SCENE_ISLE     3   /* a continent over the sea; place = compass point */
-
-/* Quest progress. Keep in step with STAGES in host/npcd.py -- the number is
-   sent to the dialogue daemon so NPCs know where the story has got to. */
+/* Quest progress: what talk.txt's lines and the next step (quest.c) go by. */
 #define Q_START     0   /* the letter has come; still in Millford        */
 #define Q_SUMMONED  1   /* on the road to the castle                     */
 #define Q_QUESTED   2   /* the king has given the quest and the Sigil    */
@@ -54,17 +50,13 @@
 #define DUN_LOOT      (NUM_DUNGEONS * MAX_DEEP * DUN_CHESTS)
 #define LOOTED_BYTES  ((DUN_LOOT + NUM_LOOT + 7) / 8)
 
-extern unsigned char scene;
-extern unsigned char place;    /* town index, or dungeon index      */
 extern unsigned char depth;    /* dungeon level, 1 at the entrance  */
 
 /* Which land you are on, or went into a town or a dungeon from: ISLE_HOME (4)
-   or a compass point, 0 to 3. And where on it that was, so that you come out
-   where you went in. */
+   or a compass point, 0 to 3. */
 extern unsigned char land;
-extern unsigned char ret_x, ret_y;
 
-/* The current town or dungeon level. The overworld is read from ROM.
+/* The current town or dungeon level, or a continent being built.
  *
  * Rows are LOCAL_STRIDE apart whatever the place's width, so finding a
  * square is a shift rather than a multiply. A town fills the top-left
@@ -90,9 +82,8 @@ extern unsigned int  game_turn;
 extern unsigned int  gold;
 extern unsigned char potions;
 extern unsigned char quest_stage;
-/* Rolled once per game (never 0, which means "not rolled yet") and saved;
-   the dialogue host draws this run's secrets from it. Non-static and
-   poke-able, so a test can pin the secrets with --poke lore_seed=N. */
+/* Rolled once per game (never 0, which means "not rolled yet") and saved:
+   the lands, the towns and the dungeons are made from it. */
 extern unsigned char lore_seed;
 extern unsigned char items;       /* IT_* bitmask */
 extern unsigned char looted[LOOTED_BYTES];
@@ -100,7 +91,8 @@ extern unsigned char looted[LOOTED_BYTES];
 /* Treasure maps the hero carries, MAPS of them, kept as six rows of MAPS
    bytes so a save is one memcpy: which land, plus one (0 for an empty slot),
    the buried square, the place the map measures from (its square, then
-   which of the land's places it is: place_at()'s number). See loot.h. */
+   which of the land's places it is). The open world drops none yet; the
+   party screen (shop.c) counts them. */
 #define MAPS     4
 #define TM_LAND  0
 #define TM_X     MAPS
@@ -119,23 +111,7 @@ extern unsigned char arrows;
 #define ARROW_PRICE  12
 #define ARROW_FREE   12
 #define ARROW_MAX    40
-extern unsigned char no_encounters;   /* a test switch: see game.c */
 
-void          game_init(void);
-/* The scene a new game starts in (Millford), and the one a loaded game
-   was saved in, rebuilt: both in scene.c. Call one or the other after
-   game_init() or load_game(). */
-void          game_start(void);
-void          scene_restore(void);
-/* Whether home has been built: home_ensure() sets it. */
-extern unsigned char home_ok;
-
-/* Tile and terrain flag at (x,y) in whatever scene is current. */
-unsigned char map_at(unsigned char x, unsigned char y);
-unsigned char map_flag(unsigned char x, unsigned char y);
-void          map_set(unsigned char x, unsigned char y, unsigned char code);
-
-extern const char *const   dungeon_names[NUM_DUNGEONS];
 extern const unsigned char dungeon_key[NUM_DUNGEONS];   /* IT_* needed  */
 extern const unsigned char dungeon_prize[NUM_DUNGEONS]; /* IT_* it drops */
 extern const unsigned char dungeon_deep[NUM_DUNGEONS];  /* levels       */
@@ -156,21 +132,6 @@ extern unsigned char home_biome;        /* what home is mostly made of */
 
 /* The inn of a town the generator made: after the hand-drawn ones. */
 #define INN_PROC     255
-extern unsigned char home_port_x[4], home_port_y[4];
-
-/* Build home if it has not been: several seconds, once a game, in which
-   nothing else runs. Whoever calls it says so first. */
-void          home_ensure(void);
-unsigned char home_built(void);
-/* Once Maldrath is banished, his lair on home becomes a mountain pass
-   (vault.s, which writes it into home's map). */
-void          lair_clear(void);
-/* Forget it (a new game's, or a restored game's seed is different). */
-void          home_forget(void);
-
-/* The place at (x,y) of the land you are on, as an index into the lists
-   above, or PLACE_NONE. */
-unsigned char place_at(unsigned char x, unsigned char y);
 
 /* The story is told across the four continents in a different order each
    game: slot 0 is where the Tidal Key is (a town, Wardlow), 1 the Drowned
@@ -182,19 +143,6 @@ unsigned char slot_of(unsigned char d);
 extern const TownEnt *here_ents;
 extern unsigned char  here_n;
 extern unsigned char  here_ex, here_ey;
-const char   *town_name(void);
-
-/* Unpack town `index` into local[] without moving anyone. */
-void          town_unpack(unsigned char index);
-/* Build the town (the map and its people) and set where you stand to its
-   doorstep: for a restored game too. */
-void          town_build(unsigned char index);
-/* Go into a town, or a dungeon, from the overworld; and come out. */
-void          enter_town(unsigned char index);
-void          enter_local(void);
-void          leave_local(void);
-/* Wake up in Millford, as after a fight lost. */
-void          respawn(void);
 
 unsigned char has(unsigned char item);
 void          give(unsigned char item);

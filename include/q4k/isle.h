@@ -66,6 +66,5 @@ extern unsigned char isle_port_x[4], isle_port_y[4];
    the caller sets before building. */
 extern unsigned char isle_story;
 extern unsigned char isle_fx[5], isle_fy[5];
-const char *isle_name(void);
 
 #endif /* Q4K_ISLE_H */

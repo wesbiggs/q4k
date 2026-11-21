@@ -123,12 +123,6 @@
 extern const unsigned char tile_flags[TILE_COUNT];
 extern const unsigned char tile_colors[TILE_COUNT];
 
-/* Names, indexed as the tile list is declared. Kept in a
-   separate module so only tools that print them pay for it. */
-extern const char *const tile_names[TILE_TOTAL];
-extern const unsigned char tile_codes[TILE_TOTAL];
-extern const unsigned char tile_all_colors[TILE_TOTAL];
-
 /* Copy the ROM font to RAM and patch every tile glyph in. */
 void tiles_install(void);
 

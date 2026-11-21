@@ -28,8 +28,7 @@
 #include <q4k/town_data.h>
 #include <q4k/view.h>
 
-/* Read-only data goes in the charset's spare glyphs: cfg/c64-q4k.cfg. The
-   networked build's dialog.c has these bytes. */
+/* Read-only data goes in the charset's spare glyphs (CHDATA2 in the cfgs). */
 #pragma rodata-name ("CHDATA2")
 
 #define TR_Y      3    /* transcript */

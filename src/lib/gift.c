@@ -64,11 +64,9 @@ static void bear_dragonbane(void)
     party[i < party_count ? i : 0].weapon = DRAGONBANE;
 }
 
-/* Hand over quest items the conversation has earned. `granted` is what the
-   host has decided so far, or GRANT_OPEN when there was no host to ask --
-   the game stays winnable without the modem. Called after every answer, so
-   each case must hand its item over once only. Returns the line announcing
-   the gift, or 0. */
+/* Hand over quest items the conversation has earned: `granted` is one gift
+   (GRANT_*) or GRANT_OPEN, whatever the quest needs now. Each case must hand
+   its item over once only. Returns the line announcing the gift, or 0. */
 const char *quest_after_talk(unsigned char granted)
 {
     switch (talking_to) {

@@ -37,6 +37,11 @@ unsigned char show_seed  = 1;     /* the continent drawn at the end */
 unsigned char show_dir   = 1;
 unsigned char home_y0;            /* home is shown 31 rows at a time, from this */
 
+/* Where building home leaves its places. The game's game.c defined these;
+   the rest of what the generators read is src/ow/owstand.c's, which the
+   Makefile links ahead of the library. */
+unsigned char home_fx[NUM_HOME_PLACES], home_fy[NUM_HOME_PLACES];
+
 /* One per map: the four compass points of each seed, then home. */
 unsigned int sums[80];
 /* And the town of each, in the biome (seed + compass point) mod 5. */
