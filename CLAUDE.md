@@ -1074,6 +1074,14 @@ it. Only seven people are shown at once (the first seven not under a
 roof, `show_people()`), so a bigger town with more people than that needs
 the nearest seven instead.
 
+**`make playtown TOWN=id`** (or `gen`, and `AT=x,y`) play-tests one town:
+`tools/mkowsave.py --town` writes a save of the game block with the party
+inside it (`area`, `place`, `x`/`y` or `OWG_GATE`), which goes on a copy of
+the disk as `ow-save`, so F3 at the title starts there. The way out is to
+home, outside that town or Millford's square. In a test, wait for the town
+with `--until-peek area=N` or a `--settle`, not `--stage 2`: stage 2 comes
+only after a step.
+
 **A `.byte $2C` skip hides two bytes only**: one put in front of an absolute
 load (three) ran the load's last byte as an instruction and drew wrong edges
 in a few places without crashing; use a jump.

@@ -9,6 +9,7 @@
 # Usage:
 #   make            build everything: dist/openworld.d81, dist/owarena.d64
 #   make run        launch PROG in VICE (default openworld; PROG=owarena)
+#   make playtown   play-test one town: TOWN=castle (AT=x,y), then F3
 #   make test       headless run, diff every case against its golden
 #   make bless      accept current output as the new goldens
 #   make assets     regenerate the C and assembly built from assets/
@@ -98,7 +99,7 @@ ifneq ($(strip $(LIBOBJ)),)
 LIB      := $(BUILD)/q4k.lib
 endif
 
-.PHONY: all run test bless clean dirs assets
+.PHONY: all run playtown test bless clean dirs assets
 .SECONDARY: $(BUILD)/$(PROG).o
 
 # The open world's memory map, a page drawn from the links below.
@@ -369,7 +370,7 @@ $(DIST)/splash-%.prg: $(SPLASHKIT)/data/splash-%.v2i $(SPLASHKIT)/data/splash-%.
 	@mkdir -p $(DIST)
 	tools/mksplash.py $(SPLASHKIT)/data/splash-$*.v2i $(SPLASHKIT)/data/splash-$*.v2t $@
 
-$(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py
+$(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py tools/mktowns.py
 	@mkdir -p $(DIST)
 	tools/mkowsave.py $@
 
@@ -563,6 +564,20 @@ $(TALK_STAMP): assets/talk.txt assets/hints.json tools/mktalk.py \
 # arena its fight.
 run: all
 	tools/run.sh $(DIST)/$(PROG).$(if $(filter openworld,$(PROG)),d81,d64)
+
+# Play-test one town of assets/towns.txt (TOWN=its id, or gen for the town
+# the game makes on home), from a copy of the disk whose saved game is a
+# lone warrior inside it, at the map's $ or at AT=x,y: press F3 at the
+# title. Leaving puts him on home outside that town (Millford's square for
+# one across the sea). F1 saves to the copy, never to dist/openworld.d81.
+TOWN ?= millford
+playtown: all
+	cp $(DIST)/openworld.d81 $(BUILD)/playtown.d81
+	tools/mkowsave.py $(BUILD)/playtown-save.prg --town $(TOWN) $(if $(AT),--at $(AT))
+	$(C1541) -attach $(BUILD)/playtown.d81 -delete ow-save \
+	    -write $(BUILD)/playtown-save.prg ow-save >/dev/null
+	@echo "playtown: $(TOWN) -- press F3 at the title"
+	tools/run.sh $(BUILD)/playtown.d81
 
 # Compare each case's screen against tests/golden/<name>.txt, several at a
 # time. TESTARGS go to tools/test.sh: -j 1 for one at a time, --group

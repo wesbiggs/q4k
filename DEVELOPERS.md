@@ -49,6 +49,8 @@ on a clean runner as well as building path 1's release.
 make                  build everything: dist/openworld.d81, dist/owarena.d64
 make run              the open world in VICE, from its disk
 make run PROG=owarena the multicolour arena, from its disk
+make playtown TOWN=id play-test one town of assets/towns.txt (or TOWN=gen,
+                      the one the game makes); AT=x,y to start on a square
 make test             every case against its golden, and the checks
 make bless            accept current output as the new goldens
 make assets           regenerate the C and assembly built from assets/
@@ -56,6 +58,14 @@ make clean
 ```
 
 `make bless` is for after you have read the diff, never instead of it.
+
+`make playtown` builds what changed (a town's map, say), copies the disk to
+`build/playtown.d81` and writes it a saved game with a lone warrior inside
+that town, at the map's `$` or at `AT`'s square, holding every key and
+stone, with nothing wandering out. Press **F3** at the title to load it.
+Leaving the town puts him on Keldmarch outside it (outside Millford, for a
+town across the sea), and F1 saves to the copy, not to
+`dist/openworld.d81`.
 
 ## Testing
 
