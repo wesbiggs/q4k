@@ -1445,9 +1445,11 @@ push to any branch) run it, and watch that result instead. `tools/test.sh
 NAME...` runs a few units, which is fine.
 
 **A cloud session can run single tests itself.** `sudo tools/cloud-setup.sh`
-first: with a GitHub token it installs CI's headless VICE 3.10; without one,
-Ubuntu's VICE 3.7.1 with the ROMs taken from VICE 3.10's source tarball and an
-`x64sc` wrapper that runs it on Xvfb (DEVELOPERS.md has the details). Then
+first: it installs CI's cc65 and headless VICE 3.10 from
+`wesbiggs/c64-cloud-toolchain`'s release (no token needed), or, if that
+download is blocked, Ubuntu's VICE 3.7.1 with the ROMs taken from VICE
+3.10's source tarball and an `x64sc` wrapper that runs it on Xvfb
+(DEVELOPERS.md has the details). Then
 `tools/test.sh NAME` checks one case in seconds instead of a CI round. On
 3.7.1, CI's result is still the one that counts.
 

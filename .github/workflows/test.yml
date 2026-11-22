@@ -1,10 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Build everything and run tools/test.sh on every push, to any branch.
 #
-# VICE is built from source with its headless UI: no window, no display
-# server, and the C64 ROMs come with it (distribution packages leave them
-# out). cc65 is built from source too, pinned to the version used locally.
-# Both land in $HOME and are cached, so only the first run pays for them.
+# cc65 2.19 and VICE 3.10 built headless (no window, no display server,
+# the C64 ROMs included) come from wesbiggs/c64-cloud-toolchain, which
+# keeps them in this repository's Actions cache.
 
 name: test
 
@@ -15,10 +14,6 @@ on:
 concurrency:
   group: test-${{ github.ref }}
   cancel-in-progress: true
-
-env:
-  VICE_VERSION: "3.10"
-  CC65_VERSION: "2.19"
 
 # The suite is split in two (tools/test.sh's group_of()), each on a
 # machine of its own, and each half runs its cases several at a time.
@@ -34,59 +29,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Restore and save are separate steps: actions/cache on its own only
-      # saves after a green run, and one flaky test would then rebuild VICE
-      # on every push until something passed.
-      - name: Restore toolchain
-        id: cache
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            ~/vice
-            ~/cc65
-          key: toolchain-${{ runner.os }}-vice${{ env.VICE_VERSION }}-headless-cc65${{ env.CC65_VERSION }}
-
-      - name: Install build dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-              build-essential pkg-config flex bison dos2unix xa65 texinfo
-
-      - name: Build cc65
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          git clone --depth 1 --branch "V$CC65_VERSION" \
-              https://github.com/cc65/cc65.git /tmp/cc65
-          make -C /tmp/cc65 -j"$(nproc)" PREFIX="$HOME/cc65"
-          make -C /tmp/cc65 install PREFIX="$HOME/cc65"
-
-      - name: Build VICE (headless)
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          curl -fsSL -o /tmp/vice.tgz \
-              "https://sourceforge.net/projects/vice-emu/files/releases/vice-$VICE_VERSION.tar.gz/download"
-          tar -xzf /tmp/vice.tgz -C /tmp
-          cd "/tmp/vice-$VICE_VERSION"
-          ./configure --prefix="$HOME/vice" --enable-headlessui \
-              --disable-html-docs --without-pulse --without-alsa \
-              --without-png --without-libcurl
-          make -j"$(nproc)"
-          make install
-
-      - name: Save toolchain
-        if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: |
-            ~/vice
-            ~/cc65
-          key: ${{ steps.cache.outputs.cache-primary-key }}
-
-      - name: Put the toolchain on the PATH
-        run: |
-          echo "$HOME/cc65/bin" >> "$GITHUB_PATH"
-          echo "$HOME/vice/bin" >> "$GITHUB_PATH"
+      # cc65 and the headless VICE 3.10, cached by the toolchain's release.
+      # The tag is tools/cloud-setup.sh's TOOLCHAIN too: move them together.
+      - uses: wesbiggs/c64-cloud-toolchain@v1.0.0
 
       - name: Build
         run: make

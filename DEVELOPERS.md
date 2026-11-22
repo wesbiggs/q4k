@@ -15,33 +15,20 @@ That is the whole toolchain: `cc65`/`ca65`/`ld65`/`ar65` build, `x64sc` runs,
 
 On Linux -- a Claude Code cloud session, or anything else on Ubuntu 24.04 --
 run `sudo tools/cloud-setup.sh` (or paste it into the environment's setup
-script). It installs cc65 from the distribution, and VICE one of three ways:
+script). It runs [c64-cloud-toolchain](https://github.com/wesbiggs/c64-cloud-toolchain)'s
+`setup.sh` at the release CI pins (`TOOLCHAIN`), with `python3-pil` for
+`screendump.py --shot`. That release's prebuilt cc65 2.19 and headless VICE
+3.10, in `/opt/c64-toolchain` and linked into `/usr/local/bin`, are exactly
+what CI runs (`.github/workflows/test.yml` uses the same repository as an
+action, at the same tag: move the two together). If GitHub's release
+downloads are blocked, it falls back to Ubuntu's cc65 and VICE 3.7.1, with
+the ROMs from VICE's source and an `x64sc` wrapper that starts Xvfb; its
+README has the details. CI's 3.10 is the reference for the screen tests: if
+3.7.1 ever disagrees, CI is right. `mkfont.py` finds the character ROM
+beside whichever `x64sc` is on the `PATH`.
 
-1. **With a GitHub token** that can read this repo (`Q4K_TOOLCHAIN_TOKEN`,
-   `GH_TOKEN` or `GITHUB_TOKEN`): the headless VICE 3.10 from the
-   `toolchain-vice3.10` release, into `/opt/vice`. This is exactly what CI
-   runs. The `toolchain` workflow builds and publishes that release.
-2. **Without one:** Ubuntu's `vice` package (3.7.1) and the ROMs from VICE's
-   own source. The package leaves out the C64 and drive ROMs as non-free, so
-   the script takes `data/C64/*.bin` and `data/DRIVES/*.bin` from the VICE
-   3.10 release tarball on SourceForge (the same tarball CI builds from),
-   checks the KERNAL, BASIC, character and 1541 ROMs against their SHA-256s,
-   and puts them in `/usr/share/vice/C64` and `/usr/share/vice/DRIVES`, where
-   the package's `x64sc -default` looks. If SourceForge is blocked, it takes
-   those four from VICE's GitHub mirror (`raw.githubusercontent.com`,
-   `VICE-Team/svn-mirror`) instead: the same bytes. The package's `x64sc` is
-   the GTK build and needs a display, so `/usr/local/bin/x64sc` becomes a
-   wrapper that starts `Xvfb :99` when `$DISPLAY` is unset; `screendump.py`
-   then works unchanged, and `mkfont.py` finds the character ROM in
-   `/usr/share/vice/C64`. The network needs
-   `sourceforge.net` and its download mirrors (or `raw.githubusercontent.com`)
-   besides the Ubuntu archive. CI's 3.10 is the reference for the screen
-   tests: if 3.7.1 ever disagrees, CI is right.
-3. **`Q4K_FROM_SOURCE=1`:** builds the headless 3.10 from the tarball
-   (a few minutes); the `toolchain` workflow uses this.
-
-The `toolchain` workflow runs whenever the script changes, and checks path 2
-on a clean runner as well as building path 1's release.
+To try a change to the toolchain, check it out beside this repository
+(`../c64-cloud-toolchain`): `tools/cloud-setup.sh` runs that copy instead.
 
 ## Make targets
 
