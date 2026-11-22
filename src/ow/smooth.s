@@ -80,7 +80,7 @@
         .export _sm_reu_keep
 .endif
 
-        .import ow_qvar, ow_rnd, ow_sprites, ow_nsprites
+        .import ow_qvar, ow_rnd, ow_sprites, ow_nsprites, ow_font
         .import _ow_spr1, _ow_spr2
         .export _sm_tileset, _sm_blank, _sm_offtile
         .export _sm_npcs, _sm_npc_n, _sm_npc_x, _sm_npc_y, _sm_tunic, _sm_skin
@@ -2674,28 +2674,22 @@ _sm_text_clear:
         bpl     :-
         rts
 
-; The font: the character ROM's lowercase set, its first 96 (screen codes
-; 0-$5F), into the character set from FONT. Above anything a tile set has
-; (mkoverworld.py keeps them under it), so it is done once. (In OWLO,
-; stlow.s's, for HICODE's room: the engine's file brings it.)
+; The font: the game's own letters, the bold ones the screens of text have,
+; as the lowercase set's first 96 (screen codes 0-$5F), with a draught and
+; an arrow on its last two graphics characters (ow_font, OW-DATA's:
+; tools/mkowfont.py), into the character set from FONT. Above anything a
+; tile set has (mkoverworld.py keeps them under it), so it is done once.
+; (In OWLO, stlow.s's, for HICODE's room: the engine's file brings it.)
 font_copy:
-        sei
-        lda     $01
-        pha
-        lda     #$33            ; the character ROM in, at $D000
-        sta     $01
         ldx     #0
-:       lda     $D800,x
+:       lda     ow_font,x
         sta     CHARS + FONT*8,x
-        lda     $D900,x
+        lda     ow_font + $100,x
         sta     CHARS + FONT*8 + $100,x
-        lda     $DA00,x
+        lda     ow_font + $200,x
         sta     CHARS + FONT*8 + $200,x
         inx
         bne     :-
-        pla
-        sta     $01
-        cli
         rts
 
         .segment "CODE"

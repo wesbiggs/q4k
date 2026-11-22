@@ -524,6 +524,9 @@ static void show_foe(void)
 static void show_party(void)
 {
     unsigned char i, x;
+#ifndef FIGHT_BOT
+    unsigned char c, h;
+#endif
     const Actor *a;
 
     for (i = 0, x = 0; i < party_count; ++i, x += 10) {
@@ -538,7 +541,19 @@ static void show_party(void)
             t_str("fled");
             continue;
         }
+#ifndef FIGHT_BOT
+        /* Green over half, yellow down to a quarter, red under it (as the
+           open world's party lines, src/ow/stlow.s). FIGHTBOT, which no one
+           watches, has no room for it: red at none, else green. */
+        c = C_GREEN;
+        h = a->hp;
+        if (h <= a->hp_max >> 1) {
+            c = h < (unsigned char)((a->hp_max + 3) >> 2) ? C_RED : C_YELLOW;
+        }
+        t_at(x + 1, ROW_STATS, c);
+#else
         t_at(x + 1, ROW_STATS, a->hp ? C_GREEN : C_RED);
+#endif
         t_num(a->hp);
         t_ch(0x2F);                             /* / */
         t_num(a->hp_max);

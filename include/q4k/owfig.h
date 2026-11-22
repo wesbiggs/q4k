@@ -16,6 +16,7 @@
 #define K_CRSR_LEFT  0x9D
 #define K_CRSR_DOWN  0x11
 #define K_CRSR_UP    0x91
+#define K_STOP       0x03
 
 /* Member `who`'s figure, its top left at character `col`, `row`. */
 void fig_show(unsigned char who, unsigned char col, unsigned char row);
@@ -27,9 +28,12 @@ void fig_colours(unsigned char who);
 /* A key, with the figure idling meanwhile (every sixteenth jiffy). */
 unsigned char fig_key(unsigned char who);
 
-/* The cursor keys change `who`'s clothes, K their skin, round every colour
-   but black (the outline); 1 if `key` was one of them. */
-unsigned char fig_recolour(unsigned char who, unsigned char key);
+/* Member `who`'s clothes' colour (or their skin's) a step on round every
+   colour but black (the outline), or back. */
+void fig_step(unsigned char who, unsigned char skin, unsigned char back);
+
+/* Members `a` and `b` change places: who they are and their colours. */
+void fig_swap(unsigned char a, unsigned char b);
 
 /* The figure gone. */
 void fig_off(void);

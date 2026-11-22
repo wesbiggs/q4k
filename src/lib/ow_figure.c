@@ -58,26 +58,31 @@ unsigned char fig_key(unsigned char who)
     return cgetc();
 }
 
-unsigned char fig_recolour(unsigned char who, unsigned char key)
+void fig_step(unsigned char who, unsigned char skin, unsigned char back)
 {
-    unsigned char t = G->tunic[who], c = OWG_DRESS(t);
+    unsigned char t = G->tunic[who];
+    unsigned char c = skin ? OWG_SKIN(t) : OWG_DRESS(t);
 
-    if (key == K_CRSR_DOWN) {
-        c = c == 15 ? 1 : c + 1;
-    } else if (key == K_CRSR_UP) {
+    if (back) {
         c = c <= 1 ? 15 : c - 1;
-    } else if ((key & 0x7F) == 'k') {
-        c = OWG_SKIN(t);
-        c = c == 15 ? 1 : c + 1;
-        G->tunic[who] = (c << 4) | OWG_DRESS(t);
-        fig_colours(who);
-        return 1;
     } else {
-        return 0;
+        c = c == 15 ? 1 : c + 1;
     }
-    G->tunic[who] = (t & 0xF0) | c;
+    G->tunic[who] = skin ? (c << 4) | OWG_DRESS(t) : (t & 0xF0) | c;
     fig_colours(who);
-    return 1;
+}
+
+void fig_swap(unsigned char a, unsigned char b)
+{
+    static Actor t;
+    unsigned char c;
+
+    t = party[a];
+    party[a] = party[b];
+    party[b] = t;
+    c = G->tunic[a];
+    G->tunic[a] = G->tunic[b];
+    G->tunic[b] = c;
 }
 
 void fig_off(void)

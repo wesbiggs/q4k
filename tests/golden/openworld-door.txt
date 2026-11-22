@@ -21,7 +21,7 @@
  19 |rrrrrrrrrrrrrrs@@grrrrrrrrrrrrrrrwbabefe|
  20 |ddddddddddddddU@@QddddddddddddddddUcdghg|
  21 |befrsefababefrs@@@@@@rsrsabefefefrsefabe|
- 22 | Alaric                      Draught 1  |
- 23 | 22/22                       Arrows 0   |
+ 22 | Alaric                       ·  1 ·  0 |
+ 23 | 22/22                        Gold    9 |
  24 |                                        |
     +----------------------------------------+

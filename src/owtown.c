@@ -13,7 +13,8 @@
  *   OWB_INN             an inn (src/lib/inn.c): ale and a rumour from the
  *                       inn's file on the disk, or beds; arg which inn
  *   OWB_PARTY           I: the party, one at a time with their figure:
- *                       what they carry, a wizard's spells, their colour
+ *                       what they carry, a wizard's spells, their
+ *                       colour and pronouns, and their places
  *   OWB_HELP            ?: the open world's keys, and what to do next
  *   OWB_FIGHT           a fight (src/lib/ow_fight.c, with the multicolour
  *                       fight module, which loads over this program's code
@@ -65,16 +66,19 @@ extern unsigned char owt_nowait;    /* the pause need not wait for VICE */
 
    One member at a time, with their figure as the map and the fights show
    it: their class, idling between its two frames (assets/monsters.txt,
-   tools/figures.py), doubled, in their colour from the game block. The
-   cursor keys go left and right through the party and up and down through
-   the colours of their clothes (all but black, the outline), K round
-   their skin's, P round their pronouns (they are kept in the game block,
-   so the engine and a save have them), which is seen on the figure as it changes (the skin is a
-   hi-res sprite of its own over the figure, as everywhere): the hero on the map is drawn in the leader's, and a fight
-   has everyone's. The rows are shop.c's, as the game's party screen has
-   them. The figure is src/lib/ow_figure.c's (q4k/owfig.h), which owparty
-   shows too: a multicolour sprite whose frames are src/lib/ow_figs.s,
-   which the cfg puts on a sprite block in VIC bank 0 (OWFIGS). */
+   tools/figures.py), doubled, in their colours from the game block. The
+   cursor keys go left and right through the party; 1-3 puts the member
+   shown in that place (the first leads, and is the hero on the map); T
+   steps their clothes' colour on (all but black, the outline; SHIFT+T
+   back), P their pronouns (both are kept in the game block, so the engine
+   and a save have them), S prepares a wizard's spells; RUN/STOP goes back
+   to the game. The skin and the name, like the class, are the party's
+   making's (owparty) alone. The hero on the map is drawn in the leader's
+   colours, and a fight has everyone's. The rows are shop.c's, as the
+   game's party screen has them. The figure is src/lib/ow_figure.c's
+   (q4k/owfig.h), which owparty shows too: a multicolour sprite whose
+   frames are src/lib/ow_figs.s, which the cfg puts on a sprite block in
+   VIC bank 0 (OWFIGS), with a hi-res one over it for the skin. */
 
 /* Above $4000, which only a fight overwrites, and none comes after this. */
 #pragma code-name (push, "HICODE")
@@ -88,13 +92,13 @@ static void hint(unsigned char y, const char *s)
     cputsxy(0, y, s);
 }
 
-/* Member `who`'s page: shop.c's rows for them and for the party. */
-/* Member `who`'s pronouns, past their arms. P steps them on in the order
-   owparty asks them: he/him, she/her, they/them, it, and round again. */
+/* P steps a member's pronouns on in the order owparty asks them: he/him,
+   she/her, they/them, it, and round again. */
 static const unsigned char pron_next[4] = {
     PRON_IT, PRON_SHE, PRON_THEY, PRON_HE       /* after they, he, she, it */
 };
 
+/* Member `who`'s pronouns, past their arms. */
 static void pronouns(unsigned char who)
 {
     textcolor(COLOR_GRAY2);
@@ -102,6 +106,7 @@ static void pronouns(unsigned char who)
     cputsxy(29, 3, pron_names[ACT_PRON(party[who])]);
 }
 
+/* Member `who`'s page: shop.c's rows for them and for the party. */
 static void page(unsigned char who)
 {
     party_head();
@@ -111,45 +116,57 @@ static void page(unsigned char who)
         cputc('0' + who + 1);
         cputs(" of ");
         cputc('0' + party_count);
+        hint(19, "Cursor left, right  the others");
+        hint(20, party_count > 2 ? "1-3  Change places"
+                                 : "1 2  Change places");
     }
     member_rows(who, 2);
     pronouns(who);
     party_totals(15);
-    if (party_count > 1) {
-        hint(20, "Cursor left, right  the others");
+    hint(21, "T  Tunic colour   P  Pronouns");
+    if (party_spells(who) > 1) {
+        hint(22, "S  Prepare spells");
     }
-    hint(21, "Cursor up, down  clothes   K  skin");
-    hint(22, party_spells(who) > 1 ? "P  pronouns         S  prepare spells"
-                                   : "P  pronouns");
-    hint(24, "Any other key goes back");
+    hint(24, "RUN/STOP  Back to the game");
 }
 
 static void party_look(void)
 {
-    unsigned char who = 0, key;
+    unsigned char who = 0, key, k;
 
     for (;;) {
         page(who);
         fig_show(who, FIG_COL, FIG_ROW);
         for (;;) {
             key = fig_key(who);
-            if ((key & 0x7F) == 'p') {
+            k = key & 0x7F;
+            if (k == 'p') {
                 ACT_SET_PRON(party[who], pron_next[ACT_PRON(party[who])]);
                 pronouns(who);
-            } else if (!fig_recolour(who, key)) {
+            } else if (k == 't') {
+                fig_step(who, 0, key & 0x80);
+            } else if (key == K_STOP || key == K_CRSR_RIGHT
+                       || key == K_CRSR_LEFT
+                       || (k == 's' && party_spells(who) > 1)
+                       || (unsigned char)(key - '1') < party_count) {
                 break;
             }
+        }
+        if (key == K_STOP) {
+            break;
         }
         if (key == K_CRSR_RIGHT) {
             who = who + 1 == party_count ? 0 : who + 1;
         } else if (key == K_CRSR_LEFT) {
             who = who ? who - 1 : party_count - 1;
-        } else if ((key & 0x7F) == 's' && party_spells(who) > 1) {
+        } else if (k == 's') {
             while (party_prepare(who)) {
                 page(who);
             }
         } else {
-            break;
+            key -= '1';                 /* the place they are put in */
+            fig_swap(who, key);
+            who = key;
         }
     }
     fig_off();

@@ -10,7 +10,9 @@
 ;
 ;  - The text window shows the party as a fight's panel does (fight.c's
 ;    show_party(): each member's name, then health and a wizard's magic;
-;    the draughts and arrows in the last column if there is room). Anything
+;    the health green over half, yellow down to a quarter and red under
+;    it), and in the last column, if there is room, the draughts and arrows
+;    (by their pictures, mkowfont.py's) and the gold. Anything
 ;    said takes the window over (sm_say()), and the lines come back with
 ;    the next step (st_step()).
 ;  - SPACE hides the window: no split, and the map on all 25 rows
@@ -40,6 +42,7 @@
         .importzp ptr1, ptr2
 
 G_COUNT   = $CE3F + 86          ; the game block's party_count (engine.c
+G_GOLD    = $CE3F + 90
 G_TURN    = $CE3F + 92          ; checks these)
 G_POTIONS = $CE3F + 94
 G_ARROWS  = $CE3F + 95
@@ -78,7 +81,10 @@ pos:    .byte 0                 ; where out() writes: 0-39 the first row,
 ink:    .byte 0                 ; 40-79 the second; and in what colour
 mem:    .byte 0
 col:    .byte 0
-nval:   .byte 0
+nval:   .word 0
+rj:     .byte 0                 ; num's: right-justified, the digit, and
+dig:    .byte 0                 ; the digits
+dbuf:   .res  5
 nlead:  .byte 0
 sx:     .byte 0
 q:      .byte 0
@@ -115,40 +121,71 @@ out:    cmp     #$C0
         ldx     sx
         rts
 
-        .segment "OWLO"
-; A in decimal, no leading zeros. Keeps Y.
-num:    sta     nval
+        .segment "CODE"         ; (OWLO and HICODE are full)
+
+; A in decimal (num16: X the high byte), no leading zeros, from pos; numr
+; (numr16) ends it just before pos instead, right-justified. Keeps Y.
+num:    ldx     #0
+num16:  sta     nval
+        stx     nval+1
+        lda     #0
+        beq     numgo           ; (always)
+numr:   ldx     #0
+numr16: sta     nval
+        stx     nval+1
+        lda     #1
+numgo:  sta     rj
         tya
         pha
-        lda     #0
+        ldy     #0              ; the digits so far, into dbuf
+        ldx     #4
+@digit: lda     #$30
+        sta     dig
+@sub:   lda     nval
+        sec
+        sbc     tenl,x
         sta     nlead
-        ldx     #2
-@digit: ldy     #0
-        lda     nval
-@sub:   cmp     tens,x
+        lda     nval+1
+        sbc     tenh,x
         bcc     @got
-        sbc     tens,x
-        iny
-        bne     @sub            ; (always)
-@got:   sta     nval
-        tya
-        bne     @show
-        cpx     #0              ; the units always show
-        beq     @show
+        sta     nval+1
         lda     nlead
+        sta     nval
+        inc     dig
+        bne     @sub            ; (always)
+@got:   lda     dig
+        cpy     #0              ; after the first digit, every one shows
+        bne     @keep
+        cpx     #0              ; and the units always
+        beq     @keep
+        cmp     #$30
         beq     @skip
-@show:  inc     nlead
-        tya
-        ora     #$30
-        jsr     out
+@keep:  sta     dbuf,y
+        iny
 @skip:  dex
         bpl     @digit
+        lda     rj
+        beq     @out
+        sty     nlead
+        lda     pos
+        sec
+        sbc     nlead
+        sta     pos
+@out:   ldx     #0
+:       lda     dbuf,x
+        jsr     out
+        inx
+        dey
+        bne     :-
         pla
         tay
         rts
 
+        .segment "RODATA"       ; (COMMON: OW-DATA's)
+tenl:   .byte   <1, <10, <100, <1000, <10000
+tenh:   .byte   >1, >10, >100, >1000, >10000
+
         .segment "HICODE"
-tens:   .byte   1, 10, 100
 
 ; A string at X/A (low, high), zero ended, from pos.
 str:    sta     ptr2+1
@@ -307,8 +344,9 @@ _st_draw:
 @member:
         lda     mem
         cmp     G_COUNT
-        bcs     @rest
-        tax
+        bcc     :+
+        jmp     @rest
+:       tax
         lda     member,x
         clc
         adc     #<_party
@@ -328,12 +366,30 @@ _st_draw:
         iny
         cpy     #A_NAME + 9
         bne     :-
-:       ldx     #5              ; health, green, or red at none
+:       ldy     #A_HPMAX        ; health: green over half, yellow down
+        lda     (ptr1),y        ; to a quarter, red under it
+        lsr     a
+        sta     q               ; (half, rounded down)
+        ldx     #5
         ldy     #A_HP
         lda     (ptr1),y
-        bne     :+
+        cmp     q
+        beq     :+
+        bcs     @ink            ; more than half
+:       ldx     #7
+        ldy     #A_HPMAX
+        lda     (ptr1),y
+        clc
+        adc     #3
+        ror     a
+        lsr     a
+        sta     q               ; (a quarter, rounded up)
+        ldy     #A_HP
+        lda     (ptr1),y
+        cmp     q
+        bcs     @ink            ; at least a quarter
         ldx     #2
-:       lda     col
+@ink:   lda     col
         clc
         adc     #41
         jsr     at
@@ -362,35 +418,46 @@ _st_draw:
         inc     mem
         jmp     @member
 
-@rest:  cmp     #MAX_PARTY      ; the draughts and arrows, if there is room
-        bcs     @done
-        lda     #29             ; (column 39 is under the border)
-        ldx     #3
+@rest:  cmp     #MAX_PARTY      ; the draughts, arrows and gold, if there
+        bcs     @done           ; is room: "D 12 A 34" over "Gold 5678",
+        lda     #30             ; the numbers right-justified (column 39
+        ldx     #3              ; is under the border)
         jsr     at
-        ldx     #<s_draught
-        lda     #>s_draught
-        jsr     str
-        lda     #1
-        sta     ink
+        lda     #$DE            ; a draught (mkowfont.py)
+        jsr     out
+        lda     #34
+        ldx     #1
+        jsr     at
         lda     G_POTIONS
-        jsr     num
-        lda     #69
+        jsr     numr
+        lda     #35
         ldx     #3
         jsr     at
-        ldx     #<s_arrows
-        lda     #>s_arrows
-        jsr     str
-        lda     #1
-        sta     ink
+        lda     #$DF            ; an arrow
+        jsr     out
+        lda     #39
+        ldx     #1
+        jsr     at
         lda     G_ARROWS
-        jsr     num
+        jsr     numr
+        lda     #70
+        ldx     #3
+        jsr     at
+        ldx     #<s_gold
+        lda     #>s_gold
+        jsr     str
+        lda     #79
+        ldx     #1
+        jsr     at
+        lda     G_GOLD
+        ldx     G_GOLD+1
+        jsr     numr16
 @done:  lda     #1
         sta     st_up
         rts
 
 member: .byte   0, ACTOR, 2 * ACTOR, 3 * ACTOR
-s_draught: .asciiz "Draught "
-s_arrows:  .asciiz "Arrows "
+s_gold:    .asciiz "Gold"
 
 ; --- Chests ------------------------------------------------------------------
 

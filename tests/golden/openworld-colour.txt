@@ -20,8 +20,8 @@
  18 |                                        |
  19 |                                        |
  20 |                                        |
- 21 |Cursor up, down  clothes   K  skin      |
- 22 |P  pronouns                             |
+ 21 |T  Tunic colour   P  Pronouns           |
+ 22 |                                        |
  23 |                                        |
- 24 |Any other key goes back                 |
+ 24 |RUN/STOP  Back to the game              |
     +----------------------------------------+

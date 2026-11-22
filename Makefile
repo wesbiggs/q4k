@@ -126,6 +126,7 @@ GEN_MUSIC := src/sid/theme_data.s
 GEN_TUNES := include/q4k/music_map.h src/lib/music_map.c
 GEN_OW    := src/lib/ow_data.s src/lib/ow_figs.s src/ow/town_art.s
 GEN_FIGHT := src/fight/fight_data.s src/ow/foe_art.s
+GEN_OWFONT := src/ow/ow_font.s
 
 # Where the letters come from. FONT_SOURCE is "rom" for the machine's own
 # character set, or a path to a C64 charset binary. FONT_STYLE only applies
@@ -140,7 +141,8 @@ FONT_SOURCE ?= rom
 FONT_STYLE  ?= bold
 
 assets: $(GEN_TILES) $(GEN_TOWN) $(GEN_NAMES) $(GEN_FONT) $(GEN_CVT) \
-        $(GEN_LOOT) $(GEN_MUSIC) $(GEN_TUNES) $(GEN_OW) $(GEN_FIGHT)
+        $(GEN_LOOT) $(GEN_MUSIC) $(GEN_TUNES) $(GEN_OW) $(GEN_FIGHT) \
+        $(GEN_OWFONT)
 
 $(GEN_TILES): assets/tiles.txt tools/mktiles.py
 	tools/mktiles.py
@@ -164,6 +166,11 @@ $(GEN_OW): assets/overworld.txt $(wildcard assets/*_tiles.txt) \
            assets/common_tiles.txt assets/tiles.txt assets/monsters.txt \
            tools/mkoverworld.py tools/figures.py
 	tools/mkoverworld.py
+
+# The engine's text window's letters: the game's own, and the party's
+# lines' draught and arrow.
+$(GEN_OWFONT): $(GEN_FONT) tools/mkowfont.py
+	tools/mkowfont.py
 
 # The open world's tile sets, a file each on its disk (t.overworld ...),
 # which the engine loads into SHORE on the way into an area.
@@ -329,7 +336,7 @@ $(BUILD)/ow/ovl.o: src/ow/ovl.s
 # The dungeon's monsters' sprites (tools/mkfields.py), and what they do
 # square by square (foes.s), in its overlay; the king's (mkoverworld.py),
 # in the town's.
-$(BUILD)/ow/foe_art.o $(BUILD)/ow/town_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(BUILD)/ow/genbuild.o: $(BUILD)/ow/%.o: src/ow/%.s
+$(BUILD)/ow/foe_art.o $(BUILD)/ow/town_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(BUILD)/ow/genbuild.o $(BUILD)/ow/ow_font.o: $(BUILD)/ow/%.o: src/ow/%.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) -c -o $@ $<
 
@@ -342,14 +349,15 @@ $(BUILD)/ow/ow_sfx.o: src/lib/sfx.s
 OWGEN := $(patsubst %,$(BUILD)/ow/%.o,ow_isle genbuild ow_tgen ow_town_gen ow_town_data ow_town_maps)
 OWOBJ = $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-$*.o) $(BUILD)/ow/ovl.o \
         $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o $(BUILD)/ow/foe_art.o \
-        $(BUILD)/ow/town_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(OWGEN)
+        $(BUILD)/ow/town_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o \
+        $(BUILD)/ow/ow_font.o $(OWGEN)
 
 # The overlays come out of the same link (ld65's %O.world, ...).
 $(DIST)/ow-%.world $(DIST)/ow-%.town $(DIST)/ow-%.dungeon $(DIST)/ow-%.hi: $(DIST)/ow-%.prg ;
 
 $(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/ow/ovl.o \
 	    $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o $(BUILD)/ow/foe_art.o $(BUILD)/ow/foes.o \
-	    $(BUILD)/ow/town_art.o $(BUILD)/ow/stlow.o $(OWGEN) $(LIB) cfg/c64-openworld.cfg tools/owslots.py
+	    $(BUILD)/ow/town_art.o $(BUILD)/ow/stlow.o $(BUILD)/ow/ow_font.o $(OWGEN) $(LIB) cfg/c64-openworld.cfg tools/owslots.py
 	@mkdir -p $(DIST)
 	$(CL65) $(LDFLAGS) -C cfg/c64-openworld.cfg -m $(BUILD)/ow-$*.map \
 	    -Wl -Ln,$(BUILD)/ow-$*.lbl -o $@ $(OWOBJ) $(LIB)

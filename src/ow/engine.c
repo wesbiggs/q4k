@@ -149,6 +149,7 @@ typedef char owgame_fits_below_the_probe[2 * (OWG_ADDR + OWG_SIZE <= 0xCF00) - 1
 /* stlow.s has these by number. */
 typedef char st_g[2 * (OWG_ADDR == 0xCE3F) - 1];
 typedef char st_count[2 * (offsetof(OwGame, party_count) == 86) - 1];
+typedef char st_gold[2 * (offsetof(OwGame, gold) == 90) - 1];
 typedef char st_turn[2 * (offsetof(OwGame, game_turn) == 92) - 1];
 typedef char st_potions[2 * (offsetof(OwGame, potions) == 94) - 1];
 typedef char st_arrows[2 * (offsetof(OwGame, arrows) == 95) - 1];

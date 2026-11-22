@@ -227,23 +227,23 @@ u_ow_quaff() {
     fi
 }
 
-# I, then cursor down twice: Alaric's clothes (14, light blue, from his
-# name) go to 15 and round past black to 1, then K: his skin (light red,
-# 10, from his name too) to 11; P steps his pronouns from he/him on to
-# she/her (the top two bits of his `known`, $CE52, actor.h); and any other
-# key goes back to the engine, whose hero is drawn in them (sm_tunic,
-# sm_skin). The colour byte is skin << 4 | clothes. The j's are padding while owtown loads (it empties
-# the buffer as it starts).
+# I, then T twice: Alaric's clothes (14, light blue, from his name) go to
+# 15 and round past black to 1, his skin staying light red (10, from his
+# name too); P steps his pronouns from he/him on to she/her (the top two
+# bits of his `known`, $CE52, actor.h); and RUN/STOP goes back to the
+# engine, whose hero is drawn in them (sm_tunic, sm_skin). The colour byte
+# is skin << 4 | clothes. The j's are padding while owtown loads (it
+# empties the buffer as it starts).
 u_ow_recolour() {
     got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl \
-        --keys 'ijjjjjjjjj\x11\x11kpj' --settle 15 \
+        --keys 'ijjjjjjjjjttp\x03' --settle 15 \
         --peek '$CECA' --peek sm_tunic --peek sm_skin --peek '$CE52' \
         2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
-    if [ "$got" = "177 1 11 128 " ]; then
+    if [ "$got" = "161 1 10 128 " ]; then
         result PASS openworld-recolour
     else
-        result FAIL openworld-recolour "colours in the block, the hero's, Alaric's pronouns: ${got:-?}; not 177 1 11 128"
+        result FAIL openworld-recolour "colours in the block, the hero's, Alaric's pronouns: ${got:-?}; not 161 1 10 128"
     fi
 }
 

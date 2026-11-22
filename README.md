@@ -44,11 +44,14 @@ square at a time; they are still on the
 The title picture waits for `F1`, a new game, or `F3`, the saved one. A new
 game tells the story (any key goes on) and then shows who answered the
 king's letter: a warrior, an archer and a wizard, named for you, with their
-health and a wizard's magic. `1`-`3` opens one's page, with their figure, to
-send them home (if they are not the last), rename them (RETURN alone picks
-a name), change their class, the colours of their clothes and skin, or
-their pronouns (he/him, she/her, they/them or it); `A` adds another while
-there are fewer than three. RETURN begins the
+health and a wizard's magic. `1`-`3` opens one's page, with their figure,
+where `C` changes their class, `N` their name (RETURN alone picks one), `P`
+their pronouns (he/him, she/her, they/them or it), `S` their skin's colour
+and `T` their tunic's (SHIFT steps the colours back), and DEL sends them
+home (if they are not the last); cursor left and right go to the others,
+`1`-`3` puts the one shown in that place, and RETURN goes back to the
+list. `A` adds another while there are fewer than three. The skin, the
+name and the class are settled once the adventure begins. RETURN begins the
 adventure: the new game is saved, so `F3` at the title starts it again,
 and you start at Millford's gate.
 
@@ -57,7 +60,7 @@ and you start at Millford's gate.
 | cursor keys, `WASD`, a joystick in port 2 | walk |
 | `Q` `E` `Z` `X`, or the stick's diagonals | walk diagonally |
 | `L` | look where you stand, and take anything hidden there |
-| `I` | the party, one at a time, and what each carries; cursor left and right for the next, up and down for their clothes' colour, `K` their skin's, `P` their pronouns, `S` to prepare a wizard's spells |
+| `I` | the party, one at a time, and what each carries; cursor left and right for the next, `1`-`3` to put the one shown in that place (the first leads), `T` their tunic's colour (SHIFT+`T` back), `P` their pronouns, `S` to prepare a wizard's spells; RUN/STOP goes back to the game |
 | `P` | the worst hurt of the party drinks a healing draught |
 | `SPACE` | hide the two lines of text under the map, for a bigger map |
 | `F1` / `F3` | save / restore (each asks `Y` first) |

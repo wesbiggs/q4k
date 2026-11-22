@@ -7,7 +7,8 @@
  * this. It tells the story, and then shows who answered the king's letter:
  * a warrior, an archer and a wizard, each with a name picked from the title
  * screen's list. 1-3 opens one's page, with their figure (q4k/owfig.h), to
- * send them home, rename them, change their class or their colours; A adds
+ * change their class, name, pronouns, skin or clothes, put them in another
+ * place, or send them home; A adds
  * another while there are fewer than three; RETURN begins. The new game
  * goes into the game block (q4k/owgame.h), at Millford's gate, and from
  * there into OW-SAVE on the disk, so that F3 at the title starts it again;
@@ -72,7 +73,7 @@ static const char *const names[] = {
 #define NUM_NAMES (sizeof(names) / sizeof(names[0]))
 
 /* ... and the pronouns each name comes with (PRON_*, actor.h), which the
-   page's 5 changes: the old forms of the names, he or she, and they for
+   page's P changes: the old forms of the names, he or she, and they for
    the ones that are words or are either. */
 #define T PRON_THEY
 #define M PRON_HE
@@ -91,8 +92,10 @@ static const unsigned char name_pron[NUM_NAMES] = {
 /* A member's pronouns in a sentence: object and possessive. */
 static const char *const p_obj[4]  = { "them", "him", "her", "it" };
 static const char *const p_poss[4] = { "Their", "His", "Her", "Its" };
-static const unsigned char pron_order[4] = {   /* as the page asks */
-    PRON_HE, PRON_SHE, PRON_THEY, PRON_IT
+/* P steps them on: he/him, she/her, they/them, it, and round again (as
+   the party screen, owtown's I, does). */
+static const unsigned char pron_next[4] = {
+    PRON_IT, PRON_SHE, PRON_THEY, PRON_HE       /* after they, he, she, it */
 };
 
 static char entry[NAME_LEN];
@@ -236,14 +239,23 @@ static void numbers(unsigned char who, unsigned char x, unsigned char y)
     }
 }
 
-/* Member `who`'s own page: who they are, their figure, and what may be
-   changed. 0 when they are gone (1). */
-static unsigned char edit(unsigned char who)
+/* Member `who`'s own page: who they are, their figure, and one key for
+   each thing about them that may be changed; the cursor keys go through
+   the others, 1-3 puts them in that place, and RETURN goes back to the
+   party. */
+static void edit(unsigned char who)
 {
-    unsigned char key, i;
+    unsigned char key, k, i;
 
     for (;;) {
         heading();
+        if (party_count > 1) {
+            textcolor(COLOR_GRAY2);
+            gotoxy(34, 1);
+            cputc('1' + who);
+            cputs(" of ");
+            cputc('0' + party_count);
+        }
         textcolor(COLOR_WHITE);
         cputsxy(1, 5, party[who].name);
         textcolor(COLOR_LIGHTBLUE);
@@ -252,64 +264,58 @@ static unsigned char edit(unsigned char who)
         cputsxy(1, 7, pron_names[ACT_PRON(party[who])]);
         numbers(who, 1, 9);
         textcolor(COLOR_WHITE);
+        cputsxy(1, 11, "C  Class");
+        cputsxy(1, 12, "N  Name");
+        cputsxy(1, 13, "P  Pronouns");
+        cputsxy(1, 14, "S  Skin colour");
+        cputsxy(1, 15, "T  Tunic colour");
         if (party_count > 1) {
-            pron_at(1, 11, "1  Send ", p_obj, who, " home");
+            pron_at(1, 16, "DEL  Send ", p_obj, who, " home");
+            hint(20, "Cursor left, right  the others");
+            hint(21, party_count > 2 ? "1-3  Change places"
+                                     : "1 2  Change places");
         }
-        cputsxy(1, 12, "2  Change the name");
-        cputsxy(1, 13, "3  Change the class");
-        cputsxy(1, 14, "4  Change the colours");
-        cputsxy(1, 15, "5  Change the pronouns");
-        hint(22, "RETURN  Back to the party");
+        hint(23, "RETURN  Back to the party");
         fig_show(who, FIG_COL, FIG_ROW);
 
         key = fig_key(who);
-        switch (key) {
-        case 0x31:                              /* 1: gone */
-            if (party_count < 2) {
-                break;
-            }
+        k = key & 0x7F;
+        if (key == KEY_RETURN) {
             fig_off();
-            for (i = who; i + 1 < party_count; ++i) {
-                party[i] = party[i + 1];
-                G->tunic[i] = G->tunic[i + 1];
+            return;
+        } else if (key == K_CRSR_RIGHT) {
+            who = who + 1 == party_count ? 0 : who + 1;
+        } else if (key == K_CRSR_LEFT) {
+            who = who ? who - 1 : party_count - 1;
+        } else if ((unsigned char)(key - '1') < party_count) {
+            key -= '1';                         /* another place */
+            fig_swap(who, key);
+            who = key;
+        } else if (key == KEY_DEL) {            /* sent home */
+            if (party_count > 1) {
+                fig_off();
+                for (i = who; i + 1 < party_count; ++i) {
+                    party[i] = party[i + 1];
+                    G->tunic[i] = G->tunic[i + 1];
+                }
+                memset(&party[i], 0, sizeof party[i]);
+                --party_count;
+                return;
             }
-            memset(&party[i], 0, sizeof party[i]);
-            --party_count;
-            return 0;
-        case 0x32:                              /* 2: a name, and only */
-            read_name(who);                     /* that */
-            strcpy(party[who].name, entry);
-            break;
-        case 0x33:                              /* 3: a class */
-            ask("1 Warrior, 2 Archer or 3 Wizard?");
-            do {
-                key = fig_key(who) - 0x31;
-            } while (key >= NUM_CLASSES);
+        } else if (k == 'c') {                  /* the next class */
             strcpy(entry, party[who].name);
             picked = ACT_PRON(party[who]);
             i = G->tunic[who];
-            make(who, key);
+            key = party[who].cls + 1;
+            make(who, key == NUM_CLASSES ? 0 : key);
             G->tunic[who] = i;                  /* (as they were dressed) */
-            break;
-        case 0x34:                              /* 4: the colours */
-            ask("");
-            textcolor(COLOR_YELLOW);
-            pron_at(1, ASK_Y, "", p_poss, who, " colours");
-            hint(ENTRY_Y, "Cursor up, down  clothes   K  skin");
-            hint(ENTRY_Y + 1, "Any other key when done");
-            while (fig_recolour(who, fig_key(who))) {
-            }
-            break;
-        case 0x35:                              /* 5: the pronouns */
-            ask("1 he/him, 2 she/her, 3 they/them, 4 it?");
-            do {
-                key = fig_key(who) - 0x31;
-            } while (key > 3);
-            ACT_SET_PRON(party[who], pron_order[key]);
-            break;
-        case KEY_RETURN:
-            fig_off();
-            return 1;
+        } else if (k == 'n') {                  /* a name, and only that */
+            read_name(who);
+            strcpy(party[who].name, entry);
+        } else if (k == 'p') {                  /* the next pronouns */
+            ACT_SET_PRON(party[who], pron_next[ACT_PRON(party[who])]);
+        } else if (k == 's' || k == 't') {      /* a colour (SHIFT: back) */
+            fig_step(who, k == 's', key & 0x80);
         }
     }
 }

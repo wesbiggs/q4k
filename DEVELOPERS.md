@@ -232,4 +232,7 @@ is complete, so GEOS can use it too.
 
 The screens of text (owtown, owtalk, owparty) draw from this set. The
 engine's map and the fight have character sets of their own, made from the
-tile sets, with the ROM's lowercase letters copied into their top half.
+tile sets, with the lowercase letters copied into their top half: the
+engine's are these (`tools/mkowfont.py` writes them, with a draught and an
+arrow for the party's lines, into `src/ow/ow_font.s`), the fight's the
+ROM's.
