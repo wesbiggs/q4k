@@ -98,6 +98,8 @@ static void page(unsigned char who)
         cputc('0' + party_count);
     }
     member_rows(who, 2);
+    textcolor(COLOR_GRAY2);             /* their pronouns, past their arms */
+    cputsxy(29, 3, pron_names[ACT_PRON(party[who])]);
     party_totals(15);
     if (party_count > 1) {
         hint(20, "Cursor left, right  the others");

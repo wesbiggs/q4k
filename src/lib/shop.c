@@ -632,7 +632,7 @@ unsigned char __fastcall__ party_spells(unsigned char who)
 
     /* (The argument is counted down in place: it is on the C stack, and
        every static byte is wanted in the online build.) */
-    for (who = party[who].known; who; who >>= 1) {
+    for (who = party[who].known & SPELL_BITS; who; who >>= 1) {
         n += who & 1;
     }
     return n;

@@ -95,8 +95,19 @@ typedef struct {
                                      squares; left out, and so 0, for the
                                      many things that only close in */
     unsigned char kind;           /* what it shoots, SHOT_*: left out, an
-                                     arrow */
+                                     arrow; and in the top two bits its
+                                     pronouns, MP_*: left out, "it" */
 } Monster;
+
+/* A monster's pronouns, in the top bits of `kind`: (kind >> 6) ^ 3 is
+   actor.h's PRON_*, so that left out is PRON_IT, and PRON_THEY says a
+   person, whose are rolled for each one in a fight, he, she or they
+   (src/fight/fight.c), so a band of cutthroats may be all three. */
+#define MP_IT      0x00
+#define MP_HE      0x80           /* (PRON_HE ^ 3) << 6 */
+#define MP_SHE     0x40
+#define MP_PERSON  0xC0
+#define SHOT_KIND  0x3F           /* kind & SHOT_KIND: the SHOT_* */
 
 /* Wandering monsters, and the level each starts turning up at. */
 typedef struct {

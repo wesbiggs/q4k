@@ -12,6 +12,7 @@ unsigned char party_level;
 unsigned int  party_xp;
 
 const char *const class_names[NUM_CLASSES] = { "Warrior", "Archer", "Wizard" };
+const char *const pron_names[4] = { "they/them", "he/him", "she/her", "it" };
 const unsigned char class_glyph[NUM_CLASSES] = {
     T_WARRIOR, T_ARCHER, T_WIZARD,
 };
@@ -61,6 +62,7 @@ void party_init(void)
     party_level = 1;
     party_xp    = 0;
     party_make(0, "Alaric", CL_WARRIOR);
+    ACT_SET_PRON(party[0], PRON_HE);
 }
 
 void party_grow(void)

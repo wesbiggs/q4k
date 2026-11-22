@@ -165,7 +165,7 @@ dungeon monster last fled from with how many of it were left: `fled`). ld65 does
 the game's own `actor.c` uses `owg_in()`/`owg_out()`
 (`src/lib/owgame.c`). A save is this block as it is, in `ow-save` (193
 bytes, `OWG_SIZE`: the whole of `$CE3F-$CEFF`, so a new field must move the
-bound first -- `OWG_ADDR`, the engines' cfg (`_party` and BSS), `foes.s`'s
+bound first, or find spare bits as the pronouns did (below) -- `OWG_ADDR`, the engines' cfg (`_party` and BSS), `foes.s`'s
 `FOE_A`, `stlow.s`'s offsets (engine.c checks them), `mkowsave.py` -- and the engines' BSS has 23
 bytes below it; it is what `tools/mkowsave.py` writes too and the engine
 checks): F1 in an engine writes it, after Y to "Save over the saved game? (scratching the old file first; the border is light blue while the drive works, red
@@ -405,8 +405,9 @@ making is a program of its own**, `owparty` (`src/owparty.c`, 10K, with
 `cfg/c64-tool.cfg`: it all fits below the charset, the figures' sprite
 blocks, `OWFIGS`, last), which the bootstrap
 loads after F1 (`OWB_NEW`) or the tests' quick start (`OWB_QUICK`): the
-story, then a warrior, an archer and a wizard with names picked for them,
-each to send home, rename, change the class or the colours of on a page
+story, then a warrior, an archer and a wizard with names picked for them
+(and each name's pronouns, `name_pron[]`), each to send home, rename (the
+name only), change the class, the colours or the pronouns of on a page
 of their own with their figure (`src/lib/ow_figure.c`, `q4k/owfig.h`,
 which owtown's party screen uses too), or one added while fewer than
 three (`src/lib/ow_party.c`); RETURN puts the new game into the block,
@@ -1385,7 +1386,23 @@ with `-DOWARENA_AUTO=7`, which goes straight into a fight, and run it with
 ## The party
 
 `actor.h`. Up to three made by `owparty` (`party_make()`), a fourth place
-kept for a computer-run companion (not written yet). The gold, draughts,
+kept for a computer-run companion (not written yet). **Pronouns**: each
+member's are the top two bits of their `known` (`ACT_PRON()`, `PRON_*`:
+0 they/them, he/him, she/her, it), which the six spells leave free, so
+neither the game block nor the fight's grew; `party_make()` clears them, so
+set them after it. The save's version is `OWG_MAGIC` (`0x48` since then):
+the bootstrap's `save_version()` takes a save of the one before
+(`OWG_MAGIC_V1`) as the same block, everyone they/them. A monster's are
+the top two bits of its bestiary `kind` (`MP_*`, battle.h; `(kind >> 6) ^
+3` is a `PRON_*`, so left out is "it"): Maldrath, the Drowned King and the
+Gaoler he, the bog hag she, and the people (cutthroats, bandits, centaurs,
+efreets, storm giants) `MP_PERSON`, rolled he, she or they for each one in
+a fight from its seed (not `rand()`, so the dice are as they were), which
+`fight.c`'s lines use (`foe_pron[]`, `say_did()`: "She falls.", "They
+fall."). Nothing the game says used a member's "they", so their pronouns
+show on the party screens and in owparty's own questions ("Send her
+home"). **`FIGHTBOT`** (the fight module with the autoplayer) had 20
+bytes free under `$C000` after this: a fight.c change may need room found. The gold, draughts,
 arrows, `party_level` and `party_xp` are shared; health, arms (`weapon`,
 `armour`, `bow`, indices into the lists in `arms.c`) and a wizard's magic and
 spells (`known`/`ready` bits) are each member's. What a class may carry is

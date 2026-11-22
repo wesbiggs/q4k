@@ -16,14 +16,19 @@
 
 /* Kept in order of `from`: a fight picks evenly from the ones you have
    reached, and battle_wander() stops at the first you have not. */
+/* Every one is "it" but where the last of its numbers says otherwise
+   (MP_*, battle.h): the people (cutthroats, bandits, centaurs, efreets,
+   storm giants) are each he, she or they, rolled in the fight; the bog hag
+   is she; the Gaoler, the Drowned King and Maldrath he. */
 const Wanderer wanderers[] = {
     { 1, { "A rat",        4,  2, 0,  2,  2, T_RAT,      TC_RAT,      13, 1 } },
     { 1, { "A goblin",     7,  3, 1,  4,  6, T_GOBLIN,   TC_GOBLIN,   10, 1 } },
     { 2, { "A wolf",       9,  4, 1,  6,  5, T_WOLF,     TC_WOLF,     15, 1 } },
     { 2, { "A giant wasp", 5,  2, 0,  4,  0, T_WASP,     TC_WASP,     22, 1 } },
-    { 3, { "A cutthroat", 12,  5, 2,  9, 15, T_BANDIT,   COLOR_RED,   10, 1 } },
+    { 3, { "A cutthroat", 12,  5, 2,  9, 15, T_BANDIT,   COLOR_RED,   10, 1,
+           0, 0, MP_PERSON } },
     { 4, { "A bandit",    12,  5, 2,  9, 15, T_BANDIT,   TC_BANDIT,   10, 1,
-           3, 6 } },
+           3, 6, SHOT_ARROW | MP_PERSON } },
     { 4, { "A skeleton",  15,  6, 3, 12, 12, T_SKELETON, TC_SKELETON,  8, 1 } },
     { 5, { "A bone archer",
                           13,  4, 2, 14, 14, T_SKELETON, COLOR_GRAY3,  8, 1,
@@ -41,19 +46,19 @@ const unsigned char num_wanderers = sizeof(wanderers) / sizeof(wanderers[0]);
 const Monster natives[BIOMES * 2] = {
     { "A gnoll",       16, 6, 2, 12, 14, T_GOBLIN,  COLOR_YELLOW,    11, 1 },
     { "A centaur",     14, 5, 2, 14, 16, T_BANDIT,  COLOR_BROWN,     14, 1,
-      6, 6 },
+      6, 6, SHOT_ARROW | MP_PERSON },
     { "A briar troll", 20, 7, 3, 14, 12, T_OGRE,    COLOR_GREEN,      8, 1 },
     { "A wisp",        10, 4, 1, 14,  8, T_WRAITH,  COLOR_YELLOW,    16, 1,
       6, 5, SHOT_FIRE },
     { "A mire leech",  14, 6, 1, 11,  4, T_RAT,     COLOR_BROWN,      9, 1 },
     { "A bog hag",     14, 4, 2, 14, 16, T_WRAITH,  COLOR_GREEN,     10, 1,
-      6, 6, SHOT_WATER },
+      6, 6, SHOT_WATER | MP_SHE },
     { "A sand wyrm",   20, 7, 3, 14, 10, T_DRAKE,   COLOR_YELLOW,    12, 1 },
     { "An efreet",     14, 5, 2, 16, 18, T_MONSTER, COLOR_ORANGE,    12, 1,
-      7, 6, SHOT_FIRE },
+      7, 6, SHOT_FIRE | MP_PERSON },
     { "A rock troll",  22, 7, 4, 15, 14, T_OGRE,    COLOR_GRAY2,      7, 1 },
     { "A storm giant", 18, 5, 3, 16, 20, T_MONSTER, COLOR_CYAN,       9, 1,
-      7, 7, SHOT_BOLT },
+      7, 7, SHOT_BOLT | MP_PERSON },
 };
 
 /* One keeper per deep place, in the order the quest opens them. Each is meant
@@ -67,9 +72,10 @@ const Monster natives[BIOMES * 2] = {
    (fight()); tools/balance.py has the arena fight them out with its
    autoplayer and counts the draughts. */
 const Monster keepers[NUM_DUNGEONS] = {
-    { "The Gaoler",       45,  8, 5,  60,  80, T_MONSTER, TC_MONSTER, 10, 1 },
+    { "The Gaoler",       45,  8, 5,  60,  80, T_MONSTER, TC_MONSTER, 10, 1,
+      0, 0, MP_HE },
     { "The Drowned King", 85, 15, 6,  90, 120, T_MONSTER, TC_MONSTER, 10, 1,
-      14, 4, SHOT_WATER },
+      14, 4, SHOT_WATER | MP_HE },
     { "The Pit Warden",  150, 22, 8, 140, 180, T_MONSTER, TC_MONSTER, 10, 1 },
 };
 
@@ -78,5 +84,5 @@ const Monster keepers[NUM_DUNGEONS] = {
    it can be; the rest is in how hard he hits. */
 const Monster maldrath = {
     "Maldrath", 250, 24, 10, 255, 0, T_DRAGONTL, TC_DRAGONTL, 10, 2,
-    18, 4, SHOT_FIRE
+    18, 4, SHOT_FIRE | MP_HE
 };

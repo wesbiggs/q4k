@@ -2,7 +2,7 @@
   0 |The party                               |
   1 |········································|
   2 |1 Alaric   Warrior  HP 22/22            |
-  3 |  Bare hands                            |
+  3 |  Bare hands                 he/him     |
   4 |  Travel clothes                        |
   5 |                                        |
   6 |                                        |

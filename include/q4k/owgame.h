@@ -23,7 +23,11 @@
 #include <q4k/game.h>
 
 #define OWG_ADDR  0xCE3F
-#define OWG_MAGIC 0x47          /* a game is made: the party, the rest */
+#define OWG_MAGIC 0x48          /* a game is made: the party, the rest; the
+                                   save's version, too */
+#define OWG_MAGIC_V1 0x47       /* a save from before the party's pronouns
+                                   (actor.h's PRON_*), which the bootstrap
+                                   takes as they/them for everyone */
 #define OWG_SHIPS 8
 #define OWG_FOES  6           /* monsters a dungeon level */
 

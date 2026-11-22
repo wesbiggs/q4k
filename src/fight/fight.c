@@ -243,6 +243,40 @@ static unsigned char foes, alive, cur;
 static unsigned char foe_x[MAX_FOES], foe_y[MAX_FOES];
 static unsigned char foe_pace[MAX_FOES];
 static unsigned int  foe_hp[MAX_FOES];
+/* Each one's pronouns (PRON_*, actor.h), from the monster's (MP_* in
+   fq_kind's top bits: a person's rolled for each), and the last to fall. */
+static unsigned char foe_pron[MAX_FOES], fell;
+
+static const char *const p_subj[4] = { "They", "He", "She", "It" };
+static const char *const p_obj[4]  = { "them", "him", "her", "it" };
+
+/* Whoever is still standing, as one: "them" for more than one. */
+static unsigned char foes_pron(void)
+{
+    unsigned char i;
+
+    if (alive == 1) {
+        for (i = 0; !foe_hp[i]; ++i) {
+        }
+        return foe_pron[i];
+    }
+    return PRON_THEY;
+}
+
+/* Three pieces into msg, and said as one line. */
+static void cat3(const char *a, const char *b, const char *c)
+{
+    strcpy(msg, a);
+    strcat(msg, b);
+    strcat(msg, c);
+}
+
+/* "She falls.", "They fall.": the verb agrees. */
+static void say_did(unsigned char p, const char *verb)
+{
+    cat3(p_subj[p], verb, p ? "s." : ".");
+    say(msg);
+}
 
 #define flag_at(x, y) (F_INFO[FI_FLAGS + (unsigned char)((y) * FW + (x))])
 #define wall_at(x, y) (wall[(unsigned char)(((y) + 1) * RIM_W + (x) + 1)])
@@ -1620,12 +1654,13 @@ static unsigned char cast(unsigned char *spent)
             return 0;
         case SP_SLEEP:
             sleep = lone ? party_count << 1 : 2;
-            say("A drowse falls on them.");
+            cat3("A drowse falls on ", p_obj[foes_pron()], ".");
+            say(msg);
             return 0;
         default:                             /* SP_BLAZE */
             hurt_all = 1;
             sfx_play(SFX_BOW);
-            strcpy(msg, "Fire takes them all for ");
+            cat3("Fire takes ", p_obj[foes_pron()], " for ");
             s = strike(0xFFFF, 4 + party_level);
             for (who = 0; who < foes; ++who) {
                 if (foe_hp[who]) {
@@ -1655,6 +1690,7 @@ static unsigned char wound(unsigned char t, unsigned char dmg)
 {
     if (dmg >= foe_hp[t]) {
         foe_hp[t] = 0;
+        fell = t;
         --alive;
         show_foe();
         foe_sprites(t);
@@ -1662,7 +1698,7 @@ static unsigned char wound(unsigned char t, unsigned char dmg)
         if (!alive) {
             return 1;
         }
-        say("It falls.");
+        say_did(foe_pron[t], " fall");
         return 0;
     }
     foe_hp[t] -= dmg;
@@ -1684,7 +1720,7 @@ static unsigned char their_turn(void)
 
     if (sleep) {
         --sleep;
-        say(sleep ? "They sleep." : "They stir.");
+        say_did(foes_pron(), sleep ? " sleep" : " stir");
         return 0;
     }
     for (cur = 0; cur < foes; ++cur) {
@@ -1696,9 +1732,9 @@ static unsigned char their_turn(void)
         pace = foe_pace[cur] + rel;
         for (; pace >= 10; pace -= 10) {
             if ((i = next_to()) != NONE) {
-                strcpy(msg, foes > 1 ? (const char *)fq_name : (const char *)"It");
-                strcat(msg, " hits ");
-                strcat(msg, party[i].name);
+                dir = foes > 1 ? PRON_HE : foe_pron[cur];   /* (agrees) */
+                cat3(foes > 1 ? (const char *)fq_name : p_subj[dir],
+                     dir ? " hits " : " hit ", party[i].name);
                 strcat(msg, " for ");
                 foe_sprites(cur);
                 /* Toward them: by the nearest part of a big body. */
@@ -1763,7 +1799,7 @@ static unsigned char won(void)
 {
     unsigned char got;
 
-    say("It falls.");
+    say_did(foe_pron[fell], " fall");
     get_up();
     if (fq_to_level && fq_xp_each * fq_foes >= fq_to_level) {
         level_up();
@@ -1813,7 +1849,7 @@ static unsigned char lost(void)
 /* The field's walls, the boulders, and everyone in their places. */
 static void set_up(void)
 {
-    unsigned char x, y, i;
+    unsigned char x, y, i, pron;
     unsigned int  n, hp;
 
     size = fq_size == 2 ? 2 : 1;
@@ -1854,6 +1890,15 @@ static void set_up(void)
     }
     foes = alive = fq_foes = cur;
     lone = foes == 1;
+    /* Pronouns: a person's rolled for each, from the fight's seed rather
+       than rand(), so that the dice of a fight stay as they were. */
+    pron = (fq_kind >> 6) ^ 3;          /* (battle.h's MP_*) */
+    fq_kind &= SHOT_KIND;
+    y = (unsigned char)fq_seed % 3;
+    for (cur = 0; cur < foes; ++cur) {
+        foe_pron[cur] = pron ? pron : y;
+        y = y == 2 ? 0 : y + 1;         /* (a band: each in turn) */
+    }
     fury = lone ? LONE_ATK * (party_count - 1) : 0;
 
     n = 0;
@@ -1877,8 +1922,9 @@ static unsigned char fight(void)
         strcat(msg, " more!");
         say(msg);
     }
-    say(fq_flee ? "Walk into it to strike. Flee by a side."
-                : "Walk into it to strike.");
+    cat3("Walk into ", p_obj[foes_pron()],
+         fq_flee ? " to strike. Flee by a side." : " to strike.");
+    say(msg);
 
     for (;;) {
         /* A round. One the autoplayer cannot finish (shut out of reach) is

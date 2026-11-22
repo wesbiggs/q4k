@@ -39,9 +39,25 @@ typedef struct {
     unsigned char armour;       /* armour_names                              */
     unsigned char bow;          /* bow_names; 0 none                         */
     unsigned char mp, mp_max;   /* a wizard's; 0 for everyone else          */
-    unsigned char known;        /* spells learned, one bit each (SP_*)       */
+    unsigned char known;        /* spells learned, one bit each (SP_*), and
+                                   in the top two bits their pronouns
+                                   (PRON_*: ACT_PRON())                    */
     unsigned char ready;        /* ...and of those, the ones prepared        */
 } Actor;
+
+/* A member's pronouns, kept in the top two bits of `known`, which the six
+   spells (SP_*, bits 0-5) leave free, so that neither the game block nor
+   the fight's block grew for them. 0 is they/them, which is what a save
+   from before them has. */
+#define PRON_THEY   0
+#define PRON_HE     1
+#define PRON_SHE    2
+#define PRON_IT     3
+#define SPELL_BITS  0x3F
+#define ACT_PRON(a)        ((unsigned char)((a).known >> 6))
+#define ACT_SET_PRON(a, p) ((a).known = ((a).known & SPELL_BITS) | ((p) << 6))
+
+extern const char *const pron_names[4];     /* "they/them", "he/him" ... */
 
 extern Actor         party[MAX_PARTY];
 extern unsigned char party_count;

@@ -41,8 +41,9 @@ game tells the story (any key goes on) and then shows who answered the
 king's letter: a warrior, an archer and a wizard, named for you, with their
 health and a wizard's magic. `1`-`3` opens one's page, with their figure, to
 send them home (if they are not the last), rename them (RETURN alone picks
-a name), change their class, or change the colours of their clothes and
-skin; `A` adds another while there are fewer than three. RETURN begins the
+a name), change their class, the colours of their clothes and skin, or
+their pronouns (he/him, she/her, they/them or it); `A` adds another while
+there are fewer than three. RETURN begins the
 adventure: the new game is saved, so `F3` at the title starts it again,
 and you start at Millford's gate.
 

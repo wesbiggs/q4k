@@ -70,7 +70,32 @@ static const char *const names[] = {
 };
 #define NUM_NAMES (sizeof(names) / sizeof(names[0]))
 
+/* ... and the pronouns each name comes with (PRON_*, actor.h), which the
+   page's 5 changes: the old forms of the names, he or she, and they for
+   the ones that are words or are either. */
+#define T PRON_THEY
+#define M PRON_HE
+#define F PRON_SHE
+static const unsigned char name_pron[NUM_NAMES] = {
+    M, M, M, M, F,              /* Aldwin .. Elowen   */
+    M, M, M, F, M,              /* Faelan .. Jorund   */
+    T, F, F, F, M,              /* Kestrel .. Orrin   */
+    M, F, F, F, T,              /* Perrin .. Talwyn   */
+    M, T, M, T,                 /* Ulric .. Zephyr    */
+};
+#undef T
+#undef M
+#undef F
+
+/* A member's pronouns in a sentence: object and possessive. */
+static const char *const p_obj[4]  = { "them", "him", "her", "it" };
+static const char *const p_poss[4] = { "Their", "His", "Her", "Its" };
+static const unsigned char pron_order[4] = {   /* as the page asks */
+    PRON_HE, PRON_SHE, PRON_THEY, PRON_IT
+};
+
 static char entry[NAME_LEN];
+static unsigned char picked;    /* the pronouns of the name pick_name() took */
 
 static unsigned char tunic(const char *name);
 
@@ -124,14 +149,26 @@ static void pick_name(unsigned char who)
         }
     }
     strcpy(entry, names[i]);
+    picked = name_pron[i];
 }
 
-/* Member `who` made a level-1 `cls` called entry[], in the colours their
-   name gives them (the page's 4 changes those). */
+/* Member `who` made a level-1 `cls` called entry[], with the pronouns of
+   the name picked and the colours it gives them (the page changes both). */
 static void make(unsigned char who, unsigned char cls)
 {
     party_make(who, entry, cls);
+    ACT_SET_PRON(party[who], picked);
     G->tunic[who] = tunic(entry);
+}
+
+/* `pre`, member `who`'s pronoun from `table`, and `post`, at x, y. */
+static void pron_at(unsigned char x, unsigned char y, const char *pre,
+                    const char *const *table, unsigned char who,
+                    const char *post)
+{
+    cputsxy(x, y, pre);
+    cputs(table[ACT_PRON(party[who])]);
+    cputs(post);
 }
 
 /* A name into entry[], starting from member `who`'s: typed over (DEL
@@ -142,7 +179,9 @@ static void read_name(unsigned char who)
 
     strcpy(entry, party[who].name);
     n = (unsigned char)strlen(entry);
-    ask("Their name? (RETURN alone picks one)");
+    ask("");
+    textcolor(COLOR_YELLOW);
+    pron_at(1, ASK_Y, "", p_poss, who, " name? (RETURN alone picks one)");
     for (;;) {
         textcolor(COLOR_WHITE);
         cclearxy(1, ENTRY_Y, SCR_W - 2);
@@ -208,14 +247,17 @@ static unsigned char edit(unsigned char who)
         cputsxy(1, 5, party[who].name);
         textcolor(COLOR_LIGHTBLUE);
         cputsxy(1, 6, class_names[party[who].cls]);
-        numbers(who, 1, 8);
+        textcolor(COLOR_GRAY3);
+        cputsxy(1, 7, pron_names[ACT_PRON(party[who])]);
+        numbers(who, 1, 9);
         textcolor(COLOR_WHITE);
         if (party_count > 1) {
-            cputsxy(1, 11, "1  Send them home");
+            pron_at(1, 11, "1  Send ", p_obj, who, " home");
         }
         cputsxy(1, 12, "2  Change the name");
         cputsxy(1, 13, "3  Change the class");
         cputsxy(1, 14, "4  Change the colours");
+        cputsxy(1, 15, "5  Change the pronouns");
         hint(22, "RETURN  Back to the party");
         fig_show(who, FIG_COL, FIG_ROW);
 
@@ -233,9 +275,9 @@ static unsigned char edit(unsigned char who)
             memset(&party[i], 0, sizeof party[i]);
             --party_count;
             return 0;
-        case 0x32:                              /* 2: a name */
-            read_name(who);
-            make(who, party[who].cls);
+        case 0x32:                              /* 2: a name, and only */
+            read_name(who);                     /* that */
+            strcpy(party[who].name, entry);
             break;
         case 0x33:                              /* 3: a class */
             ask("1 Warrior, 2 Archer or 3 Wizard?");
@@ -243,16 +285,26 @@ static unsigned char edit(unsigned char who)
                 key = fig_key(who) - 0x31;
             } while (key >= NUM_CLASSES);
             strcpy(entry, party[who].name);
+            picked = ACT_PRON(party[who]);
             i = G->tunic[who];
-            party_make(who, entry, key);
+            make(who, key);
             G->tunic[who] = i;                  /* (as they were dressed) */
             break;
         case 0x34:                              /* 4: the colours */
-            ask("Their colours");
+            ask("");
+            textcolor(COLOR_YELLOW);
+            pron_at(1, ASK_Y, "", p_poss, who, " colours");
             hint(ENTRY_Y, "Cursor up, down  clothes   K  skin");
             hint(ENTRY_Y + 1, "Any other key when done");
             while (fig_recolour(who, fig_key(who))) {
             }
+            break;
+        case 0x35:                              /* 5: the pronouns */
+            ask("1 he/him, 2 she/her, 3 they/them, 4 it?");
+            do {
+                key = fig_key(who) - 0x31;
+            } while (key > 3);
+            ACT_SET_PRON(party[who], pron_order[key]);
             break;
         case KEY_RETURN:
             fig_off();
@@ -300,13 +352,15 @@ static void make_party(void)
             textcolor(COLOR_LIGHTBLUE);
             cputsxy(14, ROSTER_Y + 1 + i * 2, class_names[party[i].cls]);
             numbers(i, 23, ROSTER_Y + 1 + i * 2);
+            textcolor(COLOR_GRAY2);
+            cputsxy(4, ROSTER_Y + 2 + i * 2, pron_names[ACT_PRON(party[i])]);
         }
         textcolor(COLOR_WHITE);
         if (party_count > 1) {
             stat(1, 14, "1-", party_count);
             cputs("  Change one");
         } else {
-            cputsxy(1, 14, "1  Change them");
+            pron_at(1, 14, "1  Change ", p_obj, 0, "");
         }
         if (party_count < MAX_MADE) {
             cputsxy(1, 15, "A  Add another");

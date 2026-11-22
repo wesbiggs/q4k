@@ -128,6 +128,17 @@ static unsigned char title_text(void)
     return k;
 }
 
+/* A save of this version, or of the one before the party's pronouns,
+   which is the same block with them all they/them (0, owgame.h's
+   OWG_MAGIC_V1): made this version. */
+static unsigned char save_version(void)
+{
+    if (G->magic == OWG_MAGIC_V1) {
+        G->magic = OWG_MAGIC;
+    }
+    return G->magic == OWG_MAGIC;
+}
+
 static void splash(void)
 {
     unsigned char key = 0;
@@ -151,7 +162,7 @@ static void splash(void)
     OWB->mode = key == OW_KEY_QUICK ? OWB_QUICK : OWB_NEW;
     if (key == OW_KEY_F3) {
         /* The saved game is the game block, loaded where it lives. */
-        if (cbm_load("ow-save", 8, 0) && G->magic == OWG_MAGIC) {
+        if (cbm_load("ow-save", 8, 0) && save_version()) {
             lore_seed = G->seed;
             OW->saved = 1;
             OWB->mode = OWB_NONE;
@@ -180,6 +191,7 @@ int main(void)
         /* F3 in an engine: the saved game's world, if there is one. */
         OWB->mode = OWB_NONE;
         cbm_load("ow-save", 8, 0);     /* none: the game goes on as it was */
+        save_version();
         lore_seed = G->seed;
         OW->saved = 1;
         disk_resident();

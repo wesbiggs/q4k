@@ -27,7 +27,7 @@ import mktiles
 import mktowns
 
 ADDR = 0xCE3F           # OWG_ADDR
-MAGIC = 0x47            # OWG_MAGIC
+MAGIC = 0x48            # OWG_MAGIC
 HOME_X, HOME_Y = 128, 64
 CASTLE = 1              # home's places: Millford, the castle, ...
 ACTOR = 21              # sizeof(Actor), include/q4k/actor.h
@@ -54,10 +54,14 @@ def petscii(s):
     return bytes(out)
 
 
-def actor(name, hp):
+PRON_HE = 1                  # actor.h's PRON_*, in the top bits of `known`
+
+
+def actor(name, hp, pron):
     a = struct.pack("<BBBB", 0, 0, hp, hp)
     a += petscii(name).ljust(9, b"\0")
-    a += bytes([0, 0, 0, 0, 0, 0, 0, 0])   # warrior, no arms, no magic
+    a += bytes([0, 0, 0, 0, 0, 0])         # warrior, no arms, no magic
+    a += bytes([pron << 6, 0])             # no spells known; the pronouns
     assert len(a) == ACTOR
     return a
 
@@ -121,7 +125,7 @@ def main():
     os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     seed = args.seed
     place, wx, wy = where(seed, args.town, args.at)
-    b = actor("Alaric", 22) + bytes(ACTOR * 3)
+    b = actor("Alaric", 22, PRON_HE) + bytes(ACTOR * 3)
     b += bytes([MAGIC, seed, 1, 1])                 # one member, level 1
     b += struct.pack("<HHH", 0, 9, 1)               # xp, gold, turn (not 0: a new game)
     b += bytes([1, 0, Q_HEART, KEYS]) + bytes(LOOTED)
