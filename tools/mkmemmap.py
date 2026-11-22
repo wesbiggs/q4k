@@ -9,7 +9,7 @@ its three areas, owtown's screens of text and a fight), read from what the
 build left: the linker maps (build/*.map), the files on the disk that are
 data rather than code (the splash pictures, OW-DATA, the theme, the fields),
 the game block's size (include/q4k/owgame.h) and the engine's sprite count
-(src/lib/ow_data.s). The page itself is tools/memmap.html, which draws the
+(src/lib/ow_data.s). The page itself is tools/memmap-template.html, which draws the
 table from the blocks this writes into it.
 
 What the page says lives where is this file's knowledge (the blocks below);
@@ -31,7 +31,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BUILD = os.path.join(ROOT, "build")
 DIST = os.path.join(ROOT, "dist")
-TEMPLATE = os.path.join(ROOT, "tools", "memmap.html")
+TEMPLATE = os.path.join(ROOT, "tools", "memmap-template.html")
 OUT = os.path.join(ROOT, "docs", "memmap.html")
 MARK = "/*DATA*/null"
 

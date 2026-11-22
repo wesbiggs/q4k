@@ -548,7 +548,7 @@ $(DIST)/owarena.d64: $(DIST)/owarena.prg $(DIST)/fight.prg $(DIST)/fightbot.prg 
 # and rewrites it only when an address moved, so a relink that moves nothing
 # leaves it as it was.
 ifneq ($(MEMMAP),)
-$(MEMMAP): tools/mkmemmap.py tools/memmap.html \
+$(MEMMAP): tools/mkmemmap.py tools/memmap-template.html \
 	    $(DIST)/openworld.prg $(DIST)/owparty.prg $(OWENG) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
 	    $(DIST)/fight.prg $(DIST)/ow-data.prg $(DIST)/splash-p.prg \
 	    $(DIST)/splash-n.prg $(DIST)/theme.sid $(FIGHT_STAMP) \

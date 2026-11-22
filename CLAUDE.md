@@ -31,8 +31,8 @@ This file is long; search it for the **bold** lead-ins named here.
   `.map` after a change; `make` prints `owslots:` lines with the slot sizes.
 - **The memory map** is a page, `docs/memmap.html` (checked in): every
   mode's blocks and what is free, drawn by `tools/mkmemmap.py` (what each
-  block is) into `tools/memmap.html` (the page) from the linker maps, the
-  disk's data files, `OWG_SIZE` and the engine's sprite count. `make` reruns
+  block is) into the page's template, `tools/memmap-template.html`, from
+  the linker maps, the disk's data files, `OWG_SIZE` and the engine's sprite count. `make` reruns
   it after any of those programs relinks; it stamps the date and the commit
   the build came from (and whether the tree had changes on top), refuses
   blocks that overlap, and rewrites the file only when an address moved, so
