@@ -401,11 +401,18 @@ every visit would hear the same rumour. The rumours are the inns' own
 files, which the talk already reads whole (a few hundred bytes
 each): a REL file would let one rumour be read without the rest, which
 nothing here needs. Golden `openworld-ale` buys a mug at Millford's inn. **The party's
-making is a program of its own**, `owparty` (`src/owparty.c`, 7K, with
-`cfg/c64-tool.cfg`: it all fits below the charset), which the bootstrap
+making is a program of its own**, `owparty` (`src/owparty.c`, 10K, with
+`cfg/c64-tool.cfg`: it all fits below the charset, the figures' sprite
+blocks, `OWFIGS`, last), which the bootstrap
 loads after F1 (`OWB_NEW`) or the tests' quick start (`OWB_QUICK`): the
-title screen's story and questions (`src/lib/ow_party.c`), the new game
-into the block, and the engine over it at Millford. The engine
+story, then a warrior, an archer and a wizard with names picked for them,
+each to send home, rename, change the class or the colours of on a page
+of their own with their figure (`src/lib/ow_figure.c`, `q4k/owfig.h`,
+which owtown's party screen uses too), or one added while fewer than
+three (`src/lib/ow_party.c`); RETURN puts the new game into the block,
+saves it in `ow-save` as the engine's F1 does (so `openworld-party` runs on
+a copy of the disk: `screendump.py --copydisk`), and loads the engine over
+it at Millford. The engine
 leaves with `ow_leave()` (the block out, the machine as `sm_quit()` leaves
 it, `ow_run()`); `owtown` comes back with `ow_back()` (`src/lib/ow_back.c`:
 reloads `ow-data`, which it overwrites, resets the machine and loads the

@@ -37,10 +37,14 @@ square at a time; they are still on the
 ## Playing
 
 The title picture waits for `F1`, a new game, or `F3`, the saved one. A new
-game tells the story and makes your party: up to three who answered the
-king's letter, each a name (RETURN alone picks a random one) and a class --
-`1` warrior, `2` archer, `3` wizard -- and then `Y` for another or `N` to set
-out. You start at Millford's gate.
+game tells the story (any key goes on) and then shows who answered the
+king's letter: a warrior, an archer and a wizard, named for you, with their
+health and a wizard's magic. `1`-`3` opens one's page, with their figure, to
+send them home (if they are not the last), rename them (RETURN alone picks
+a name), change their class, or change the colours of their clothes and
+skin; `A` adds another while there are fewer than three. RETURN begins the
+adventure: the new game is saved, so `F3` at the title starts it again,
+and you start at Millford's gate.
 
 | key | |
 |---|---|

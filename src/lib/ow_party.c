@@ -3,9 +3,13 @@
  *
  * F1 on the splash screen is a new game: the bootstrap builds the world and
  * then loads OWPARTY (src/owparty.c) over itself with OWB_NEW, which calls
- * this. It tells the story and asks who answered the king's letter, as the
- * game's title screen does -- up to three, each a name and a class -- and
- * puts the new game in the game block (q4k/owgame.h), at Millford's gate;
+ * this. It tells the story, and then shows who answered the king's letter:
+ * a warrior, an archer and a wizard, each with a name picked from the title
+ * screen's list. 1-3 opens one's page, with their figure (q4k/owfig.h), to
+ * send them home, rename them, change their class or their colours; A adds
+ * another while there are fewer than three; RETURN begins. The new game
+ * goes into the game block (q4k/owgame.h), at Millford's gate, and from
+ * there into OW-SAVE on the disk, so that F3 at the title starts it again;
  * the engine is loaded over it after, so nothing of this stays in memory.
  *
  * OWB_QUICK, the tests' start (screendump.py --splash quick), makes a lone
@@ -15,7 +19,9 @@
  */
 
 #include <c64.h>
+#include <cbm.h>
 #include <conio.h>
+#include <peekpoke.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -23,6 +29,7 @@
 #include <q4k/charset.h>
 #include <q4k/game.h>
 #include <q4k/ow.h>
+#include <q4k/owfig.h>
 #include <q4k/owgame.h>
 #include <q4k/probe.h>
 #include <q4k/tiles.h>
@@ -31,10 +38,12 @@
 #define SCR_W     40
 #define SCREEN_RAM ((unsigned char *)0x0400)
 #define STORY_Y   5
-#define ROSTER_Y 13
+#define ROSTER_Y  5             /* the party's rows */
 #define ASK_Y    17
 #define ENTRY_Y  18
-#define HINT_Y   21
+#define HINT_Y   20
+#define FIG_COL  29             /* a member's figure, on their own page */
+#define FIG_ROW   5
 
 #define KEY_RETURN 0x0D
 #define KEY_DEL    0x14
@@ -51,7 +60,7 @@ static const char *const story[] = {
 };
 #define STORY_LINES (sizeof(story) / sizeof(story[0]))
 
-/* For a player who just presses RETURN: the title screen's. */
+/* The party's names, picked for them: the title screen's. */
 static const char *const names[] = {
     "Aldwin",  "Bramwell", "Caelan",  "Doran",   "Elowen",
     "Faelan",  "Gareth",   "Halvard", "Isolde",  "Jorund",
@@ -61,11 +70,15 @@ static const char *const names[] = {
 };
 #define NUM_NAMES (sizeof(names) / sizeof(names[0]))
 
-static const char *const ordinal[MAX_MADE] = {
-    "Who answers the letter?", "And who else?", "And the third?",
-};
-
 static char entry[NAME_LEN];
+
+static unsigned char tunic(const char *name);
+
+static void hint(unsigned char y, const char *s)
+{
+    textcolor(COLOR_GRAY2);
+    cputsxy(1, y, s);
+}
 
 static void ask(const char *s)
 {
@@ -86,12 +99,50 @@ static unsigned char timed_key(void)
     return cgetc();
 }
 
-/* A name into entry[]: typed, or one nobody in the party has. */
-static void read_name(unsigned char made)
+/* The title, a rule under it, and nothing else. */
+static void heading(void)
 {
-    unsigned char i, n = 0, key;
+    clrscr();
+    textcolor(COLOR_YELLOW);
+    cputsxy(11, 1, "Quest for the King");
+    textcolor(COLOR_GRAY1);
+    chlinexy(0, 3, SCR_W);
+}
 
-    ask(ordinal[made]);
+/* Member `who` called by a name nobody else in the party has, into
+   entry[]. */
+static void pick_name(unsigned char who)
+{
+    unsigned char i = (unsigned char)(rand() % NUM_NAMES), n;
+
+    for (n = 0; n < party_count; ) {
+        if (n == who || strcmp(party[n].name, names[i])) {
+            ++n;
+        } else {
+            i = (i + 1) % NUM_NAMES;
+            n = 0;
+        }
+    }
+    strcpy(entry, names[i]);
+}
+
+/* Member `who` made a level-1 `cls` called entry[], in the colours their
+   name gives them (the page's 4 changes those). */
+static void make(unsigned char who, unsigned char cls)
+{
+    party_make(who, entry, cls);
+    G->tunic[who] = tunic(entry);
+}
+
+/* A name into entry[], starting from member `who`'s: typed over (DEL
+   takes a letter back), or RETURN with none for one picked. */
+static void read_name(unsigned char who)
+{
+    unsigned char n, key;
+
+    strcpy(entry, party[who].name);
+    n = (unsigned char)strlen(entry);
+    ask("Their name? (RETURN alone picks one)");
     for (;;) {
         textcolor(COLOR_WHITE);
         cclearxy(1, ENTRY_Y, SCR_W - 2);
@@ -103,16 +154,7 @@ static void read_name(unsigned char made)
         key = timed_key();
         if (key == KEY_RETURN) {
             if (!n) {
-                i = (unsigned char)(rand() % NUM_NAMES);
-                for (n = 0; n < made; ) {
-                    if (strcmp(party[n].name, names[i])) {
-                        ++n;
-                    } else {
-                        i = (i + 1) % NUM_NAMES;
-                        n = 0;
-                    }
-                }
-                strcpy(entry, names[i]);
+                pick_name(who);
             }
             return;
         }
@@ -133,54 +175,171 @@ static void read_name(unsigned char made)
     }
 }
 
+/* A label and a number of 0-99 at x, y. */
+static void stat(unsigned char x, unsigned char y, const char *s,
+                 unsigned char v)
+{
+    cputsxy(x, y, s);
+    if (v > 9) {
+        cputc('0' + v / 10);
+    }
+    cputc('0' + v % 10);
+}
+
+/* Member `who`'s health and a wizard's magic, at x. */
+static void numbers(unsigned char who, unsigned char x, unsigned char y)
+{
+    textcolor(COLOR_GRAY3);
+    stat(x, y, "HP ", party[who].hp_max);
+    if (party[who].mp_max) {
+        stat(x + 7, y, "MP ", party[who].mp_max);
+    }
+}
+
+/* Member `who`'s own page: who they are, their figure, and what may be
+   changed. 0 when they are gone (1). */
+static unsigned char edit(unsigned char who)
+{
+    unsigned char key, i;
+
+    for (;;) {
+        heading();
+        textcolor(COLOR_WHITE);
+        cputsxy(1, 5, party[who].name);
+        textcolor(COLOR_LIGHTBLUE);
+        cputsxy(1, 6, class_names[party[who].cls]);
+        numbers(who, 1, 8);
+        textcolor(COLOR_WHITE);
+        if (party_count > 1) {
+            cputsxy(1, 11, "1  Send them home");
+        }
+        cputsxy(1, 12, "2  Change the name");
+        cputsxy(1, 13, "3  Change the class");
+        cputsxy(1, 14, "4  Change the colours");
+        hint(22, "RETURN  Back to the party");
+        fig_show(who, FIG_COL, FIG_ROW);
+
+        key = fig_key(who);
+        switch (key) {
+        case 0x31:                              /* 1: gone */
+            if (party_count < 2) {
+                break;
+            }
+            fig_off();
+            for (i = who; i + 1 < party_count; ++i) {
+                party[i] = party[i + 1];
+                G->tunic[i] = G->tunic[i + 1];
+            }
+            memset(&party[i], 0, sizeof party[i]);
+            --party_count;
+            return 0;
+        case 0x32:                              /* 2: a name */
+            read_name(who);
+            make(who, party[who].cls);
+            break;
+        case 0x33:                              /* 3: a class */
+            ask("1 Warrior, 2 Archer or 3 Wizard?");
+            do {
+                key = fig_key(who) - 0x31;
+            } while (key >= NUM_CLASSES);
+            strcpy(entry, party[who].name);
+            i = G->tunic[who];
+            party_make(who, entry, key);
+            G->tunic[who] = i;                  /* (as they were dressed) */
+            break;
+        case 0x34:                              /* 4: the colours */
+            ask("Their colours");
+            hint(ENTRY_Y, "Cursor up, down  clothes   K  skin");
+            hint(ENTRY_Y + 1, "Any other key when done");
+            while (fig_recolour(who, fig_key(who))) {
+            }
+            break;
+        case KEY_RETURN:
+            fig_off();
+            return 1;
+        }
+    }
+}
+
+/* The story, then the party the letter found: a warrior, an archer and a
+   wizard, named for them, to change, send home or add to before the road
+   to Millford. */
 static void make_party(void)
 {
-    unsigned char i, made, key;
+    unsigned char i, key;
 
-    clrscr();
-    textcolor(COLOR_YELLOW);
-    cputsxy(11, 1, "Quest for the King");
-    textcolor(COLOR_GRAY1);
-    chlinexy(0, 3, SCR_W);
+    heading();
     textcolor(COLOR_LIGHTGREEN);
     for (i = 0; i < STORY_LINES; ++i) {
         cputsxy(1, STORY_Y + i, story[i]);
     }
-    textcolor(COLOR_GRAY1);
-    chlinexy(0, ASK_Y - 1, SCR_W);
-    textcolor(COLOR_GRAY2);
-    cputsxy(1, HINT_Y, "RETURN alone for a random name");
+    hint(HINT_Y + 2, "Press any key");
     VIC.ctrl1 |= 0x10;          /* the screen on: the loader left it off */
     while (kbhit()) {
         cgetc();
     }
     probe_stage(1);
+    timed_key();
 
     party_count = 0;
-    for (made = 0; made < MAX_MADE; ) {
-        read_name(made);
-        cclearxy(1, ENTRY_Y, SCR_W - 2);
-        ask("1 Warrior, 2 Archer or 3 Wizard?");
-        do {
-            key = timed_key() - 0x31;
-        } while (key >= NUM_CLASSES);
-        party_make(made, entry, key);
+    for (i = 0; i < MAX_MADE; ++i) {
+        pick_name(i);
+        make(i, i);             /* CL_WARRIOR, CL_ARCHER, CL_WIZARD */
+    }
 
+    for (;;) {
+        heading();
+        textcolor(COLOR_LIGHTGREEN);
+        cputsxy(1, ROSTER_Y - 1, "These answered the king's letter:");
+        for (i = 0; i < party_count; ++i) {
+            textcolor(COLOR_YELLOW);
+            gotoxy(1, ROSTER_Y + 1 + i * 2);
+            cputc('1' + i);
+            textcolor(COLOR_WHITE);
+            cputsxy(4, ROSTER_Y + 1 + i * 2, party[i].name);
+            textcolor(COLOR_LIGHTBLUE);
+            cputsxy(14, ROSTER_Y + 1 + i * 2, class_names[party[i].cls]);
+            numbers(i, 23, ROSTER_Y + 1 + i * 2);
+        }
         textcolor(COLOR_WHITE);
-        cputsxy(1, ROSTER_Y + made, entry);
-        textcolor(COLOR_GRAY3);
-        cputsxy(11, ROSTER_Y + made, class_names[key]);
-        ++made;
+        if (party_count > 1) {
+            stat(1, 14, "1-", party_count);
+            cputs("  Change one");
+        } else {
+            cputsxy(1, 14, "1  Change them");
+        }
+        if (party_count < MAX_MADE) {
+            cputsxy(1, 15, "A  Add another");
+        }
+        cputsxy(1, 17, "RETURN  Begin the adventure");
 
-        if (made < MAX_MADE) {
-            ask("Will another answer? (Y/N)");
-            key = timed_key();
-            if (key != 0x59 && key != 0xD9) {      /* Y, either case */
-                break;
+        key = timed_key();
+        if (key == KEY_RETURN) {
+            break;
+        }
+        if ((key & 0x7F) == 'a' && party_count < MAX_MADE) {
+            /* Whoever is missing from the three, or a warrior. */
+            for (key = 0; key < NUM_CLASSES; ++key) {
+                for (i = 0; i < party_count && party[i].cls != key; ++i) {
+                }
+                if (i == party_count) {
+                    break;
+                }
             }
+            i = party_count;
+            pick_name(i);
+            make(i, key < NUM_CLASSES ? key : CL_WARRIOR);
+            edit(i);
+            continue;
+        }
+        key -= 0x31;
+        if (key < party_count) {
+            edit(key);
         }
     }
-    ask("Then to Millford...");
+    heading();
+    textcolor(COLOR_YELLOW);
+    cputsxy(1, 5, "Then to Millford...");
 }
 
 /* A member's colours from their name, as the game's sprite.c's tunic_of()
@@ -202,6 +361,41 @@ static unsigned char tunic(const char *name)
         ++c;                    /* (9 or 10: 10 or 11) */
     }
     return (unsigned char)((k << 4) | c);
+}
+
+/* The new game into OW-SAVE, over the one the disk came with, as the
+   engine's F1 does (src/ow/engine.c's save_game()): the drive will not
+   overwrite, so the old one is scratched first, the command spelled in
+   bytes (cc65 would shift a literal's letters). The border is light blue
+   while the drive works; if it would not, the screen says so and waits
+   for a key, and the game starts all the same. */
+static const char scratch_save[] = {
+    0x53, 0x30, 0x3A,                           /* S0:      */
+    0x4F, 0x57, 0x2D, 0x53, 0x41, 0x56, 0x45,   /* OW-SAVE  */
+    0
+};
+
+static void save_new(void)
+{
+    unsigned char ok = 0, st[2];
+
+    POKEW(0x0283, 0xCF00);      /* MEMSIZ past the game block */
+    VIC.bordercolor = COLOR_LIGHTBLUE;
+    if (cbm_open(15, 8, 15, scratch_save) == 0) {
+        cbm_read(15, st, 2);            /* (no save yet is fine) */
+        ok = cbm_save(scratch_save + 3, 8, G, OWG_SIZE) == 0;
+        st[0] = 0;
+        cbm_read(15, st, 2);
+        ok &= st[0] == 0x30 && st[1] == 0x30;
+        cbm_close(15);
+    }
+    VIC.bordercolor = COLOR_BLACK;
+    if (!ok) {
+        textcolor(COLOR_LIGHTRED);
+        cputsxy(1, 7, "The game could not be saved.");
+        hint(9, "Press any key");
+        cgetc();
+    }
 }
 
 void ow_new_game(unsigned char quick)
@@ -232,8 +426,16 @@ void ow_new_game(unsigned char quick)
     }
     potions = party_count;      /* a draught for each who answered */
     owg_out();
-    for (i = 0; i < MAX_PARTY; ++i) {
-        G->tunic[i] = tunic(party[i].name);
+    for (i = party_count; i < MAX_PARTY; ++i) {
+        G->tunic[i] = 0;
     }
-    G->magic = OWG_MAGIC;
+    if (quick) {
+        G->tunic[0] = tunic(party[0].name);
+    }
+    G->foe_made = 0;
+    G->fled     = 0;
+    G->magic    = OWG_MAGIC;
+    if (!quick) {
+        save_new();
+    }
 }

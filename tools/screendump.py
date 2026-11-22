@@ -678,6 +678,10 @@ def main():
                          "engine: build/ow-cpu.lbl or build/ow-reu.lbl)")
     ap.add_argument("--disk", metavar="D64",
                     help="attach a disk image as unit 8, for save and load")
+    ap.add_argument("--copydisk", action="store_true",
+                    help="with --disk: run on a copy of the image, thrown "
+                         "away after, for a test that writes the disk (the "
+                         "party's making saves the new game)")
     ap.add_argument("--fastdisk", action="store_true",
                     help="with --disk: no true drive emulation, VICE serves "
                          "the KERNAL's LOAD from the image (-trapdevice8)")
@@ -720,6 +724,15 @@ def main():
                       os.path.join(os.path.dirname(os.path.dirname(
                           os.path.abspath(__file__))), "build", "owcache.reu"),
                       "+reuimagerw"]
+    copy = None
+    if args.disk and args.copydisk:
+        import shutil
+        import tempfile
+        fd, copy = tempfile.mkstemp(suffix=os.path.splitext(args.disk)[1],
+                                    prefix="q4kdisk.")
+        os.close(fd)
+        shutil.copyfile(args.disk, copy)
+        args.disk = copy
     port = free_port()
     vice = launch(args.prg, port, args.disk, args.vice, args.fastdisk)
     sock = None
@@ -779,6 +792,9 @@ def main():
             vice.wait(timeout=5)
         except subprocess.TimeoutExpired:
             vice.kill()
+            vice.wait()
+        if copy:
+            os.remove(copy)
 
     scratch = st["scratch"]
     print("probe: stage=%d counter=%d scratch=%s | charset=%s"

@@ -46,6 +46,7 @@
 #include <q4k/inn.h>
 #include <q4k/town_gen.h>
 #include <q4k/ow.h>
+#include <q4k/owfig.h>
 #include <q4k/owgame.h>
 #include <q4k/help.h>
 #include <q4k/shop.h>
@@ -69,68 +70,15 @@ extern unsigned char owt_nowait;    /* the pause need not wait for VICE */
    their skin's, which is seen on the figure as it changes (the skin is a
    hi-res sprite of its own over the figure, as everywhere): the hero on the map is drawn in the leader's, and a fight
    has everyone's. The rows are shop.c's, as the game's party screen has
-   them. The figure is a multicolour sprite whose frames are
-   src/lib/ow_figs.s, which the cfg puts on a sprite block in VIC bank 0
-   (OWFIGS). */
-
-extern const unsigned char ow_figs[];
+   them. The figure is src/lib/ow_figure.c's (q4k/owfig.h), which owparty
+   shows too: a multicolour sprite whose frames are src/lib/ow_figs.s,
+   which the cfg puts on a sprite block in VIC bank 0 (OWFIGS). */
 
 /* Above $4000, which only a fight overwrites, and none comes after this. */
 #pragma code-name (push, "HICODE")
 
 #define FIG_COL  18             /* the figure's top left, in characters */
 #define FIG_ROW  8
-#define K_CRSR_RIGHT 0x1D
-#define K_CRSR_LEFT  0x9D
-#define K_CRSR_DOWN  0x11
-#define K_CRSR_UP    0x91
-
-static unsigned char fig_bob;
-
-/* Member `who`'s clothes and skin on the figure (OWG_DRESS, OWG_SKIN). */
-static void colours(unsigned char who)
-{
-    VIC.spr0_color = OWG_DRESS(G->tunic[who]);
-    VIC.spr1_color = OWG_SKIN(G->tunic[who]);
-}
-
-/* The figure for member `who`, doubled, below their rows. */
-static void figure(unsigned char who)
-{
-    VIC.spr0_x      = (unsigned char)(24 + FIG_COL * 8);
-    VIC.spr_hi_x    = 24 + FIG_COL * 8 > 255;
-    VIC.spr0_y      = 50 + FIG_ROW * 8;
-    VIC.spr1_x      = VIC.spr0_x;       /* their skin, hi-res, over it */
-    VIC.spr1_y      = VIC.spr0_y;
-    VIC.spr_hi_x   |= VIC.spr_hi_x << 1;
-    colours(who);
-    VIC.spr_mcolor0 = COLOR_GRAY1;      /* the outline: black on the map and
-                                           in a fight, but this is black */
-    VIC.spr_mcolor  = 1;
-    VIC.spr_exp_x   = 3;
-    VIC.spr_exp_y   = 3;
-    fig_bob = 0xFF;                     /* (fig_key() sets the frame) */
-    VIC.spr_ena     = 3;
-}
-
-/* A key, with the figure idling meanwhile: every sixteenth jiffy it shifts
-   its feet. */
-static unsigned char fig_key(unsigned char who)
-{
-    unsigned char b;
-
-    while (!kbhit()) {
-        b = (PEEK(0xA2) >> 4) & 1;
-        if (b != fig_bob) {
-            fig_bob = b;
-            b += (unsigned char)((unsigned int)ow_figs >> 6)
-                 + (party[who].cls << 1);
-            POKE(0x07F8, b);
-            POKE(0x07F9, b + 6);        /* (the skins follow the figures) */
-        }
-    }
-    return cgetc();
-}
 
 static void hint(unsigned char y, const char *s)
 {
@@ -163,55 +111,27 @@ static void page(unsigned char who)
 
 static void party_look(void)
 {
-    unsigned char who = 0, key, c, draw = 1;
+    unsigned char who = 0, key;
 
     for (;;) {
-        if (draw) {
-            page(who);
-            figure(who);
-        }
-        draw = 1;
-        key = fig_key(who);
-        c = OWG_DRESS(G->tunic[who]);
-        switch (key) {
-        case K_CRSR_RIGHT:
+        page(who);
+        fig_show(who, FIG_COL, FIG_ROW);
+        do {
+            key = fig_key(who);
+        } while (fig_recolour(who, key));
+        if (key == K_CRSR_RIGHT) {
             who = who + 1 == party_count ? 0 : who + 1;
-            continue;
-        case K_CRSR_LEFT:
+        } else if (key == K_CRSR_LEFT) {
             who = who ? who - 1 : party_count - 1;
-            continue;
-        case K_CRSR_DOWN:
-            c = c == 15 ? 1 : c + 1;
-            break;
-        case K_CRSR_UP:
-            c = c <= 1 ? 15 : c - 1;
-            break;
-        default:
-            if ((key & 0x7F) == 'k') {
-                /* The skin: round every colour but black, the outline. */
-                c = OWG_SKIN(G->tunic[who]);
-                c = c == 15 ? 1 : c + 1;
-                G->tunic[who] = (c << 4) | OWG_DRESS(G->tunic[who]);
-                colours(who);
-                draw = 0;
-                continue;
+        } else if ((key & 0x7F) == 's' && party_spells(who) > 1) {
+            while (party_prepare(who)) {
+                page(who);
             }
-            if ((key & 0x7F) == 's' && party_spells(who) > 1) {
-                while (party_prepare(who)) {
-                    page(who);
-                }
-                continue;
-            }
-            goto done;
+        } else {
+            break;
         }
-        /* the clothes: only the figure changes */
-        G->tunic[who] = (G->tunic[who] & 0xF0) | c;
-        colours(who);
-        draw = 0;
     }
-done:
-    VIC.spr_ena = 0;            /* (the disk's icon, ow_disk.s, sets the
-                                   rest of the VIC's sprites as it wants) */
+    fig_off();
 }
 
 #pragma code-name (pop)

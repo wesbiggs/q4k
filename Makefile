@@ -59,7 +59,7 @@ PRGS     := $(patsubst src/%.c,$(DIST)/%.prg,$(MAINS))
 # program's cfg places (in owtown and owtalk, above the character set). Both
 # flags are needed: --code-name alone leaves the string literals behind. (A
 # module in an ENG_ list, below, goes to that list's segments instead.)
-HIMODS   := arms panel actor quest
+HIMODS   := arms panel actor quest ow_figure
 
 # These are compiled without -Os, which unrolls shifts and multiplies by
 # constants and costs about a tenth of their size: the screens of text lose
