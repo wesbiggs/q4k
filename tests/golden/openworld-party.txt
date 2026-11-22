@@ -1,26 +1,26 @@
     +----------------------------------------+
-  0 |&ghcdcd/#"#"#nocdcdghno"#"#"Bcdcdgh·@+*U|
-  1 |·efefabTjijiji=abababTjijiji=abefabW@T=S|
-  2 |&ghghcd<>>>>>>Lcdcdcd<>>>>>>Lcdghcd·@+*U|
-  3 |·efefabefefababefefababefefabababefW@T=S|
-  4 |&ghghcdghghcdcdghghcdcdghghcdcdcdgh·@+*U|
-  5 |·ababefefababa@efabefefDCCCCCCCCCC#Z@T=O|
-  6 |&cdcdghghcdcdcdghcdghgh+ikikikikik*@@+*Q|
-  7 |·abefefefefabababefabefTjijijijiji=@@T=S|
-  8 |&cdghghghghcdcdcdghcdgh+ikikikikik*@@+*U|
-  9 |·ababefefabababefababeflm ! ! ! ! o@@T=O|
- 10 |&cdcdghghcdcdcdghcdcdghno"#"#"#"#"B@@+*Q|
- 11 |·abefefefefababefefa@abTjijijijiji=@@T=O|
- 12 |&cdghghghghcdcdghghcdcd+ikikikikik*@@+*Q|
- 13 |·efababefefabefefabababTjijijijiji=@@T=O|
- 14 |&ghcdcdghghcdghghcdcdcd<>>>>>>>>>>L@@+*Q|
- 15 |·X·X·X·X·X·X·X·X·X·efY·Z@@@@@@@@@@@@@T=S|
- 16 |@@@@@@@@@@@@@@@@@@&gh·@@@@@@@@@@@@@@@+*U|
- 17 |CCCCCCCCCCCCCCCCCC#X·DCCCCCCCCCCCCCCCi=O|
- 18 |>>>>>>>>>>>>>>>>>>L@@<>>>>>>>>>>>>>>>>LQ|
- 19 |POPOPSTSTSTOPOPSTOPOPSTSTSTSTOPSTSTSTSTS|
- 20 |RQRQRUVUVUVQRQRUVQRQRUVUVUVUVQRUVUVUVUVU|
- 21 |TOPOPSTSTSTSTOPSTSTSTSTSTOPSTOPOPSTSTOPO|
+  0 |*ghghcdghghcdcdgh_*cdcdghghcdcdcdgh_@WSg|
+  1 |Cababefefababa@ef~CefefB//////////HT@·ba|
+  2 |*cdcdghghcdcdcdgh_*ghgh|ikikikikikc@@WSc|
+  3 |Cabefef%D,D,=abab~CabNO!jijijijiji)@@·be|
+  4 |*cdghgh_@@@@*cdcd_*cdPQ|ikikikikikc@@WSg|
+  5 |Cababef~@JK@#,D,DT#,DT@no"#"#"#"#"m@@·ba|
+  6 |*cdcdgh_@LM@o+L+L+L<o+Lpq$%$%$%$%$h@@WSc|
+  7 |Cabefef~@@@@Cabefef~Cab!jijijijiji)@@·ba|
+  8 |*cdghgh>L+L+tcdghgh_*cd|ikikikikikc@@WSc|
+  9 |Cefababefefabefefab~Cab!jijijijiji)@@·ba|
+ 10 |*ghcdcdghghcdghghcd_*cd?kkkkkkkkkkj@@WSc|
+ 11 |#,D,D,D,D,D,D,D,D,DT@,DT@@@@@@@@@@@@@·be|
+ 12 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@WSg|
+ 13 |rrrrrrrrrrrrrrrrrrs@@grrrrrrrrrrrrrrrwba|
+ 14 |ddddddddddddddddddU@@QddddddddddddddddUc|
+ 15 |sababefrsefababefrs@@@@@@rsrsabefefefrse|
+ 16 |ucdcdghtughcdcdghtu@@@@@@tutucdghghghtug|
+ 17 |fabrsefefefrsabefrsrsrs@@@@rsababrsefaba|
+ 18 |hcdtughghghtucdghtututu<@@@tucdcdtughcdc|
+ 19 |sefefefrsababefrsefabefrs@@@#rsababrsaba|
+ 20 |ughghghtucdcdghtughcdghtu+L+Ltucdcdtucdc|
+ 21 |fefefefefefababefababefefefabababababefe|
  22 | Mira                        Draught 1  |
  23 | 18/18                       Arrows 0   |
  24 |                                        |
