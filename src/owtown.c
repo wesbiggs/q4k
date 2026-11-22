@@ -66,8 +66,9 @@ extern unsigned char owt_nowait;    /* the pause need not wait for VICE */
    it: their class, idling between its two frames (assets/monsters.txt,
    tools/figures.py), doubled, in their colour from the game block. The
    cursor keys go left and right through the party and up and down through
-   the colours of their clothes (all but black, the outline), and K round
-   their skin's, which is seen on the figure as it changes (the skin is a
+   the colours of their clothes (all but black, the outline), K round
+   their skin's, P round their pronouns (they are kept in the game block,
+   so the engine and a save have them), which is seen on the figure as it changes (the skin is a
    hi-res sprite of its own over the figure, as everywhere): the hero on the map is drawn in the leader's, and a fight
    has everyone's. The rows are shop.c's, as the game's party screen has
    them. The figure is src/lib/ow_figure.c's (q4k/owfig.h), which owparty
@@ -87,6 +88,19 @@ static void hint(unsigned char y, const char *s)
 }
 
 /* Member `who`'s page: shop.c's rows for them and for the party. */
+/* Member `who`'s pronouns, past their arms. P steps them on in the order
+   owparty asks them: he/him, she/her, they/them, it, and round again. */
+static const unsigned char pron_next[4] = {
+    PRON_IT, PRON_SHE, PRON_THEY, PRON_HE       /* after they, he, she, it */
+};
+
+static void pronouns(unsigned char who)
+{
+    textcolor(COLOR_GRAY2);
+    cclearxy(29, 3, 10);
+    cputsxy(29, 3, pron_names[ACT_PRON(party[who])]);
+}
+
 static void page(unsigned char who)
 {
     party_head();
@@ -98,16 +112,14 @@ static void page(unsigned char who)
         cputc('0' + party_count);
     }
     member_rows(who, 2);
-    textcolor(COLOR_GRAY2);             /* their pronouns, past their arms */
-    cputsxy(29, 3, pron_names[ACT_PRON(party[who])]);
+    pronouns(who);
     party_totals(15);
     if (party_count > 1) {
         hint(20, "Cursor left, right  the others");
     }
     hint(21, "Cursor up, down  clothes   K  skin");
-    if (party_spells(who) > 1) {
-        hint(22, "S  prepare spells");
-    }
+    hint(22, party_spells(who) > 1 ? "P  pronouns         S  prepare spells"
+                                   : "P  pronouns");
     hint(24, "Any other key goes back");
 }
 
@@ -118,9 +130,15 @@ static void party_look(void)
     for (;;) {
         page(who);
         fig_show(who, FIG_COL, FIG_ROW);
-        do {
+        for (;;) {
             key = fig_key(who);
-        } while (fig_recolour(who, key));
+            if ((key & 0x7F) == 'p') {
+                ACT_SET_PRON(party[who], pron_next[ACT_PRON(party[who])]);
+                pronouns(who);
+            } else if (!fig_recolour(who, key)) {
+                break;
+            }
+        }
         if (key == K_CRSR_RIGHT) {
             who = who + 1 == party_count ? 0 : who + 1;
         } else if (key == K_CRSR_LEFT) {

@@ -218,7 +218,8 @@ Villagers and monsters keep `$D026`'s light red. **The party screen**
 `party_prepare()`, which the game's own `party_draw()` is made of) and
 their figure doubled below them: cursor left and right go through the
 party, up and down through the clothes' colours (all but black), `K`
-round the skin's, and `S` prepares the spells of a wizard who knows more
+round the skin's, `P` round the pronouns (he, she, they, it: the order
+owparty asks them), and `S` prepares the spells of a wizard who knows more
 than one. The figure is `src/lib/ow_figs.s` (generated, segment
 `OWFIGS`, aligned to a sprite block in MAIN, which it asserts is where the
 VIC sees RAM); room for it came from moving `charset_install()`
@@ -1400,8 +1401,8 @@ efreets, storm giants) `MP_PERSON`, rolled he, she or they for each one in
 a fight from its seed (not `rand()`, so the dice are as they were), which
 `fight.c`'s lines use (`foe_pron[]`, `say_did()`: "She falls.", "They
 fall."). Nothing the game says used a member's "they", so their pronouns
-show on the party screens and in owparty's own questions ("Send her
-home"). **`FIGHTBOT`** (the fight module with the autoplayer) had 20
+show on the party screens (`I`'s `P` changes them) and in owparty's own
+questions ("Send her home"). **`FIGHTBOT`** (the fight module with the autoplayer) had 20
 bytes free under `$C000` after this: a fight.c change may need room found. The gold, draughts,
 arrows, `party_level` and `party_xp` are shared; health, arms (`weapon`,
 `armour`, `bow`, indices into the lists in `arms.c`) and a wizard's magic and

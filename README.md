@@ -52,7 +52,7 @@ and you start at Millford's gate.
 | cursor keys, `WASD`, a joystick in port 2 | walk |
 | `Q` `E` `Z` `X`, or the stick's diagonals | walk diagonally |
 | `L` | look where you stand, and take anything hidden there |
-| `I` | the party, one at a time, and what each carries; cursor left and right for the next, up and down for their colour, `S` to prepare a wizard's spells |
+| `I` | the party, one at a time, and what each carries; cursor left and right for the next, up and down for their clothes' colour, `K` their skin's, `P` their pronouns, `S` to prepare a wizard's spells |
 | `P` | the worst hurt of the party drinks a healing draught |
 | `SPACE` | hide the two lines of text under the map, for a bigger map |
 | `F1` / `F3` | save / restore (each asks `Y` first) |

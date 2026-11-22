@@ -21,7 +21,7 @@
  19 |                                        |
  20 |                                        |
  21 |Cursor up, down  clothes   K  skin      |
- 22 |                                        |
+ 22 |P  pronouns                             |
  23 |                                        |
  24 |Any other key goes back                 |
     +----------------------------------------+
