@@ -1413,7 +1413,10 @@ were put in at index 1, so the shops' tier tables are offset for mail and
 bows. Whatever a shop sells is `offer()`ed in `shop.c`, which asks who takes
 it when more than one would be better for it. Home's generated town always
 has the magic shop as its third building (`tgen.s`, and `townref.py` with
-it), which sells robes and the spellbooks.
+it), which sells robes and the books of Heal, Ward and Sleep; the only
+other magic shop is Ashcombe's (`assets/towns.txt`), which sells robes and
+Ward, Sleep, Bolt and Blaze (`book0` in `shop.c`'s `stock()`, by `land`:
+any magic shop away from home sells the second range).
 
 In a fight each living member takes a turn, then the monsters: the flood
 fill starts from every member at once, so a monster goes for whoever it can

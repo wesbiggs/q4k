@@ -9,7 +9,7 @@
 #define TGEN_W      21
 #define TGEN_H      19
 #define NUM_TOWNS   4
-#define NUM_TOWN_ENTS 16
+#define NUM_TOWN_ENTS 17
 #define NUM_INNS    2
 
 #define ENT_NPC     0

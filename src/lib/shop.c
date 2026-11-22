@@ -73,9 +73,11 @@ static const unsigned char tier_hi[5] = { 2, 3, 4, 5, 6 };
 static const unsigned char bow_lo[5]  = { 2, 2, 3, 3, 4 };
 static const unsigned char bow_hi[5]  = { 2, 3, 4, 4, 5 };
 
-/* The magic shop: robes, then a book of each spell but the Spark, which
-   every wizard already knows. A book wants the party to have reached a
-   level before its wizard can follow it. */
+/* The magic shops: robes, then books. Every wizard knows the Spark, so
+   there is no book of it. Home's town sells the spells up to the Sleep
+   (Heal, Ward, Sleep), Ashcombe's (the only other) the Ward to the Blaze:
+   `book0` is the first book a shop sells, `books` how many. A book wants
+   the party to have reached a level before its wizard can follow it. */
 #define BOOKS 5
 static const unsigned int  book_cost[BOOKS]  = { 80, 120, 200, 400, 700 };
 static const unsigned char book_level[BOOKS] = {  1,   2,   3,   5,   7 };
@@ -87,7 +89,7 @@ static const unsigned char book_level[BOOKS] = {  1,   2,   3,   5,   7 };
    has. */
 static const char *const *names;
 static const unsigned int *costs;
-static unsigned char       gear, lo, hi, rows, bow, magic;
+static unsigned char       gear, lo, hi, rows, bow, magic, book0;
 
 static void stock(unsigned char kind)
 {
@@ -116,7 +118,10 @@ static void stock(unsigned char kind)
     if (gear != NONE) {
         rows = hi - lo + 1 + bow;
     } else if (magic) {
-        rows = 1 + BOOKS;
+        book0 = land != ISLE_HOME;
+        rows  = 4 + book0;          /* the robes and 3 books, or 4 */
+        lo    = 1;                  /* item(): a line is its row, on any
+                                       land's tier */
     }
 }
 
@@ -367,13 +372,14 @@ static void draw(void)
         gear = GEAR_ARMOUR;
         row_out(1, owned(ARM_ROBES) ? COLOR_LIGHTGREEN : COLOR_WHITE);
         gear = NONE;
-        for (i = 0; i < BOOKS; ++i) {
-            p = row_start(i + 2);
+        for (i = 2; i <= rows; ++i) {
+            k = book0 + i - 2;
+            p = row_start(i);
             p = str_lit(p, "Book of ");
-            p = str_lit(p, spell_names[SP_HEAL + i]);
-            row_price(p, book_cost[i]);
-            row_out(i + 2, known(SP_HEAL + i) ? COLOR_LIGHTGREEN
-                                              : COLOR_WHITE);
+            p = str_lit(p, spell_names[SP_HEAL + k]);
+            row_price(p, book_cost[k]);
+            row_out(i, known(SP_HEAL + k) ? COLOR_LIGHTGREEN
+                                          : COLOR_WHITE);
         }
     } else {
         p = row_start(1);
@@ -413,6 +419,7 @@ static unsigned char magic_buy(unsigned char pick)
         item_text = armour_names[ARM_ROBES];
         return 1;
     }
+    pick += book0;              /* the book's place in book_cost[] + 2 */
     s = SP_HEAL + pick - 2;
     for (i = 0; i < party_count; ++i) {
         can[i] = 0;
@@ -437,6 +444,7 @@ static unsigned char magic_buy(unsigned char pick)
         return 0;
     }
     taker = i;
+    handed = NONE;              /* (offer()'s: a book replaces nothing) */
     item_text = book_text;
     party[i].known |= 1 << s;
     /* Prepared at once, while there is a slot for it: the party screen
@@ -482,7 +490,7 @@ void shop_open(unsigned char kind)
 
         cost = gear != NONE ? costs[pick]
              : !magic       ? potion_price()
-             : pick == 1    ? ROBES_COST : book_cost[pick - 2];
+             : pick == 1    ? ROBES_COST : book_cost[book0 + pick - 2];
 
         if (gold < cost) {
             note("You cannot afford that.", COLOR_LIGHTRED);

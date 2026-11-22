@@ -88,9 +88,11 @@ staff for a wizard. Millford's gate stays shut until he has.
 Whatever is bought goes to whoever it would be better for and may use it;
 when that is more than one of you, you are asked who takes it.
 
-Every wizard knows **Spark**, a bolt of fire. The rest are learned from books
-sold at the magic shop in Keldmarch's own town (the one that is not
-Millford), each once the party has reached its level: **Heal** mends one of
+Every wizard knows **Spark**, a bolt of fire. The rest are learned from books,
+each once the party has reached its level. There are two magic shops:
+the one in Keldmarch's own town (the one that is not Millford) sells Heal,
+Ward and Sleep, and Ashcombe's, across the sea, Ward, Sleep, Bolt and
+Blaze: **Heal** mends one of
 the party, **Ward** has everyone take less for the rest of the fight,
 **Sleep** keeps the foes still for two rounds, **Bolt** is lightning that
 flies far and hits hard, and **Blaze** burns every foe at once. A wizard

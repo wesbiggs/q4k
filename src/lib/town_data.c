@@ -74,8 +74,9 @@ const TownEnt town_ents[NUM_TOWN_ENTS] = {
     { 16, 17, ENT_INN, 1 },
     {  9,  5, ENT_NPC, 8 },
     {  5, 13, ENT_SHOP, SHOP_BOW },
+    { 15, 13, ENT_SHOP, SHOP_MAGIC },
 };
 
 const unsigned char town_ent_first[NUM_TOWNS + 1] = {
-    0, 5, 11, 14, 16
+    0, 5, 11, 14, 17
 };
