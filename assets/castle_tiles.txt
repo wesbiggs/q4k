@@ -325,7 +325,26 @@ a..bb..a
 .bbbbbb.
 aaaaaaaa
 
-include places_common.txt
+include common_tiles.txt
+
+# The throne's crown, the castle's only.
+tile crown red on pass
+----bb.-
+---bbbb.
+---bbbb.
+---baab.
+---baab.
+--bbaabb
+--baaaab
+--......
+-.bbbbbb
+-bbbbbb.
+........
+bb.--bb.
+bb.--bb.
+bb---bb-
+--------
+--------
 
 # Where the moat meets grass or tree (and only there: the walls stand as
 # they are), a bank of mud, the overworld's beaches in the castle's colours:

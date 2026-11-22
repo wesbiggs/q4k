@@ -10,8 +10,8 @@ const char *const town_names[NUM_TOWNS] = {
 };
 
 #pragma rodata-name (push, "TALKDATA")
-static const char id_smith[] = "smith";
 static const char id_coyle[] = "coyle";
+static const char id_smith[] = "smith";
 static const char id_tam[] = "tam";
 static const char id_princess[] = "princess";
 static const char id_king[] = "king";
@@ -23,8 +23,8 @@ static const char id_plough[] = "plough";
 static const char id_lantern[] = "lantern";
 
 const char *const npc_ids[9] = {
-    id_smith,
     id_coyle,
+    id_smith,
     id_tam,
     id_princess,
     id_king,
@@ -41,8 +41,8 @@ const char *const inn_ids[NUM_INNS] = {
 #pragma rodata-name (pop)
 
 const char *const npc_names[9] = {
-    "Garrett the Smith",
     "Mistress Coyle",
+    "Garrett the Smith",
     "Old Tam",
     "Princess Elewyn",
     "King Matheson",
@@ -58,8 +58,8 @@ const char *const inn_names[NUM_INNS] = {
 };
 
 const TownEnt town_ents[NUM_TOWN_ENTS] = {
-    {  4,  3, ENT_NPC, 0 },
-    { 16,  3, ENT_NPC, 1 },
+    { 29,  0, ENT_NPC, 0 },
+    {  4,  3, ENT_NPC, 1 },
     { 14,  4, ENT_SHOP, SHOP_ITEM },
     {  8, 12, ENT_NPC, 2 },
     { 16, 14, ENT_INN, 0 },

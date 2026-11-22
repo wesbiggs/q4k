@@ -33,8 +33,8 @@ typedef struct {
 #define TOWN_CASTLE      1
 #define TOWN_WARDLOW     2
 #define TOWN_ASHCOMBE    3
-#define NPC_SMITH       0
-#define NPC_COYLE       1
+#define NPC_COYLE       0
+#define NPC_SMITH       1
 #define NPC_TAM         2
 #define NPC_PRINCESS    3
 #define NPC_KING        4

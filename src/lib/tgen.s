@@ -51,6 +51,7 @@ by0:            .res 1
 byb:            .res 1
 bdx:            .res 1
 dectile:        .res 1
+sign:           .res 1          ; the sign outside it, or 0
 ord:            .res 6
 _proc_n:        .res 1
 _proc_ents:     .res 20         ; five people: x, y, kind, param
@@ -344,8 +345,9 @@ _town_tiles:
         sta tt
         jsr put
 
-        lda #0                  ; who is in, and what they sell
+        lda #0                  ; who is in, what they sell, and the sign
         sta dectile
+        sta sign
         lda bn
         bne @shop
         lda #ENT_INN
@@ -353,6 +355,8 @@ _town_tiles:
         jsr ent
         lda #T_BED
         sta dectile
+        lda #T_SIGNINN
+        sta sign
         jmp @decor
 @shop:  cmp #1
         bne @third
@@ -362,6 +366,8 @@ _town_tiles:
         ldx #SHOP_BOW
 @sk:    lda stock,x
         sta dectile
+        lda signs,x
+        sta sign
         lda #ENT_SHOP
         jsr ent
         jmp @decor
@@ -374,12 +380,16 @@ _town_tiles:
         beq @magic
         lda #T_POTION
         sta dectile
+        lda #T_SIGNITEM
+        sta sign
         lda #ENT_SHOP
         ldx #SHOP_ITEM
         jsr ent
         jmp @decor
 @magic: lda #T_BOOK
         sta dectile
+        lda #T_SIGNMAGIC
+        sta sign
         lda #ENT_SHOP
         ldx #SHOP_MAGIC
         jsr ent
@@ -388,7 +398,26 @@ _town_tiles:
         ldx #0
         jsr ent
 
-@decor: lda dectile             ; on the corners of the top row
+@decor: lda sign                 ; the sign: in the street, diagonal from
+        beq @goods              ; the door, on the side of the building
+        sta tt                  ; the door is nearer (always in the lot's
+        lda bw                  ; columns, so never on a street across)
+        lsr
+        clc
+        adc bx0
+        sta mt
+        ldx bdx
+        dex
+        cpx mt
+        bcc @left               ; (the door left of the middle)
+        inx
+        inx
+@left:  stx tx
+        ldx byb
+        inx
+        stx ty
+        jsr put
+@goods: lda dectile             ; on the corners of the top row
         beq @next
         sta tt
         lda bx0
@@ -420,3 +449,6 @@ _town_tiles:
         lda #T_EXIT             ; the way out: not a door, so no building's
         sta tt
         jmp put
+
+; Each shop's sign, by its kind as stock has it (the bowyer's at SHOP_BOW).
+signs:  .byte T_SIGNWEAPON, T_SIGNARMOUR, T_SIGNITEM, T_SIGNBOW

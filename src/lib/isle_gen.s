@@ -132,7 +132,7 @@ start:  .word (H-1)*W + W/2, (H/2)*W, W/2, (H/2)*W + W-1
 
 ; The tile for each G_ value.
 final:  .byte T_WATER, T_GRASS, T_MOUNTAIN, T_FOREST, T_WATER, T_SWAMP
-        .byte T_GRASS, T_SHORE, T_GRASS, T_GRASS, T_PORT, T_GRASS
+        .byte T_GRASS, T_SHORE, T_GRASS, T_GRASS, T_SHORE, T_GRASS
         .byte T_TOWN, T_GRASS, T_CASTLE, T_GRASS, T_DUNGEON, T_GRASS, T_LAIR
 
 ; Home's places, and how far each would like to be from the ones before it.

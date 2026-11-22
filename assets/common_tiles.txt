@@ -4,7 +4,9 @@
 # the castle lies on the castle's stones. The shared colours (a, b) are each
 # set's own, so the same bed is a little different from place to place; c is
 # the colour named here. (People are sprites, not tiles: see openworld.c.
-# The keeper at the foot of a dungeon is a tile, as the game has it.)
+# The keeper at the foot of a dungeon is a tile, as the game has it: it
+# is in dungeon_tiles.txt, and the crown in castle_tiles.txt, since a set
+# holds 32 tiles and the towns' had the room for neither.)
 
 tile sword white on floor
 --------
@@ -150,24 +152,6 @@ bbbbbbbb
 --------
 --------
 
-tile crown yellow on floor
---------
---------
---------
--c-c-c--
--c-c-c--
--ccccc--
--cacac--
--ccccc--
---------
---------
---------
---------
---------
---------
---------
---------
-
 tile boulder black on floor
 --------
 --------
@@ -185,24 +169,3 @@ tile boulder black on floor
 --------
 --------
 --------
-
-# The keeper, outlined in grey so that he does not read as a stain (red
-# with brown on a dungeon's floor is what the blood is). The dungeons give
-# him a bob (keeperbob in dungeon_tiles.txt).
-tile monster red on floor
---------
--a----a-
-aca--aca
-acaaaaca
--acccca-
-ac.cc.ca
-acccccca
--acbbca-
-aaccccaa
-acaccaca
-acaccaca
-aaccccaa
--acaaca-
--ac--ca-
-aca--aca
-aaa--aaa

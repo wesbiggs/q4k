@@ -10,7 +10,7 @@
 # the coasts.
 
 palette green gray3 brown
-offmap forest
+offmap grass
 fallback floor
 
 tile floor black
@@ -32,22 +32,22 @@ abaaabaa
 bbbbbbbb
 
 tile grass yellow
-........
-........
-....b...
-........
-.c......
-........
-......b.
-........
-........
-..b.....
-........
-.....c..
-........
-........
+.....b..
 .b......
-........
+....b...
+..b.....
+.c...b..
+b..c....
+......b.
+..b.....
+c....b..
+..b.....
+.......b
+.b...c..
+...b....
+b.....b.
+.b......
+....b...
 
 tile grass yellow
 ........
@@ -84,6 +84,47 @@ cbccbccb
 cbccbccb
 ccbccbcc
 ccbccbcc
+
+# The town's own wall (townwall), stone, not thatch: big grey blocks
+# set in brown along its top, outlined in black where it meets open ground, and a
+# face of brown stone in shadow where the street or the grass is below (its
+# edges, below). A
+# secret door is this wall, and walks like floor.
+tile townwall black
+aaabbaaa
+aaabbaaa
+aaabbaaa
+aaabbaaa
+aaabbaaa
+aaabbaaa
+aaabbaaa
+bbbbbbbb
+baaaaaab
+baaaaaab
+baaaaaab
+baaaaaab
+baaaaaab
+baaaaaab
+baaaaaab
+bbbbbbbb
+
+tile secretdoor black
+aaabbaaa
+aaabbaaa
+aaabbaaa
+aaabbaaa
+aaabbaaa
+aaabbaaa
+aaabbaaa
+bbbbbbbb
+baaaaaab
+baaaaaab
+baaaaaab
+baaaaaab
+baaaaaab
+baaaaaab
+baaaaaab
+bbbbbbbb
 
 # A door is a gap in a house's front: the thatch over it, a lintel, and the
 # planks, with the handle in yellow.
@@ -237,11 +278,153 @@ bbcc cbcc cbcc cbcc bbcc cbcc
 bccb ccbc ccbc ccbc bccb ccbc
 bcbc ccbc ccbc ccbc bcbc ccbc
 
-include places_common.txt
+include common_tiles.txt
+
+# The well, in the street or a square: a little roof on two posts over a
+# windlass, its rope down to a bucket, and below, the ring of stone with
+# dark water in it, outlined in the water's dark blue.
+tile well black black blue blue on floor
+-cccccc-
+cbbbbbbc
+cccccccc
+-cbbbbc-
+-c-c--c-
+-c-c--c-
+-cbbb-c-
+-ccbc-c-
+-cccccc-
+cabbbbac
+cbccccbc
+cbcaccbc
+cabbbbac
+cbabbabc
+-cccccc-
+--------
+
+# The shops' signs, to stand outside their doors: a board on a post, in the
+# tile's own colour, with what is sold on it. Brown alone would be lost in
+# the cobbles' mortar, so each board is the colour, or grey framed in it.
+# The lower half (the board's black underside and the post) is the same for
+# every sign: the six cost two characters each and two between them.
+
+# The inn: a brown tankard of ale, its foam grey, on yellow.
+tile signinn yellow yellow black black on floor
+cccccccc
+caaaaccc
+cbbbbbbc
+cbbbbcbc
+cbbbbcbc
+cbbbbbbc
+cbbbbccc
+cccccccc
+cccccccc
+---bc---
+---bc---
+---bc---
+---bc---
+--cbcc--
+--------
+--------
+
+# The smithy: two grey swords crossed, their hilts brown, on blue.
+tile signweapon blue blue black black on floor
+cccccccc
+caccccac
+ccaccacc
+cccaaccc
+cccaaccc
+ccbccbcc
+cbccccbc
+cccccccc
+cccccccc
+---bc---
+---bc---
+---bc---
+---bc---
+--cbcc--
+--------
+--------
+
+# The armourer: a cyan shield with a brown cross, on grey.
+tile signarmour cyan cyan black black on floor
+cccccccc
+caccccac
+cacbbcac
+cabbbbac
+cacbbcac
+caccccac
+caaccaac
+cccccccc
+cccccccc
+---bc---
+---bc---
+---bc---
+---bc---
+--cbcc--
+--------
+--------
+
+# The bowyer: a brown bow strung in grey, a brown arrow nocked, on white
+# (green would be the grass's own).
+tile signbow white white black black on floor
+cccccccc
+cccbcccc
+ccbacccc
+cbcabcbc
+cbbbbbbc
+cbcabcbc
+ccbacccc
+cccbcccc
+cccccccc
+---bc---
+---bc---
+---bc---
+---bc---
+--cbcc--
+--------
+--------
+
+# The potion shop: a red flask, corked, on grey.
+tile signitem red red black black on floor
+cccccccc
+caabbaac
+caaccaac
+caccccac
+cacaccac
+caccccac
+caaccaac
+cccccccc
+cccccccc
+---bc---
+---bc---
+---bc---
+---bc---
+--cbcc--
+--------
+--------
+
+# The magic shop: a grey star, on purple.
+tile signmagic purple purple black black on floor
+cccccccc
+cccaaccc
+cccaaccc
+caaaaaac
+ccaaaacc
+ccaccacc
+caccccac
+cccccccc
+cccccccc
+---bc---
+---bc---
+---bc---
+---bc---
+--cbcc--
+--------
+--------
 
 # The houses. Open ground for a wall is anything that is not one: the
 # street, the grass, a doorway.
-open floor grass shore swamp water tree forest sword shield bow potion book shelf bed chest boulder
+open floor grass shore swamp water tree forest sword shield bow potion book shelf bed chest boulder well signinn signweapon signarmour signbow signitem signmagic
 
 # Top left quarter (open to the west, north, both, diagonal, and west and
 # north again for the second variant), then bottom left (west, south, ...).
@@ -267,6 +450,28 @@ bcbc aaaa baaa bccb bcbc aaaa
 bbcc abaa baba bccb bbcc aaba
 bccb bbbb bbbb cbcc bccb bbbb
 bcbc bbbb bbbb cbcc bcbc bbbb
+
+# The town's wall, and a secret door in it: the blocks outlined in black
+# where open ground is beside or above, and, where it is below, the face: a
+# grey coping's lip, then brown stone courses down to a black foot. All square, like the
+# houses' fronts, since the street runs inside it and the grass outside.
+edges townwall secretdoor
+caab cccc cccc caab caab cccc
+caab aaab caab aaab caab aaab
+caab aaab caab aaab caab aaab
+caab aaab caab aaab caab aaab
+caab aaab caab aaab caab aaab
+caab aaab caab aaab caab aaab
+caab aaab caab aaab caab aaab
+cbbb bbbb cbbb bbbb cbbb bbbb
+caaa aaaa caaa baaa caaa aaaa
+caaa cccc cccc baaa caaa cccc
+caaa bbcb cbcb baaa caaa bbcb
+caaa bbcb cbcb baaa caaa bbcb
+caaa cccc cccc baaa caaa cccc
+caaa cbbb cbbb baaa caaa cbbb
+caaa cbbb cbbb baaa caaa cbbb
+cbbb cccc cccc cbbb cbbb cccc
 
 # Where the cobbles meet the grass, they fray into it, as the overworld's
 # sand does: the same masks.

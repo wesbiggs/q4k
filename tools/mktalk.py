@@ -43,8 +43,10 @@ def die(where, msg):
     sys.exit("%s: %s" % (where, msg))
 
 
-def npc_count():
-    return len(re.findall(r"#define\s+NPC_\w+\s+\d+", open(TOWN_H).read()))
+def npc_numbers():
+    """{id: NPC_* number}, as tools/mktowns.py numbered them."""
+    return {n.lower(): int(v) for n, v in
+            re.findall(r"#define\s+NPC_(\w+)\s+(\d+)", open(TOWN_H).read())}
 
 
 def inn_ids():
@@ -108,16 +110,16 @@ def parse_talk(path=TALK):
                 die(where, "continues nothing")
             last[4] += " " + line.strip()
             continue
-        m = re.fullmatch(r"\[npc (\d+)\].*", line)
+        m = re.fullmatch(r"\[npc (\w+)\].*", line)
         if m:
-            cur = int(m.group(1))
+            cur = m.group(1)
             if cur in npcs:
-                die(where, "npc %d twice" % cur)
+                die(where, "npc %s twice" % cur)
             npcs[cur] = []
             last = None
             continue
         if cur is None:
-            die(where, "before any [npc N]")
+            die(where, "before any [npc ID]")
         fields = [f.strip() for f in line.split("|")]
         head = fields[0].split()
         kind = head[0] if head else ""
@@ -191,10 +193,12 @@ def main():
     os.makedirs(outdir, exist_ok=True)
 
     npcs = parse_talk()
-    count = npc_count()
-    if sorted(npcs) != list(range(count)):
-        die(TALK, "has npcs %s, the game has 0-%d" % (sorted(npcs), count - 1))
-    files = {n: (npcs[n], "npc %d" % n, False) for n in npcs}
+    nums = npc_numbers()
+    count = len(nums)
+    if sorted(npcs) != sorted(nums):
+        die(TALK, "has npcs %s, the towns have %s"
+            % (", ".join(sorted(npcs)), ", ".join(sorted(nums))))
+    files = {nums[n]: (npcs[n], n, False) for n in npcs}
     for i, hints in parse_hints().items():
         files[count + i] = (hints, "inn %d" % i, True)
 

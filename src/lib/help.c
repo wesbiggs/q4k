@@ -48,7 +48,7 @@ void help_screen(void)
     // Moving
     cputsxy(3, 3, "W A S D  or the cursor keys");
     cputsxy(3, 4, "Walk into people to talk or trade");
-    cputsxy(3, 5, "Step onto a port to sail");
+    cputsxy(3, 5, "Step onto a ship to sail");
     cputsxy(3, 6, "> <  enter/descend, exit/ascend");
 
     // Commands

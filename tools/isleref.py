@@ -41,13 +41,13 @@ PROT = 0x40
 # Tile codes -- see assets/tiles.txt -- by G_ value. The odd ones above 9 and
 # a few below are never held.
 T_WATER, T_GRASS, T_MOUNTAIN, T_FOREST = 0x64, 0x60, 0x62, 0x61
-T_SWAMP, T_SHORE, T_PORT = 0x66, 0x65, 0x7E
+T_SWAMP, T_SHORE = 0x66, 0x65
 T_TOWN, T_CASTLE, T_DUNGEON, T_LAIR = 0x67, 0x68, 0x69, 0x71
 FINAL = [T_WATER, T_GRASS, T_MOUNTAIN, T_FOREST, T_WATER, T_SWAMP,
-         T_GRASS, T_SHORE, T_GRASS, T_GRASS, T_PORT, T_GRASS,
+         T_GRASS, T_SHORE, T_GRASS, T_GRASS, T_SHORE, T_GRASS,
          T_TOWN, T_GRASS, T_CASTLE, T_GRASS, T_DUNGEON, T_GRASS, T_LAIR]
 WALK = {T_GRASS, T_FOREST, T_SWAMP, T_SHORE}
-SPECIAL = {T_PORT, T_TOWN, T_CASTLE, T_DUNGEON, T_LAIR}
+SPECIAL = {T_TOWN, T_CASTLE, T_DUNGEON, T_LAIR}
 
 STEP = [-W, 1, W, -1]                      # N E S W, as indexes into the map
 RING = [0, -W, 1, W, -1, -W - 1, -W + 1, W + 1, W - 1]
@@ -226,7 +226,7 @@ def build(lore_seed, d, story=G_TOWN):
 
 
 GLYPH = {T_WATER: "~", T_GRASS: ".", T_FOREST: "F", T_SWAMP: "%",
-         T_SHORE: ",", T_MOUNTAIN: "^", T_PORT: "P", T_TOWN: "T",
+         T_SHORE: ",", T_MOUNTAIN: "^", T_TOWN: "T",
          T_CASTLE: "C", T_DUNGEON: "D", T_LAIR: "L"}
 NAMES = ["plains", "forest", "swamp", "desert", "mountains"]
 

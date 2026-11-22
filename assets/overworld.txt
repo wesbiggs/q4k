@@ -351,24 +351,6 @@ bbcbbcbb
 a......a
 ........
 
-tile port yellow
-bbbbbbbb
-bbbbbbbb
-bbbccbbb
-bbbccbbb
-bbbccbbb
-bbbccbbb
-bccccccb
-bccccccb
-bbbccbbb
-bbbccbbb
-bbbccbbb
-bbbccbbb
-bccccccb
-bccccccb
-bbbbbbbb
-bbbbbbbb
-
 # Roads (src/lib/ow_roads.s lays them on home, joining Millford, the
 # castle, home's town and the ports): a tile of the open world's own, which
 # the game does not have, walked on as grass is. It is one tile whatever its
@@ -399,7 +381,7 @@ cbcccccc
 cccccccc
 cccccccc
 
-join road town castle port
+join road town castle
 
 # A road's edges: the top left quarter with no road beside it (to the west),
 # above it (north), both (the outside of a turn, rounded), and only on the

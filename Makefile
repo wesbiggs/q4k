@@ -160,7 +160,7 @@ $(GEN_TUNES): assets/music.txt tools/mksid.py
 	tools/mksid.py map
 
 $(GEN_OW): assets/overworld.txt $(wildcard assets/*_tiles.txt) \
-           assets/places_common.txt assets/tiles.txt assets/monsters.txt \
+           assets/common_tiles.txt assets/tiles.txt assets/monsters.txt \
            tools/mkoverworld.py tools/figures.py
 	tools/mkoverworld.py
 
@@ -169,7 +169,7 @@ $(GEN_OW): assets/overworld.txt $(wildcard assets/*_tiles.txt) \
 OWSETS := $(BUILD)/ow/sets/.stamp
 
 $(OWSETS): assets/overworld.txt $(wildcard assets/*_tiles.txt) \
-           assets/places_common.txt assets/tiles.txt assets/monsters.txt \
+           assets/common_tiles.txt assets/tiles.txt assets/monsters.txt \
            tools/mkoverworld.py tools/figures.py
 	@mkdir -p $(@D)
 	tools/mkoverworld.py --sets $(@D)
@@ -180,7 +180,7 @@ $(OWSETS): assets/overworld.txt $(wildcard assets/*_tiles.txt) \
 # tile sets, and each monster's sprites.
 FIELD_SRC := assets/fields.txt assets/monsters.txt assets/field_tiles.txt \
              assets/overworld.txt assets/dungeon_tiles.txt \
-             assets/places_common.txt assets/tiles.txt tools/mkfields.py \
+             assets/common_tiles.txt assets/tiles.txt tools/mkfields.py \
              tools/mkoverworld.py tools/figures.py
 
 $(GEN_FIGHT): $(FIELD_SRC)
@@ -389,7 +389,8 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 	    -write $(DIST)/ow-cpu.prg ow-cpu -write $(DIST)/ow-reu.prg ow-reu \
 	    $(foreach f,$(OWOVL),-write $(f) $(notdir $(f))) \
 	    -write $(DIST)/owtown.prg owtown -write $(DIST)/owtalk.prg owtalk \
-	    $(foreach f,$(PORTRAIT_FILES),-write $(f) $(notdir $(f))) \
+	    $$(for p in $(PORTRAITS); do n=$(call NPC_NUM,$$p); \
+	        for s in n p; do printf ' -write %s v.%s%s' $(BUILD)/portraits/$$p-$$s $$n $$s; done; done) \
 	    -write $(DIST)/owparty.prg owparty \
 	    -write $(DIST)/fight.prg fight \
 	    $$(for f in $(BUILD)/ow/sets/t.*; do printf ' -write %s %s' $$f $${f##*/}; done) \
@@ -446,28 +447,32 @@ $(DIST)/owtown.prg $(DIST)/owtalk.prg $(DIST)/isletest.prg: $(DIST)/%.prg: $(BUI
 # owtalk's portraits (src/ow/talkpic.c): its own talk screen, and vic2orious's
 # v2i.inc and v2t.inc (assets/vic2/lib, version 6) round picshow.s, -t none
 # as the splash's are. Each portrait in assets/portraits is NAME-n.v2i and
-# NAME-p.v2i (NTSC and PAL); PORTRAITS says whose number (town_data.h's
-# NPC_*) each name is, and the disk has it as v.NUMBERn and v.NUMBERp.
+# NAME-p.v2i (NTSC and PAL), NAME a person's id in towns.txt; the disk has
+# it as v.NUMBERn and v.NUMBERp, NUMBER their NPC_* in town_data.h, which
+# tools/mktowns.py numbers in the order the maps meet them.
 EXTRA_owtalk := $(BUILD)/ow/talkpic.o $(BUILD)/ow/picshow.o
 $(DIST)/owtalk.prg: $(EXTRA_owtalk)
-$(BUILD)/ow/talkpic.o: src/ow/talkpic.c
+$(BUILD)/ow/talkpic.o: src/ow/talkpic.c include/q4k/town_data.h Makefile
 	@mkdir -p $(dir $@)
-	cc65 $(CFLAGS) --create-full-dep $(@:.o=.d) --dep-target $@ -o $(@:.o=.s) $<
+	pics=0; for p in $(PORTRAITS); do n=$(call NPC_NUM,$$p); \
+	    pics=$$((pics | 1 << n)); done; \
+	cc65 $(CFLAGS) -DPICS=$$pics --create-full-dep $(@:.o=.d) --dep-target $@ -o $(@:.o=.s) $<
 	ca65 -t c64 -o $@ $(@:.o=.s)
 -include $(BUILD)/ow/talkpic.d
 $(BUILD)/ow/picshow.o: src/ow/picshow.s src/ow/vic2/font.inc assets/vic2/lib/v2i.inc assets/vic2/lib/v2t.inc
 	@mkdir -p $(dir $@)
 	ca65 -t none -I assets/vic2/lib -I src/ow/vic2 -o $@ $<
 
-PORTRAITS := princess:3
-PORTRAIT_FILES := $(foreach p,$(PORTRAITS),$(foreach s,n p,$(BUILD)/portraits/v.$(word 2,$(subst :, ,$(p)))$(s)))
-define PORTRAIT_RULE
-$(BUILD)/portraits/v.$(2)$(3): assets/portraits/$(1)-$(3).v2i tools/mkportrait.py
-	@mkdir -p $$(dir $$@)
-	tools/mkportrait.py $$< $$@
-endef
-$(DIST)/openworld.d81: $(PORTRAIT_FILES)
-$(foreach p,$(PORTRAITS),$(foreach s,n p,$(eval $(call PORTRAIT_RULE,$(word 1,$(subst :, ,$(p))),$(word 2,$(subst :, ,$(p))),$(s)))))
+PORTRAITS := tam princess king
+# A person's NPC_* number, in a recipe's shell: $(call NPC_NUM,ID).
+NPC_NUM = $$(n=$$(sed -n "s/^.define NPC_$$(echo $(1) | tr a-z A-Z)  *\([0-9]*\).*/\1/p" \
+    include/q4k/town_data.h); [ -n "$$n" ] || { echo "portrait $(1): no NPC_ in town_data.h" >&2; \
+    exit 1; }; echo $$n)
+PORTRAIT_FILES := $(foreach p,$(PORTRAITS),$(foreach s,n p,$(BUILD)/portraits/$(p)-$(s)))
+$(BUILD)/portraits/%: assets/portraits/%.v2i tools/mkportrait.py
+	@mkdir -p $(dir $@)
+	tools/mkportrait.py $< $@
+$(DIST)/openworld.d81: $(PORTRAIT_FILES) include/q4k/town_data.h
 
 # The bootstrap, with the cache's table.
 $(DIST)/openworld.prg: $(BUILD)/openworld.o $(BUILD)/ow/owcdir.o $(LIB) $(wildcard cfg/*.cfg)

@@ -328,7 +328,7 @@ dungeon's and the castle's sets), in `WORLD` only: `st_chests()` from
 puts back what `local[]` has), and after L the square redrawn as a roof
 change is. The keeper
 idles: `st_bob()`, with the hero's idle, swaps his four characters with
-`keeperbob`'s (`$94`) in the character set; his art (`places_common.txt`)
+`keeperbob`'s (`$94`) in the character set; his art (`dungeon_tiles.txt`)
 is outlined in grey, since red and brown on a dungeon floor is what the
 blood is. stlow.s, `sm_text_clear` and `font_copy` live in `OWLO`,
 `$0430-$07F7`: **the engine's file starts at `$042E`**, in the KERNAL's text
@@ -748,7 +748,9 @@ or forest; a continent is 64x31 in `local[]` and any of five. A *special*
 square (a landing, a town, a castle, a dungeon, a lair) is an even `G_` value,
 so as far as connectivity goes it is not there: stepping onto it does
 something, so nobody walks *through* one. Placing one has to leave the rest
-joined and itself reachable, which is what keeps that true: the landings go in
+joined and itself reachable, which is what keeps that true (a landing is
+written out as sand, with no tile of its own, so the ship moored beside it
+is what marks it): the landings go in
 first, with the land beside them marked `PROT` so no obstacle takes it, and
 the places go in last, each on a square `removable()` allows, at least
 `LANDING_APART` from a landing and `apart` from the places before it (given up
@@ -782,6 +784,10 @@ villager in, on a grid of six lots with a street between, each building
 bottom-aligned in its lot with its door in the bottom wall, so nothing overlaps
 and every door opens on a street by construction. The keeper stands just
 inside the door and what the building sells is on the corners of its top row.
+Outside, in the street, each but a house has its sign (`signinn`,
+`signweapon` ... in `tiles.txt`), diagonal from the door on the side the
+door is nearer, which is always in the lot's columns, so it never blocks a
+street that runs across.
 `tools/townref.py` is the model, and `checkisle.py` checks all of that and that
 the C64 builds the same towns. The ground and the scenery in the lots follow the
 land's biome. Home's biome is `home_biome`.
@@ -876,7 +882,7 @@ differs). `local[]` (`HIDATA`, the game's font image) is at `$8000` in an
 engine and in no file, and COMMON is `$8800-$9FFF`. An engine is 13.1K (OW-CPU; OW-REU 12.6K), MAIN only: what it has past the
 screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
-that the engine's file does not carry 5K of empty screens to the disk. The overlays are 5.9K (world), 7.2K
+that the engine's file does not carry 5K of empty screens to the disk. The overlays are 5.9K (world), 7.5K
 (town) and 4.5K (dungeon, its monsters' pictures at the end) of the slot's
 9.25K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 540
 bytes in MAIN (the generators went to their overlays, and the REU cache's
@@ -886,7 +892,7 @@ with a poke of `$C6`), 8 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`
 OWTOP (`$5280-$53FF`), 105 in HIGH (`$5400-$59FF`, where the text window's
 routines, stlow.s's helpers and the engine's words are), 3669 beside the
 world's overlay (which has `wander()`, the overworld's encounter roll, out
-of the core: 3468 now), 2061 beside the town's (for its maps to grow into), 4864 beside the dungeon's, 1234 in BSS, and 3.0K in COMMON (`$8800-$9FFF`, less `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans). String
+of the core: 3468 now), 1677 beside the town's (for its maps to grow into), 4864 beside the dungeon's, 1234 in BSS, and 3.0K in COMMON (`$8800-$9FFF`, less `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans). String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than
@@ -933,7 +939,8 @@ or row it brings within `LOAD` (16) squares, copied out of the vault by
 them in whatever is left of a frame, by the raster, and learns what each
 kind costs (`job_lines[]`); a full queue (32) runs one on the spot. Leaving
 for a place finishes the queue first. **Ships**: eight (`ship_x/ship_y`),
-moored beside home's four ports and the continents' docks at the start.
+moored beside home's four ports and the continents' docks at the start
+(a landing is a square of sand: there is no port tile).
 Stepping onto one boards it (`boat` is its index + 1; the hero's sprite
 becomes the ship, frames 8 and 9); in it you sail open water and step off
 onto any land, where it stays; its position is kept as you sail. No
@@ -1045,13 +1052,14 @@ one network, laid on home by the bootstrap right after building it
 queue): Prim's algorithm on the grid, a breadth-first search from all that
 is joined to the nearest place that is not, and the way back laid as road,
 straight where it can be, on grass, forest, sand and swamp only, never
-through a place. `tools/roadref.py` is the model, draw for draw, and
+through a place, and onto each landing it reaches, so that it runs down to the
+ship moored there. `tools/roadref.py` is the model, draw for draw, and
 `openworld-roads` in `tools/test.sh` searches it over every seed and holds
 the C64's home (read from the RAM under the I/O area) up against it. A road
 is one tile, `$96` (the overworld set's `code road 0x96 pass`, in no other
 set and not in `tiles.txt`, so the game never sees one): its shape --
 straight, turn, crossroads, fork -- is its edges (`edges road`), drawn where
-a neighbour is not road nor a town, castle or port (`join`, a neighbour flag
+a neighbour is not road nor a town or castle (`join`, a neighbour flag
 bit of its own), and it is open ground, so forest thins and sand frays
 toward it. It rolls for wanderers half as often as grass (4 in 200, `wander()`). The overworld set is now
 at **160 characters, the most it may have**: the road's interior is the
@@ -1062,7 +1070,7 @@ as grass). Continents have no roads yet.
 generated town goes in, built the game's own way (`town_maps.c`'s maps,
 `town_gen()`, `dungeon_build()`) into `local[]` and copied into `WORLD`, in a
 tile set of its own: `assets/town_tiles.txt`, `castle_tiles.txt`,
-`dungeon_tiles.txt` (sharing `places_common.txt`'s furniture, drawn `on
+`dungeon_tiles.txt` (sharing `common_tiles.txt`'s furniture, drawn `on
 floor`: a `-` is the floor's pixel). `mkoverworld.py` turns every set into a
 blob, a file on the disk (`t.town` ..., above), and `sm_tileset()` unpacks
 one into the engine's tables in BSS and the character set; a set says its palette and what lies off the
@@ -1136,7 +1144,7 @@ the people and names stay in `town_data.c`, which owtown and owtalk link
 too). The towns the game makes stay `TGEN_W` by `TGEN_H` (21 by 19,
 `tgen.s`). `t_enter()` sets `local_w`/`local_h` from them. The maps are in
 the overlay, run-length packed (Millford's 21 by 19 is 141 bytes), so it is
-the 2061 bytes free beside the town overlay that four bigger towns spend.
+the 1677 bytes free beside the town overlay that four bigger towns spend.
 Going past 40 by 25 means growing `region[]` and `rowoff[]` (`town.c`) and
 the flood's queue in SHORE, and keeping `64 * h + w <= 2112`, which lets a
 map be unpacked into the end of `local[]` and moved up into its rows. The

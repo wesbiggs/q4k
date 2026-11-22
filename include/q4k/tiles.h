@@ -4,8 +4,8 @@
 
 /* Terrain properties are indexed by screen code - TILE_BASE. */
 #define TILE_BASE   0x60
-#define TILE_COUNT  32   /* terrain only, contiguous */
-#define TILE_TOTAL  54   /* terrain + actors          */
+#define TILE_COUNT  31   /* terrain only, contiguous */
+#define TILE_TOTAL  61   /* terrain + actors          */
 
 #define TF_PASS     0  /* walk onto it freely        */
 #define TF_BLOCK    1  /* impassable                 */
@@ -42,9 +42,16 @@
 #define T_LOCKEDDOOR 0x7B
 #define T_SECRETDOOR 0x7C
 #define T_CROWN     0x7D
-#define T_PORT      0x7E
-#define T_BOOK      0x7F
+#define T_BOOK      0x7E
 #define T_EXIT      0x97
+#define T_TOWNWALL  0x98
+#define T_WELL      0x99
+#define T_SIGNINN   0x9A
+#define T_SIGNWEAPON 0x9B
+#define T_SIGNARMOUR 0x9C
+#define T_SIGNBOW   0x9D
+#define T_SIGNITEM  0x9E
+#define T_SIGNMAGIC 0x9F
 #define T_PLAYER    0x8C
 #define T_VILLAGER  0x8D
 #define T_MONSTER   0x8E
@@ -97,9 +104,16 @@
 #define TC_LOCKEDDOOR 9
 #define TC_SECRETDOOR 12
 #define TC_CROWN    7
-#define TC_PORT     8
 #define TC_BOOK     3
 #define TC_EXIT     11
+#define TC_TOWNWALL 12
+#define TC_WELL     6
+#define TC_SIGNINN  7
+#define TC_SIGNWEAPON 6
+#define TC_SIGNARMOUR 3
+#define TC_SIGNBOW  1
+#define TC_SIGNITEM 2
+#define TC_SIGNMAGIC 4
 #define TC_PLAYER   1
 #define TC_VILLAGER 3
 #define TC_MONSTER  10

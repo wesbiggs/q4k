@@ -118,7 +118,28 @@ tile stairdn white
 ........
 ........
 
-include places_common.txt
+include common_tiles.txt
+
+# The keeper, outlined in grey so that he does not read as a stain (red
+# with brown on a dungeon's floor is what the blood is). The dungeons give
+# him a bob (keeperbob in dungeon_tiles.txt).
+tile monster red on floor
+--------
+-a----a-
+aca--aca
+acaaaaca
+-acccca-
+ac.cc.ca
+acccccca
+-acbbca-
+aaccccaa
+acaccaca
+acaccaca
+aaccccaa
+-acaaca-
+-ac--ca-
+aca--aca
+aaa--aaa
 
 # Where a monster was beaten (src/ow/dungeon.c): the floor, stained. Only
 # the map shows it; underfoot it is floor (local[] has no stains).
@@ -149,7 +170,7 @@ bbbbbbbb
 --------
 --------
 
-# The keeper's bob (places_common.txt has the keeper, outlined): the same
+# The keeper's bob (the keeper is above, outlined): the same
 # sunk a row onto his feet, as tools/figures.py's bob() has a figure.
 tile keeperbob red on floor
 --------

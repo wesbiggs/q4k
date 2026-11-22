@@ -43,10 +43,6 @@ def story(seed):
     return ref.G_DUNGEON if seed & 1 else ref.G_TOWN
 
 
-def count(tiles, code):
-    return sum(1 for t in tiles if t == code)
-
-
 def check_model(seeds):
     bad = 0
     lands = []
@@ -82,10 +78,8 @@ def check_model(seeds):
                         problems.append("land on the way in at %d,%d" % (x, y))
                         break
                     x, y = x + dx, y + dy
-                if tiles[dock[1] * ref.W + dock[0]] != ref.T_PORT:
-                    problems.append("the landing is not a port")
-            if count(tiles, ref.T_PORT) != (4 if home else 1):
-                problems.append("wrong number of ports")
+                if tiles[dock[1] * ref.W + dock[0]] != ref.T_SHORE:
+                    problems.append("the landing is not sand")
             want = ([ref.G_TOWN, ref.G_CASTLE, ref.G_DUNGEON, ref.G_LAIR,
                      ref.G_TOWN] if home else [story(seed), ref.G_TOWN])
             for (x, y), kind in zip(land.places, want):
@@ -124,7 +118,9 @@ def town_checksum(tiles, ents):
 
 BLOCKS = {townref.T_WALL, townref.T_TREE, townref.T_BOULDER, townref.T_POTION,
           townref.T_SWORD, townref.T_BED, townref.T_SHIELD, townref.T_BOW,
-          townref.T_BOOK}
+          townref.T_BOOK, townref.T_SIGNINN, townref.T_SIGNWEAPON,
+          townref.T_SIGNARMOUR, townref.T_SIGNBOW, townref.T_SIGNITEM,
+          townref.T_SIGNMAGIC}
 
 
 def check_towns(seeds):

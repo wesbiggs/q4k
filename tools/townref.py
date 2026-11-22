@@ -6,7 +6,8 @@ shop, or an empty house, small or large; home's is always the magic shop) and up
 It is laid out on a grid of six lots, three across and two down, with a street
 between them and a plaza at the gate, each building bottom-aligned in its lot
 with its door in the bottom wall -- so no two overlap and every door opens
-on a street, by construction. (Interiors are 3 by 3, or 2 by 2 and 3 by 4 for
+on a street, by construction. Each but a house has its sign in that street,
+diagonal from the door. (Interiors are 3 by 3, or 2 by 2 and 3 by 4 for
 the small and large empty house; the keeper stands just inside the door.) tools/checkisle.py checks that, and that the
 C64 builds the same town.
 
@@ -20,8 +21,10 @@ W, H = 21, 19
 T_GRASS, T_SHORE, T_SWAMP = 0x60, 0x65, 0x66
 T_WALL, T_FLOOR, T_DOOR, T_TREE, T_BOULDER = 0x6B, 0x6C, 0x6D, 0x72, 0x73
 T_POTION, T_SWORD, T_BED, T_SHIELD, T_BOW = 0x74, 0x75, 0x76, 0x77, 0x79
-T_BOOK = 0x7F
+T_BOOK = 0x7E
 T_EXIT = 0x97
+T_SIGNINN, T_SIGNWEAPON, T_SIGNARMOUR, T_SIGNBOW = 0x9A, 0x9B, 0x9C, 0x9D
+T_SIGNITEM, T_SIGNMAGIC = 0x9E, 0x9F
 
 ENT_NPC, ENT_SHOP, ENT_INN, ENT_VILLAGER = 0, 1, 2, 3
 INN_PROC = 255          # an inn the generator made: not one of the drawn ones
@@ -32,6 +35,7 @@ BIOME_GROUND = [T_GRASS, T_GRASS, T_SWAMP, T_SHORE, T_GRASS]
 # what a spare square of ground may be given, one time in four
 BIOME_SCENERY = [0, T_TREE, 0, 0, T_BOULDER]
 SHOP_STOCK = [T_SWORD, T_SHIELD, T_POTION, T_BOW]
+SHOP_SIGN = [T_SIGNWEAPON, T_SIGNARMOUR, T_SIGNITEM, T_SIGNBOW]
 
 NAMES = ["Harrowby", "Thistledown", "Marrow Ford", "Oldcombe", "Saltmere",
          "Greywick", "Fenhallow", "Stonebridge"]
@@ -121,22 +125,28 @@ def build(lore_seed, land, biome):
         m[yb * W + dx] = T_DOOR
         # the way in is the square above the door and the keeper stands just
         # beyond it. Whatever the building sells is on its top row's corners.
-        t = 0
+        t = sign = 0
         if n == 0:
             ents.append((dx, yb - 2, ENT_INN, INN_PROC))
-            t = T_BED
+            t, sign = T_BED, T_SIGNINN
         elif n == 1:
             kind = SHOP_BOW if shop == 2 else shop
             ents.append((dx, yb - 2, ENT_SHOP, kind))
-            t = SHOP_STOCK[kind]
+            t, sign = SHOP_STOCK[kind], SHOP_SIGN[kind]
         elif n == 2 and third == 0 and land == ISLE_HOME:
             ents.append((dx, yb - 2, ENT_SHOP, SHOP_MAGIC))
-            t = T_BOOK
+            t, sign = T_BOOK, T_SIGNMAGIC
         elif n == 2 and third == 0:
             ents.append((dx, yb - 2, ENT_SHOP, SHOP_ITEM))
-            t = T_POTION
+            t, sign = T_POTION, T_SIGNITEM
         elif n >= 3:
             ents.append((dx, yb - 2, ENT_VILLAGER, 0))
+        # The sign: in the street, diagonal from the door, on the side of
+        # the building the door is nearer. It is always in the lot's
+        # columns, so it never stands on a street that runs across.
+        if sign:
+            sx = dx - 1 if dx - 1 < x0 + w // 2 else dx + 1
+            m[(yb + 1) * W + sx] = sign
         if t:
             m[(y0 + 1) * W + x0 + 1] = t
             m[(y0 + 1) * W + x0 + w - 2] = t
@@ -149,7 +159,9 @@ def build(lore_seed, land, biome):
 GLYPH = {T_GRASS: ".", T_SHORE: ",", T_SWAMP: "%", T_WALL: "#", T_FLOOR: "_",
          T_DOOR: "+", T_TREE: "t", T_BOULDER: "o", T_POTION: "!", T_SWORD: "/",
          T_BOOK: "j", T_EXIT: "x",
-         T_BED: "B", T_SHIELD: ")", T_BOW: "}"}
+         T_BED: "B", T_SHIELD: ")", T_BOW: "}",
+         T_SIGNINN: "i", T_SIGNWEAPON: "X", T_SIGNARMOUR: "a", T_SIGNBOW: "y",
+         T_SIGNITEM: "p", T_SIGNMAGIC: "e"}
 
 
 def show(tiles, ents, start):

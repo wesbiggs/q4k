@@ -10,7 +10,8 @@
 ; nearest, and the way back from there to the network is laid as road;
 ; again, until no place is left or none can be reached. A road goes only on
 ; grass, forest, sand and swamp, never on a mountain or water nor through
-; another place, and four ways. The way back keeps going the way it was
+; another place, and four ways. A landing reached is road itself at the
+; end, so the road meets the ship. The way back keeps going the way it was
 ; going while that is one nearer, so a road runs straight where it can.
 ;
 ; A road is one tile (assets/overworld.txt's `code road`, $96): what shape
@@ -392,8 +393,24 @@ try:    txa
 @no:    clc
         rts
 
-; Every road into home.
-lay:    jsr vault_enter
+; Every road into home, and the landings it reached with it, so that a
+; road runs down to the ship moored there.
+lay:    lda #3
+        sta tmp4
+@land:  ldx tmp4
+        ldy _isle_port_y,x
+        lda _isle_port_x,x
+        tax
+        jsr square
+        ldy #0
+        lda (ptr4),y
+        cmp #JOINED
+        bne :+
+        lda #ROAD
+        sta (ptr4),y
+:       dec tmp4
+        bpl @land
+        jsr vault_enter
         lda #<HOME
         sta ptr1
         sta ptr2

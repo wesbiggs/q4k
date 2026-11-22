@@ -101,7 +101,7 @@ void inn_open(unsigned char inn)
 
     textcolor(COLOR_WHITE);
     cputsxy(0, LIST_Y,     "  1  A mug of ale         5 marks");
-    cputsxy(0, LIST_Y + 1, "  2  Beds for the night 20 marks");
+    cputsxy(0, LIST_Y + 1, "  2  Beds for the night  20 marks");
     textcolor(COLOR_GRAY2);
     cputsxy(0, HINT_Y, "Number to buy, RUN/STOP leaves");
 

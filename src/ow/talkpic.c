@@ -43,6 +43,9 @@ extern unsigned int  pt_x;
 extern unsigned char pt_y, pt_cols, pt_color, pt_col, pt_row, pt_rows;
 
 #define PIC_ADDR   ((void *)0x8000)     /* tools/mkportrait.py's */
+#ifndef PICS                            /* a bit a person with a portrait */
+#define PICS       0xFFFF               /* (the Makefile's PORTRAITS) */
+#endif
 #define PALFLAG    (*(unsigned char *)0x02A6)
 #define MEMSIZ     (*(unsigned int *)0x0283)
 
@@ -142,7 +145,11 @@ void ts_ready(unsigned char npc)
 {
     static char file[5];
 
-    file[0] = 0x56;                     /* "v.", the number, n or p: */
+    if (npc > 15 || !(PICS & (1u << npc))) {
+        tsc_open(who);                  /* no file to look for */
+        return;
+    }
+    file[0] = 0x56;                    /* "v.", the number, n or p: */
     file[1] = 0x2E;                     /* (numerically: see "Screen */
     file[2] = 0x30 + npc;               /* codes" in CLAUDE.md) */
     file[3] = PALFLAG ? 0x50 : 0x4E;

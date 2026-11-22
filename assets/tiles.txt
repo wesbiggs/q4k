@@ -58,12 +58,10 @@ tile secretdoor ? 0x7C pass gray2
 # rests on his head.
 tile crown c 0x7D block yellow
 
-# The port: where a ship waits. Stepping onto one sets sail -- from the
-# overworld to a continent over the water, and from there home again.
-tile port P 0x7E enter orange
-
-# A spellbook, on the shelves of the magic shop.
-tile book j 0x7F block cyan
+# A spellbook, on the shelves of the magic shop. ($7F is free: it was the
+# port's, before the landings were sand and a ship was boarded by walking
+# onto it.)
+tile book j 0x7E block cyan
 
 # A town's way out: stepping onto one leaves, and a town may have any number.
 # Not a door, so it neither joins a building nor gets a roof, whatever a set
@@ -71,6 +69,23 @@ tile book j 0x7F block cyan
 # is full, so it is in $92-$9F with the sets' own codes, which must not take
 # it.
 tile exit x 0x97 pass gray1
+
+# A town's own wall round it: a wall, but not a house's, so a set may draw it
+# as stone where its houses are thatch. Not a barrier to town.c's flood, so
+# it is never under a roof. In $92-$9F with exit, for the same reason.
+tile townwall I 0x98 block gray2
+
+# A town's well, and the signs that stand outside its shops, one for each
+# kind of trade (towns.txt's `shop` kinds, and the inn): solid, like the
+# furniture. Only the towns' set draws them (town_tiles.txt); in $92-$9F
+# with exit, which leaves the sets' own codes $92-$96.
+tile well u 0x99 block blue
+tile signinn i 0x9A block yellow
+tile signweapon X 0x9B block blue
+tile signarmour a 0x9C block cyan
+tile signbow y 0x9D block white
+tile signitem p 0x9E block red
+tile signmagic e 0x9F block violet
 
 # Terrain is full at $7F. It must stay contiguous from $60,
 # so the actors below sit clear of it, after the monsters in the reverse

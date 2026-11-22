@@ -446,7 +446,7 @@ def build(setname):
                  for n in slot_name]
     nflag, bsel, binv = [], [], []
     for name in slot_name:
-        nflag.append((name not in ("water", "port", "bridge")) |
+        nflag.append((name not in ("water", "bridge")) |
                      (name in open_names) << 1 | bit_of.get(name, 0) |
                      sum(b for t, b in join_bit.items()
                          if name == t or name in joins[t]))

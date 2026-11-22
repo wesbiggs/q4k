@@ -96,6 +96,10 @@ def lay(tiles, places, ports):
         g[j] = BLOCK
         trace(g, i)
         g[j] = JOINED
+    # A landing reached is road too, down to the ship moored beside it.
+    for x, y in ports:
+        if g[y * W + x] == JOINED:
+            g[y * W + x] = ROAD
     for i in range(W * H):
         if g[i] & ROAD:
             tiles[i] = T_ROAD

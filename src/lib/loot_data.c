@@ -6,6 +6,6 @@
 /* The Makefile puts this with the map's engine. */
 
 const Loot loot_table[] = {
-    { TOWN_CASTLE,     6, 10, LOOT_GOLD,    14 },
-    { TOWN_CASTLE,    14, 10, LOOT_GOLD,    19 },
+    { TOWN_CASTLE,     9, 10, LOOT_GOLD,    14 },
+    { TOWN_CASTLE,    17, 10, LOOT_GOLD,    19 },
 };

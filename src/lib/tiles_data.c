@@ -33,8 +33,7 @@ const unsigned char tile_flags[TILE_COUNT] = {
     TF_BLOCK, /* $7B lockeddoor */
     TF_PASS, /* $7C secretdoor */
     TF_BLOCK, /* $7D crown */
-    TF_ENTER, /* $7E port */
-    TF_BLOCK, /* $7F book */
+    TF_BLOCK, /* $7E book */
 };
 
 const unsigned char tile_colors[TILE_COUNT] = {
@@ -68,6 +67,5 @@ const unsigned char tile_colors[TILE_COUNT] = {
      9,      /* $7B lockeddoor */
     12,      /* $7C secretdoor */
      7,      /* $7D crown */
-     8,      /* $7E port */
-     3,      /* $7F book */
+     3,      /* $7E book */
 };
