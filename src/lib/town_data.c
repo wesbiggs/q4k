@@ -69,9 +69,9 @@ const TownEnt town_ents[NUM_TOWN_ENTS] = {
     { 12, 12, ENT_NPC, 5 },
     {  5, 15, ENT_SHOP, SHOP_WEAPON },
     { 21, 15, ENT_SHOP, SHOP_ARMOUR },
-    { 15,  5, ENT_NPC, 6 },
-    {  6,  6, ENT_NPC, 7 },
-    { 16, 14, ENT_INN, 1 },
+    { 15,  9, ENT_NPC, 6 },
+    {  4, 10, ENT_NPC, 7 },
+    { 16, 17, ENT_INN, 1 },
     {  9,  5, ENT_NPC, 8 },
     {  5, 13, ENT_SHOP, SHOP_BOW },
 };
