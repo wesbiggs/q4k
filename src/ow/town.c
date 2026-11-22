@@ -425,6 +425,8 @@ void t_enter(void)
         if (inside == NONE) {
             inside = 0;
         }                       /* ... and the roof off what they stand in */
+    } else {                    /* in at the gate: said (the core's) */
+        entering = index < NUM_TOWNS ? town_names[index] : town_gen_name();
     }
     bx0 = by0 = 0;
     bx1 = local_w - 1;

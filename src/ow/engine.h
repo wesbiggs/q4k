@@ -172,6 +172,11 @@ extern unsigned char grave_odds;
 /* A way that is shut: the refusal's sound, and why, in cyan (sm_ink is
    0-7 only: light grey would be a multicolour character). */
 void __fastcall__ refuse(const char *why);
+/* The place just gone into, from the world (not back from another
+   program): its overlay's ov_enter() sets it, and the core says "Entering
+   NAME." once the window is up (say_entering()), unless it is hidden. */
+extern const char *entering;
+void say_entering(void);
 
 void next_frame(void);
 void play_for(unsigned char scene);

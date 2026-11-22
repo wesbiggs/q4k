@@ -154,6 +154,15 @@ static void dungeon_level(unsigned char came_down)
     }
 }
 
+/* Their names, for "Entering ...": the game's dungeon_names[], in the
+   overlay (the classic game's game.c had them). */
+static const char dn_crown[] = "the Hollow Crown";
+static const char dn_stair[] = "the Drowned Stair";
+static const char dn_pit[]   = "Blackpit";
+static const char *const dungeon_names[NUM_DUNGEONS] = {
+    dn_crown, dn_stair, dn_pit
+};
+
 /* Just loaded into the slot: the first level of dun_index, on its way up,
    or (resuming) level depth where the hero stood. The screen is off. */
 void d_enter(void)
@@ -169,6 +178,7 @@ void d_enter(void)
         return;
     }
     G->foe_made = G->fled = 0;  /* in from the world: all of them anew */
+    entering = dungeon_names[dun_index];    /* (said: the core's) */
     depth = 1;
     dungeon_level(1);
 }

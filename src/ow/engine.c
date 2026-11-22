@@ -98,6 +98,7 @@ unsigned char boat;             /* 1 + the ship you are in, or 0 */
 unsigned char town_index;       /* the town to go into, or that you are in */
 unsigned char resuming, resume_x, resume_y;     /* back from a talk */
 unsigned char dun_index;        /* the dungeon to go into, or that you are in */
+const char *entering;           /* the place just gone into (engine.h) */
 
 /* The overlays (engine.h): the files, by the engine's name, since each
    engine has its own set. In DATA, not RODATA, which is OW-DATA and must
@@ -519,6 +520,27 @@ void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg)
 
 
 #pragma code-name (pop)
+
+/* "Entering NAME.", for the place just gone into: not with the window
+   hidden, which a message would bring back, to stay. (In MAIN, its
+   words in COMMON: HIGH is full.) */
+static const char s_entering[] = "Entering ";
+
+void say_entering(void)
+{
+    unsigned char n;
+
+    if (!(G->quiet & OWG_HIDE)) {
+        strcpy(said, s_entering);
+        strcat(said, entering);
+        n = strlen(said);
+        said[n] = '.';
+        said[n + 1] = 0;
+        sm_ink = COLOR_WHITE;
+        sm_say(said);
+    }
+    entering = 0;
+}
 
 /* --- What is said, and L ------------------------------------------------
    In the engine's spare memory past the screens (HICODE), strings and all:
@@ -1099,6 +1121,9 @@ int main(void)
     sm_show();
     ov_switch();
     st_start();
+    if (entering) {
+        say_entering();         /* (after the greeting, or the party) */
+    }
 
     POKE(0xC6, 0);              /* the keyboard's buffer emptied */
     publish();
@@ -1180,6 +1205,9 @@ int main(void)
                 ov_arrived();   /* (the overworld's step is the world's) */
                 st_arrived();   /* a chest underfoot is opened */
                 ov_switch();    /* into a town or a dungeon, or out */
+                if (entering) {
+                    say_entering();
+                }
                 publish();
             }
         } else if ((frame & 15) == 0 && !still) {

@@ -320,7 +320,11 @@ Anything said while it is hidden brings the window back, to stay
 10 with the window, 19 full screen (the full screen before the window
 existed: 15); the REU's engine 0 either way. Golden `openworld-full`.
 A new game opens with "Hail, adventurers! Press ? for help." instead
-(`st_start()`: `game_turn` is 0; `mkowsave.py`'s save has a turn). F1 and
+(`st_start()`: `game_turn` is 0; `mkowsave.py`'s save has a turn). Going
+into a town, the castle or a dungeon from the world (or starting at a
+gate) says "Entering NAME." after it: `t_enter()`/`d_enter()` set
+`entering` unless resuming, and the core's `say_entering()` says it after
+`st_start()` and `ov_switch()`, never with the window hidden. F1 and
 F3 ask first, in the game's words (`st_save()`, `st_load()`, the engine's
 `yes()`). A chest, a dungeon's or the castle's (its two are `loot.txt`'s),
 is opened by standing on it (`st_arrived()` after `ov_arrived()`, which
