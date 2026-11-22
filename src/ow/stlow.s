@@ -187,17 +187,6 @@ tenh:   .byte   >1, >10, >100, >1000, >10000
 
         .segment "HICODE"
 
-; A string at X/A (low, high), zero ended, from pos.
-str:    sta     ptr2+1
-        stx     ptr2
-        ldy     #0
-:       lda     (ptr2),y
-        beq     :+
-        jsr     out
-        iny
-        bne     :-
-:       rts
-
 ; Set pos to A and ink to X.
 at:     sta     pos
         stx     ink
@@ -419,11 +408,11 @@ _st_draw:
         jmp     @member
 
 @rest:  cmp     #MAX_PARTY      ; the draughts, arrows and gold, if there
-        bcs     @done           ; is room: "D 12 A 34" over "Gold 5678",
-        lda     #30             ; the numbers right-justified (column 39
-        ldx     #3              ; is under the border)
+        bcs     @done           ; is room, by their pictures: "D 12 A 34"
+        lda     #30             ; over "C  5678", the numbers right-justified
+        ldx     #4              ; (column 39 is under the border)
         jsr     at
-        lda     #$DE            ; a draught (mkowfont.py)
+        lda     #$DE            ; a draught, in purple (mkowfont.py)
         jsr     out
         lda     #34
         ldx     #1
@@ -431,8 +420,8 @@ _st_draw:
         lda     G_POTIONS
         jsr     numr
         lda     #35
-        ldx     #3
-        jsr     at
+        ldx     #2              ; (brown would be 9: a multicolour
+        jsr     at              ; character here, so red)
         lda     #$DF            ; an arrow
         jsr     out
         lda     #39
@@ -441,11 +430,10 @@ _st_draw:
         lda     G_ARROWS
         jsr     numr
         lda     #70
-        ldx     #3
+        ldx     #7
         jsr     at
-        ldx     #<s_gold
-        lda     #>s_gold
-        jsr     str
+        lda     #$DD            ; a coin, in yellow
+        jsr     out
         lda     #79
         ldx     #1
         jsr     at
@@ -457,7 +445,6 @@ _st_draw:
         rts
 
 member: .byte   0, ACTOR, 2 * ACTOR, 3 * ACTOR
-s_gold:    .asciiz "Gold"
 
 ; --- Chests ------------------------------------------------------------------
 

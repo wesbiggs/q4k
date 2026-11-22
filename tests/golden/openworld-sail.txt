@@ -22,6 +22,6 @@
  20 |pstopopststopopststststopstopstopststopo|
  21 |ruvqrqruvuvqrqruvuvuvuvqruvqruvqruvuvqrq|
  22 | Alaric                       ·  1 ·  0 |
- 23 | 22/22                        Gold    9 |
+ 23 | 22/22                        ·       9 |
  24 |                                        |
     +----------------------------------------+

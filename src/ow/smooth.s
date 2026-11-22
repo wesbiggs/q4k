@@ -2675,8 +2675,8 @@ _sm_text_clear:
         rts
 
 ; The font: the game's own letters, the bold ones the screens of text have,
-; as the lowercase set's first 96 (screen codes 0-$5F), with a draught and
-; an arrow on its last two graphics characters (ow_font, OW-DATA's:
+; as the lowercase set's first 96 (screen codes 0-$5F), with a coin, a
+; draught and an arrow on its last three graphics characters (ow_font, OW-DATA's:
 ; tools/mkowfont.py), into the character set from FONT. Above anything a
 ; tile set has (mkoverworld.py keeps them under it), so it is done once.
 ; (In OWLO, stlow.s's, for HICODE's room: the engine's file brings it.)
