@@ -31,7 +31,7 @@ jobs:
 
       # cc65 and the headless VICE 3.10, cached by the toolchain's release.
       # The tag is tools/cloud-setup.sh's TOOLCHAIN too: move them together.
-      - uses: wesbiggs/c64-cloud-toolchain@v1.0.0
+      - uses: wesbiggs/c64-cloud-toolchain@v1.0.1
 
       - name: Build
         run: make

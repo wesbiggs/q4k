@@ -12,7 +12,7 @@
 # here first. Safe to run again.
 set -eu
 
-TOOLCHAIN=v1.0.0
+TOOLCHAIN=v1.0.1
 URL=https://raw.githubusercontent.com/wesbiggs/c64-cloud-toolchain/$TOOLCHAIN/setup.sh
 EXTRAS=python3-pil
 
