@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """A speaker's portrait, a vic2orious .v2i, as a file for the open world's disk.
 
     tools/mkportrait.py PICTURE.v2i OUT

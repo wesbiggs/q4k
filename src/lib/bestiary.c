@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * q4k -- the bestiary: everything there is to fight, and how strong.
  *

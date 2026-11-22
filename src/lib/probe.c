@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <q4k/probe.h>
 
 void probe_stage(unsigned char stage)

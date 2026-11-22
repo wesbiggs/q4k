@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * Quest for the King -- the game's state, as the generators and the screens
  * of text read and write it. The open world keeps it in its game block

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """A bit-exact model of src/lib/isle_gen.s, the land generator.
 
 The C64 code has its own random numbers (a 16-bit LFSR, so building land

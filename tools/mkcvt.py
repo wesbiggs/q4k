@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Turn the game's own font into a proportional GEOS font, for the v2t library.
 
 The game's letters are `src/lib/font_data.c` (`tools/mkfont.py`: the

@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; Quest for the King -- the open world's REU load cache, laid out
 ; (ow_cache.s has the design). The bootstrap's alone: it calls
 ; ow_cinit() once it knows there is an REU, before its first load.

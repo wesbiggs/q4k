@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Build everything and run tools/test.sh on every push, to any branch.
 #
 # VICE is built from source with its headless UI: no window, no display

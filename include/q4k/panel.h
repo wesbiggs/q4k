@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * A scrolling text panel, written straight to screen RAM in ASCII.
  *

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * The way back to the open world's engine, for its other programs (the
  * party's making, the talk, the shops ...: q4k/ow.h). They are linked flat,

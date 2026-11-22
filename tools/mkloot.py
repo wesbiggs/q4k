@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Turn assets/loot.txt into a C table of hidden treasure.
 
 Coordinates rather than a marker in the map, because a town's map characters

@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; q4k -- the open world: the party's lines under the map, and the few
 ; things the engine says or asks that came after its memory was full.
 ;

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """The game's music: SID files, checked, and which scene plays what.
 
     tools/mksid.py wrap BIN LBL OUT.sid   a linked tune (cfg/sid.cfg) as a PSID

@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; Quest for the King -- the prototype's splash screen (include/q4k/ow.h).
 ;
 ; The picture and its text are the splash kit's (assets/splash-kit, made with

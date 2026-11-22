@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """The figures: the multicolour sprites that stand on a square, shared by
 the tools that make them for the open world's programs.
 

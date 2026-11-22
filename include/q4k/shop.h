@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Quest for the King -- buying things. Takes over the screen; the caller
    redraws. `kind` is one of the SHOP_* constants from town_data.h. */
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * The open world's fights: the multicolour fight module (q4k/fight.h,
  * src/fight/), called from owtown (src/owtown.c) when the engine asks for

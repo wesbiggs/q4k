@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; Quest for the King -- the smooth-scrolling prototype's loader
 ; (include/q4k/ow.h). The bootstrap, src/openworld.c, uses it to start an
 ; engine, and an engine to go back to the bootstrap for another world. What

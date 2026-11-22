@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ;
 ; Open world: a dungeon's monsters, the part of them done for every square
 ; (src/ow/dungeon.c has the rest, and says what they do). In the dungeon's

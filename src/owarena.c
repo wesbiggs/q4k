@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * The multicolour arena: pick a fight with anything, on any ground, and
  * have it fought by the fight module (include/q4k/fight.h, src/fight/) --

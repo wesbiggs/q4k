@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; Quest for the King -- the multicolour fight: the module's front door.
 ;
 ; The file's load address, the jump at $5800 that fight_call() goes through

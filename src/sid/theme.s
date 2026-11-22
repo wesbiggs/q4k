@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; The game's theme as a SID file: the player that used to be in
 ; src/lib/music.s, on its own, with the score (theme_data.s, generated from
 ; assets/theme.txt by tools/mkmusic.py) beside it. cfg/sid.cfg links the two

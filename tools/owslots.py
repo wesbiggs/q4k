@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """After an open-world engine links: check its overlays' calls.
 
     tools/owslots.py MAP OBJ...

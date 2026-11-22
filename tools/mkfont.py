@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Build the character set the game runs on.
 
 The C64's letters are ours to change because the game draws from a copy in

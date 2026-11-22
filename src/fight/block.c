@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * Quest for the King -- the multicolour fight: the block its caller fills
  * in (the Fight of include/q4k/fight.h), as the module sees it.

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Check that everywhere in the towns drawn by hand can actually be walked to.
 
 Hand-edited towns can quietly break the game, and no screen test would

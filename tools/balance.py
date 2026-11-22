@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Fight the keepers and Maldrath many times over, and count what happens.
 
     tools/balance.py [--runs N] [--only NAME] [--party CLASSES] [--disk D64]

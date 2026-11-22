@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * Quest for the King -- what the game's modules read and write of game.c's,
  * sprite.c's, savegame.c's, music.s's and view.c's, for the open world's

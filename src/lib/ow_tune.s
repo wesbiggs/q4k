@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; Quest for the King -- the smooth-scrolling prototype's music: the game's
 ; tunes (SID files under the KERNAL, a header at $E7C0 and the tune at
 ; $E800-$FFF9: music.s and tools/mksid.py have the layout), played from an

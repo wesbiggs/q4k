@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * q4k -- the shop's engine: buying things, and the screens the map opens
  * that are not a place (engine.h).

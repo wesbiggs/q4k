@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * Open world: a prototype of smooth scrolling for q4k -- its engine.
  *

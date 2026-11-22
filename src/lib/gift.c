@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * q4k -- what people hand over when you talk to them, and the talk's engine's
  * entry.

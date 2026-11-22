@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * Quest for the King -- a member's figure on a screen of text (q4k/owfig.h):
  * owtown's party screen and owparty's.

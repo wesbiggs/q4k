@@ -15,6 +15,11 @@ questions.
 The plot is deliberately the oldest one there is. Everyone you meet has
 something to say about it, picked from a menu of what you can ask.
 
+> **A work in progress.** This is not a 1.0 release: the whole story can be
+> played, but parts are unfinished (see [Not yet](#not-yet)), saves may not
+> carry over between versions, and things will change. Issues and pull
+> requests are welcome -- see [Contributing](#contributing).
+
 ## Getting it
 
 Build it (see [DEVELOPERS.md](DEVELOPERS.md)): `make` writes
@@ -148,3 +153,43 @@ swamp, the desert, or mountains -- and has a town of its own as well.
 
 Beaten monsters drop no gear or treasure maps yet, and a flight pays nothing
 for the foes killed before it.
+
+## Contributing
+
+Bug reports, ideas and pull requests are all welcome: open an issue on
+[GitHub](https://github.com/wesbiggs/q4k/issues). For a bug, say what you
+did, what you expected and what happened, with the emulator or hardware
+(VICE's version, PAL or NTSC, an REU or not) and, if you can, a save
+(`ow-save` on the disk image).
+
+For code, [DEVELOPERS.md](DEVELOPERS.md) covers building and testing, and
+[CLAUDE.md](CLAUDE.md) the working notes -- memory is tight and the machine
+has traps, so read the parts it points to before changing something. The
+tests run on every push. By sending a pull request you agree that your
+contribution is licensed as below.
+
+## Licence
+
+Copyright (C) 2026 Wes Biggs.
+
+- **The code** -- everything in `src/`, `include/`, `cfg/` and `tools/`, the
+  `Makefile`, the tests and the workflows -- is free software under the
+  [GNU General Public License, version 3](LICENSE) or (at your option) any
+  later version.
+- **The game's content** -- everything in `assets/` (the tiles, maps,
+  monsters, fields, portraits, the score, what people say, the story) but
+  the two directories below -- is under [Creative Commons
+  Attribution-ShareAlike 4.0](assets/LICENSE) (CC BY-SA 4.0).
+- `assets/splash-kit/` (the splash screen, as vic2orious made it) and
+  `assets/vic2/` (its picture libraries) are under the Apache License 2.0,
+  in their own `LICENSE` files.
+
+Some checked-in sources are generated from the assets by the tools (the
+ones that say so at the top), and the built game combines both. CC BY-SA
+4.0 material may be adapted into a GPLv3 work, so the disk images and
+programs `make` builds can be shared under the GPL, version 3 or later.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+more details.

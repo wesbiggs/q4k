@@ -112,7 +112,12 @@ docs/memmap.html    the open world's memory map, drawn by make
 
 Generated files (`src/lib/*_data.c`, `src/lib/ow_*.s` from the tile sets,
 `include/q4k/tiles.h`, `town_data.h` and the rest) are checked in, and
-`make` regenerates any whose assets have changed. (There is no map file:
+`make` regenerates any whose assets have changed.
+
+Every hand-written source starts with an `SPDX-License-Identifier:
+GPL-3.0-or-later` line (after a `#!`); give a new one the same. Generated
+files carry none, and `assets/` is CC BY-SA 4.0 as a whole (README.md's
+Licence). (There is no map file:
 the lands are made by the bootstrap, from the game's seed.)
 
 ## The arena

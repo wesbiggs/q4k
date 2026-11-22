@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Turn assets/theme.txt into the tables the theme's player reads.
 
 Writes src/sid/theme_data.s, which src/sid/theme.s plays: the two are

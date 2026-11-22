@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; The land generator: the home continent and the four across the sea.
 ;
 ; Built in assembly because in C it came to 1.3K, and HIGH has no such room.

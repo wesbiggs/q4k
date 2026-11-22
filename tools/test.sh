@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Regression tests: run each case headlessly and compare the C64 screen
 # against a golden text dump. Refresh goldens with tools/test.sh --bless,
 # and only after reading the diff.

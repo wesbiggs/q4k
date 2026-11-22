@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; The towns that are made rather than drawn: the map and the people in it.
 ;
 ; In assembly because in C it came to 1.8K, when HIGH had a hundred bytes.

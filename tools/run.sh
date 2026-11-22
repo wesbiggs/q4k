@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Launch a .prg, a .d64 (the arena) or a .d81 (the open world)
 # in VICE for interactive play.
 set -eu

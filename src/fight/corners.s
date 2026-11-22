@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; Quest for the King -- the multicolour fight's rounded corners: the four
 ; sprite blocks at $5700-$57FF (SPR_CORNER in include/q4k/fight.h), hi-res,
 ; for sprites 0 and 1 doubled both ways (src/fight/mux.s puts them up). The

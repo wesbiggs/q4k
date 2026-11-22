@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; The talk's buffer, at the end of the talk's engine (see overlay.s): the file
 ; of one person's lines, or one inn's rumours, which the offline build loads
 ; from the disk (src/lib/talk.c). TALK_SIZE comes from the Makefile, which

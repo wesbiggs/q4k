@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """The open world's REU load cache (src/lib/ow_cache.s): what the build knows.
 
 Every file the open world loads through the cache (the engines, their

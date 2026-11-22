@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * q4k -- the arms, and the bits of chance and healing everyone shares.
  *

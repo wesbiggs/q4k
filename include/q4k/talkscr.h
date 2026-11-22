@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * q4k -- the screen a conversation is on (src/lib/talk.c's dialog_talk()).
  *

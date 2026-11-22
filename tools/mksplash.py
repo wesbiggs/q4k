@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """A splash picture and its text as one file for the prototype's disk.
 
     tools/mksplash.py PICTURE.v2i TEXT.v2t OUT.prg

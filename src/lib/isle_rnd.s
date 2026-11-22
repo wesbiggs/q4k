@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; Quest for the King -- the land and town generators' random numbers: their
 ; own LFSR, so that neither touches rand() or the encounter seed. A module of
 ; its own so that the towns' generator (tgen.s) can have it without the

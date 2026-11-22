@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Run-length encoding for the one-screen maps, matching src/lib/rle.c.
 
 A map opens with its palette: a count, then that many screen codes. After

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 # q4k -- Commodore 64 build: the open world
 #
 # Layout:

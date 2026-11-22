@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * The open world's game block (q4k/owgame.h), into the game's own variables
  * and back: for a program of the open world that links actor.c and game.c

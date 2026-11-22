@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; The open world's roads on home (Keldmarch): one network joining Millford,
 ; the castle, home's own town and the four ports, laid by the bootstrap
 ; (src/openworld.c) once home is built into the vault, and kept there with

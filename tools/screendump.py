@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Read the C64 screen out of a running VICE, headlessly.
 
 Boots a .prg in x64sc with the binary monitor enabled, waits for the program

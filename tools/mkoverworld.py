@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Build the smooth-scrolling prototype's tile sets.
 
 Each set is an asset file -- assets/overworld.txt (which has the format, and

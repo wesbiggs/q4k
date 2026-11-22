@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Build what the multicolour arena's fight loads (src/fight/).
 
     tools/mkfields.py                 the sprites that are part of the fight:

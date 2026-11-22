@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """The C64's own lowercase letters as a font for vic2orious's v2t.inc.
 
     tools/mkv2tfont.py CHARGEN.bin > src/ow/vic2/font.inc

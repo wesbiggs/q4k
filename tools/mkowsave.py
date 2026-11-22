@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """The open world's saved game as the disk comes with it: dist/ow-save.prg.
 
     tools/mkowsave.py OUT.prg [SEED] [--town ID [--at X,Y]]

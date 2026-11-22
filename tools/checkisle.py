@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Check the continent generator, on the C64 and off it.
 
 The generator (src/lib/isle_gen.s) promises that every walkable square of a

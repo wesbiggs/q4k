@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; The sound effects, on voice 3: a step by terrain, a blow, a shot.
 ;
 ; Played from whichever interrupt the program has: the game's music

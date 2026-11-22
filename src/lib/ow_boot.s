@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; Quest for the King -- the smooth-scrolling prototype's bootstrap's own: its
 ; REU check (include/q4k/ow.h). The disk icon it shows while it works is in
 ; ow_disk.s, which is resident; apart from ow_run.s, the loader, which the

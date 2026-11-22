@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; q4k -- the game's names for the text screen's talk (q4k/talkscr.h).
 ;
 ; talk.c calls ts_*; in the game they are talkscr.c's tsc_*, and nothing

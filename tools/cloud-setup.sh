@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Make a fresh Ubuntu 24.04 machine -- a Claude Code cloud session, or the
 # toolchain workflow's runner -- able to build q4k and run its tests:
 #

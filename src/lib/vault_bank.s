@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; The RAM under the ROMs: getting there and back. vault.s has what is kept
 ; there and the copies in and out; the land generator, the music and the
 ; smooth-scrolling prototype's engines use these alone, which is why they

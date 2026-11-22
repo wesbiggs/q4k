@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; q4k -- smooth scrolling over a multicolour tile map, double buffered.
 ;
 ; The open world (src/ow/engine.c) walks Keldmarch and sails the sea with the

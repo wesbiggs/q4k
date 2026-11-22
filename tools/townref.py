@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """A bit-exact model of src/lib/town_gen.c, the town generator.
 
 Every land has a town of its own: an inn, a shop, a third building (a potion

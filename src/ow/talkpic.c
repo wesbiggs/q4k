@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * Quest for the King -- the open world's talk with a portrait (owtalk).
  *

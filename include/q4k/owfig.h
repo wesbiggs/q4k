@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * q4k -- a member's figure on a screen of text (src/lib/ow_figure.c): their
  * class's two frames (src/lib/ow_figs.s, on sprite blocks the VIC sees in

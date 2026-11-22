@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """assets/names.txt -> include/q4k/names_data.h.
 
 The tables are macros, not arrays, so each module declares its own `static

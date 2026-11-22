@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Turn assets/towns.txt into C tables.
 
 Each town is a map of screen codes, any size up to MAX_W by MAX_H (its rows

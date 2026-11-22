@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; Quest for the King -- the open world's music on its screens of text.
 ;
 ; An engine pauses the tune where it is when it leaves for owtown (the talk,

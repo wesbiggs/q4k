@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; Quest for the King -- the open world's continents, built when they are
 ; wanted: the thread itself (src/lib/ow_gen.s has the rest, which is the
 ; core's: starting it, running it in a frame's spare time, and the

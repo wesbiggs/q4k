@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """A small 6502, enough to run a SID tune's init and play and watch it.
 
 tools/mksid.py runs every tune the game will load through this before it

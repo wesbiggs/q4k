@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * q4k -- the music's scenes, pausing it round the disk, and the sound
  * effects.

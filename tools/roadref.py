@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """A model of src/lib/ow_roads.s: the open world's roads on home.
 
 After home is built, the bootstrap (src/openworld.c) lays one network of

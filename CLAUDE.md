@@ -50,6 +50,9 @@ This file is long; search it for the **bold** lead-ins named here.
   pulls in only what each program references. Adding a module to `src/lib/`
   costs nothing in programs that don't call it.
 - Anything with `main()` goes directly in `src/` and becomes its own `.prg`.
+- A new hand-written source starts with `SPDX-License-Identifier:
+  GPL-3.0-or-later` in its comment syntax; generated ones do not. The code
+  is GPL-3.0-or-later (`LICENSE`), `assets/` CC BY-SA 4.0 (`assets/LICENSE`).
 
 ## The library's segments
 

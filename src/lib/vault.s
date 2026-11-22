@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; The RAM under the ROMs, which nothing else uses.
 ;
 ; $D000-$DFFF (under the I/O area) holds the home continent, 64 by 64, for

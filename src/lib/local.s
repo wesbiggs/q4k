@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; The map of the town or dungeon level you are in.
 ;
 ; It has no storage of its own. The font image is 2K of HIDATA that is read

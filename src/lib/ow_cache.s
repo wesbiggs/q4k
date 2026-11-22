@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; Quest for the King -- the open world's REU load cache (include/q4k/ow.h).
 ;
 ; A file is loaded from the disk the first time it is wanted, stashed in the

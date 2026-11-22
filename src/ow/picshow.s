@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; Quest for the King -- the talk's portrait: vic2orious's v2i.inc and v2t.inc
 ; (assets/vic2/lib) for src/ow/talkpic.c.
 ;

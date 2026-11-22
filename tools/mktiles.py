@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Turn assets/tiles.txt into C: codes, flags and colours.
 
 Generated output is checked in so the build needs no Python, but the Makefile

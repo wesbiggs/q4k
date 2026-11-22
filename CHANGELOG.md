@@ -6,6 +6,10 @@ classic game's.
 
 ## Unreleased
 
+- Licensed: the code under the GPL, version 3 or later (`LICENSE`), the
+  game's content in `assets/` under CC BY-SA 4.0 (`assets/LICENSE`), with
+  an SPDX line in every hand-written source. The README says it is a work
+  in progress and how to contribute.
 - The classic game, which moved a square at a time (`q4k.prg` on its
   `.d64`), is retired, with its experimental networked build and the
   dialogue host: the open world (`dist/openworld.d81`) is the game now. The

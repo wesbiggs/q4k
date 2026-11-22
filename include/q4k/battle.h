@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * Quest for the King -- what a fight is fought with: the arms, the
  * bestiary, the draughts and the dice. The fight itself is the open world's

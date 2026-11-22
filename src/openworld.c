@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
  * Open world: the bootstrap of the smooth-scrolling prototype.
  *

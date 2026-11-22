@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Quest for the King -- the keys, and what you are supposed to be doing.
    Takes over the screen; the caller redraws. */
 

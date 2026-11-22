@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; Quest for the King -- the smooth-scrolling prototype's disk icon: a yellow
 ; floppy in the middle of the screen while a program loads (ow_run.s calls
 ; it before every LOAD; the bootstrap calls it while the splash waits).
