@@ -275,18 +275,18 @@ tile chestopen yellow
 ........
 ........
 .bbbbbb.
-.bcbbcb.
-.bbbbbb.
+bcbbbbcb
 bbbbbbbb
-b......b
+bcbbbbcb
 cccccccc
-bcbccbcb
+c......c
+c......c
+cccccccc
 bcbccbcb
 bbbbbbbb
 bcbbbbcb
 bbbbbbbb
 .b....b.
-........
 ........
 
 tile tree green on grass
