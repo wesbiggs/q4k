@@ -419,3 +419,25 @@ cccccccc
 .ccc.cc.
 ..b...b.
 ..b...b.
+
+# The king: the castle's people are the villager (overworld.txt) in a robe
+# of their own colour, but he wears a crown, so he is a sprite of his own,
+# in yellow (town.c), a robe to the floor with a black belt. The town
+# overlay carries this set's sprites (src/ow/town_art.s, mkoverworld.py).
+sprite king bob
+t..tt..t
+tttttttt
+.kkkkkk.
+.kssssk.
+..kssk..
+.kttttk.
+kttttttk
+ksttttsk
+kttttttk
+kkkkkkkk
+kttttttk
+kttttttk
+kttttttk
+kttttttk
+.kkkkkk.
+........

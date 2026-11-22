@@ -191,7 +191,10 @@ pixels, which the bob moves (`sprite_cells()` in `screendump.py`, as for
 the fight's `--mux`); `--poke still=1` stops the engine's bob too, but only
 until the engine is loaded again, after a talk, say. The engine's
 sprite blocks from `$5000`: the three classes (0-5), the villager (6, 7),
-the ship (8, 9). Each member's colours are their byte of `tunic[]` in the
+the ship (8, 9); the king's crown and its bob are the town overlay's
+(`OVTART`, `src/ow/town_art.s`, which `mkoverworld.py` writes from the
+town's and the castle's sets' `sprite`s, with `_king_frame` its pointer),
+since there is no room past `$5280`, and he is in yellow. Each member's colours are their byte of `tunic[]` in the
 game block: the clothes in the low four bits (`OWG_DRESS`), the skin in the
 high (`OWG_SKIN`; 0, as in a save from before, is light red), from the name
 at first (`ow_party.c`'s `tunic()`: the clothes as sprite.c's `tunic_of()`,
@@ -892,7 +895,7 @@ with a poke of `$C6`), 8 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`
 OWTOP (`$5280-$53FF`), 105 in HIGH (`$5400-$59FF`, where the text window's
 routines, stlow.s's helpers and the engine's words are), 3669 beside the
 world's overlay (which has `wander()`, the overworld's encounter roll, out
-of the core: 3468 now), 1677 beside the town's (for its maps to grow into), 4864 beside the dungeon's, 1234 in BSS, and 3.0K in COMMON (`$8800-$9FFF`, less `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans). String
+of the core: 3468 now), 1426 beside the town's (for its maps to grow into), 4864 beside the dungeon's, 1234 in BSS, and 3.0K in COMMON (`$8800-$9FFF`, less `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans). String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than
@@ -1144,7 +1147,7 @@ the people and names stay in `town_data.c`, which owtown and owtalk link
 too). The towns the game makes stay `TGEN_W` by `TGEN_H` (21 by 19,
 `tgen.s`). `t_enter()` sets `local_w`/`local_h` from them. The maps are in
 the overlay, run-length packed (Millford's 21 by 19 is 141 bytes), so it is
-the 1677 bytes free beside the town overlay that four bigger towns spend.
+the 1426 bytes free beside the town overlay that four bigger towns spend.
 Going past 40 by 25 means growing `region[]` and `rowoff[]` (`town.c`) and
 the flood's queue in SHORE, and keeping `64 * h + w <= 2112`, which lets a
 map be unpacked into the end of `local[]` and moved up into its rows. The

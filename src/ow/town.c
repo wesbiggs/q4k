@@ -31,6 +31,8 @@
 /* The villager's sprite frames, after the hero's six (assets/overworld.txt:
    it and its bob), and the robes' colours, one a person. */
 #define NPC_FRAME  (64 + 6)
+extern const unsigned char king_frame;  /* his own, with a crown, in this
+                                           overlay (town_art.s) */
 static const unsigned char robes[7] = {
     COLOR_CYAN, COLOR_YELLOW, COLOR_PURPLE, COLOR_BLUE, COLOR_ORANGE,
     COLOR_LIGHTBLUE, COLOR_WHITE
@@ -38,6 +40,7 @@ static const unsigned char robes[7] = {
 
 
 static unsigned char npc_ent[7];        /* which of here_ents each sprite is */
+static unsigned char npc_frame[7];      /* and its first frame */
 static unsigned char bob;               /* the people's frame: 0 or 1 */
 
 /* --- Roofs -------------------------------------------------------------
@@ -224,11 +227,12 @@ static void put_roofs(void)
 }
 
 /* The people (sm_npcs places them), but for those under a roof: where they
-   stand, and a robe each (by who they are, so it stays theirs). */
+   stand, and a robe each (by who they are, so it stays theirs); the king
+   in his crown and gold. */
 static void show_people(void)
 {
     const TownEnt *e = here_ents;
-    unsigned char i, n = 0;
+    unsigned char i, f, n = 0;
 
     for (i = 0; i < here_n && n < 7; ++i, ++e) {
         if (roofed(region[AT(e->x, e->y)])) {
@@ -237,8 +241,14 @@ static void show_people(void)
         npc_ent[n] = i;
         sm_npc_x[n] = e->x + BIAS;
         sm_npc_y[n] = e->y + BIAS;
-        sm_npc_ptr[n] = NPC_FRAME;      /* (t_idle() bobs them) */
+        f = NPC_FRAME;
         sm_npc_col[n] = robes[i % 7];
+        if (e->kind == ENT_NPC && e->param == NPC_KING) {
+            f = king_frame;
+            sm_npc_col[n] = COLOR_YELLOW;
+        }
+        npc_frame[n] = f;
+        sm_npc_ptr[n] = f + bob;        /* (t_idle() bobs them) */
         ++n;
     }
     sm_npc_n = n;
@@ -454,14 +464,14 @@ void t_arrived(void)
    everyone does in a fight. */
 void t_idle(void)
 {
-    unsigned char i, f;
+    unsigned char i;
 
     if ((frame & 15) || still) {
         return;
     }
-    f = NPC_FRAME + (bob ^= 1);
+    bob ^= 1;
     for (i = sm_npc_n; i--; ) {
-        sm_npc_ptr[i] = f;
+        sm_npc_ptr[i] = npc_frame[i] + bob;
     }
     sm_mxdirty = 1;             /* (the interrupt writes them) */
 }

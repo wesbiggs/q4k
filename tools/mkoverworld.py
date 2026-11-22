@@ -31,6 +31,7 @@ SET_FILE = {"overworld": "overworld.txt", "town": "town_tiles.txt",
             "castle": "castle_tiles.txt", "dungeon": "dungeon_tiles.txt"}
 OUT = os.path.join(ROOT, "src", "lib", "ow_data.s")
 OUT_FIGS = os.path.join(ROOT, "src", "lib", "ow_figs.s")
+OUT_TOWN = os.path.join(ROOT, "src", "ow", "town_art.s")
 
 COLOURS = {
     "black": 0, "white": 1, "red": 2, "cyan": 3, "purple": 4, "green": 5,
@@ -553,6 +554,38 @@ def write_figs(hero):
     open(OUT_FIGS, "w").write("\n".join(out))
 
 
+def write_town_art(sets):
+    """The town's and the castle's own sprites (the king), in the town
+    overlay (OVTART, on a sprite block's boundary in the engine's VIC
+    bank), with a byte each saying its first frame's sprite pointer."""
+    spr = sets["town"]["sprites"] + sets["castle"]["sprites"]
+    out = ["; GENERATED from assets/town_tiles.txt and castle_tiles.txt by "
+           "tools/mkoverworld.py -- do not edit.",
+           "",
+           "; The places' own people (src/ow/town.c): 64 bytes a frame, in the",
+           "; town overlay, which is in the engine's VIC bank 1",
+           "; (cfg/c64-openworld.cfg's OVTART, aligned to a block), and the",
+           "; sprite pointer of each one's first frame.",
+           ""]
+    names = [n for n, _ in spr if not n.endswith(" bobbing")]
+    for n in names:
+        out.append("        .export _%s_frame" % n)
+    out += ['        .segment "OVTCODE"']
+    for n in names:
+        k = [m for m, _ in spr].index(n)
+        out.append("_%s_frame: .byte <((town_art - $4000) / 64 + %d)" % (n, k))
+    out += ['        .segment "OVTART"', "town_art:"]
+    for name, rows in spr:
+        out.append("        .byte " + ",".join(
+            "$%02X" % x for x in figures.block(rows)) + "   ; " + name)
+    out += ["",
+            "; The hero's skin's blocks are at $7E80, the corners' at $7F00.",
+            "        .assert * <= $7E80, lderror, "
+            "\"town_art: over the skin's and the corners' sprites\"",
+            ""]
+    open(OUT_TOWN, "w").write("\n".join(out))
+
+
 # Where a set's file loads: SHORE (src/ow/smooth.s), which every way into
 # an area builds afresh after sm_tileset() has read the set.
 SET_ADDR = 0xA000
@@ -673,6 +706,7 @@ def main():
 
     open(OUT, "w").write("\n".join(out))
     write_figs(hero + skins)
+    write_town_art(sets)
     for name in SETS:
         st = sets[name]
         print("mkoverworld: %-9s %3d characters, %2d metatiles, %5d bytes"

@@ -20,7 +20,7 @@ import subprocess
 import sys
 
 SEGS = {"world": ("OVWHEAD", "OVWCODE"),
-        "town": ("OVTHEAD", "OVTCODE", "OVTBSS"),
+        "town": ("OVTHEAD", "OVTCODE", "OVTART", "OVTBSS"),
         "dungeon": ("OVDHEAD", "OVDCODE", "OVDART")}
 
 
