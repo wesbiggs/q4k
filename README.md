@@ -116,14 +116,15 @@ order, and then the monsters move. You walk into a foe to strike.
 | key | |
 |---|---|
 | move, and `Q` `E` `Z` `X` | step, or strike if it is in the way |
-| the up-arrow key, or the stick's button | shoot this one's bow, if they have one (one arrow a shot); a wizard's casts |
-| `*` | a wizard casts a prepared spell |
+| the up-arrow key, or the stick's button | aim this one's bow, if they have one (one arrow a shot); a wizard's casts. A yellow cursor marks the nearest foe in reach with a clear line; the direction keys (or the stick) go through the others, `SPACE` or the button again shoots, and any other key lowers the bow without spending the turn |
+| `*` | a wizard casts a prepared spell (Spark and Bolt are aimed the same way) |
 | `SPACE` | stand your ground: take less from the next blow |
 | `P` | give a draught to any of the party |
 | walk off the side | the gap in the middle of the left or right edge: each of you who reaches it is out, and the fight is fled when the last one is -- but not from a keeper or Maldrath |
 
-Sand and swamp are slow going, and a shot does not fly over the party: whoever
-of you is in its way takes it. One of the party who falls is out of the
+Sand and swamp are slow going. A shot flies straight at the foe it is aimed
+at, at any angle, but nothing can be aimed at past a boulder, a tree, a wall,
+another foe or one of the party. One of the party who falls is out of the
 fight, and gets up again after it with a little health, if it is won or fled;
 it is lost only when all of you fall, and you wake in Millford with half the
 purse. A monster that comes alone -- a keeper, Maldrath, a lone wanderer --

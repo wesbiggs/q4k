@@ -19,9 +19,9 @@
  17 |uv:5:567xpopopopopopopopoz676767:5:5uvuv|
  18 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|
  19 |A█wYmO█grbQOr██████KP█32████████████████|
- 20 |█A@grRb████MRrg█████>ZOs██████DrgudQt█3█|
- 21 |█22/22█████18/18█████16/16█6██ArrYxs█39█|
- 22 |WQRbQ█xgu?██████████████████████████████|
- 23 |TQO█grrYx█dYOs█xRsO.████████████████████|
- 24 |Cgst█1█SzgrU█2█KOg@█████████████████████|
+ 20 |█A@grRb███>MRrg██████ZOs██████DrgudQt█3█|
+ 21 |█22/22█████18/18█████16/16█6██ArrYxs█40█|
+ 22 |A█wYmO█grbQOr█bYvOs█gt█tQO█zgrtu!███████|
+ 23 |Wg@U█RmtY█Rt█tY█strRUO.█F@OO█wu█g█sRsO.█|
+ 24 |NYtQRmd█Rs█Rm█rOgbQ.████████████████████|
     +----------------------------------------+

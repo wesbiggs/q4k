@@ -9,7 +9,7 @@
   7 |adfsrsjhjhjhrsrsjhjhjhrsrsjhjhjhrsrsjkla|
   8 |adfguviguvigiguvigu@igiguviguvigiguvikla|
   9 |adfhrsjhrsjhjhrsjhrsjhjhrsjhrsjhjhrsjkla|
- 10 |adfgigigigigigigigigigigigigigigigigikla|
+ 10 |adfgigigigigigi@igigigigigigigigigigikla|
  11 |adz[£hjhjhjhjhjhjhjhjhjhjhjhjhjhjhj][^la|
  12 |a_ !fguvigiguviguvigigu@iguvigiguvik" #a|
  13 |aaadz[£sjhjhrsjhrsjhjhrsjhrsjhjhr][^laaa|
@@ -18,10 +18,10 @@
  16 |aaaaa_   !fguvuvigigiguvuvigik"   #aaaaa|
  17 |aaaaaaaaadfhrsrsjhjhjhrsrsjhjklaaaaaaaaa|
  18 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|
- 19 |Mg@srgtQ███████████KP█625███████████████|
+ 19 |Mg@srgtQ███████████KP█605███████████████|
  20 |>A@grRb████MRrg██████ZOs██████DrgudQt█3█|
- 21 |█63/85█████0/63██████61/61█31█ArrYxs█39█|
- 22 |TQO█szgrU█QRts█A@grRb█WYr█22.███████████|
- 23 |F@gvO█sOgrs█MRrg█WYr█21.████████████████|
- 24 |MRrg█Wg@@s!█████████████████████████████|
+ 21 |█85/85█████2/63██████61/61█31█ArrYxs█39█|
+ 22 |ARv:█SPACE█Yr█WRrO█@YYsOs.██████████████|
+ 23 |TQO█szgrU█QRts█WYr█15.██████████████████|
+ 24 |F@gvO█sOgrs█MRrg█WYr█21.████████████████|
     +----------------------------------------+

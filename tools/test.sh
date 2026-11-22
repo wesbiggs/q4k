@@ -139,22 +139,25 @@ u_ow_roads() {
     fi
 }
 
-# The arrow is one sprite block, filled from fight_arrow[] for the way it
-# flies (src/fight/fight.c's arrow_to()): the shore case's party shoots
-# up-right, and the block holds that picture after. --peek prints the last
-# byte first, so this is the block's 48 bytes backwards.
+# The arrow is one sprite block, filled from fight_arrow[] for the nearest
+# of the eight ways to the foe it is aimed at (src/fight/fight.c's
+# arrow_to(), loose()): the dragon case's Alaric aims at Maldrath, up and
+# to the left of him (the only foe, so SPACE looses at once), and the block
+# holds that picture after. --peek prints the last byte first, so this is
+# the block's 48 bytes backwards.
 u_arrow() {
     [ -f dist/owarena.prg ] && [ -f dist/owarena.d64 ] \
-        || { result SKIP owarena-arrow-ur "no dist/owarena.d64"; return; }
+        || { result SKIP owarena-arrow-ul "no dist/owarena.d64"; return; }
     got=$(tools/screendump.py dist/owarena.prg --disk dist/owarena.d64 \
         --mux build/fight.lbl --poke auto_seed=7 --stage 3 --timeout 180 \
-        --keys '3hw\x5ee' --peek '$5580:48' 2>&1 >/dev/null \
+        --keys '\x85\x85\x85\x85\x85\x85\x85\x85\x85owww\x5e\x20' \
+        --peek '$5580:48' 2>&1 >/dev/null \
         | sed -n 's/.*(\$\([0-9A-F]*\)).*/\1/p')
-    want=000000000000000040000024000060000008000008000002000002008000008200002200000A0000AA00000000000000
+    want=0000000000000001000018000009000020000020000080000080000000020000820000880000A00000AA000000000000
     if [ "$got" = "$want" ]; then
-        result PASS owarena-arrow-ur
+        result PASS owarena-arrow-ul
     else
-        result FAIL owarena-arrow-ur "the arrow's block: ${got:-?}"
+        result FAIL owarena-arrow-ul "the arrow's block: ${got:-?}"
     fi
 }
 
@@ -358,7 +361,7 @@ run_unit() {
     case $1 in
         checkmap) u_checkmap ;;
         checkisle) u_checkisle ;;
-        owarena-arrow-ur) u_arrow ;;
+        owarena-arrow-ul) u_arrow ;;
         openworld-save|openworld-quaff|openworld-recolour|openworld-fight|\
         openworld-foes|openworld-keeper|openworld-cache|openworld-roads|\
         openworld-portrait)
@@ -390,7 +393,7 @@ all_units() {
         openworld-recolour
     for g in tests/golden/*.txt; do basename "$g" .txt; done
     echo openworld-portrait openworld-quaff openworld-keeper openworld-cache \
-        openworld-roads owarena-arrow-ur checkmap
+        openworld-roads owarena-arrow-ul checkmap
 }
 
 # Which half of the suite a unit is in, for CI's two machines: the open

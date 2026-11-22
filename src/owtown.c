@@ -203,7 +203,7 @@ static void help(void)
     cputsxy(3, 13, "?  This screen    SPACE  Party lines");
     cputsxy(3, 14, "RUN/STOP  Quit to the title");
     cputsxy(3, 16, "Each in turn: walk into foe to strike");
-    cputsxy(3, 17, "^+dir shoots; * (a wizard's ^) casts");
+    cputsxy(3, 17, "^ aims, SPACE shoots; * casts a spell");
     cputsxy(3, 18, "SPACE guards; all flee by a side gap");
     textcolor(COLOR_LIGHTGREEN);
     cputsxy(1, 21, quest_task[stage][0]);

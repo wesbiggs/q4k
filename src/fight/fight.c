@@ -285,6 +285,8 @@ static void say_did(unsigned char p, const char *verb)
 /* --- sprites -------------------------------------------------------------- */
 
 static unsigned char tick, anim;
+static unsigned char aiming;    /* the cursor is on a foe to shoot: yellow, */
+static unsigned char cx, cy;    /* not blinking, there */
 static unsigned char ground;    /* the game's tile for the field's ground */
 
 /* Sprite `v` on square (x,y). */
@@ -344,7 +346,7 @@ static void poses(void)
             vs_ptr[V_FOE + i] = SPR_MONSTER + (anim << 2) + i;
         }
     }
-    vs_col[V_CUR] = anim ? C_YELLOW : C_WHITE;
+    vs_col[V_CUR] = anim | aiming ? C_YELLOW : C_WHITE;
 }
 
 /* One frame: what moved is shown, and every sixteenth they shift their
@@ -968,7 +970,11 @@ static unsigned char next_key(void)
 #ifdef FIGHT_BOT
     return bot_key();
 #endif
-    v_put(V_CUR, hx, hy);
+    if (aiming) {
+        v_put(V_CUR, cx, cy);
+    } else {
+        v_put(V_CUR, hx, hy);
+    }
     --vs_y[V_CUR];      /* sorted ahead of them, so in front: its art is a
                            row lower to make up for it (mkfields.py) */
     vs_ptr[V_CUR] = SPR_CURSOR;
@@ -1052,7 +1058,7 @@ static void help(void)
 {
     static const char *const lines[6] = {
         "WASD/cursor step or strike, QEZX aslant",
-        "^ then a way: shoot   *: cast a spell",
+        "^ aim (keys: next), SPACE shoot  * cast",
         "P  the one whose turn it is drinks",
         "SPACE stands firm   a side gap: flee",
         "M  music   SHIFT+M  effects",
@@ -1367,7 +1373,10 @@ static unsigned char pinched(unsigned char px, unsigned char py,
         && (flag_at(x, py) & FF_KIND) == FF_BLOCK && (flag_at(px, y) & FF_KIND) == FF_BLOCK;
 }
 
-/* Something flies from the member whose turn it is: battle.c's loose(). */
+#ifdef FIGHT_BOT
+/* Something flies from the member whose turn it is: battle.c's loose(),
+   eight ways. The autoplayer's (FIGHTBOT has no room for the aiming, and
+   its figures were measured with this). */
 static unsigned char loose(unsigned char dir, unsigned char range,
                            unsigned char atk, unsigned char kind,
                            const char *what)
@@ -1431,6 +1440,207 @@ static unsigned char which_way(const char *put_down)
     }
     return dir;
 }
+#else
+
+/* --- aiming: a shot flies at a foe the player picks, along the straight
+   line to them, not only the eight ways. What can be picked is every foe
+   (a square of a big one) within the range, counted as steps are, that
+   the line reaches before anything that stops a shot: a wall, a boulder
+   or a tree, two corners of wall a step would squeeze between, one of the
+   party (no shot flies over them) or another foe. */
+
+static unsigned char aim_n, aim_t[MAX_FOES], aim_x[MAX_FOES], aim_y[MAX_FOES];
+static unsigned char lx, ly, path_n;    /* where the line meets the foe */
+
+/* The line from the member whose turn it is to (tx, ty), at most `range`
+   steps: the foe it reaches (lx, ly the square, path_n the steps), or
+   NONE if anything else stops it first. Bresenham's, eight ways. */
+static unsigned char trace(unsigned char tx, unsigned char ty,
+                           unsigned char range)
+{
+    static unsigned char x, y, nx, ny, ax, ay, n, e, k, t;
+    static signed char sx, sy;
+
+    x = hx;
+    y = hy;
+    sx = tx < x ? -1 : tx > x;
+    sy = ty < y ? -1 : ty > y;
+    ax = tx < x ? x - tx : tx - x;
+    ay = ty < y ? y - ty : ty - y;
+    n = ax > ay ? ax : ay;
+    if (!n || n > range) {
+        return NONE;
+    }
+    e = n >> 1;
+    for (k = 1; k <= n; ++k) {
+        nx = x;
+        ny = y;
+        if (ax == n) {
+            nx += sx;
+            e += ay;
+            if (e >= n) {
+                e -= n;
+                ny += sy;
+            }
+        } else {
+            ny += sy;
+            e += ax;
+            if (e >= n) {
+                e -= n;
+                nx += sx;
+            }
+        }
+        if (pinched(x, y, nx, ny)) {
+            break;
+        }
+        x = nx;
+        y = ny;
+        if ((t = foe_at(x, y)) != NONE) {
+            lx = x;
+            ly = y;
+            path_n = k;
+            return t;
+        }
+        if (member_at(x, y) != NONE || (flag_at(x, y) & FF_KIND) == FF_BLOCK) {
+            break;
+        }
+    }
+    return NONE;
+}
+
+/* What can be shot at, from left to right. */
+static void targets(unsigned char range)
+{
+    static unsigned char i, q, j;
+
+    aim_n = 0;
+    for (i = 0; i < foes; ++i) {
+        if (!foe_hp[i]) {
+            continue;
+        }
+        for (q = 0; q < size * size; ++q) {
+            if (trace(foe_x[i] + (q & 1), foe_y[i] + (q >> 1), range) == i) {
+                /* (into place by x, then y: a handful, at most) */
+                for (j = aim_n; j && (aim_x[j - 1] > lx
+                                      || (aim_x[j - 1] == lx
+                                          && aim_y[j - 1] > ly)); --j) {
+                    aim_t[j] = aim_t[j - 1];
+                    aim_x[j] = aim_x[j - 1];
+                    aim_y[j] = aim_y[j - 1];
+                }
+                aim_t[j] = i;
+                aim_x[j] = lx;
+                aim_y[j] = ly;
+                ++aim_n;
+                break;
+            }
+        }
+    }
+}
+
+/* The player picks what to shoot at, within `range`: the cursor, yellow,
+   starts on the nearest, the direction keys (or the stick) go through the
+   rest, and SPACE, ^ (the stick's button) or * looses; any other key puts
+   it down, with `put_down` said. The foe (target), with the line to it
+   traced for loose(), or NONE. */
+static unsigned char choose(unsigned char range, const char *put_down)
+{
+    static unsigned char c, i, d, best, key;
+
+    targets(range);
+    if (!aim_n) {
+        say("Nothing is in reach.");
+        return NONE;
+    }
+    best = 0xFF;
+    for (i = 0; i < aim_n; ++i) {
+        d = aim_x[i] < hx ? hx - aim_x[i] : aim_x[i] - hx;
+        key = aim_y[i] < hy ? hy - aim_y[i] : aim_y[i] - hy;
+        if (key > d) {
+            d = key;
+        }
+        if (d < best) {
+            best = d;
+            c = i;
+        }
+    }
+    say(aim_n > 1 ? "Aim: keys pick, SPACE or fire looses."
+                  : "Aim: SPACE or fire looses.");
+    aiming = 1;
+    poses();
+    for (;;) {
+        cx = aim_x[c];
+        cy = aim_y[c];
+        key = next_key();
+        if (key == K_SPACE || key == K_FIRE || key == K_CAST) {
+            break;
+        }
+        d = key_dir(key);
+        if (d == NONE) {
+            say(put_down);
+            c = NONE;
+            break;
+        }
+        if (dir_dx[d] ? dir_dx[d] > 0 : dir_dy[d] > 0) {
+            c = c + 1 == aim_n ? 0 : c + 1;
+        } else {
+            c = c ? c - 1 : aim_n - 1;
+        }
+    }
+    aiming = 0;
+    poses();
+    if (c == NONE) {
+        return NONE;
+    }
+    return target = trace(aim_x[c], aim_y[c], range);
+}
+
+/* The shot flies straight from the one whose turn it is to where the line
+   meets the foe picked (choose()), two frames a step, and lands: battle.c's
+   loose(), aimed. The arrow points the nearest of the eight ways. */
+static unsigned char loose(unsigned char atk, unsigned char kind,
+                           const char *what)
+{
+    static int dx, dy;
+    static unsigned int px;
+    static unsigned char k, n, ax, ay, py;
+    static signed char sx, sy;
+
+    dx = ((int)lx - hx) << 4;
+    dy = ((int)ly - hy) << 4;
+    ax = lx < hx ? hx - lx : lx - hx;
+    ay = ly < hy ? hy - ly : ly - hy;
+    sx = (ax << 1) < ay ? 0 : lx < hx ? -1 : 1;
+    sy = (ay << 1) < ax ? 0 : ly < hy ? -1 : 1;
+    v_put(V_SHOT, hx, hy);
+    if (kind == SHOT_ARROW) {
+        arrow_to(dir_of(sx, sy));
+        vs_ptr[V_SHOT] = SPR_ARROW;
+    } else {
+        vs_ptr[V_SHOT] = SPR_FIRE - 1 + kind;
+    }
+    vs_col[V_SHOT] = shot_colour[kind];
+    py = vs_y[V_SHOT];
+    px = 24 + ((unsigned int)hx << 4);
+    n = path_n << 1;
+    for (k = 1; k <= n; ++k) {
+        vs_x[V_SHOT]  = (unsigned char)(px + dx * k / n);
+        vs_xh[V_SHOT] = (unsigned char)((px + dx * k / n) >> 8) & 1;
+        vs_y[V_SHOT]  = py + (signed char)(dy * k / n);
+        frame();
+    }
+    vs_y[V_SHOT] = 0;
+
+    strcpy(msg, what);
+    sfx_play(SFX_BOW);
+    strcat(msg, " hits for ");
+    k = strike(foe_hp[target], atk);
+    foe_sprites(target);
+    flash(fv, fn, lx, ly);
+    return k;
+}
+#endif
+
 
 /* The monster's own shot: battle.c's aim_at() and aim(). */
 static unsigned char sx, sy, flew, victim;
@@ -1582,7 +1792,10 @@ static unsigned char hurt_all;
 static unsigned char cast(unsigned char *spent)
 {
     Actor *a = &party[act];
-    unsigned char s, dir, who, amount, one;
+    unsigned char s, who, amount, one;
+#ifdef FIGHT_BOT
+    unsigned char dir;
+#endif
 
     *spent = 0;
     hurt_all = 0;
@@ -1625,10 +1838,16 @@ static unsigned char cast(unsigned char *spent)
     switch (s) {
         case SP_SPARK:
         case SP_BOLT:
+#ifdef FIGHT_BOT
             dir = which_way("The spell fades.");
             if (dir == NONE) {
                 return 0;
             }
+#else
+            if (choose(s == SP_SPARK ? 8 : 14, "The spell fades.") == NONE) {
+                return 0;
+            }
+#endif
             break;
         case SP_HEAL:
             who = pick_member("Heal whom?");
@@ -1647,11 +1866,19 @@ static unsigned char cast(unsigned char *spent)
     a->mp -= spell_cost[s];
     *spent = 1;
     switch (s) {
+#ifdef FIGHT_BOT
         case SP_SPARK:
             return loose(dir, 8, 4 + party_level, SHOT_FIRE, "The spark");
         case SP_BOLT:
             return loose(dir, 14, 8 + party_level + (party_level >> 1),
                          SHOT_BOLT, "The bolt");
+#else
+        case SP_SPARK:
+            return loose(4 + party_level, SHOT_FIRE, "The spark");
+        case SP_BOLT:
+            return loose(8 + party_level + (party_level >> 1), SHOT_BOLT,
+                         "The bolt");
+#endif
         case SP_HEAL:
             amount = 8 + 2 * party_level;
             a = &party[who];
@@ -1989,12 +2216,21 @@ static unsigned char fight(void)
                             say("You have no arrows.");
                             continue;
                         }
+#ifdef FIGHT_BOT
                         dir = which_way("You lower the bow.");
                         if (dir == NONE) {
                             continue;                /* no turn spent */
                         }
                         --arrows;
                         dmg = loose(dir, bow_range[party[act].bow],
+#else
+                        if (choose(bow_range[party[act].bow],
+                                   "You lower the bow.") == NONE) {
+                            continue;                /* no turn spent */
+                        }
+                        --arrows;
+                        dmg = loose(
+#endif
                                     bow_atk[party[act].bow]
                                     + (party[act].cls == CL_ARCHER
                                        ? ARCHER_EYE : 0), SHOT_ARROW,

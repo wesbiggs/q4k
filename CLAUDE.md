@@ -1293,13 +1293,24 @@ mean less), and **it is eight ways**, as the open world walks: Q, E, Z and X (or
 stick's diagonals) step and strike diagonally; the flood goes
 eight ways, a monster strikes from any of the eight squares round someone
 (a big one from twelve places), and neither side squeezes diagonally
-between two corners of wall. Shots fly eight ways too, the party's
-arrows and spells and the monsters' (a big one shoots diagonally from its
-corner), and stop where they would pass between two corners of wall
-(`pinched()`). **A shot does not fly over the party**, as `battle.c`'s
-does: whoever of them is in its way takes it (`loose()`, through
-`bitten()`, at the attack it would have had), and the autoplayer will not
-shoot through one. **Ground is slow**: each square's flag has a cost in
+between two corners of wall. The monsters' shots fly eight ways too (a
+big one shoots diagonally from its corner), and stop where they would pass
+between two corners of wall (`pinched()`). **The party's shots are
+aimed**: `^` (or the stick's button), or a Spark or Bolt, shows the
+cursor (`V_CUR`, solid yellow while `aiming`) on the nearest foe the line
+reaches within the range (`choose()`, `targets()`: Bresenham's line,
+eight-connected, `trace()`, counted as steps are, and stopped by a block,
+two corners of wall, one of the party or another foe, so no shot flies
+over the party and none can be aimed through one); the direction keys go
+through the others left to right, SPACE, `^` or `*` looses, and any other
+key puts it down with no turn spent ("Nothing is in reach." when there is
+none). The shot glides straight there in pixels, two frames a step, the
+arrow's picture the nearest of its eight (`loose()`). **FIGHTBOT keeps
+the eight ways** (`#ifdef FIGHT_BOT`: `which_way()` and the old `loose()`,
+where a shot that meets one of the party hits them, at the attack it
+would have had, and the autoplayer will not shoot through one), for room,
+and because `balance.py`'s figures are for it: the aimed shots are kinder
+to the party than those, which a sweep has not yet measured. **Ground is slow**: each square's flag has a cost in
 bits 2-3 (`FF_COST`: 10 tenths for grass, forest and floors, 15 for
 sand, 20 for swamp, from `SLOW` in `mkfields.py`; the forest was 15 until
 it was asked to be no slower, and the `thicket` scatter went with it); a monster spends it
@@ -1335,9 +1346,10 @@ runs, and three archers by a draught and a half at the Gaoler.
 eight pictures of 32 bytes, by `DIR_*`, that `mkfields.py` makes from
 three drawn in `assets/monsters.txt` (`arrow`, `arrow_r`, `arrow_ur`) by
 mirroring; `$5700-$57FF` (four blocks) are the rounded corners
-(`src/fight/corners.s`, `SPR_CORNER`: "The rounded viewport"). `owarena-arrow-ur` in
-`tools/test.sh` checks the block after a shot up-right, and golden
-`owarena-dragon` casts a spark up-left into Maldrath. **`tools/balance.py`** measures
+(`src/fight/corners.s`, `SPR_CORNER`: "The rounded viewport"). `owarena-arrow-ul` in
+`tools/test.sh` checks the block after Alaric's arrow at Maldrath, up and
+to his left, golden `owarena-dragon` shoots and casts a spark into
+Maldrath, and golden `owarena-shore` has nothing in an archer's reach. **`tools/balance.py`** measures
 this fight: `owarena`'s `*` loads `FIGHTBOT` (the module built with
 `-DFIGHT_BOT`: `battle.c`'s autoplayer, eight ways, which waits for no
 frame) and fights the poked fight `auto_runs` times, counting into `res_*`
@@ -1369,7 +1381,7 @@ and the fight's alike (`?` in a fight lists the fight's over the text rows,
 `help()`): Q E Z X diagonally (C does nothing), `M` the music,
 SHIFT+`M` the effects (the fight's `next_key()` folds every other shifted
 letter onto its plain one), and in a fight the up-arrow key (`$5E`, the
-stick's button) shoots and `*` casts -- a wizard's up-arrow casts too, and
+stick's button) aims and shoots and `*` casts -- a wizard's up-arrow casts too, and
 a wizard with one spell ready casts it without being asked which.
 **Fleeing takes the whole party**: each member walks out of a side gap on
 their own turn (`gone[]`, "fled" in their stats; off the field, their turns
