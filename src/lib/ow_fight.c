@@ -321,7 +321,9 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
     bgcolor(COLOR_BLACK);
     bordercolor(COLOR_BLACK);
     textcolor(COLOR_YELLOW);
-    cputsxy(1, 2, foe_name);
+    /* "5 goblins", as many as came (the module is done with its block). */
+    foes_name(f->name, foe_name, f->count);
+    cputsxy(1, 2, f->name);
     y = 5;
     switch (r) {
     case BATTLE_WON:
