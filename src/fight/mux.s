@@ -335,16 +335,19 @@ events: lda     cdown           ; the corners down?
         stx     evi
         jmp     events          ; the next, if it is here already, or the
 @sched: jsr     sched           ; one after this
-        bcs     :+
+        bcs     @go
+        tax
         sec
         sbc     #2
         cmp     $D012
-        bcc     events
-:       jmp     $EA81
+        bcc     events          ; here already: done now, with $D012 left
+        txa                     ; alone, or the VIC would latch it as the
+@go:    sta     $D012           ; raster went by and the next interrupt
+        jmp     $EA81           ; would come at once, in the wrong phase
 
 ; The next interrupt after the top's or an event's: the corners going down,
-; or the next event, whichever is first, at phase 1 (carry clear, the line
-; in A); else the text's.
+; or the next event, whichever is first, at phase 1 (carry clear); else the
+; text's (carry set). The line is in A, for the caller to write to $D012.
 sched:  lda     #$FF
         ldx     cdown
         bne     :+
@@ -357,15 +360,13 @@ sched:  lda     #$FF
         lda     p_line,x
 :       cmp     #$FF
         beq     @text
-        sta     $D012
         ldx     #1
         stx     phase
         clc
         rts
-@text:  lda     #LINE_TEXT
-        sta     $D012
-        lda     #2
-        sta     phase
+@text:  ldx     #2
+        stx     phase
+        lda     #LINE_TEXT
         sec
         rts
 
@@ -434,6 +435,7 @@ top:    lda     bgcol
         adc     #NREAL
         sta     evi
 @out:   jsr     sched
+        sta     $D012
         inc     _mx_frame
         jsr     ow_tune_irq     ; the music and the effects (ow_tune.s)
         jmp     $EA31

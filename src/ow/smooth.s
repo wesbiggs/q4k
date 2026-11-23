@@ -115,7 +115,9 @@ ALLROWS  = 25
 MAPLEN   = MAPROWS * 40
 TEXTROW  = 22
 SPLITLINE = $DC                 ; ECM on, fine scroll 7: the map ends
-TEXTLINE  = $E5                 ; the line before the line before the text
+TEXTLINE  = $E4                 ; the text's interrupt: two lines early,
+TEXTWAIT  = $E5                 ; since it takes most of a line to get to
+                                ; its write, which waits for $E5 to pass
 FONT     = $A0                  ; the text's characters: screen codes 0-$5F
 
 ; The REU (a 1700/1750, or one emulated: VICE's, a TeensyROM's), at $DF00.
@@ -2088,7 +2090,9 @@ irq_mid:
         cmp     $D012           ; due already?
         bcc     :+
         bne     @out
-:       jmp     @loop
+:       lda     #$01            ; then it is done now, and the VIC may have
+        sta     $D019           ; latched it as $D012 was written: unlatch
+        jmp     @loop           ; it, or it would come again at once
 @out:   jmp     $EA81
 
 ; The NMI: CIA 2's timer A, the corners going down; any other (RESTORE),
@@ -2529,7 +2533,12 @@ irq:
 ; partway across $E7, and the left of the text's first line (the names)
 ; would be black, as an NTSC machine showed. So the second interrupt writes
 ; at once if it starts on $E6 or later, and the first does the second's work
-; itself if it ends on $E5 or later, when the second would be missed.
+; itself if it ends on $E4 or later, when the second would be missed. The
+; second is asked for on $E4, not $E5: the KERNAL's way in and this one's
+; take most of a line, and from $E5 it often got to its look on $E6, wrote
+; at once, and line $E6 showed the map's last row right of where it did.
+; Nothing may keep interrupts off from a few lines before $DC to $E6: not
+; sm_guard's copies, and not gen_run()'s switch to the builder (ow_gen.s).
 ;
 ; The first write must come after row 20's last possible bad line ($D7) and
 ; before cycle 58 of line $DF: later than that, with the map's fine scroll
@@ -2572,7 +2581,7 @@ irq_text:
 @text:  lda     den             ; the text's, ready
         ora     #$07
         tax
-        lda     #TEXTLINE
+        lda     #TEXTWAIT
         cmp     $D012           ; already on the line after (late): at
         bcc     @now            ; once, for the text's first line is next
 @line:  cmp     $D012           ; to the start of the line after
@@ -2598,7 +2607,7 @@ _sm_guard:
 :       lda     $D012
         cmp     #GUARD0
         bcc     @ok
-        cmp     #TEXTLINE + 3
+        cmp     #TEXTWAIT + 3
         bcc     :-
 @ok:    rts
 
