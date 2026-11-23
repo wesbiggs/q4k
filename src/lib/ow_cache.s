@@ -282,11 +282,21 @@ owc_xfer:
         pha
         lda     $FFFB
         pha
+        ; The vector is written with the KERNAL in, its two bytes never
+        ; half and half while the CPU could read it: an NMI can come at
+        ; any time (the engine's corners), and one between them once
+        ; jumped through owc_rti's low byte and vault_nmi's high.
+        lda     #$36            ; (the writes reach the RAM under it)
+        sta     $01
         lda     #<owc_rti
         sta     $FFFA
         lda     #>owc_rti
         sta     $FFFB
+        lda     #$35
+        sta     $01
         sty     REU_CMD
+        lda     #$36
+        sta     $01
         pla
         sta     $FFFB
         pla

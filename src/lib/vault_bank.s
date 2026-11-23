@@ -19,12 +19,12 @@ vault_enter:
         sei
         lda $01
         sta kept
+        lda #<vault_nmi         ; before the KERNAL goes, so that an NMI
+        sta $FFFA               ; never reads half of one vector and half
+        lda #>vault_nmi         ; of another (the writes reach the RAM
+        sta $FFFB               ; under it)
         lda #BANK
         sta $01
-        lda #<vault_nmi
-        sta $FFFA
-        lda #>vault_nmi
-        sta $FFFB
         rts
 
 vault_leave:

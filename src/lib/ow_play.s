@@ -51,14 +51,14 @@ _owt_music_on:
         beq     @no
         dex                     ; the song, from 0
         sei
+        lda     #<owt_nmi       ; written while the KERNAL is in, so that
+        sta     $FFFA           ; no NMI reads half of it (ow_cache.s's
+        lda     #>owt_nmi       ; owc_xfer); the writes reach the RAM
+        sta     $FFFB           ; under it
         lda     $01
         pha
         lda     #NO_KERNAL
         sta     $01
-        lda     #<owt_nmi
-        sta     $FFFA
-        lda     #>owt_nmi
-        sta     $FFFB
         lda     HDR_PLAY
         sta     call+1
         sta     play+1

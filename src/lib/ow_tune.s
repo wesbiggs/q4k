@@ -57,14 +57,14 @@ _ow_tune_play:
         sta     _ow_tune_on     ; the interrupt leaves it alone from here
         php
         sei
+        lda     #<vault_nmi     ; an NMI while the KERNAL is out goes to the
+        sta     $FFFA           ; KERNAL's handler all the same (vault.s);
+        lda     #>vault_nmi     ; written while it is in, so that no NMI
+        sta     $FFFB           ; reads half of it (ow_cache.s's owc_xfer)
         lda     $01
         pha
         lda     #NO_KERNAL
         sta     $01
-        lda     #<vault_nmi     ; an NMI while the KERNAL is out goes to the
-        sta     $FFFA           ; KERNAL's handler all the same (vault.s)
-        lda     #>vault_nmi
-        sta     $FFFB
         lda     HDR_INIT
         sta     @init+1
         lda     HDR_INIT+1
