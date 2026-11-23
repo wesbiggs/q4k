@@ -5,7 +5,7 @@
     tools/mkowsave.py OUT.prg [SEED] [--town ID [--at X,Y]]
 
 A save is the open world's game block (OwGame, include/q4k/owgame.h) as it
-is in memory, loaded back to $CE3F. The game writes its own over this one
+is in memory, loaded back to $CE37. The game writes its own over this one
 (F1); until then the disk has the world of SEED (7) with a lone warrior,
 Alaric, at the castle's gate, the keys to every dungeon and the three
 stones in hand (as the tests' quick start has it). The castle is found with
@@ -27,13 +27,14 @@ import isleref
 import mktiles
 import mktowns
 
-ADDR = 0xCE3F           # OWG_ADDR
-MAGIC = 0x48            # OWG_MAGIC
+ADDR = 0xCE37           # OWG_ADDR
+MAGIC = 0x49            # OWG_MAGIC
 HOME_X, HOME_Y = 128, 64
 CASTLE = 1              # home's places: Millford, the castle, ...
 ACTOR = 21              # sizeof(Actor), include/q4k/actor.h
 LOOTED = 5              # LOOTED_BYTES
-OWG_SIZE = 193          # include/q4k/owgame.h
+OWG_SIZE = 201          # include/q4k/owgame.h
+MAPS = 4                # OWG_MAPS: treasure maps carried
 Q_HEART = 7
 KEYS = 0x3F             # IT_SIGIL ... IT_HEART: as the quick start
 AREA_HOME, AREA_TOWN, AREA_CASTLE, ISLE_HOME, GATE = 0, 1, 2, 4, 0xFF
@@ -137,6 +138,7 @@ def main():
     b += bytes([tunic("Alaric"), 0, 0, 0])   # each member's colour
     b += bytes(1 + 2 * FOES)             # no dungeon's monsters placed
     b += bytes([0])                      # none fled from
+    b += bytes(2 * MAPS)                 # no treasure maps
     assert len(b) == OWG_SIZE
     with open(out, "wb") as f:
         f.write(struct.pack("<H", ADDR))

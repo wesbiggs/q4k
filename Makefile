@@ -66,7 +66,7 @@ HIMODS   := arms panel actor quest ow_figure
 # constants and costs about a tenth of their size: the screens of text lose
 # nothing by it. Not the generators, whose timing was measured with it.
 # Changing this list needs the objects rebuilt: flags are not dependencies.
-SMALLMODS  := shop inn help arms talk gift
+SMALLMODS  := shop inn help arms talk gift ow_tmap
 $(foreach m,$(SMALLMODS),$(eval $(BUILD)/lib/$(m).o: OPT := -Or))
 
 # What copies the character set in (charset_define.o's charset_install())
@@ -89,7 +89,7 @@ LIBOBJ   := $(filter-out $(BUILD)/lib/dungeon.o $(BUILD)/lib/sfx.o \
 ENG_MAP   := town_data town_gen loot_data
 ENG_FIGHT := bestiary
 ENG_TALK  := talk talkscr inn gift
-ENG_SHOP  := shop help
+ENG_SHOP  := shop help ow_tmap
 ENGMODS   := $(ENG_MAP) $(ENG_FIGHT) $(ENG_TALK) $(ENG_SHOP)
 
 $(foreach e,MAP FIGHT TALK SHOP,$(foreach m,$(ENG_$(e)),$(eval $(BUILD)/lib/$(m).o: CFLAGS += --code-name $(e)CODE --rodata-name $(e)DATA)))

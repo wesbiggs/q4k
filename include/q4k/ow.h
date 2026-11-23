@@ -80,6 +80,9 @@ typedef struct {
 #define OWB_FIGHT 9             /* a fight: arg OWF_*, npc the ground (a
                                    tile), the dungeon or the monster */
 #define OWB_HELP  10            /* ?: the keys, and what to do next */
+#define OWB_SPOILS 11           /* (owtown to itself, after a fight won)
+                                   what the foe left: arg OWS_*, npc a roll
+                                   for which gear (src/lib/ow_tmap.c) */
 
 #define OWF_WANDER 0            /* what wanders out at you, on npc's ground */
 #define OWF_KEEPER 1            /* a dungeon's keeper: npc the dungeon */
@@ -88,6 +91,11 @@ typedef struct {
 #define OWF_FOE    4            /* a dungeon's monster that reached the
                                    party, or that it walked into: npc its
                                    index in the game block's foe_a[] */
+#define OWF_LOOT   0x80         /* or'd in, the tests': a win leaves gear,
+                                   and on the overworld a map, every time */
+
+#define OWS_GEAR   1            /* OWB_SPOILS: a blade, mail or a bow */
+#define OWS_MAP    2            /* and/or a treasure map */
 
 typedef struct {
     unsigned char mode;         /* OWB_* */

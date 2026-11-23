@@ -7,7 +7,7 @@
  * bootstrap, the engines, the party's making, the talk ...: q4k/ow.h), so
  * the game itself -- the party, the purse, the story and where everyone
  * is -- lives in one block at a fixed address that every one of them leaves
- * alone: $CE3F-$CEFF, between the engines' BSS and the probe page (every
+ * alone: $CE37-$CEFF, between the engines' BSS and the probe page (every
  * cfg of the open world's keeps it out of BSS, and ld65 does not clear it).
  * A program that keeps the game's own variables (actor.c's, game.c's)
  * copies them in from here when it starts and back before it goes
@@ -23,14 +23,19 @@
 #include <q4k/actor.h>
 #include <q4k/game.h>
 
-#define OWG_ADDR  0xCE3F
-#define OWG_MAGIC 0x48          /* a game is made: the party, the rest; the
+#define OWG_ADDR  0xCE37
+#define OWG_MAGIC 0x49          /* a game is made: the party, the rest; the
                                    save's version, too */
+#define OWG_MAGIC_V2 0x48       /* a save from before the treasure maps: the
+                                   block without them (193 bytes), which the
+                                   bootstrap takes with none */
 #define OWG_MAGIC_V1 0x47       /* a save from before the party's pronouns
                                    (actor.h's PRON_*), which the bootstrap
-                                   takes as they/them for everyone */
+                                   takes as they/them for everyone, and
+                                   with no treasure maps */
 #define OWG_SHIPS 8
 #define OWG_FOES  6           /* monsters a dungeon level */
+#define OWG_MAPS  4           /* treasure maps carried */
 
 /* Where you are (and the engine's `area`). */
 #define AREA_HOME    0          /* the overworld */
@@ -93,7 +98,19 @@ typedef struct {
        the count in the top three bits; 0 for none. Its next fight is with
        those, not a fresh roll; cleared on the way in from the world. */
     unsigned char fled;
+    /* The treasure maps carried (src/lib/ow_tmap.c): each the square of a
+       land where something is buried, OWG_TMAP(land, x, y), or 0 for none.
+       x and y are the land's own (home's 64 by 64, a continent's 64 by 31),
+       not the world's. Last, so that a save from before them (OWG_MAGIC_V2)
+       loads as the rest of the block. */
+    unsigned int  tmap[OWG_MAPS];
 } OwGame;
+
+#define OWG_TMAP(land, x, y) \
+    (((unsigned int)((land) + 1) << 12) | ((unsigned int)(y) << 6) | (x))
+#define OWG_TMAP_LAND(t) (((t) >> 12) - 1)    /* (of one that is not 0) */
+#define OWG_TMAP_X(t)    ((unsigned char)(t) & 63)
+#define OWG_TMAP_Y(t)    ((unsigned char)((t) >> 6) & 63)
 
 #define OWG_FLED_WHO 31
 
@@ -105,7 +122,7 @@ typedef struct {
 
 /* Its size, which tools/mkowsave.py writes too: the engine checks that the
    two agree, and that it fits under the probe page. */
-#define OWG_SIZE 193
+#define OWG_SIZE 201
 
 /* The game's own variables from the block, and back. */
 void owg_in(void);

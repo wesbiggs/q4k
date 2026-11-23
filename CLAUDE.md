@@ -115,7 +115,7 @@ cfg:
   programs that link the game's modules. ld65 does not clear `BSS2`.
 - **`__RSBUF__`** (`$CD00`) is where owtown's, owtalk's and the flat cfg's
   BSS stops: the classic game kept the KERNAL's RS-232 buffers there, and
-  nothing opens the modem now. The game block is at `$CE3F` above it.
+  nothing opens the modem now. The game block is at `$CE37` above it.
   Check `docs/memmap.html` before taking any of `$CD00-$CE3E`.
 
 ## Things that will bite you
@@ -161,21 +161,26 @@ game data there (bar what "The library's segments" says).
 VIC bank switch — it stays at `$D800` regardless of where the screen matrix is.
 
 **The open world's game lives in a block every one of its programs leaves
-alone**: `OwGame` (`include/q4k/owgame.h`) at `$CE3F-$CEFF`, between the
+alone**: `OwGame` (`include/q4k/owgame.h`) at `$CE37-$CEFF`, between the
 engines' BSS (cut to end there) and the probe page: the party, the purse,
 the quest, the looted bits and where everyone is (the area, the town or
 dungeon and its level, the square, the world square, the ships, the boat,
 the music, the effects and whether the party's lines are hidden, and the
-dungeon monster last fled from with how many of it were left: `fled`). ld65 does not clear it. The engines' cfg names its party `party`
+dungeon monster last fled from with how many of it were left: `fled`;
+and, last, the treasure maps carried, `tmap[]`). ld65 does not clear it. The engines' cfg names its party `party`
 (it comes first), and they copy the rest in (`take_block()`) and out
 (`owg_where()`, before a save or another program); a program that links
 the game's own `actor.c` uses `owg_in()`/`owg_out()`
-(`src/lib/owgame.c`). A save is this block as it is, in `ow-save` (193
-bytes, `OWG_SIZE`: the whole of `$CE3F-$CEFF`, so a new field must move the
+(`src/lib/owgame.c`). A save is this block as it is, in `ow-save` (201
+bytes, `OWG_SIZE`: the whole of `$CE37-$CEFF`, so a new field must move the
 bound first, or find spare bits as the pronouns did (below) -- `OWG_ADDR`, the engines' cfg (`_party` and BSS), `foes.s`'s
-`FOE_A`, `stlow.s`'s offsets (engine.c checks them), `mkowsave.py` -- and the engines' BSS has 23
-bytes below it; it is what `tools/mkowsave.py` writes too and the engine
-checks): F1 in an engine writes it, after Y to "Save over the saved game? (scratching the old file first; the border is light blue while the drive works, red
+`FOE_A`, `stlow.s`'s base (its offsets are from the start, engine.c checks
+them), `mkowsave.py`, and `tools/test.sh`'s `party+N` peeks if a field
+moves; put a new one last, as the maps were, so that an older save loads
+as the start of it (the bootstrap loads a save at `OWG_ADDR`, not at the
+file's own address, and `save_version()` takes `OWG_MAGIC_V1` and `_V2`
+with no maps) -- and the engines' BSS ends well below it; it is what
+`tools/mkowsave.py` writes too and the engine checks): F1 in an engine writes it, after Y to "Save over the saved game? (scratching the old file first; the border is light blue while the drive works, red
 for a second if it would not, and the text window says which), and
 F3 (after Y to its own question) goes back through the bootstrap with `OWB_LOAD`, which loads it and
 builds its world (the game goes on as it was if there is no save). The
@@ -227,8 +232,9 @@ their figure doubled below them: cursor left and right go through the
 party, `1`-`3` puts the member shown in that place (`fig_swap()`: the
 member and their colours; the first leads, and is the hero), `T` steps
 the clothes' colour on (all but black; SHIFT+`T` back: `fig_step()`), `P`
-round the pronouns (he, she, they, it), and `S` prepares the spells of a
-wizard who knows more than one; RUN/STOP goes back to the game, and no
+round the pronouns (he, she, they, it), `S` prepares the spells of a
+wizard who knows more than one, and `M` lists the treasure maps
+(`tmap_list()`, `src/lib/ow_tmap.c`); RUN/STOP goes back to the game, and no
 other key does. The skin, like the name and the class, is owparty's
 alone. The figure is `src/lib/ow_figs.s` (generated, segment
 `OWFIGS`, aligned to a sprite block in MAIN, which it asserts is where the
@@ -268,8 +274,27 @@ with half the purse, and says so on a screen of text. The fight plays the
 `fight` or `boss` scene's song (`fight_music()` in `ow_fight.c` loads its
 file if another is under the KERNAL) and carries on with the engine's if it
 is the same one, from its own interrupt (below), and `M`/SHIFT+`M` there change
-the game block's `quiet`. Not yet: gear and treasure maps dropped, and
-pay for the foes killed before a flight.
+the game block's `quiet`. **What a win leaves** is the game's won():
+arms from what goes armed (goblins, bandits to ogres, and natives drawn
+as one; one in `gear_odds`, 12, shop.c's), and from a wanderer or the dead
+on the overworld a treasure map (one in `treasure_odds`, 10, while one of
+`OWG_MAPS`, 4, is free). `ow_fight.c`'s `spoils()` rolls them (MAIN) and
+says "It left something behind."; the shop's code that hands arms out was
+under the module, so `owtown` sets `OWB_SPOILS` and `ow_back()` loads
+`owtown` again instead of the engine, whose `ow_spoils()`
+(`src/lib/ow_tmap.c`, SHOPCODE) offers the arms through shop.c's
+`gear_drop()` (`offer()`, asked who on the screen's rows) and puts the map
+on a plain square of the land (grass, forest, sand, swamp: not a place, a
+road or the hero's), read from the vault with `vault_peek()` (home at
+`$D000`, the continent the party is on at `$E000`, the one the engine
+keeps). A map is `OWG_TMAP(land, x, y)`, the land's own square. The party
+screen's `M` lists them from the land's nearest place, as the game's
+`treasure_maps()` did, and `L` on the square digs it up (`w_look()` in
+`world.c`: 16 gold a quest stage past the second, plus `(x ^ y) & 15`, and
+two draughts). `--poke loot_always=128` (the engine's, `OWF_LOOT` in the
+fight's kind) makes a win leave everything it can: `openworld-spoils` in
+`tools/test.sh`; `openworld-dig` pokes a map under the hero and digs. Not
+yet: pay for the foes killed before a flight.
 `OWG_CALM` in
 the game block's `quiet` keeps anything from wandering out (the quick start
 and the disk's save have it, so the goldens meet nothing); `--poke
@@ -311,8 +336,9 @@ draws from memory. `L` (`ov_look`, a fourth jump in each overlay's table)
 is the game's `look()`: a town's hidden gold (`loot_table`), a dungeon's
 chests (`dun_cx`/`dun_cy`, even odds gold or a draught), and elsewhere
 nothing, or one time in `grave_odds` the dead (`OWF_UNDEAD`, the game's
-`battle_undead()`); never in a town or with `OWG_CALM`. No treasure maps
-yet. RUN/STOP asks to quit (Y or N, in the window) and goes back through
+`battle_undead()`); never in a town or with `OWG_CALM`. On the
+overworld a treasure map's square is dug up first ("Fights in the open
+world"). RUN/STOP asks to quit (Y or N, in the window) and goes back through
 the bootstrap with the world block empty, which shows the splash again.
 `?` is `owtown`'s `OWB_HELP`, the open world's keys and the quest's next
 step.
@@ -1434,9 +1460,10 @@ kept for a computer-run companion (not written yet). **Pronouns**: each
 member's are the top two bits of their `known` (`ACT_PRON()`, `PRON_*`:
 0 they/them, he/him, she/her, it), which the six spells leave free, so
 neither the game block nor the fight's grew; `party_make()` clears them, so
-set them after it. The save's version is `OWG_MAGIC` (`0x48` since then):
-the bootstrap's `save_version()` takes a save of the one before
-(`OWG_MAGIC_V1`) as the same block, everyone they/them. A monster's are
+set them after it. The save's version is `OWG_MAGIC` (`0x48` since then,
+`0x49` since the treasure maps): the bootstrap's `save_version()` takes a
+save of the one before (`OWG_MAGIC_V1`) as the same block, everyone
+they/them. A monster's are
 the top two bits of its bestiary `kind` (`MP_*`, battle.h; `(kind >> 6) ^
 3` is a `PRON_*`, so left out is "it"): Maldrath, the Drowned King and the
 Gaoler he, the bog hag she, and the people (cutthroats, bandits, centaurs,

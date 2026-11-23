@@ -32,6 +32,7 @@
 #include <q4k/music_map.h>
 #include <q4k/ow.h>
 #include <q4k/owgame.h>
+#include <q4k/shop.h>
 #include <q4k/tiles.h>
 #include <q4k/town_data.h>
 
@@ -194,6 +195,41 @@ static unsigned char award(unsigned char y)
     return y + 2;
 }
 
+/* One fight won on the overworld in this many leaves a treasure map, as
+   the game's treasure_drop() has it (the gear's odds are shop.c's
+   gear_odds). Not constant, so that a test can pin it. */
+unsigned char treasure_odds = 10;
+
+/* What the foe left, if anything (OWS_*), for owtown's spoils
+   (src/lib/ow_tmap.c), which it loads itself again for: the shop's code
+   that hands gear out was up in HIGH, under the module. As the game's
+   won() and gear_drop() have it: arms from what goes armed (goblins,
+   bandits, skeletons and ogres, and whatever of the continents' own is
+   drawn as one), and a map from anything beaten out on the land, while
+   there is a hand free for it. */
+static unsigned char spoils(unsigned char kind, unsigned char always)
+{
+    unsigned char s = 0, i;
+
+    if (kind != OWF_KEEPER && kind != OWF_DRAGON
+        && (foe.glyph == T_GOBLIN
+            || (unsigned char)(foe.glyph - T_BANDIT) <= T_OGRE - T_BANDIT)
+        && (always || !(rand() % gear_odds))) {
+        s = OWS_GEAR;
+    }
+    if (G->area == AREA_HOME
+        && (kind == OWF_WANDER || kind == OWF_UNDEAD)
+        && (always || !(rand() % treasure_odds))) {
+        for (i = 0; i < OWG_MAPS; ++i) {
+            if (!G->tmap[i]) {
+                s |= OWS_MAP;
+                break;
+            }
+        }
+    }
+    return s;
+}
+
 /* The music the engine left paused (src/lib/ow_play.s, owtown's). */
 void owt_music_on(void);
 
@@ -225,8 +261,9 @@ static void fight_music(unsigned char boss)
 void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
 {
     Fight *f = FIGHT;
-    unsigned char i, r, y, ground;
+    unsigned char i, r, y, ground, always = kind & OWF_LOOT;
 
+    kind &= ~OWF_LOOT;
     switch (kind) {
     case OWF_KEEPER:
         pick(&keepers[arg], 1);
@@ -349,6 +386,14 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
             quest_stage = Q_VICTORY;
             line(y, COLOR_YELLOW, "Maldrath is banished.");
             line(y + 1, COLOR_YELLOW, "Keldmarch is free.");
+        }
+        i = spoils(kind, always);
+        if (i) {
+            /* owtown again, for what it left (owtown.c, ow_back()) */
+            OWB->mode = OWB_SPOILS;
+            OWB->arg  = i;
+            OWB->npc  = rand();
+            line(y, COLOR_LIGHTGREEN, "It left something behind.");
         }
         break;
     case BATTLE_FLED:

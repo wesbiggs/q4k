@@ -643,6 +643,8 @@ void w_enter(void)
 static const char not_yet[]  = "The captain will not sail yet.";
 static const char sealed[]   = "The way in is sealed.";
 static const char the_heat[] = "The heat drives you back.";
+static const char dug[]      = "You dig up ";
+static const char dug2[]     = " gold and 2 draughts!";
 #pragma rodata-name (pop)
 
 /* A step that could not be taken: a refusal, if it was a ship that will
@@ -657,9 +659,41 @@ void __fastcall__ w_bump(unsigned char d)
     }
 }
 
-/* L: nothing out here (no treasure maps yet), or now and then the dead. */
+/* L: what a treasure map says is buried here (the game block's tmap[],
+   which owtown's spoils fill: src/lib/ow_tmap.c), dug up and the map torn
+   up, as the game's dig() has it: gold worth more as the story goes on, 16
+   a stage, some five fights' worth, for the walk (and the last bit from
+   where it lay, so that no two are the same and a test can know), and two
+   draughts. Or nothing out here, or now and then the dead. */
+#define said ((char *)0x0200)   /* (engine.c's: the line being made up) */
+
 void w_look(void)
 {
+    unsigned char i, x = wx & 63, y = wy & 63;
+    unsigned int t, amount;
+
+    if (!boat) {
+        if (land != ISLE_HOME) {
+            y -= ISLE_TOP;
+        }
+        t = OWG_TMAP(land, x, y);
+        for (i = 0; i < OWG_MAPS; ++i) {
+            if (G->tmap[i] == t) {
+                G->tmap[i] = 0;
+                amount = ((unsigned int)(quest_stage + 2) << 4)
+                       + ((x ^ y) & 15);
+                G->gold += amount;
+                G->potions += 2;
+                ++G->game_turn;
+                strcpy(said, dug);
+                utoa(amount, said + sizeof dug - 1, 10);
+                strcat(said, dug2);
+                sm_ink = COLOR_YELLOW;
+                sm_say(said);
+                return;
+            }
+        }
+    }
     look_nothing(boat ? NONE : tile_at(hx, hy));
 }
 

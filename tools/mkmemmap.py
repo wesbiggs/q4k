@@ -208,7 +208,7 @@ def blocks():
     textscr = [0x0400, 0x07FF, "textscr", "video", "Text screen"]
     top = [
         [g_addr, g_addr + g_size - 1, "game", "keep",
-         "Game block: party, purse, quest, where, each member's colour "
+         "Game block: party, purse, quest, where, each member's colour, treasure maps "
          "(%d bytes)" % g_size],
         [0xCF00, 0xCF13, "probe", "sys", "Probe page (tests)"],
         B(disk, "diskcode", "keep", "Disk icon code"),

@@ -233,7 +233,7 @@ u_ow_quaff() {
 # I, then T twice: Alaric's clothes (14, light blue, from his name) go to
 # 15 and round past black to 1, his skin staying light red (10, from his
 # name too); P steps his pronouns from he/him on to she/her (the top two
-# bits of his `known`, $CE52, actor.h); and RUN/STOP goes back to the
+# bits of his `known`, party+19, actor.h); and RUN/STOP goes back to the
 # engine, whose hero is drawn in them (sm_tunic, sm_skin). The colour byte
 # is skin << 4 | clothes. The j's are padding while owtown loads (it
 # empties the buffer as it starts).
@@ -241,7 +241,7 @@ u_ow_recolour() {
     got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl \
         --keys 'ijjjjjjjjjttp\x03' --settle 15 \
-        --peek '$CECA' --peek sm_tunic --peek sm_skin --peek '$CE52' \
+        --peek party+139 --peek sm_tunic --peek sm_skin --peek party+19 \
         2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
     if [ "$got" = "161 1 10 128 " ]; then
         result PASS openworld-recolour
@@ -274,6 +274,49 @@ u_ow_fight() {
     fi
 }
 
+# Spoils: openworld-fight's goblin, with loot_always (OWF_LOOT) so that the
+# win leaves all it can: its arms, a short sword, which Alaric takes up
+# over his dagger, and a treasure map of Keldmarch (the game block's
+# tmap[0], $554E: home, 14,21), on owtown's spoils screen (owtown loaded
+# again: src/lib/ow_tmap.c). A key and the engine is back; I, then M,
+# lists the map from the place nearest it. The j's are padding while
+# owtown and the engine load.
+u_ow_spoils() {
+    pad=$(printf 'j%.0s' $(seq 60))
+    out=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
+        --splash quick --lbl build/ow-cpu.lbl --poke enc_always=1 \
+        --poke loot_always=128 \
+        --keys "ddjjjjjjjjjjjjjjjjjjjj      $(printf 'w%.0s' $(seq 20))j${pad}i${pad}m" \
+        --settle 40 --until '5 leagues west, 7 north of Millford' \
+        --peek party+193:2 2>&1)
+    map=$(echo "$out" | sed -n 's/.*party+193 @ .* = \([0-9]*\) .*/\1/p')
+    if [ "$map" = 21838 ] && echo "$out" | grep -q 'Keldmarch' \
+        && echo "$out" | grep -q '5 leagues west, 7 north of Millford'; then
+        result PASS openworld-spoils
+    else
+        result FAIL openworld-spoils "map ${map:-?}, not 21838, or the list is not 5 west, 7 north of Millford"
+    fi
+}
+
+# L on a treasure map's square: one poked onto the quick start's (home,
+# 19,28: $5713) is dug up, 16 a quest stage past the second (Q_HEART: 144)
+# and 15 from where it lay (19 ^ 28), and two draughts, and the map is
+# gone: 9 + 159 gold, 3 draughts.
+u_ow_dig() {
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
+        --splash quick --lbl build/ow-cpu.lbl --poke party+193=19 \
+        --poke party+194=87 --poke grave_odds=0 --keys "jjl" \
+        --settle 20 --until 'You dig up 159 gold and 2 draughts!' \
+        --until-peek party+193:2=0 \
+        --peek party+193:2 --peek party+90:2 --peek party+94 \
+        2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
+    if [ "$got" = "0 168 3 " ]; then
+        result PASS openworld-dig
+    else
+        result FAIL openworld-dig "map, gold, draughts: ${got:-?}; not 0 168 3"
+    fi
+}
+
 # Into the Hollow Crown from the quick start, for the dungeon's units.
 ow_enter=dddssssssssssssssssdsssssaasaaaaaaa
 
@@ -292,9 +335,9 @@ u_ow_foes() {
         --splash quick --lbl build/ow-cpu.lbl --poke still=1 \
         --poke enc_always=2 \
         --keys "${ow_enter}aaaaaaaa$(printf 'j%.0s' $(seq 20))     eeeeeezzzz$(printf 'j%.0s' $(seq 20))" \
-        --settle 30 --until-peek '$CECF=216' --until-peek sm_npc_x=0 \
+        --settle 30 --until-peek party+144=216 --until-peek sm_npc_x=0 \
         --until-peek party+88:2=2 --until-peek '$B318=146' \
-        --peek '$CECF' --peek sm_npc_x --peek party+88:2 --peek '$B318' \
+        --peek party+144 --peek sm_npc_x --peek party+88:2 --peek '$B318' \
         2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
     if [ "$got" = "216 0 2 146 " ]; then
         result PASS openworld-foes
@@ -363,7 +406,7 @@ run_unit() {
         checkisle) u_checkisle ;;
         owarena-arrow-ul) u_arrow ;;
         openworld-save|openworld-quaff|openworld-recolour|openworld-fight|\
-        openworld-foes|openworld-keeper|openworld-cache|openworld-roads|\
+        openworld-spoils|openworld-dig|openworld-foes|openworld-keeper|openworld-cache|openworld-roads|\
         openworld-portrait)
             [ -f dist/openworld.d81 ] || { result SKIP "$1" "no dist/openworld.d81"; return; }
             case $1 in
@@ -371,6 +414,8 @@ run_unit() {
                 openworld-quaff) u_ow_quaff ;;
                 openworld-recolour) u_ow_recolour ;;
                 openworld-fight) u_ow_fight ;;
+                openworld-spoils) u_ow_spoils ;;
+                openworld-dig) u_ow_dig ;;
                 openworld-foes) u_ow_foes ;;
                 openworld-keeper) u_ow_keeper ;;
                 openworld-cache) u_ow_cache ;;
@@ -390,9 +435,9 @@ run_unit() {
 # last is short and the run does not wait on one long case at the end.
 all_units() {
     echo openworld-save checkisle openworld-foes openworld-fight \
-        openworld-recolour
+        openworld-spoils openworld-recolour
     for g in tests/golden/*.txt; do basename "$g" .txt; done
-    echo openworld-portrait openworld-quaff openworld-keeper openworld-cache \
+    echo openworld-portrait openworld-quaff openworld-dig openworld-keeper openworld-cache \
         openworld-roads owarena-arrow-ul checkmap
 }
 

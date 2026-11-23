@@ -59,8 +59,8 @@ static const unsigned char w_from[WANDERERS] = {
 };
 
 /* foes.s has the game block's monsters at these. */
-typedef char foes_s_has_foe_a_at_cecf[
-    2 * (OWG_ADDR + offsetof(OwGame, foe_a) == 0xCECF) - 1];
+typedef char foes_s_has_foe_a_at_cec7[
+    2 * (OWG_ADDR + offsetof(OwGame, foe_a) == 0xCEC7) - 1];
 typedef char foes_s_has_foe_b_after[
     2 * (offsetof(OwGame, foe_b) == offsetof(OwGame, foe_a) + 24) - 1];
 

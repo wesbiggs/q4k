@@ -41,12 +41,12 @@
         .export _st_tchests
         .importzp ptr1, ptr2
 
-G_COUNT   = $CE3F + 86          ; the game block's party_count (engine.c
-G_GOLD    = $CE3F + 90
-G_TURN    = $CE3F + 92          ; checks these)
-G_POTIONS = $CE3F + 94
-G_ARROWS  = $CE3F + 95
-G_QUIET   = $CE3F + 138
+G_COUNT   = $CE37 + 86          ; the game block's party_count (engine.c
+G_GOLD    = $CE37 + 90
+G_TURN    = $CE37 + 92          ; checks these)
+G_POTIONS = $CE37 + 94
+G_ARROWS  = $CE37 + 95
+G_QUIET   = $CE37 + 138
 OWG_HIDE  = 8
 OWB_LOAD  = 8
 MAPROWS   = 22                  ; smooth.s's: the map with the window ...

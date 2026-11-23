@@ -147,7 +147,7 @@ unsigned char has(unsigned char item)
 typedef char owgame_is_what_mkowsave_writes[2 * (sizeof(OwGame) == OWG_SIZE) - 1];
 typedef char owgame_fits_below_the_probe[2 * (OWG_ADDR + OWG_SIZE <= 0xCF00) - 1];
 /* stlow.s has these by number. */
-typedef char st_g[2 * (OWG_ADDR == 0xCE3F) - 1];
+typedef char st_g[2 * (OWG_ADDR == 0xCE37) - 1];
 typedef char st_count[2 * (offsetof(OwGame, party_count) == 86) - 1];
 typedef char st_gold[2 * (offsetof(OwGame, gold) == 90) - 1];
 typedef char st_turn[2 * (offsetof(OwGame, game_turn) == 92) - 1];
@@ -210,6 +210,8 @@ unsigned char enc_always = 0;   /* for tests: 1, every roll is a fight (and
                                    monsters, calm or not; 2, only that */
 unsigned char whole     = 0;    /* 1: a roof change redraws everything, for
                                    checking that the box it does is enough */
+unsigned char loot_always = 0;  /* for tests: OWF_LOOT (128), a fight won
+                                   leaves whatever it can (ow_fight.c) */
 
 /* What the screen is doing, for --peek. */
 unsigned char hx, hy;           /* the hero's square, as the engine has it:
@@ -515,7 +517,7 @@ const char owtalk[] = "owtalk";
 void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg)
 {
     OWB->mode = OWB_FIGHT;
-    OWB->arg  = kind;
+    OWB->arg  = kind | loot_always;
     OWB->npc  = arg;
     ow_leave(owtown);
 }

@@ -7,7 +7,8 @@
  * tiers of it by land; the apothecary sells draughts and the magic shop
  * robes and spellbooks. What is bought goes to whoever in the party it would
  * be better for -- asked, when that is more than one of them -- and so does
- * what a beaten monster drops. The party screen (I) is here too, and the
+ * what a beaten monster drops (gear_drop(), for the open world's spoils:
+ * src/lib/ow_tmap.c). The party screen (I) is here too, and the
  * help screen (help.c).
  */
 
@@ -136,9 +137,9 @@ static unsigned char item(unsigned char row)
  *
  * A thing is offered to the party: whoever it would be of use to. With one
  * such, they take it; with more, the player is asked, on the shop's note
- * rows or, on the map, in the log. */
+ * rows or, for what a monster left, the spoils' (gear_drop()). */
 
-static unsigned char on_map;      /* asking in the log, not the note rows */
+static unsigned char ask_y = NOTE_Y;    /* the two rows asking who takes it */
 static unsigned char can[MAX_PARTY];
 static unsigned char taker;       /* who the last offer() went to, or NONE */
 static unsigned char handed;      /* who took what they had instead, or NONE */
@@ -150,13 +151,9 @@ static char          book_text[14];
 
 static void ask_line(unsigned char row, const char *petscii)
 {
-    if (on_map) {
-        view_message(petscii);
-    } else {
-        cclearxy(0, NOTE_Y + row, SCR_W);
-        textcolor(COLOR_YELLOW);
-        cputsxy(0, NOTE_Y + row, petscii);
-    }
+    cclearxy(0, ask_y + row, SCR_W);
+    textcolor(COLOR_YELLOW);
+    cputsxy(0, ask_y + row, petscii);
 }
 
 /* Of those can[] marks, which takes `what`: their index, or NONE if there
@@ -271,36 +268,42 @@ static void fair_trade(void)
 }
 
 /* One beaten monster in this many that carries anything leaves a blade, mail
-   or a bow of what this land's shops sell. Not constant, so that a test can
-   pin it with --poke gear_odds=1. */
+   or a bow of what this land's shops sell (the roll is ow_fight.c's). Not
+   constant, so that a test can pin it with --poke gear_odds=1. */
 unsigned char gear_odds = 12;
 
-/* What gear_drop() used to do once its roll had come up, which the map now
-   makes before loading this engine (fightcall.c). */
-static void gear_give(void)
+/* What a beaten monster left (shop.h): `r` a roll, for which of the three
+   and which tier. */
+unsigned char __fastcall__ gear_drop(unsigned char r, unsigned char y)
 {
-    unsigned char k, pick, who;
+    unsigned char k = r % 3, pick, who, i;
 
-    k = (unsigned char)(rand() % 3);
     stock(k == 2 ? SHOP_BOW : k);
-    pick = lo + (unsigned char)(rand() % (hi - lo + 1));
-    on_map = 1;
+    pick = lo + (unsigned char)((r >> 2) % (hi - lo + 1));
+    ask_y = y;
     who = offer(pick);
-    on_map = 0;
+    ask_y = NOTE_Y;
+    cclearxy(0, y, SCR_W);
+    cclearxy(0, y + 1, SCR_W);
+    gotoxy(1, y);
+    textcolor(COLOR_LIGHTGREEN);
     if (who != NONE) {
-        strcpy(line, party[who].name);
-        strcat(line, " takes up its ");
-        strcat(line, names[pick]);
-        strcat(line, "!");
+        cputs(party[who].name);
+        cputs(" takes up its ");
+        cputs(names[pick]);
+        cputs("!");
+        if (handed != NONE) {
+            cputsxy(1, y + 1, handed_line());
+        }
     } else {
-        strcpy(line, "Its ");
-        strcat(line, names[pick]);
-        strcat(line, " is no use to you.");
+        for (i = 0; i < party_count && !can[i]; ++i) {
+        }
+        textcolor(COLOR_GRAY3);
+        cputs(i < party_count ? "You leave its " : "Its ");
+        cputs(names[pick]);
+        cputs(i < party_count ? "." : " is no use to you.");
     }
-    view_message(line);
-    if (who != NONE && handed != NONE) {
-        view_message(handed_line());
-    }
+    return y + 3;
 }
 
 /* --- the shop ------------------------------------------------------------ */
@@ -747,7 +750,6 @@ static unsigned char party_screen(void)
 unsigned char shop_entry(void)
 {
     switch (eng_a) {
-        case SHOP_GEAR:  gear_give();          break;
         case SHOP_HELP:  help_screen();        break;
         case SHOP_PARTY: return party_screen();
         default:         shop_open(eng_a);     break;

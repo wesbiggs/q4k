@@ -19,6 +19,10 @@
  *   OWB_FIGHT           a fight (src/lib/ow_fight.c, with the multicolour
  *                       fight module, which loads over this program's code
  *                       above $4000: what runs after it is below)
+ *   OWB_SPOILS          what a fight won left behind, arms or a treasure
+ *                       map (src/lib/ow_tmap.c): this program again, loaded
+ *                       by itself after the fight (ow_back()), since the
+ *                       shop's code that hands arms out was under the module
  *
  * The music the engine was playing carries on here where it paused
  * (src/lib/ow_play.s); a fight plays its own scene's (ow_fight.c's
@@ -50,6 +54,7 @@
 #include <q4k/ow.h>
 #include <q4k/owfig.h>
 #include <q4k/owgame.h>
+#include <q4k/owtmap.h>
 #include <q4k/help.h>
 #include <q4k/shop.h>
 #include <q4k/tiles.h>
@@ -68,7 +73,8 @@ extern unsigned char owt_nowait;    /* the pause need not wait for VICE */
    it: their class, idling between its two frames (assets/monsters.txt,
    tools/figures.py), doubled, in their colours from the game block. The
    cursor keys go left and right through the party; 1-3 puts the member
-   shown in that place (the first leads, and is the hero on the map); T
+   shown in that place (the first leads, and is the hero on the map); M
+   lists the treasure maps carried (src/lib/ow_tmap.c); T
    steps their clothes' colour on (all but black, the outline; SHIFT+T
    back), P their pronouns (both are kept in the game block, so the engine
    and a save have them), S prepares a wizard's spells; RUN/STOP goes back
@@ -127,6 +133,7 @@ static void page(unsigned char who)
     if (party_spells(who) > 1) {
         hint(22, "S  Prepare spells");
     }
+    hint(23, "M  Treasure maps");
     hint(24, "RUN/STOP  Back to the game");
 }
 
@@ -145,6 +152,9 @@ static void party_look(void)
                 pronouns(who);
             } else if (k == 't') {
                 fig_step(who, 0, key & 0x80);
+            } else if (k == 'm') {
+                tmap_list();
+                break;
             } else if (key == K_STOP || key == K_CRSR_RIGHT
                        || key == K_CRSR_LEFT
                        || (k == 's' && party_spells(who) > 1)
@@ -155,7 +165,9 @@ static void party_look(void)
         if (key == K_STOP) {
             break;
         }
-        if (key == K_CRSR_RIGHT) {
+        if (k == 'm') {
+            /* (the page again) */
+        } else if (key == K_CRSR_RIGHT) {
             who = who + 1 == party_count ? 0 : who + 1;
         } else if (key == K_CRSR_LEFT) {
             who = who ? who - 1 : party_count - 1;
@@ -196,8 +208,8 @@ static void help(void)
     cputsxy(3, 5, "Walk into people to talk or trade");
     cputsxy(3, 6, "Step onto a ship, a town, a dungeon");
     cputsxy(3, 8, "P  The worst hurt drinks a draught");
-    cputsxy(3, 9, "L  Look: a chest, something hidden");
-    cputsxy(3, 10, "I  The party, what they carry");
+    cputsxy(3, 9, "L  Look: a chest, dig for treasure");
+    cputsxy(3, 10, "I  The party, their gear, maps");
     cputsxy(3, 11, "F1 Save          F3 Restore");
     cputsxy(3, 12, "M  Music   SHIFT+M  Effects");
     cputsxy(3, 13, "?  This screen    SPACE  Party lines");
@@ -217,7 +229,7 @@ int main(void)
 {
     unsigned char mode = OWB->mode;
 
-    if (mode < OWB_SHOP || mode > OWB_HELP ||
+    if (mode < OWB_SHOP || mode > OWB_SPOILS ||
         mode == OWB_LOAD) {     /* (a conversation is owtalk's) */
         cputs("Load OPENWORLD: it builds the world.");
         for (;;) {
@@ -239,7 +251,8 @@ int main(void)
     /* rand() starts from the same seed in every program, so every visit
        would hear the same greeting and the same rumour: the game's turn
        and seed make it another one each time, and the same in a test. */
-    srand(game_turn ^ ((unsigned int)lore_seed << 8));
+    srand(game_turn ^ ((unsigned int)lore_seed << 8)
+          ^ (mode == OWB_SPOILS ? OWB->npc : 0));
     land = G->land;             /* the shops' tiers, a made town's inn */
     if (mode != OWB_FIGHT) {    /* (the fight module plays its own) */
         owt_music_on();
@@ -263,8 +276,14 @@ int main(void)
     case OWB_HELP:
         help();
         break;
+    case OWB_SPOILS:            /* what the fight just won left */
+        ow_spoils();
+        OWB->mode = OWB_BACK;   /* (and then the engine) */
+        break;
     }
-    owt_nowait = ow_cached("ow-data");  /* (no drive: no wait) */
+    /* (no drive: no wait) back to the engine, or to this program again
+       for a fight's spoils (OWB_SPOILS, which ow_fight() sets) */
+    owt_nowait = ow_cached(OWB->mode == OWB_SPOILS ? "owtown" : "ow-data");
     owt_music_off();            /* paused, for the engine to carry on with */
     owg_out();
     ow_back();                  /* the engine, which carries on from the
