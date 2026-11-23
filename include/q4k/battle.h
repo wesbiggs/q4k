@@ -126,6 +126,10 @@ extern const Monster       maldrath;
    three to a row in two rows, so six is all it has room for. */
 #define MAX_FOES 6
 
+/* `name` (the bestiary's, with its article) for `n` of it, into `out`:
+   "A goblin" for one, "5 goblins" for five (src/lib/foes_name.s). */
+void __fastcall__ foes_name(char *out, const char *name, unsigned char n);
+
 /* True if crossing `tile` should bring something out of the scenery. */
 unsigned char encounter_roll(unsigned char tile);
 
