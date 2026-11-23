@@ -607,6 +607,9 @@ $(TALK_STAMP): assets/talk.txt assets/hints.json tools/mktalk.py \
 run: all
 	tools/run.sh $(DIST)/$(PROG).$(if $(filter openworld,$(PROG)),d81,d64)
 
+run-reu: all
+	tools/run.sh $(DIST)/$(PROG).$(if $(filter openworld,$(PROG)),d81,d64) -reu -reusize 512
+
 # Play-test one town of assets/towns.txt (TOWN=its id, or gen for the town
 # the game makes on home), from a copy of the disk whose saved game is a
 # lone warrior inside it, at the map's $ or at AT=x,y: press F3 at the

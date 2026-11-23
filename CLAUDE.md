@@ -104,7 +104,11 @@ cfg:
   turned off and its vector is read from RAM under the KERNAL too, so
   `vault_enter` (and the music, which plays with the KERNAL out) points it
   at `vault_nmi`, which banks the KERNAL in, runs its handler and banks it
-  out again.
+  out again. **Write that vector with the KERNAL in** (the writes reach the
+  RAM under it, and meanwhile an NMI goes through the ROM's): written with
+  it out, an NMI between its two bytes (the engine's corners, at any time)
+  jumps through half of each. That hung the way back from a fight, through
+  `owc_xfer`'s low byte and `vault_nmi`'s high, into a JAM.
 - **The probe page**, `$CF00-$CFFF`, is every cfg's, for the test harness
   (`include/q4k/probe.h`): don't place data there. Above what the probe uses,
   `$CF14` on is the disk icon's (below) in the engines, and `BSS2` in the
