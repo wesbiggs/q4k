@@ -22,4 +22,7 @@ unsigned char vault_tile(unsigned char x, unsigned char y);
 void          vault_park(unsigned char slot);
 void          vault_unpark(unsigned char slot);
 
+/* One byte of the RAM under the ROMs, at addr (vault_peek.s). */
+unsigned char __fastcall__ vault_peek(unsigned int addr);
+
 #endif /* Q4K_VAULT_H */

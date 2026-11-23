@@ -60,7 +60,7 @@ and you start at Millford's gate.
 | cursor keys, `WASD`, a joystick in port 2 | walk |
 | `Q` `E` `Z` `X`, or the stick's diagonals | walk diagonally |
 | `L` | look where you stand, and take anything hidden there |
-| `I` | the party, one at a time, and what each carries; cursor left and right for the next, `1`-`3` to put the one shown in that place (the first leads), `T` their tunic's colour (SHIFT+`T` back), `P` their pronouns, `S` to prepare a wizard's spells; RUN/STOP goes back to the game |
+| `I` | the party, one at a time, and what each carries; cursor left and right for the next, `1`-`3` to put the one shown in that place (the first leads), `T` their tunic's colour (SHIFT+`T` back), `P` their pronouns, `S` to prepare a wizard's spells, `M` the treasure maps you carry; RUN/STOP goes back to the game |
 | `P` | the worst hurt of the party drinks a healing draught |
 | `SPACE` | hide the two lines of text under the map, for a bigger map |
 | `F1` / `F3` | save / restore (each asks `Y` first) |
@@ -131,6 +131,11 @@ purse. A monster that comes alone -- a keeper, Maldrath, a lone wanderer --
 is a match for a party: it has more health and hits harder for each of you
 past the first, and moves between your turns.
 
+A foe beaten may leave something behind: what goes armed now and then drops
+a blade, mail or a bow, which goes to whoever in the party it is better for;
+and out on the land, now and then a treasure map, which says where on that
+land something is buried. Stand on the spot and press `L` to dig it up.
+
 ## The world
 
 Nothing is in the same place twice: the lands are made from the game's seed,
@@ -155,8 +160,7 @@ swamp, the desert, or mountains -- and has a town of its own as well.
 
 ## Not yet
 
-Beaten monsters drop no gear or treasure maps yet, and a flight pays nothing
-for the foes killed before it.
+A flight pays nothing for the foes killed before it.
 
 ## Contributing
 

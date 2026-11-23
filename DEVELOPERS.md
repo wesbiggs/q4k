@@ -164,7 +164,7 @@ shopping trip is a decision rather than small change.
 
 ## Saved games
 
-F1 in the engine saves the game block (`include/q4k/owgame.h`, 193 bytes) to
+F1 in the engine saves the game block (`include/q4k/owgame.h`, 201 bytes) to
 `OW-SAVE` on the disk, and F3 restores it through the bootstrap, which builds
 that game's world first. The disk comes with a save of its own
 (`tools/mkowsave.py`). Nothing of the map is stored: the lands are rebuilt

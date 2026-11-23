@@ -495,6 +495,7 @@ void ow_new_game(unsigned char quick)
     }
     G->foe_made = 0;
     G->fled     = 0;
+    memset(G->tmap, 0, sizeof G->tmap);     /* no treasure maps */
     G->magic    = OWG_MAGIC;
     if (!quick) {
         save_new();

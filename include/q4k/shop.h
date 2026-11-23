@@ -16,11 +16,14 @@ unsigned int potion_price(void);
 void shop_open(unsigned char kind);
 
 /* After a fight won against something that carries arms: now and then it
-   leaves a blade, mail or a bow, of the tiers this land's shops sell, and
-   the hero takes it up if it is better than what they have. Says which.
-   One in gear_odds does: the roll is made by fightcall.c, which loads the
-   shop's engine (shop_entry() with SHOP_GEAR: engine.h) when it comes up. */
+   leaves a blade, mail or a bow, of the tiers this land's shops sell (one
+   in gear_odds: the roll is ow_fight.c's), and whoever in the party it
+   would be better for takes it up, asked if that is more than one of them.
+   gear_drop() says so from row y (the asking there too), `r` a roll for
+   which of the three and which tier, and returns the row after; for the
+   open world's spoils (src/lib/ow_tmap.c). */
 extern unsigned char gear_odds;
+unsigned char __fastcall__ gear_drop(unsigned char r, unsigned char y);
 
 /* The party screen's parts (I), for the open world's own (src/owtown.c),
    which shows one member at a time with their figure. The game's own is

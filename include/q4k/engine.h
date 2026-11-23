@@ -24,10 +24,9 @@ extern char          eng_text[41];
 #define TALK_INN  1
 unsigned char talk_entry(void);
 
-/* The shop: eng_a is the kind (SHOP_*), or SHOP_GEAR to take up what a
-   beaten monster dropped. The same entry holds the screens that are not a
-   place: the help screen (SHOP_HELP) and the party's (SHOP_PARTY). */
-#define SHOP_GEAR  0xFF
+/* The shop: eng_a is the kind (SHOP_*). The same entry holds the screens
+   that are not a place: the help screen (SHOP_HELP) and the party's
+   (SHOP_PARTY). (What a beaten monster drops is shop.h's gear_drop().) */
 #define SHOP_HELP  0xFE
 #define SHOP_PARTY 0xFD
 unsigned char shop_entry(void);

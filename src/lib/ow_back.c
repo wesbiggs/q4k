@@ -7,6 +7,10 @@
  * be loaded over, which is how the engine expects to find it, and the
  * engine is loaded. It carries on from the game block (owgame.h): a program
  * that changed the game has put it back there (owg_out()) first.
+ *
+ * Or, after a fight won that left something (OWB_SPOILS, which ow_fight.c
+ * sets), owtown again instead, for the spoils: the fight module was loaded
+ * over the shop's code that hands them out.
  */
 
 #include <cbm.h>
@@ -36,11 +40,13 @@ void ow_back(void)
        again now would break it too. */
     POKEW(0x0328, (unsigned)nostop);
 
-    OWB->mode = OWB_BACK;
-    /* Where OW-DATA was: the tile sets and the towns' maps. */
-    while (!ow_cload("ow-data", 0)) {
-        cputs("Put the disk back and press a key.\r\n");
-        cgetc();
+    if (OWB->mode != OWB_SPOILS) {
+        OWB->mode = OWB_BACK;
+        /* Where OW-DATA was: the tile sets and the towns' maps. */
+        while (!ow_cload("ow-data", 0)) {
+            cputs("Put the disk back and press a key.\r\n");
+            cgetc();
+        }
     }
     POKEW(0x0314, 0xEA31);      /* the KERNAL's interrupt again */
     VIC.imr = 0;
@@ -54,5 +60,6 @@ void ow_back(void)
        and turns the screen on only once its area is drawn. */
     VIC.bordercolor = COLOR_BLACK;
     VIC.bgcolor0 = COLOR_BLACK;
-    ow_run(OW->reu == OW_REU_OK ? "ow-reu" : "ow-cpu");
+    ow_run(OWB->mode == OWB_SPOILS ? "owtown"
+           : OW->reu == OW_REU_OK ? "ow-reu" : "ow-cpu");
 }
