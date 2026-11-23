@@ -37,6 +37,10 @@
 
 ZP_N    = 18                    ; sreg, regsave, ptr1-4, tmp1-4
 GEN_SP  = $7F                   ; the thread's stack is $0100-$017F
+SPLIT0  = $D6                   ; gen_run() starts nothing from here (a few
+SPLIT1  = $E6                   ; lines before smooth.s's SPLITLINE, $DC) to
+                                ; the text's interrupt (TEXTLINE, $E4) and
+                                ; the line it waits for to pass ($E5)
 
         .segment "BSS"
 _gen_state: .res 1              ; 0 nothing, 1 building, 3 copying into the
@@ -76,7 +80,12 @@ _gen_run:
         lda     _gen_state
         lsr     a
         bcc     back
-        sei
+        lda     $D012           ; nothing now if the text window's split is
+        cmp     #SPLIT0         ; near (smooth.s): the switch below keeps
+        bcc     :+              ; interrupts off for four lines, which held
+        cmp     #SPLIT1         ; the text's interrupt back past where it
+        bcc     back            ; works, and a raster line of the map showed
+:       sei                     ; over the text (the callers come again)
         cpx     _sm_frame
         bne     unlock
         tsx
