@@ -294,7 +294,8 @@ static unsigned char fight_with(unsigned char n)
     for (i = 0; i < party_count; ++i) {
         f->tunic[i] = tunic(party[i].name);
     }
-    strcpy(f->name, m->name);
+    strcpy(f->name, strlen(m->name) < FIGHT_NAME ? m->name
+                    : m->name + 4);     /* without its "The " (ow_fight.c) */
     f->hp     = m->hp;
     f->atk    = m->atk;
     f->def    = m->def;

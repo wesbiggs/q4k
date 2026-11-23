@@ -65,8 +65,13 @@ static const char *const prize_names[NUM_DUNGEONS] = {
 
 static void pick(const Monster *m, unsigned char n)
 {
+    const char *name = m->name;
+
     foe = *m;
-    strncpy(foe_name, m->name, FIGHT_NAME - 1);
+    if (strlen(name) >= FIGHT_NAME) {
+        name += 4;              /* "The Drowned King": too long with "The " */
+    }
+    strcpy(foe_name, name);
     foes = n;
 }
 

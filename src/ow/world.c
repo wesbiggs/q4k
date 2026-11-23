@@ -133,6 +133,16 @@ static void settle(void)
     }
 }
 
+/* Start continent d's build, its story place a town or a dungeon as the
+   bootstrap built it (openworld.c): left alone, isle_story is 0 and the
+   Drowned Stair and Blackpit come out as towns. */
+static void build(unsigned char d)
+{
+    want = d;
+    isle_story = OW->slot[d] & 1;
+    gen_start(d);
+}
+
 /* After a step: the nearest continent on its way into the slot, unless it
    is there or coming. (Not while one is being copied in: the next step
    asks again.) */
@@ -142,8 +152,7 @@ static void seek(void)
 
     settle();
     if (d != kept && gen_state != 3 && !(gen_state == 1 && want == d)) {
-        want = d;
-        gen_start(d);
+        build(d);
     }
 }
 
@@ -157,8 +166,7 @@ static void need_isle(unsigned char d)
                 return;
             }
             if (gen_state != 1 || want != d) {
-                want = d;
-                gen_start(d);
+                build(d);
             }
         }
         gen_run(sm_frame);
