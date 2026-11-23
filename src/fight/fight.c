@@ -2156,17 +2156,11 @@ static unsigned char fight(void)
 {
     unsigned char key, dir, nx, ny, dmg, spent, i;
 
-    strcpy(msg, fq_name);
-    strcat(msg, party_count > 1 ? " comes at the party!" : " comes at you!");
-    say(msg);
-    if (foes > 1) {
-        strcpy(msg, "And ");
-        cat_num(foes - 1);
-        strcat(msg, " more!");
-        say(msg);
-    }
-    cat3("Walk into ", p_obj[foes_pron()],
-         fq_flee ? " to strike. Flee by a side." : " to strike.");
+    /* "A goblin comes at you!", "5 goblins come at the party!" How to
+       strike and flee is the help's (?). */
+    foes_name(msg, fq_name, foes);
+    strcat(msg, foes > 1 ? " come at " : " comes at ");
+    strcat(msg, party_count > 1 ? "the party!" : "you!");
     say(msg);
 
     for (;;) {
