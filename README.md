@@ -59,6 +59,7 @@ and you start at Millford's gate.
 |---|---|
 | cursor keys, `WASD`, a joystick in port 2 | walk |
 | `Q` `E` `Z` `X`, or the stick's diagonals | walk diagonally |
+| `+` / `-`, or the stick's button | go into the town or dungeon you stand on; down / up a dungeon's stairs |
 | `L` | look where you stand, and take anything hidden there |
 | `I` | the party, one at a time, and what each carries; cursor left and right for the next, `1`-`3` to put the one shown in that place (the first leads), `T` their tunic's colour (SHIFT+`T` back), `P` their pronouns, `S` to prepare a wizard's spells, `M` the treasure maps you carry; RUN/STOP goes back to the game |
 | `P` | the worst hurt of the party drinks a healing draught |
@@ -145,9 +146,12 @@ Keldmarch is in the middle of a sea that wraps round both ways, with a
 continent across the water to each side of it. Roads join its towns, the
 castle and its four ports.
 
-Step onto a town, the castle or a dungeon to go in. In a town a building you
-are not in shows only its roof, which comes off as you step in at the door. A
-dungeon's stairs go down and up; up from the first level is out. Underground
+Step onto a town, the castle or a dungeon and its name is shown; press `+`
+(or the stick's button) to go in. In a town a building you are not in shows
+only its roof, which comes off as you step in at the door; walk out at any
+edge. In a dungeon `+` goes down the stairs and `-` up them (the button
+whichever they are); up from the first level is out, and you are back on the
+dungeon's square. Underground
 you see the room you stand in, the squares round you and straight along the
 corridors; the rest is dark until you have been near it, and stays on the map
 once you have, for every level, until you leave the dungeon. A monster you

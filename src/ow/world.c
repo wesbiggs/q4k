@@ -16,7 +16,9 @@
 #include <peekpoke.h>
 #include <string.h>
 
+#include <q4k/dungeon.h>
 #include <q4k/isle.h>
+#include <q4k/names_data.h>
 #include <q4k/music.h>
 #include <q4k/music_map.h>
 #include <q4k/ow.h>
@@ -754,27 +756,53 @@ static void __fastcall__ wander(unsigned char tile)
     }
 }
 
-void w_arrived(void)
-{
-    unsigned char t, i, k, lx, ly, d;
+/* The place on the hero's square, if any: its name, with what it is
+   (PK_TOWN or PK_DUNGEON) in pk and which in pa. Home's places are, in
+   isle_fx's order, Millford, the castle, the Hollow Crown, Maldrath's
+   lair (which is the dragon, and not here) and a town of its own; a
+   continent's its story place (a town or a dungeon, by the seed's
+   shuffle), then its own town. The names are the overlay's own copies:
+   the towns' and the dungeons' are in their overlays. */
+#define PK_TOWN    1
+#define PK_DUNGEON 2
+static unsigned char pk, pa;
 
-    step_world();
-    t = tile_at(hx, hy);
-    if (t == T_LAIR && grid[wy >> 6][wx >> 6] == CELL_HOME) {
-        /* Maldrath: with Dragonbane, until he is banished. */
-        if (quest_stage < Q_VICTORY) {
-            if (items & IT_BLADE) {
-                ow_fight_with(OWF_DRAGON, 0);
-            }
-            refuse(the_heat);   /* the heat drives you back */
-        }
-        return;
-    }
+#pragma rodata-name (push, "OVWCODE")
+static const char pn_mill[]  = "Millford";
+static const char pn_cast[]  = "Castle Matheson";
+static const char pn_ward[]  = "Wardlow";
+static const char pn_ash[]   = "Ashcombe";
+static const char pn_crown[] = "The Hollow Crown";
+static const char pn_stair[] = "The Drowned Stair";
+static const char pn_pit[]   = "Blackpit";
+static const char pg0[] = "Harrowby";
+static const char pg1[] = "Thistledown";
+static const char pg2[] = "Marrow Ford";
+static const char pg3[] = "Oldcombe";
+static const char pg4[] = "Saltmere";
+static const char pg5[] = "Greywick";
+static const char pg6[] = "Fenhallow";
+static const char pg7[] = "Stonebridge";
+/* names_data.h's TOWN_NAMES, which town_gen_name() picks from */
+static const char *const pn_gen[TOWN_COUNT] = {
+    pg0, pg1, pg2, pg3, pg4, pg5, pg6, pg7
+};
+static const char *const pn_town[NUM_TOWNS] = {
+    pn_mill, pn_cast, pn_ward, pn_ash
+};
+static const char *const pn_dun[NUM_DUNGEONS] = {
+    pn_crown, pn_stair, pn_pit
+};
+static const char to_enter[] = " (+ to enter)";
+#pragma rodata-name (pop)
+
+static const char *place_here(void)
+{
+    unsigned char i, k, lx, ly, d, t = tile_at(hx, hy);
+
+    pk = 0;
     if (t != T_TOWN && t != T_CASTLE && t != T_DUNGEON) {
-        if (!boat) {
-            wander(t);
-        }
-        return;
+        return 0;
     }
     k = grid[wy >> 6][wx >> 6];
     lx = wx & 63;
@@ -787,14 +815,12 @@ void w_arrived(void)
         }
         land = ISLE_HOME;
         switch (i) {
-        case 0: to_town(TOWN_MILLFORD); break;
-        case 1: to_town(TOWN_CASTLE);   break;
-        case 2: to_dungeon_if(0);       break;
-        case 4: to_town(TOWN_PROC);     break;
+        case 0: pk = PK_TOWN; pa = TOWN_MILLFORD; break;
+        case 1: pk = PK_TOWN; pa = TOWN_CASTLE;   break;
+        case 2: pk = PK_DUNGEON; pa = 0;          break;
+        case 4: pk = PK_TOWN; pa = TOWN_PROC;     break;
         }
     } else if (k) {
-        /* A continent's: its story place (a town or a dungeon, by the
-           seed's shuffle), or its own town. */
         k -= 1;
         ly -= ISLE_TOP;
         for (i = 0; i < 2; ++i) {
@@ -807,12 +833,63 @@ void w_arrived(void)
         if (i == 0) {
             d = OW->slot[k];  /* which story place */
             if (d & 1) {
-                to_dungeon_if(1 + (d >> 1));
+                pk = PK_DUNGEON; pa = 1 + (d >> 1);
             } else {
-                to_town(TOWN_WARDLOW + (d >> 1));
+                pk = PK_TOWN; pa = TOWN_WARDLOW + (d >> 1);
             }
         } else if (i == 1) {
-            to_town(TOWN_PROC);
+            pk = PK_TOWN; pa = TOWN_PROC;
+        }
+    }
+    if (pk == PK_DUNGEON) {
+        return pn_dun[pa];
+    }
+    if (pk == PK_TOWN) {
+        return pa < NUM_TOWNS ? pn_town[pa]
+             : pn_gen[(lore_seed + TOWN_STRIDE * land) & (TOWN_COUNT - 1)];
+    }
+    return 0;
+}
+
+/* At the end of a step: whatever the square does. A place says its name
+   and waits for + (w_use()); Maldrath's lair is a fight at once. */
+void w_arrived(void)
+{
+    const char *name;
+
+    step_world();
+    if (tile_at(hx, hy) == T_LAIR && grid[wy >> 6][wx >> 6] == CELL_HOME) {
+        /* Maldrath: with Dragonbane, until he is banished. */
+        if (quest_stage < Q_VICTORY) {
+            if (items & IT_BLADE) {
+                ow_fight_with(OWF_DRAGON, 0);
+            }
+            refuse(the_heat);   /* the heat drives you back */
+        }
+        return;
+    }
+    name = place_here();
+    if (name) {
+        if (G->quiet & OWG_HIDE) {
+            return;             /* (a message would bring the window back) */
+        }
+        strcpy(said, name);
+        strcat(said, to_enter);
+        sm_ink = COLOR_WHITE;
+        sm_say(said);
+    } else if (!boat) {
+        wander(tile_at(hx, hy));
+    }
+}
+
+/* + (or fire, k 1): into the place on the hero's square. */
+void __fastcall__ w_use(unsigned char k)
+{
+    if (k != '-' && place_here()) {
+        if (pk == PK_TOWN) {
+            to_town(pa);
+        } else {
+            to_dungeon_if(pa);
         }
     }
 }

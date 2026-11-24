@@ -134,6 +134,12 @@ did not assemble, with nothing said (it hung at start with the stack
 pointer past its top). Those are now `cc65` and `ca65` through
 `build/ow/NAME-cpu.s` and `-reu.s` (`OWPART` in the Makefile).
 
+**cc65 can get a chain of `&&` and `||` wrong.** `d_use()`'s first try,
+`k == '-' && t == DN || k == '+' && t == UP || t != UP && (...)`, compiled
+to a `beq`/`bne` pair to the same label, so `+` on the stairs down did
+nothing. Spell such tests out as nested `if`s, and read the `.s`
+(`build/ow/NAME-cpu.s`) when a condition misbehaves.
+
 **Screen codes are not ASCII and not PETSCII.** They index the active charset.
 The screens of text run the lowercase/mixed set (`VIC.addr = 0x17`, i.e.
 `$D018 = $17`) because cc65's `conio` emits codes for that set — leave it in the boot-default
@@ -560,7 +566,8 @@ window queue, the continent kept and so on are as they were left, and the
 REU's copy of the window is put back as before. The core calls an overlay
 only through the jump table at the start of the slot (`ovl.s`: `ov_enter`,
 `ov_can_step`, `ov_arrived`, `ov_bump`, `ov_after`, `ov_idle`, `ov_look`,
-and `ov_gen`, where a continent's build starts: the others' never run), and an
+`ov_gen`, where a continent's build starts: the others' never run, and
+`ov_use`, `+`, `-` or the stick's button: below), and an
 overlay asks for another by setting `ov_want` and returning, never by
 loading it itself (it would load over its own code). `tools/owslots.py` runs
 after each link and fails it if anything else calls into an overlay's code.
@@ -1195,7 +1202,14 @@ sand's art, and its edges took the room of the mountain pass and the
 bridge, which no land of the open world has (a square of either would draw
 as grass). Continents have no roads yet.
 **Places.** Stepping onto Millford, the castle, the Hollow Crown or home's
-generated town goes in, built the game's own way (`town_maps.c`'s maps,
+generated town says its name and "(+ to enter)" (`w_arrived()`, from
+`place_here()` in `world.c`, which has its own copies of the places' names:
+the towns' and dungeons' are in their overlays); `+` or the stick's button
+(`use()` in `engine.c`, from `typed()` or `fire`, then the overlay's
+`ov_use()`: `w_use()`, `d_use()`, nothing in a town) goes in, and the way
+out leaves the hero on the place's own square. A dungeon's stairs say which
+way they go, and `+` goes down, `-` up (`d_use()`; the button whichever they
+are). The tests type the `+` after the step onto the place. A place is built the game's own way (`town_maps.c`'s maps,
 `town_gen()`, `dungeon_build()`) into `local[]` and copied into `WORLD`, in a
 tile set of its own: `assets/town_tiles.txt`, `castle_tiles.txt`,
 `dungeon_tiles.txt` (sharing `common_tiles.txt`'s furniture, drawn `on
