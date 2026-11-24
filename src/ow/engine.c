@@ -40,6 +40,9 @@
  *                                                works, red if it would not
  *   F3                                           the saved game (back through
  *                                                the bootstrap, for its world)
+ *   + (or the stick's button)                    into the place underfoot,
+ *                                                or down a dungeon's stairs
+ *   - (or the button)                            up them (out from the first)
  *   L                                            look: a chest, the town's
  *                                                hidden gold, or the dead
  *   ?                                            the keys, and the quest
@@ -246,6 +249,8 @@ const unsigned char facing[8] = {
 
 static unsigned int camx0, camy0;   /* the camera when the step began */
 static unsigned char bumped;        /* 1 + the way last bumped, while held */
+static unsigned char wanted;        /* + or - typed, or 1 for the fire button */
+static unsigned char fired;         /* the fire button, last frame */
 
 /* The back screen's build, in three parts a frame apart (see sm_build):
    which is still to do. */
@@ -892,6 +897,10 @@ static unsigned char typed(void)
     case 'l':                   /* look (the overlay's) */
         st_look();
         break;
+    case '+':                   /* in, or down the stairs */
+    case '-':                   /* up them */
+        wanted = k;
+        break;
     case ' ':                   /* the party's status, hidden or shown */
         st_toggle();
         break;
@@ -927,6 +936,31 @@ static void publish(void)
     PROBE_SCRATCH[6] = area;
     PROBE_SCRATCH[7] = depth;
 }
+
+/* Standing still: + or - typed (typed()), or the fire button pressed, in
+   to the place underfoot or up or down the stairs (the overlay's ov_use()),
+   and then whatever the end of a step does after the overlay's part. */
+#pragma code-name (push, "HICODE")    /* (MAIN is full) */
+static void use(void)
+{
+    unsigned char f = ~PEEK(0xDC00) & 0x10;
+
+    if (f && !fired) {
+        wanted = 1;
+    }
+    fired = f;
+    if (wanted) {
+        st_step();              /* the status over what was said */
+        ov_use(wanted);
+        wanted = 0;
+        ov_switch();
+        if (entering) {
+            say_entering();
+        }
+        publish();
+    }
+}
+#pragma code-name (pop)
 
 /* The frame's camera, `moved` pixels into the step, and the screen
    flipped if that takes it into another character. Returns whether it
@@ -1266,6 +1300,7 @@ int main(void)
                 }
             } else {
                 bumped = 0;
+                use();
                 if (PEEK(0xC6) == 0 && steps != 0) {
                     probe_stage(2);
                 }

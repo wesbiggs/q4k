@@ -192,7 +192,7 @@ u_ow_save() {
 # question's row is white and the answer's light green, beside the PAL
 # portrait (cells 17 on: $4000 + 40 * row + 17), and the VIC is in bitmap
 # mode. Then RUN/STOP goes back to the engine, where she stood.
-PRINCESS='ddddddddddddssssdsssdsdddddddddddddddddddsssssddddddsdwwwwwwwwssdddddwwdwwwwawwdddw'
+PRINCESS='ddddddddddddssssdsssdsdddddddddddddddddddsssssddddddsd+wwwwwwwwssdddddwwdwwwwawwdddw'
 u_ow_portrait() {
     got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl --poke still=1 \
@@ -318,7 +318,7 @@ u_ow_dig() {
 }
 
 # Into the Hollow Crown from the quick start, for the dungeon's units.
-ow_enter=dddssssssssssssssssdsssssaasaaaaaaa
+ow_enter=dddssssssssssssssssdsssssaasaaaaaa+a
 
 # A dungeon's monsters (src/ow/dungeon.c), which the quick start's
 # OWG_CALM keeps out but enc_always=2 lets in: into the Hollow Crown and
@@ -352,7 +352,7 @@ u_ow_foes() {
 # is asked for (OWB: OWB_FIGHT, the dungeon, OWF_KEEPER). The keys come
 # from the levels' maps (dungeon_build() and the quick start's seed).
 u_ow_keeper() {
-    ow_down=aaaaaaaaaaaaaaaaaaaazssssssssssaaaaaaaaaaaaaaaaaaaaaaaazssssssss
+    ow_down=aaaaaaaaaaaaaaaaaaaazssssssssss+aaaaaaaaaaaaaaaaaaaaaaaazssssssss+
     ow_bump=dddddddewwwweeweddddddddddddddddxxxdddddewwwwwww
     got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl --poke still=1 --poke items=55 \

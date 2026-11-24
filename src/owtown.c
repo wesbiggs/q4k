@@ -206,7 +206,7 @@ static void help(void)
     cputsxy(3, 3, "W A S D, the cursor keys or a stick");
     cputsxy(3, 4, "Q E Z X  diagonally; 1 2  slow, fast");
     cputsxy(3, 5, "Walk into people to talk or trade");
-    cputsxy(3, 6, "Step onto a ship, a town, a dungeon");
+    cputsxy(3, 6, "+ or fire  go in or down;  -  go up");
     cputsxy(3, 8, "P  The worst hurt drinks a draught");
     cputsxy(3, 9, "L  Look: a chest, dig for treasure");
     cputsxy(3, 10, "I  The party, their gear, maps");

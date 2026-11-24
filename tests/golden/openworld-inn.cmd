@@ -1,1 +1,1 @@
-dist/openworld.prg --disk dist/openworld.d81 --fastdisk --splash quick --lbl build/ow-cpu.lbl --poke still=1 --keys dawwwwwddd --stage 2 --timeout 180
+dist/openworld.prg --disk dist/openworld.d81 --fastdisk --splash quick --lbl build/ow-cpu.lbl --poke still=1 --keys da+wwwwwddd --stage 2 --timeout 180

@@ -1,1 +1,1 @@
-dist/openworld.prg --disk dist/openworld.d81 --fastdisk --reucache --cpu-engine --splash quick --lbl build/ow-cpu.lbl --poke still=1 --poke quest_stage=0 --keys dawwwwwwwwwwwwwwwaaaaaawakkkkkkkkkkkkkkkkkkkk1\x03kkkkkkkkkkkkkkkkkkkksddddddsssssssssssssssddsds --stage 2 --timeout 300
+dist/openworld.prg --disk dist/openworld.d81 --fastdisk --reucache --cpu-engine --splash quick --lbl build/ow-cpu.lbl --poke still=1 --poke quest_stage=0 --keys da+wwwwwwwwwwwwwwwaaaaaawakkkkkkkkkkkkkkkkkkkk1\x03kkkkkkkkkkkkkkkkkkkksddddddsssssssssssssssddsds --stage 2 --timeout 300

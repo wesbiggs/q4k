@@ -378,19 +378,20 @@ void d_enter(void)
     dungeon_level(1);
 }
 
-/* At the end of a step: a monster that caught up, the stairs, down, up, or
-   out to the world's overlay from the first level; and the monsters' turn,
-   which ov_idle() takes in the frames after. */
+/* At the end of a step: a monster that caught up, or the stairs, which
+   say which way they go and wait for + or - (d_use()); and the monsters'
+   turn, which ov_idle() takes in the frames after. */
+static const char st_down[] = "Stairs down (+ to descend)";
+static const char st_up[]   = "Stairs up (- to climb)";
+static const char st_out[]  = "The way out (- to leave)";
+
 void d_arrived(void)
 {
     unsigned char t = tile_at(hx, hy);
 
     tx = hx;
     ty = hy;
-    if ((t != T_STAIRDN || depth >= dungeon_deep[dun_index])
-        && t != T_STAIRUP) {
-        fog_step();             /* (the stairs: the next level's own) */
-    }
+    fog_step();
     if (pending) {
         /* It reached the square the hero was leaving (a key held starts
            the next step before the monsters' turns): one more step after
@@ -402,25 +403,48 @@ void d_arrived(void)
         fog_foes();
         return;
     }
-    if ((t == T_STAIRDN && depth < dungeon_deep[dun_index])
-        || t == T_STAIRUP) {
-        memset(sm_npc_ox, 0, sizeof sm_npc_ox);  /* (a town's people are */
-        memset(sm_npc_oy, 0, sizeof sm_npc_oy);  /* never off their squares) */
-        leave_area();
-        if (t == T_STAIRDN) {
-            ++depth;
-            dungeon_level(1);
-        } else if (depth == 1) {
-            sm_npc_n = 0;
-            ov_want = OV_WORLD;
-        } else {
-            --depth;
-            dungeon_level(0);
-        }
-        return;
+    if (G->quiet & OWG_HIDE) {
+        /* (said nothing: it would bring the window back) */
+    } else if (t == T_STAIRDN && depth < dungeon_deep[dun_index]) {
+        sm_say(st_down);
+    } else if (t == T_STAIRUP) {
+        sm_say(depth == 1 ? st_out : st_up);
     }
     if (think >= FOES) {
         think = 0;              /* (one still going carries on) */
+    }
+}
+
+/* + down the stairs, - up them (or out to the world's overlay from the
+   first level); fire (k 1) whichever they are. Not while a monster is
+   coming for a fight. */
+void __fastcall__ d_use(unsigned char k)
+{
+    unsigned char t = tile_at(hx, hy);
+
+    if (pending) {
+        return;
+    }
+    if (t == T_STAIRUP) {
+        if (k == '+') {
+            return;
+        }
+    } else if (t != T_STAIRDN || depth >= dungeon_deep[dun_index]
+               || k == '-') {
+        return;
+    }
+    memset(sm_npc_ox, 0, sizeof sm_npc_ox);  /* (a town's people are */
+    memset(sm_npc_oy, 0, sizeof sm_npc_oy);  /* never off their squares) */
+    leave_area();
+    if (t == T_STAIRDN) {
+        ++depth;
+        dungeon_level(1);
+    } else if (depth == 1) {
+        sm_npc_n = 0;
+        ov_want = OV_WORLD;
+    } else {
+        --depth;
+        dungeon_level(0);
     }
 }
 

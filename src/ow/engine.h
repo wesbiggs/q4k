@@ -215,6 +215,8 @@ void __fastcall__ ov_bump(unsigned char d);  /* a step that could not be */
 void ov_after(void);            /* the frame after a step (after != 0) */
 void ov_idle(void);             /* what is left of a frame (every frame) */
 void ov_look(void);             /* L: what is on the hero's square */
+void __fastcall__ ov_use(unsigned char k);  /* + or -, or fire (1): in,
+                                   down the stairs or up them */
 
 /* --- stlow.s, in OWLO (the engine's file, below $0801) ------------------- */
 

@@ -11,7 +11,7 @@
 ;
 
         .export _ov_enter, _ov_can_step, _ov_arrived, _ov_bump, _ov_after
-        .export _ov_idle, _ov_look, _ov_gen
+        .export _ov_idle, _ov_look, _ov_gen, _ov_use
         .import __SLOTW_START__, __SLOTT_START__, __SLOTD_START__
         .assert __SLOTW_START__ = __SLOTT_START__, lderror, "ovl: the overlays must share the slot"
         .assert __SLOTW_START__ = __SLOTD_START__, lderror, "ovl: the overlays must share the slot"
@@ -20,6 +20,7 @@
         .import _t_enter, _t_arrived, _t_bump, _t_can_step, _t_idle
         .import _w_bump, _w_look, _t_look, _d_look, _w_gen
         .import _d_enter, _d_arrived, _d_bump, _d_idle, _d_can_step
+        .import _w_use, _d_use
 
 _ov_enter       = __SLOTW_START__ + 0
 _ov_can_step    = __SLOTW_START__ + 3
@@ -30,6 +31,7 @@ _ov_idle        = __SLOTW_START__ + 15
 _ov_look        = __SLOTW_START__ + 18
 _ov_gen         = __SLOTW_START__ + 21     ; a continent's build (ow_gen.s's
                                            ; thread starts here)
+_ov_use         = __SLOTW_START__ + 24     ; + or - (or fire, 1): in, down, up
 
         .import __VICTOP_START__
         .segment "OWHIADDR"     ; the engine's code past the screens: %O.hi
@@ -46,6 +48,7 @@ _ov_gen         = __SLOTW_START__ + 21     ; a continent's build (ow_gen.s's
         jmp     _w_idle
         jmp     _w_look
         jmp     _w_gen          ; the build (genbuild.s)
+        jmp     _w_use          ; + : into the place underfoot
 
         .segment "OVTADDR"
         .word   __SLOTW_START__
@@ -58,6 +61,7 @@ _ov_gen         = __SLOTW_START__ + 21     ; a continent's build (ow_gen.s's
         jmp     _t_idle         ; the people idle
         jmp     _t_look
         jmp     t_nothing       ; (never: a build is dropped going in)
+        jmp     t_nothing       ; + and -: nothing (a town's way out is walked)
 t_nothing:
         rts
 
@@ -72,5 +76,6 @@ t_nothing:
         jmp     _d_idle         ; the monsters
         jmp     _d_look
         jmp     d_nothing       ; (never: as the town's)
+        jmp     _d_use          ; the stairs
 d_nothing:
         rts
