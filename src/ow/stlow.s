@@ -233,8 +233,12 @@ window_on:
         jsr     rows
         jmp     _sm_text_clear
 
-; The window hidden: no split, and the map on all 25 rows, drawn now.
+; The window hidden: no split, and the map on all 25 rows, drawn now. The
+; text goes first, while the split still shows it: otherwise the rows lose
+; the split at the next frame with the letters still on them, which shows
+; them as multicolour rubbish until the draw reaches the bottom.
 window_off:
+        jsr     _sm_text_clear
         lda     G_QUIET
         ora     #OWG_HIDE
         sta     G_QUIET
