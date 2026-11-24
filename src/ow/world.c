@@ -415,12 +415,12 @@ static unsigned char ship_at(unsigned int x, unsigned char y)
     return NONE;
 }
 
-/* Whether ship s will not sail yet: one at home's port d waits for the
-   story to reach continent d. The continents' own always sail home. */
+/* Whether ship s will not sail yet: the king's, until he lends it to the
+   party (IT_SHIP: he does when they bring him the Emberstone, gift.c). */
 static unsigned char ship_held(unsigned char s)
 {
-    return s < 4 && ship_x[s] == OW->ship_x[s] && ship_y[s] == OW->ship_y[s]
-        && quest_stage < Q_EMBER + OW->slot[s];
+    (void)s;
+    return !(items & IT_SHIP);
 }
 
 /* The ships within sight, up to seven (sm_npcs places them). */
@@ -477,9 +477,8 @@ static unsigned char world_ok(signed char dx, signed char dy)
     unsigned char y = wy + dy, t = tile_at(x, y);
 
     if (t == T_WATER && ship_at(x, y) != NONE) {
-        /* Board it (a ship cannot sail into one), if it may sail: a home
-           port's opens when the story reaches its continent (the game's
-           captains: Q_EMBER + the continent's slot). */
+        /* Board it (a ship cannot sail into one), if it may sail: the
+           king's, once he has lent it (ship_held()). */
         return !boat && !ship_held(ship_at(x, y));
     }
     if (boat && t == T_WATER) {
@@ -650,7 +649,7 @@ void w_enter(void)
 
 /* The refusals' words, in the overlay (OW-DATA has little room). */
 #pragma rodata-name (push, "OVWCODE")
-static const char not_yet[]  = "The captain will not sail yet.";
+static const char not_yet[]  = "The ship sails on the king's word.";
 static const char sealed[]   = "The way in is sealed.";
 static const char the_heat[] = "The heat drives you back.";
 static const char dug[]      = "You dig up ";

@@ -14,13 +14,8 @@ static const char fight_flee[]   = "SPACE guards; flee by a side gap";
 
 void help_screen(void)
 {
-    unsigned char stage = quest_stage;
     char seed[4];
     char turn[5];
-
-    if (stage > 9) {
-        stage = 9;
-    }
 
     sprite_hide();
     clrscr();
@@ -67,8 +62,8 @@ void help_screen(void)
 
     // Your task
     textcolor(COLOR_LIGHTGREEN);
-    cputsxy(3, 21, quest_task[stage][0]);
-    cputsxy(3, 22, quest_task[stage][1]);
+    cputsxy(3, 21, quest_line(0));
+    cputsxy(3, 22, quest_line(1));
 
     cgetc();
 }

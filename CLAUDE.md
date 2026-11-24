@@ -260,12 +260,15 @@ items in the game block. Its gates say no with a sound (`SFX_NO`,
 `sfx.s`, once a press: `bumped` in `engine.c`) and why, in the text window
 (`refuse()`): Millford's gate before Garrett has armed the party
 (`t_can_step()` in `town.c`), a dungeon without its key (`to_dungeon_if()`
-in `world.c`), and a ship at one of home's ports before the story reaches
-its continent (`ship_held()`: `Q_EMBER` + its slot, as the game's captains
-have it; one moved, or at a continent, always sails). Golden
+in `world.c`), and the king's ship before he lends it (`ship_held()`:
+`IT_SHIP`, the free bit of `items`, which `gift.c`'s king gives a party
+holding the Emberstone; no new quest stage, so the talk's stage ranges
+stand). Golden
 `openworld-garrett` asks Garrett for arms with the story at `Q_START` and
 walks out. The quick start and the disk's save are at `Q_HEART` with every
-key and stone, so that nothing is shut for the other goldens.
+key and stone and the king's ship, so that nothing is shut for the other
+goldens. Golden `openworld-sail` walks from Millford to the ship and sails
+east.
 
 **Fights in the open world** are the multicolour arena's module (below),
 called by `owtown` (`OWB_FIGHT`, `src/lib/ow_fight.c`). The engine rolls
@@ -901,9 +904,9 @@ came to 1.3K, when HIGH had 700 bytes.
 Which continent holds which story place is a shuffle of `lore_seed`
 (`slot_of()` in `src/lib/slot.c`): slot 0 is Wardlow, 1 the
 Drowned Stair, 2 Ashcombe, 3 Blackpit, which is the order the quest wants
-them in. A ship at one of home's ports sails when `quest_stage >= Q_EMBER +
-slot` (`ship_held()`, "The story in the open world"), so the continents open
-one at a time. Home's places are `home_fx/fy` (copied out of `isle_fx/fy`
+them in. The king's ship sails once he has lent it (`ship_held()`, "The
+story in the open world"); the quest's lines name the way to each land in
+turn. Home's places are `home_fx/fy` (copied out of `isle_fx/fy`
 when it is built, because building a continent overwrites those) and a
 continent's are `isle_fx/fy`; the bootstrap hands them to the engine in the
 hand-off block.
@@ -1073,13 +1076,19 @@ or row it brings within `LOAD` (16) squares, copied out of the vault by
 `EDGE_X`/`EDGE_Y` (14, 10; the view needs 11 by 7), in thirds. `jobs()` runs
 them in whatever is left of a frame, by the raster, and learns what each
 kind costs (`job_lines[]`); a full queue (32) runs one on the spot. Leaving
-for a place finishes the queue first. **Ships**: eight (`ship_x/ship_y`),
-moored beside home's four ports and the continents' docks at the start
-(a landing is a square of sand: there is no port tile).
-Stepping onto one boards it (`boat` is its index + 1; the hero's sprite
+for a place finishes the queue first. **Ships**: one, the king's (`SHIPS` is 1; the game block
+and the hand-off keep room for eight: `ship_x/ship_y`),
+moored by the bootstrap beside whichever of home's four ports is nearest
+the castle, the continents' docks having none (a landing is a square of
+sand: there is no port tile).
+Stepping onto it boards it (`boat` is its index + 1; the hero's sprite
 becomes the ship, frames 8 and 9); in it you sail open water and step off
-onto any land, where it stays; its position is kept as you sail. No
-permission is asked. The continents' places go in as they do in the game
+onto any land, where it stays; its position is kept as you sail. A party that falls wakes in Millford with the ship back at its
+port (`G->ships = 0`, `ow_fight.c`). The quest's lines (`quest_line()`,
+`quest.c`) say which way the next land lies: an `@` in `quest_task[]` is
+the compass point of the continent whose `OW->slot[]` is the stage's
+(`Q_EMBER` is Wardlow's), and `QT_NO_SHIP` is the Emberstone's line
+before the king's leave. The continents' places go in as they do in the game
 (the bootstrap works out `slot_of()` for each).
 **The music** is the game's: the same SID files at the same place, and
 the game's scenes (`assets/music.txt`: home, isle, sea, town, castle,

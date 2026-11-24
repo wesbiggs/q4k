@@ -37,6 +37,7 @@
 #define IT_TEAR    0x10
 #define IT_HEART   0x20
 #define IT_BLADE   0x40
+#define IT_SHIP    0x80  /* the king's leave to sail his ship */
 
 #define NUM_DUNGEONS 3
 /* No dungeon is deeper than this: dungeon_deep[] must stay within it, since

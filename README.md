@@ -157,11 +157,10 @@ corridors; the rest is dark until you have been near it, and stays on the map
 once you have, for every level, until you leave the dungeon. A monster you
 cannot see is not shown.
 
-Ships lie at Keldmarch's ports and the continents' docks. Step onto one to
+The king's ship lies at the port nearest the castle. Bring him the
+Emberstone out of the Hollow Crown and he lends it to you: step onto it to
 board it, sail the open water, and step off onto any land, where it waits for
-you. The ships at Keldmarch's ports answer to the king: the first sails when
-you have brought the Emberstone out of the Hollow Crown, and one more with
-each token you win after it. Wardlow, Ashcombe, the Drowned Stair and
+you. The quest (`?`) says which way across the sea the next land lies. Wardlow, Ashcombe, the Drowned Stair and
 Blackpit are one to a continent, and which is which is different in every
 game. Each continent is mostly one kind of ground -- the plains, a forest, a
 swamp, the desert, or mountains -- and has a town of its own as well.

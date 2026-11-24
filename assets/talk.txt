@@ -131,8 +131,9 @@ greet 0-1   | So you are the one from Millford. I sent two armies against
               Maldrath. I will not send a third. So I am sending you.
 greet 2     | You have the Sigil. The Hollow Crown is in our own country. Bring
               me back a stone, not a tale.
-greet 3-7   | One stone more than any army brought home. Keep going. The
-              captains sail for you now.
+greet 3-7 give | One stone more than any army brought home. Keep going. My
+              own ship waits at the port nearest this castle; it sails for you
+              now, wherever the stones are.
 greet 8     | Dragonbane. I did not think to see it whole in my lifetime. Go,
               and come back.
 greet 9 give | Stand. Maldrath is banished and Keldmarch is free, and the crown
@@ -146,9 +147,9 @@ topic 0-1 give | The quest | Maldrath can only be banished, with the blade
 topic 2-8   | The stones  | The Emberstone in the Hollow Crown, the Silver
               Tear in the Drowned Stair, the Dragon's Heart in Blackpit. Each
               place is sealed, and each seal answers to its own token.
-topic 2-8   | The ships   | A ship waits at a port on every coast. The
-              captains sail on my business only, and each stone you bring up
-              opens one more land to you.
+topic 2-8   | The ship    | One ship is left to the crown, at the port
+              nearest this castle. Bring me the Emberstone and it is yours to
+              sail, to every land across the water.
 topic 2-8   | The keepers | The Gaoler holds the Crown, the Drowned King the
               Stair, the Pit Warden Blackpit. None of them will let you run.
 topic 2-7   | The blade   | Three stones, then Garrett's anvil, then the
@@ -175,9 +176,9 @@ topic *     | Armoury     | The castle sells blades, mail and bows to those
 topic *     | Princess    | Her highness is kept safe in her tower. Her
               highness is also of the opinion that locks are a suggestion. I
               do not discuss it.
-topic 0-2   | Captains    | The captains sail on the crown's business only.
-              Until there is business they sit in port and complain about the
-              food.
+topic 0-2   | The ship    | The crown has one ship left, and its captain sails
+              on the crown's business only. Until there is business he sits in
+              port and complains about the food.
 
 [npc brann]  Old Brann, Wardlow
 greet 0-8   | Southerner. You will want the library, and the library will want
