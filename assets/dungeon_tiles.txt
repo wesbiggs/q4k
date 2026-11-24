@@ -7,7 +7,7 @@
 # and the floor darkens against it, so a room does not end in right angles.
 
 palette gray1 gray2 brown
-offmap wall
+offmap dark
 fallback floor
 
 tile floor black
