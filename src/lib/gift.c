@@ -83,7 +83,11 @@ const char *quest_after_talk(unsigned char granted)
 	    quest_stage = Q_QUESTED;
 	    give(IT_SIGIL);
 	    return "The king gives you the Iron Sigil.";
-	  } 
+	  } else if (has(IT_EMBER) && !has(IT_SHIP)
+		     && granted == GRANT_OPEN) {
+	    give(IT_SHIP);
+	    return "The king lends you his ship.";
+	  }
 	  break;
 
         case NPC_VANE:

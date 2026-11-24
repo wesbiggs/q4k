@@ -179,7 +179,7 @@ static void splash(void)
 
 int main(void)
 {
-    unsigned char d, again = OW->magic == OW_MAGIC;
+    unsigned char d, k = 0, best, dist, again = OW->magic == OW_MAGIC;
 
     bgcolor(COLOR_BLACK);
     bordercolor(COLOR_BLACK);
@@ -240,17 +240,26 @@ int main(void)
         OW->ipx[d][1] = isle_fx[1];
         OW->ipy[d][1] = isle_fy[1];
         OW->ibiome[d] = isle_biome;
-        moor(4 + d, isle_dock_x, isle_dock_y, cell_x[d] * 64u,
-             cell_y[d] * 64 + ISLE_TOP, 0);
     }
     isle_build(ISLE_HOME);      /* and home, in place, with its roads */
     ow_roads();
     OW->home_biome = isle_biome;
     memcpy(OW->home_fx, isle_fx, OW_PLACES);
     memcpy(OW->home_fy, isle_fy, OW_PLACES);
+    /* One ship, the king's, at the port nearest the castle (home's second
+       place): the continents' docks have none. */
+    best = 0xFF;
     for (d = 0; d < 4; ++d) {
-        moor(d, isle_port_x[d], isle_port_y[d], 128, 64, 1);
+        dist = (isle_port_x[d] > isle_fx[1] ? isle_port_x[d] - isle_fx[1]
+                                             : isle_fx[1] - isle_port_x[d])
+             + (isle_port_y[d] > isle_fy[1] ? isle_port_y[d] - isle_fy[1]
+                                             : isle_fy[1] - isle_port_y[d]);
+        if (dist < best) {
+            best = dist;
+            k = d;
+        }
     }
+    moor(0, isle_port_x[k], isle_port_y[k], 128, 64, 1);
     /* A new game starts at Millford, as does the next world (N, which
        keeps the party): a save where it was saved. */
     if (!OW->saved) {

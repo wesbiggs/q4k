@@ -140,7 +140,8 @@ extern unsigned char whole, switch_time, roof_time;
    hands them to the next run of the engine (ow.h). */
 extern unsigned int  out_wx;
 extern unsigned char out_wy;
-#define SHIPS 8
+#define SHIPS 1                 /* the king's, at the castle's port: the
+                                   game block has room for eight */
 extern unsigned int  ship_x[SHIPS];
 extern unsigned char ship_y[SHIPS];
 extern unsigned char boat;

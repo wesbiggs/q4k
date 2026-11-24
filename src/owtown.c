@@ -190,8 +190,6 @@ static void party_look(void)
    the quest wants next (quest.c's, as the game's help screen has it). */
 static void help(void)
 {
-    unsigned char stage = quest_stage > Q_VICTORY ? Q_VICTORY : quest_stage;
-
     textcolor(COLOR_YELLOW);
     cputsxy(1, 0, "Quest for the King");
     textcolor(COLOR_GRAY1);
@@ -218,8 +216,8 @@ static void help(void)
     cputsxy(3, 17, "^ aims, SPACE shoots; * casts a spell");
     cputsxy(3, 18, "SPACE guards; all flee by a side gap");
     textcolor(COLOR_LIGHTGREEN);
-    cputsxy(1, 21, quest_task[stage][0]);
-    cputsxy(1, 22, quest_task[stage][1]);
+    cputsxy(1, 21, quest_line(0));
+    cputsxy(1, 22, quest_line(1));
     textcolor(COLOR_GRAY2);
     cputsxy(1, 24, "Press any key");
     cgetc();

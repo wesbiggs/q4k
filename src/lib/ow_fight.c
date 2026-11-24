@@ -425,6 +425,7 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
         G->wx    = 128 + OW->home_fx[0];
         G->wy    = 64 + OW->home_fy[0];
         G->boat  = 0;
+        G->ships = 0;           /* the ship back at the castle's port */
         break;
     default:
         line(4, COLOR_LIGHTRED, "The fight is not on the disk.");

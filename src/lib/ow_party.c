@@ -473,10 +473,11 @@ void ow_new_game(unsigned char quick)
     memset(looted, 0, sizeof looted);
     party_init();               /* Alaric, a warrior, alone */
     if (quick) {
-        /* Everything open but the last of it: every dungeon's key, every
-           port's ship (the stones are what open them), Dragonbane unmade. */
+        /* Everything open but the last of it: every dungeon's key, the
+           king's ship, Dragonbane unmade. */
         quest_stage = Q_HEART;
-        items = IT_SIGIL | IT_TIDAL | IT_ASHEN | IT_EMBER | IT_TEAR | IT_HEART;
+        items = IT_SIGIL | IT_TIDAL | IT_ASHEN | IT_EMBER | IT_TEAR | IT_HEART
+              | IT_SHIP;
         G->quiet = OWG_CALM;    /* and nothing wanders out at a test */
     } else {
         make_party();

@@ -9,11 +9,12 @@
 
 #include <q4k/game.h>
 #include <q4k/help.h>
+#include <q4k/ow.h>
 #include <q4k/view.h>
 
 /* What to do next, by quest stage. Two lines each, because the useful
    version of this names the person and the place. */
-const char *const quest_task[10][2] = {
+const char *const quest_task[11][2] = {
   //  1234567890123456789012345678901234567890
     {
       "A letter has come from the king.",
@@ -28,19 +29,19 @@ const char *const quest_task[10][2] = {
       "Crown. Seek the Emberstone."
     },
     {
-      "Take the Emberstone to Vane in",
-      "Wardlow, over the sea."
+      "Sail @ to Wardlow and take the",
+      "Emberstone to Vane."
     },
     {
-      "Take the Tidal Key over the sea to the",
+      "Sail @ with the Tidal Key to the",
       "Drowned Stair. Find the Silver Tear."
     },
     {
-      "Bring the Silver Tear to Mother Ash",
-      "in Ashcombe, over the sea."
+      "Sail @ to Ashcombe and bring the",
+      "Silver Tear to Mother Ash."
     },
     {
-      "Take the Ashen Key over the sea, open",
+      "Sail @ with the Ashen Key, open",
       "Blackpit, and seek the Dragon's Heart."
     },
     {
@@ -55,7 +56,42 @@ const char *const quest_task[10][2] = {
       "Maldrath is banished! Keldmarch is",
       "free. Bring news to the king!"
     },
+    {                                       /* QT_NO_SHIP */
+      "Show the king the Emberstone. His",
+      "ship waits at the castle's port."
+    },
 };
+
+/* The continents by compass point (ow.h's slot[] is by the same), and the
+   story's land by stage: Wardlow's at Q_EMBER, the Drowned Stair's, then
+   Ashcombe's and Blackpit's (slot.c's order). */
+static const char *const compass[4] = { "north", "east", "south", "west" };
+
+const char *quest_line(unsigned char half)
+{
+    static char buf[44];
+    unsigned char stage = quest_stage > Q_VICTORY ? Q_VICTORY : quest_stage;
+    unsigned char i;
+    const char *s, *w;
+    char *d = buf;
+
+    if (stage == Q_EMBER && !(items & IT_SHIP)) {
+        stage = QT_NO_SHIP;
+    }
+    for (s = quest_task[stage][half]; *s; ++s) {
+        if (*s == '@') {
+            for (i = 0; i < 3 && OW->slot[i] != stage - Q_EMBER; ++i) {
+            }
+            for (w = compass[i]; *w; ) {
+                *d++ = *w++;
+            }
+        } else {
+            *d++ = *s;
+        }
+    }
+    *d = 0;
+    return buf;
+}
 
 /* The next step, in the message window: called when the story moves on. */
 void quest_hint(void)
