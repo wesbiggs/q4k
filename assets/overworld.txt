@@ -171,25 +171,48 @@ bbbbbbbb
 ..aaaa..
 ........
 
+# The shallows round every land (isle_gen.s's shoal pass): the sea's blue
+# with more of the light in it, glints between the crests. The beaches
+# (shore, below) are drawn into these.
 tile water cyan
+bbbcbbbb
+bbbbbbbc
+bccbbbbb
+cbbcbcbb
 bbbbbbbb
+bcbbbbbb
+bbbbbccb
+bbbbcbbc
+bbcbbbbb
+bbbbbbcb
+bbbbbbbb
+bbccbbbb
+bcbbcbbc
+bbbbbbbb
+bbbbcbbb
+cbbbbbbb
+
+tile water cyan
+bbbbbcbb
+bbbbbccb
+bbbbcbbc
+bcbbbbbb
+bbbbbbbb
+bbbbbbcb
 bbbbbbbb
 bccbbbbb
 cbbcbbbb
+bbbbbcbb
+bbcbbbbb
 bbbbbbbb
-bbbbbbbb
-bbbbbccb
-bbbbcbbc
-bbbbbbbb
-bbbbbbbb
-bbbbbbbb
-bbccbbbb
-bcbbcbbb
-bbbbbbbb
-bbbbbbbb
+bbbbbbcc
+bbbbbcbb
+bcbbbbbb
 bbbbbbbb
 
-tile water cyan
+# The deep sea, past the shallows: the same blue, troughs dark where the
+# shallows' crests are light. No edges: the shallows end square by square.
+tile deep black
 bbbbbbbb
 bbbbbccb
 bbbbcbbc
@@ -363,6 +386,8 @@ a......a
 # mountain pass and the bridge, which no land of the open world has: a
 # square of either would be drawn as grass.)
 code road 0x96 pass
+# The deep sea (isle_gen.s, and the open sea between the lands).
+code deep 0x95
 tile road yellow
 cccccccc
 ccccccac

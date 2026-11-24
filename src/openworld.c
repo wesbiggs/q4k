@@ -67,7 +67,7 @@ static void moor(unsigned char i, unsigned char x, unsigned char y,
             continue;
         }
         t = home ? vault_tile(nx, ny) : local[LOCAL_AT(nx, ny)];
-        if (t == T_WATER) {
+        if (t == T_WATER || t == T_DEEP) {
             break;
         }
     }

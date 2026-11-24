@@ -33,6 +33,7 @@
 #include <q4k/ow.h>
 #include <q4k/owgame.h>
 #include <q4k/shop.h>
+#include <q4k/sprite.h>
 #include <q4k/tiles.h>
 #include <q4k/town_data.h>
 
@@ -119,6 +120,45 @@ static void pick_wanderer(unsigned char in_dungeon, unsigned char kind)
     pick(&wanderers[i].m, (unsigned char)(1 + rand() % most));
 }
 
+/* What comes up out of the deep sea at the king's ship (OWF_SEA): met
+   nowhere else, chosen as the wanderers are, by the party's level, and
+   fought on its deck by the seafight module, where they keep to the water.
+   Their sprites by name, since none has a glyph of the game's. */
+#pragma rodata-name (push, "HIDATA")
+static const Wanderer sea_wanderers[] = {
+    { 1, { "A sea snake",   8, 3, 1,  6,  6, T_MONSTER, COLOR_CYAN,   14, 1 } },
+    { 3, { "A giant crab", 16, 5, 4, 12, 12, T_MONSTER, COLOR_RED,     8, 1 } },
+    { 5, { "A sea serpent", 22, 7, 3, 20, 20, T_MONSTER, COLOR_GREEN, 12, 1,
+           6, 4, SHOT_WATER } },
+    { 7, { "A kraken",     40, 10, 5, 40, 40, T_MONSTER, COLOR_PURPLE, 8, 1,
+           8, 3, SHOT_WATER } },
+};
+static const char *const sea_sprites[] = {
+    "s.serpent", "s.seacrab", "s.serpent", "s.kraken",
+};
+#pragma rodata-name (pop)
+#define SEA_KINDS (sizeof(sea_wanderers) / sizeof(sea_wanderers[0]))
+
+static const char *sea_sprite;
+
+static void pick_sea(void)
+{
+    unsigned char top, i, most;
+
+    for (top = 0; top < SEA_KINDS && sea_wanderers[top].from <= party_level;
+         ++top) {
+    }
+    i = (unsigned char)(rand() % top);
+    most = (party_level + party_count - 1) / sea_wanderers[i].from;
+    if (!most) {
+        most = 1;
+    } else if (most > 4) {
+        most = 4;               /* (the water round a deck is not wide) */
+    }
+    pick(&sea_wanderers[i].m, (unsigned char)(1 + rand() % most));
+    sea_sprite = sea_sprites[i];
+}
+
 #pragma code-name (pop)
 
 /* The field for the ground, as the arena names them (tools/mkfields.py). */
@@ -130,6 +170,7 @@ static const char *field_of(unsigned char tile)
     case T_SHORE:  return "f.shore";
     case T_FLOOR:  return "f.floor";
     case T_LAIR:   return "f.lair";
+    case T_DEEP:   return "f.deck";     /* the king's ship, at sea */
     }
     return "f.grass";
 }
@@ -288,6 +329,10 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
         }
         ground = G->area == AREA_DUNGEON ? T_FLOOR : arg;
         break;
+    case OWF_SEA:
+        pick_sea();
+        ground = T_DEEP;
+        break;
     case OWF_FOE:
         pick_wanderer(1, OWG_FOE_KIND(G->foe_a[arg], G->foe_b[arg]));
         if ((G->fled & OWG_FLED_WHO) == arg + 1) {
@@ -305,7 +350,7 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
 
     /* From here the module is over everything above $4000. */
     clrscr();
-    while (!ow_cload(FIGHT_FILE, 0)) {
+    while (!ow_cload(kind == OWF_SEA ? SEA_FIGHT_FILE : FIGHT_FILE, 0)) {
         cputsxy(1, 12, "Put the disk back and press a key.");
         cgetc();
     }
@@ -331,7 +376,7 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
     f->flee   = kind == OWF_WANDER || kind == OWF_UNDEAD || kind == OWF_FOE;
     f->seed   = rand();
     strcpy(f->field, field_of(ground));
-    strcpy(f->sprite, sprite_of(foe.glyph));
+    strcpy(f->sprite, kind == OWF_SEA ? sea_sprite : sprite_of(foe.glyph));
     /* The field and the sprites through the REU cache (ow_cache.s), which
        the module does not link: an empty sprite name tells it they are in. */
     while (!ow_cload(f->field, 0) || !ow_cload(f->sprite, 0)) {

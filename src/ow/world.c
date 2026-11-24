@@ -224,7 +224,7 @@ static void load_run(unsigned int x, unsigned char y, unsigned char n,
     while (n) {
         vc_src = kept_at(x, y, down);
         if (!vc_src) {
-            vc_src = (unsigned char *)T_WATER;  /* sm_vcopy fills with it */
+            vc_src = (unsigned char *)T_DEEP;   /* sm_vcopy fills with it */
         }
         vc_n = run < n ? run : n;
         vc_dst = WORLD + ((unsigned int)(y & 63) << 6) + (x & 63);
@@ -476,12 +476,12 @@ static unsigned char world_ok(signed char dx, signed char dy)
     unsigned int x = wrapx(wx + WORLD_W + dx);
     unsigned char y = wy + dy, t = tile_at(x, y);
 
-    if (t == T_WATER && ship_at(x, y) != NONE) {
+    if ((t == T_WATER || t == T_DEEP) && ship_at(x, y) != NONE) {
         /* Board it (a ship cannot sail into one), if it may sail: the
            king's, once he has lent it (ship_held()). */
         return !boat && !ship_held(ship_at(x, y));
     }
-    if (boat && t == T_WATER) {
+    if (boat && (t == T_WATER || t == T_DEEP)) {
         return 1;
     }
     return ow_pass[(t - 0x60) & 63];
@@ -533,7 +533,7 @@ static void step_world(void)
             sm_sprite(hero_frame(dir, 0));
             ashore = 1;
         }
-    } else if (tile_at(hx, hy) == T_WATER) {
+    } else if ((s = tile_at(hx, hy)) == T_WATER || s == T_DEEP) {
         ship_x[boat - 1] = wx;      /* the ship goes where you sail it */
         ship_y[boat - 1] = wy;
     } else {
@@ -734,9 +734,10 @@ static void to_dungeon_if(unsigned char n)
 
 static void __fastcall__ wander(unsigned char tile)
 {
-    unsigned char chance;
+    unsigned char chance, force;
 
     switch (tile) {
+    case T_DEEP:   chance = 6;  break;  /* at sea, off the shallows */
     case T_ROAD:   chance = 4;  break;  /* half the grass's: safer */
     case T_GRASS:  chance = 8;  break;
     case T_SHORE:  chance = 7;  break;
@@ -745,13 +746,19 @@ static void __fastcall__ wander(unsigned char tile)
     case T_FLOOR:  chance = 5;  break;
     default:       return;
     }
-    if (enc_always == 1) {
-        chance = 200;           /* (and calm or not) */
+    force = enc_always == 1;    /* (and calm or not) */
+    if (enc_always == 3) {      /* 3: only at sea (nested: cc65 gets this */
+        if (tile == T_DEEP) {   /* wrong as one test with the 1) */
+            force = 1;
+        }
+    }
+    if (force) {
+        chance = 200;
     } else if (G->quiet & OWG_CALM) {
         return;
     }
     if ((unsigned char)(rand() % 200) < chance) {
-        ow_fight_with(OWF_WANDER, tile);
+        ow_fight_with(tile == T_DEEP ? OWF_SEA : OWF_WANDER, tile);
     }
 }
 
@@ -876,8 +883,8 @@ void w_arrived(void)
         strcat(said, to_enter);
         sm_ink = COLOR_WHITE;
         sm_say(said);
-    } else if (!boat) {
-        wander(tile_at(hx, hy));
+    } else if (!boat || tile_at(hx, hy) == T_DEEP) {
+        wander(tile_at(hx, hy));    /* (in a ship, only off the shallows) */
     }
 }
 

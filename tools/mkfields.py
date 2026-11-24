@@ -53,6 +53,7 @@ FONT_SPACE = 0xA0           # the ROM's space, where the fight puts the letters
 FI_PAL, FI_HX, FI_HY, FI_MX, FI_MY, FI_ROCK, FI_NCHARS = 0, 3, 4, 5, 6, 7, 11
 FI_NSCAT, FI_SCAT, SCAT_MAX = 12, 13, 3
 FI_COLOUR, FI_FLAGS = 32, 160
+DEEP_CH = '"'            # the deep sea, which assets/tiles.txt has no glyph for
 FLAG = {"pass": 0, "enter": 0, "water": 1, "block": 2}
 # What a step onto a square costs, past the 10 tenths of grass: bits 2-3 of
 # its flag, a level of 5 tenths each (fight.h's FF_COST).
@@ -112,7 +113,8 @@ def read_fields():
             die("%s: %d kinds of scatter at most" % (f[1], SCAT_MAX))
         fields.append({"name": f[1], "set": f[2], "ground": f[3],
                        "size": 2 if "size" in f else 1,
-                       "shut": "shut" in f, "rows": rows, "scatter": scat})
+                       "shut": "shut" in f, "sea": "sea" in f,
+                       "rows": rows, "scatter": scat})
     return fields
 
 
@@ -151,7 +153,9 @@ def compose(fd, tiles):
                 row.append(fd["ground"])
             elif ch == "m":
                 mx, my = x, y
-                row.append(fd["ground"])
+                row.append("deep" if fd["sea"] else fd["ground"])
+            elif ch == DEEP_CH:
+                row.append("deep")
             elif ch == "o":
                 rocks.append((x, y))
                 row.append(fd["ground"])
@@ -239,8 +243,9 @@ def compose(fd, tiles):
     if len(glyphs) > MAXCHARS:
         die("%s: %d characters, %d at most" % (name, len(glyphs), MAXCHARS))
 
-    flags = [[FLAG.get(next(t[2] for t in tiles.values() if t[0] == n), 2)
-              | SLOW.get(n, 0) << 2
+    kind = {t[0]: t[2] for t in tiles.values()}
+    kind["deep"] = "water"              # (the overworld set's own code)
+    flags = [[FLAG.get(kind.get(n), 2) | SLOW.get(n, 0) << 2
               for n in row] for row in grid]
     for x, y in rocks:
         flags[y][x] = 2
@@ -287,6 +292,14 @@ def check(fd, flags, hx, hy, mx, my):
             elif (flags[y][x] == 0) != (y == mid):
                 die("%s: the sides must be shut but for row %d, the way out"
                     % (name, mid + 1))
+
+    if fd["sea"]:
+        # At sea the monsters keep to the water and the party to the deck
+        # (src/fight/fight.c's SEA_FIGHT): no way round to look for.
+        if flags[my][mx] != FLAG["water"] or flags[hy][hx]:
+            die("%s: the monster starts in the water, the party on deck"
+                % name)
+        return
 
     def fits(x, y):
         return all(0 <= x + i < FW and 0 <= y + j < FH

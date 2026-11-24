@@ -37,6 +37,10 @@ OUTER_HOME, INNER_HOME = 30, 256
 # walkable squares beside a landing so no obstacle takes the last of them.
 G_SEA, G_LAND, G_MTN, G_LAKE = 0, 1, 2, 4
 G_DOCK, G_TOWN, G_CASTLE, G_DUNGEON, G_LAIR = 0x0A, 0x0C, 0x0E, 0x10, 0x12
+# The shallows round the land (shoal()): the sea within a few squares of
+# it, which a pass marks G_NEW and makes G_SHOAL after; the rest is deep.
+G_SHOAL, G_NEW = 0x14, 0x16
+SHOAL_PASSES = 5
 PROT = 0x40
 
 # Tile codes -- see assets/tiles.txt -- by G_ value. The odd ones above 9 and
@@ -44,10 +48,13 @@ PROT = 0x40
 T_WATER, T_GRASS, T_MOUNTAIN, T_FOREST = 0x64, 0x60, 0x62, 0x61
 T_SWAMP, T_SHORE = 0x66, 0x65
 T_TOWN, T_CASTLE, T_DUNGEON, T_LAIR = 0x67, 0x68, 0x69, 0x71
-FINAL = [T_WATER, T_GRASS, T_MOUNTAIN, T_FOREST, T_WATER, T_SWAMP,
+T_DEEP = 0x95       # the overworld set's own (assets/overworld.txt's code)
+FINAL = [T_DEEP, T_GRASS, T_MOUNTAIN, T_FOREST, T_WATER, T_SWAMP,
          T_GRASS, T_SHORE, T_GRASS, T_GRASS, T_SHORE, T_GRASS,
-         T_TOWN, T_GRASS, T_CASTLE, T_GRASS, T_DUNGEON, T_GRASS, T_LAIR]
+         T_TOWN, T_GRASS, T_CASTLE, T_GRASS, T_DUNGEON, T_GRASS, T_LAIR,
+         T_GRASS, T_WATER]
 WALK = {T_GRASS, T_FOREST, T_SWAMP, T_SHORE}
+SEA = {T_WATER, T_DEEP}
 SPECIAL = {T_TOWN, T_CASTLE, T_DUNGEON, T_LAIR}
 
 STEP = [-W, 1, W, -1]                      # N E S W, as indexes into the map
@@ -189,6 +196,38 @@ class Isle:
             return
 
 
+    def shoal(self):
+        """The shallows: SHOAL_PASSES passes, each over every square but the
+        map's edges, row by row, which makes a square of sea shallow if any
+        of its eight neighbours is not sea (land, a lake, or shallows from a
+        pass before): the first pass always, the rest three times in four,
+        so the shallows are one to five squares wide and ragged."""
+        for p in range(SHOAL_PASSES):
+            for y in range(1, self.h - 1):
+                for x in range(1, W - 1):
+                    i = y * W + x
+                    if self.m[i] != G_SEA:
+                        continue
+                    if not any(self.m[i + RING[k]] not in (G_SEA, G_NEW)
+                               for k in range(1, 9)):
+                        continue
+                    if p == 0 or self.rnd() & 3:
+                        self.m[i] = G_NEW
+            self.m = [G_SHOAL if c == G_NEW else c for c in self.m]
+        # Then no deep square left alone between shallows: one with them
+        # (or land) both west and east of it, or both north and south.
+        def held(c):
+            return c not in (G_SEA, G_NEW)
+        for y in range(1, self.h - 1):
+            for x in range(1, W - 1):
+                i = y * W + x
+                if self.m[i] == G_SEA and (
+                        held(self.m[i - 1]) and held(self.m[i + 1]) or
+                        held(self.m[i - W]) and held(self.m[i + W])):
+                    self.m[i] = G_NEW
+        self.m = [G_SHOAL if c == G_NEW else c for c in self.m]
+
+
 def build(lore_seed, d, story=G_TOWN):
     """Returns a Land: the W*H tile codes; the dominant biome; the landings
     (a continent's one, or home's four in the order of the ports they serve)
@@ -223,10 +262,11 @@ def build(lore_seed, d, story=G_TOWN):
     placed = []
     for kind, apart in wanted:
         g.place(kind, apart, landings, placed)
+    g.shoal()
     return Land([FINAL[c & 0x3F] for c in g.m], dom, landings, ship, placed)
 
 
-GLYPH = {T_WATER: "~", T_GRASS: ".", T_FOREST: "F", T_SWAMP: "%",
+GLYPH = {T_WATER: "-", T_DEEP: "~", T_GRASS: ".", T_FOREST: "F", T_SWAMP: "%",
          T_SHORE: ",", T_MOUNTAIN: "^", T_TOWN: "T",
          T_CASTLE: "C", T_DUNGEON: "D", T_LAIR: "L"}
 NAMES = ["plains", "forest", "swamp", "desert", "mountains"]

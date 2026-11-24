@@ -390,7 +390,7 @@ $(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py tools/mktowns.py
 # the module and its fields and sprites, as the arena's disk has them.
 $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
 	    $(DIST)/owparty.prg \
-	    $(BUILD)/music/.stamp $(BUILD)/talk/.stamp $(DIST)/fight.prg \
+	    $(BUILD)/music/.stamp $(BUILD)/talk/.stamp $(DIST)/fight.prg $(DIST)/seafight.prg \
 	    $(BUILD)/fight/disk/.stamp $(OWSETS)
 	$(C1541) -format "openworld,01" d81 $@ >/dev/null
 	$(C1541) -attach $@ -write $(DIST)/openworld.prg openworld \
@@ -402,7 +402,7 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 	    $$(for p in $(PORTRAITS); do n=$(call NPC_NUM,$$p); \
 	        for s in n p; do printf ' -write %s v.%s%s' $(BUILD)/portraits/$$p-$$s $$n $$s; done; done) \
 	    -write $(DIST)/owparty.prg owparty \
-	    -write $(DIST)/fight.prg fight \
+	    -write $(DIST)/fight.prg fight -write $(DIST)/seafight.prg seafight \
 	    $$(for f in $(BUILD)/ow/sets/t.*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/fight/disk/[fs].*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/music/m.*; do printf ' -write %s %s' $$f $${f##*/}; done) \
@@ -421,11 +421,11 @@ OWCACHE_FILES := $(DIST)/ow-data.prg=ow-data \
     $(DIST)/ow-cpu.prg=ow-cpu $(DIST)/ow-reu.prg=ow-reu \
     $(foreach e,cpu reu,$(foreach o,hi world town dungeon,$(DIST)/ow-$(e).$(o)=ow-$(e).$(o))) \
     $(DIST)/owtown.prg=owtown $(DIST)/owtalk.prg=owtalk --glob '$(BUILD)/ow/sets/t.*' \
-    $(DIST)/fight.prg=fight --glob '$(BUILD)/music/m.*' \
+    $(DIST)/fight.prg=fight $(DIST)/seafight.prg=seafight --glob '$(BUILD)/music/m.*' \
     --glob '$(BUILD)/fight/disk/[fs].*' $(DIST)/owparty.prg=owparty \
     --glob '$(BUILD)/talk/[0-9]*'
 OWCACHE_DEPS := $(DIST)/ow-data.prg $(OWENG) $(OWOVL) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
-    $(DIST)/fight.prg $(DIST)/owparty.prg $(OWSETS) $(BUILD)/music/.stamp \
+    $(DIST)/fight.prg $(DIST)/seafight.prg $(DIST)/owparty.prg $(OWSETS) $(BUILD)/music/.stamp \
     $(BUILD)/fight/disk/.stamp $(BUILD)/talk/.stamp tools/mkowcache.py include/q4k/owcache.inc
 
 $(BUILD)/ow/owcdir.s: $(OWCACHE_DEPS)
@@ -536,6 +536,21 @@ $(DIST)/fightbot.prg: $(FIGHTBOTOBJ) $(LIB) cfg/c64-fight.cfg
 	    -Wl -Ln,$(BUILD)/fightbot.lbl -o $@ $(FIGHTBOTOBJ) $(LIB)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
+# And again for a fight at sea (SEA_FIGHT): on the deck of the king's ship,
+# with monsters that keep to the water (ow_fight.c's OWF_SEA, f.deck).
+# After fight_bot.o, for the same reason.
+SEAFIGHTOBJ := $(subst $(BUILD)/fight/fight.o,$(BUILD)/fight/fight_sea.o,$(FIGHTOBJ))
+
+$(BUILD)/fight/fight_sea.o: src/fight/fight.c | $(BUILD)/fight/fight_bot.o
+	@mkdir -p $(dir $@)
+	$(CL65) $(filter-out -Osir,$(CFLAGS)) -Or -DSEA_FIGHT $(DEPFLAGS) -c -o $@ $<
+
+$(DIST)/seafight.prg: $(SEAFIGHTOBJ) $(LIB) cfg/c64-fight.cfg
+	@mkdir -p $(DIST)
+	$(CL65) $(LDFLAGS) -C cfg/c64-fight.cfg -m $(BUILD)/seafight.map \
+	    -Wl -Ln,$(BUILD)/seafight.lbl -o $@ $(SEAFIGHTOBJ) $(LIB)
+	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
+
 $(FIGHT_STAMP): $(FIELD_SRC)
 	@rm -rf $(BUILD)/fight/disk
 	tools/mkfields.py $(BUILD)/fight/disk
@@ -548,7 +563,8 @@ $(DIST)/owarena.d64: $(DIST)/owarena.prg $(DIST)/fight.prg $(DIST)/fightbot.prg 
 	    -write $(DIST)/fight.prg fight -write $(DIST)/fightbot.prg fightbot \
 	    $$(for f in $(BUILD)/fight/disk/[fs].*; do printf ' -write %s %s' $$f $${f##*/}; done) >/dev/null
 
--include $(BUILD)/fight/fight.d $(BUILD)/fight/fight_bot.d $(BUILD)/fight/block.d
+-include $(BUILD)/fight/fight.d $(BUILD)/fight/fight_bot.d $(BUILD)/fight/fight_sea.d \
+    $(BUILD)/fight/block.d
 
 # The open world's memory map (docs/memmap.html, checked in): where every
 # byte goes in each of its modes, from the linker maps the programs below

@@ -29,6 +29,11 @@
    the same code, as ISLE_HOME. */
 #define ISLE_HOME 4
 
+/* The open sea, farther from land than its shallows (T_WATER, a band of
+   one to five squares round every land): the overworld set's own code
+   (assets/overworld.txt), which isle_gen.s writes too. */
+#define T_DEEP 0x95
+
 /* The five kinds a continent can be mostly made of (isle_gen.s knows the
    numbers too). */
 #define BIOME_PLAINS    0

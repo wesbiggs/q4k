@@ -128,3 +128,24 @@ caaaacac
 # Sand and swamp fray toward a tree as they do toward the forest.
 also shore forest mountain swamp tree
 also swamp forest mountain tree
+
+# The deck of the king's ship (assets/fields.txt's deck): boards, the
+# bridge's tile, which the overworld never draws. Planks run across, their
+# seams dark, the joints staggered.
+tile bridge red
+cccccccc
+cccccbcc
+cccccccc
+bbbbbbbb
+cccccccc
+ccbccccc
+cccccccc
+bbbbbbbb
+cccccccc
+cccccccb
+cccccccc
+bbbbbbbb
+cccccccc
+cbcccccc
+cccccccc
+bbbbbbbb

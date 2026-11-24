@@ -157,6 +157,11 @@ corridors; the rest is dark until you have been near it, and stays on the map
 once you have, for every level, until you leave the dungeon. A monster you
 cannot see is not shown.
 
+Every land is ringed by shallows, lighter water a few squares wide, where
+nothing troubles a ship; out on the dark deep sea things come up out of the
+water at you, and are fought on the ship's deck -- they cannot leave the
+water, and you cannot leave the deck.
+
 The king's ship lies at the port nearest the castle. Bring him the
 Emberstone out of the Hollow Crown and he lends it to you: step onto it to
 board it, sail the open water, and step off onto any land, where it waits for

@@ -75,7 +75,7 @@ def check_model(seeds):
             for (x, y), dock, heading in lanes:
                 dx, dy = ((0, -1), (1, 0), (0, 1), (-1, 0))[heading]
                 while (x, y) != dock:
-                    if tiles[y * ref.W + x] != ref.T_WATER:
+                    if tiles[y * ref.W + x] not in ref.SEA:
                         problems.append("land on the way in at %d,%d" % (x, y))
                         break
                     x, y = x + dx, y + dy
