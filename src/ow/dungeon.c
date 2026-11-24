@@ -23,6 +23,15 @@
  * gliding from square to square; one that reaches them, or that they walk
  * into, is a fight (ow_fight.c's OWF_FOE). The keeper, a tile, is fought
  * by walking into it.
+ *
+ * What the party can see is the classic game's (its fov.c, Rogue's model):
+ * the room they stand in, walls and all, the squares round them, and
+ * straight along the corridors (which the generator cuts along the axes)
+ * to the first wall. What they have seen stays on the map; what they have
+ * not is dark (the set's `dark`), and so is any monster out of sight. What
+ * is seen is kept for every level of the dungeon (owgame.h's OWG_FOG), so a
+ * level gone back to, or come back to from a fight, is as far explored as
+ * it was.
  */
 
 #include <c64.h>
@@ -139,6 +148,185 @@ static void __fastcall__ fight(unsigned char n)
     ow_fight_with(OWF_FOE, base + n);
 }
 
+/* --- What the party can see -------------------------------------------- */
+
+/* foes.s: the squares' part. fog_drawn is the level as built (WORLD's rows,
+   with the chests opened and the blood, DUN_W a row), what a square is
+   drawn as once it is seen (the rest is the set's `dark`); fog_seen a bit
+   a square (DUN_W / 8 bytes a row), written with the level's in OWG_FOG
+   (fog_at); both in OVDBSS, after the art, in no file. Squares are the
+   level's, not the engine's. */
+extern unsigned char fog_drawn[], fog_seen[];
+extern unsigned char *fog_at;
+extern unsigned char fog_ox, fog_oy;            /* the hero */
+extern unsigned char fog_x0, fog_y0, fog_x1, fog_y1;       /* fog_rect's */
+extern unsigned char fog_reach[4];      /* each ray's length: E, W, S, N */
+void fog_near(void);    /* round the hero, and the four rays */
+void fog_rect(void);    /* fog_x0-x1 by fog_y0-y1, to be seen ... */
+void __fastcall__ fog_lit(unsigned char all);   /* ... a row at a time */
+void fog_dark(void);    /* WORLD into fog_drawn; what is unseen, dark */
+/* What is new onto the screen in front (0), or the back, past its shift
+   for a flip still to come (1), while the frame has the room. */
+void __fastcall__ fog_show(unsigned char back);
+void fog_forget(void);  /* nothing to draw: show_area() draws it all */
+/* The raster lines left in this frame for any of it; and how many fov()
+   is given (it takes about 30, and more with long rays: 30 ran over the
+   frame on NTSC, and more than 60 left it to the frame the step ends in,
+   measured with `late`). */
+unsigned char fog_left(void);
+#define FOV_LINES 60
+
+static unsigned char room = NONE;       /* the room the hero is in */
+static unsigned char room_was = NONE;   /* ... and was in, lit already */
+static unsigned char fptr[FOES] = { 0 };    /* each monster's picture */
+
+/* Room r's box, with its walls, into fog_x0-x1 by fog_y0-y1. */
+static void __fastcall__ room_box(unsigned char r)
+{
+    fog_x0 = dun_rx[r] - 1;             /* (no room touches the edge) */
+    fog_y0 = dun_ry[r] - 1;
+    fog_x1 = dun_rx[r] + dun_rw[r];     /* the wall, not the floor */
+    fog_y1 = dun_ry[r] + dun_rh[r];
+}
+
+/* What the hero sees from (fog_ox, fog_oy), and the boxes of what they
+   had not seen before (foes.s's, for fog_show()). The room they stand in is
+   lit whole only when they come into it (fog_lit(), over the frames after:
+   it is a few hundred squares), since after that there is nothing new in
+   it. */
+static void fov(void)
+{
+    fog_near();
+    room = NONE;
+    for (i = 0; i < dun_rooms; ++i) {
+        if ((unsigned char)(fog_ox - dun_rx[i]) < dun_rw[i] &&
+            (unsigned char)(fog_oy - dun_ry[i]) < dun_rh[i]) {
+            room = i;
+        }
+    }
+    if (room != NONE && room != room_was) {
+        fog_lit(1);             /* (the last room's rest, if any) */
+        room_box(room);
+        fog_rect();
+    }
+    room_was = room;
+}
+
+/* Whether monster n is in the hero's sight: beside them, in their room, or
+   straight along a corridor short of where the ray stopped. */
+static unsigned char __fastcall__ in_sight(unsigned char n)
+{
+    unsigned char x, y;
+
+    if (!sm_npc_x[n]) {
+        return 0;               /* dead */
+    }
+    x = sm_npc_x[n] - BIAS;
+    y = sm_npc_y[n] - BIAS;
+    if ((unsigned char)(x - fog_ox + 1) <= 2 &&
+        (unsigned char)(y - fog_oy + 1) <= 2) {
+        return 1;
+    }
+    if (room != NONE) {
+        room_box(room);
+        if (x >= fog_x0 && x <= fog_x1 && y >= fog_y0 && y <= fog_y1) {
+            return 1;
+        }
+    }
+    if (y == fog_oy) {
+        return x > fog_ox ? x - fog_ox < fog_reach[0]
+                          : fog_ox - x < fog_reach[1];
+    }
+    if (x == fog_ox) {
+        return y > fog_oy ? y - fog_oy < fog_reach[2]
+                          : fog_oy - y < fog_reach[3];
+    }
+    return 0;
+}
+
+/* The monsters out of sight drawn as nothing (foe_art.s's foe_blank), the
+   rest as themselves. */
+extern const unsigned char foe_blank[];
+
+#define BLANK ((unsigned char)(((unsigned int)foe_blank - 0x4000) >> 6))
+
+static void fog_foes(void)
+{
+    unsigned char n, p;
+
+    if (!sm_npc_n) {
+        return;                 /* nobody alive on the level */
+    }
+    for (n = 0; n < FOES; ++n) {
+        p = in_sight(n) ? fptr[n] : BLANK;
+        if (sm_npc_ptr[n] != p) {
+            sm_npc_ptr[n] = p;
+            sm_mxdirty = 1;     /* (the interrupt writes them) */
+        }
+    }
+}
+
+/* A level just built into WORLD, its monsters mustered, the hero to stand
+   at engine square (x, y): what has been seen of it from OWG_FOG, the rest
+   dark, and what the hero sees from there. The screen is off: show_area()
+   draws it all. */
+static void __fastcall__ fog_level(unsigned char x, unsigned char y)
+{
+    fog_at = (unsigned char *)OWG_FOG
+           + ((unsigned int)(depth - 1) << 7) + ((unsigned int)(depth - 1) << 6);
+    vc_src = fog_at;            /* (from under the KERNAL) */
+    vc_dst = fog_seen;
+    vc_n = OWG_FOG_LEVEL;
+    vc_sstep = vc_dstep = 1;
+    sm_vcopy();
+    fog_dark();
+    memcpy(fptr, sm_npc_ptr, FOES);
+    fog_ox = x - BIAS;
+    fog_oy = y - BIAS;
+    room_was = NONE;
+    fov();
+    fog_lit(1);
+    fog_forget();
+    fog_foes();
+}
+
+/* A step under way: what the hero will see from where it ends is worked
+   out in what is left of one of its frames (d_idle()), not in the frame
+   that ends it, which starts the next and has no room to spare; what is
+   new is drawn a row at a time while frames have the room: into the back
+   screen once it is past its shift for a flip still to come (the camera
+   cam_x/cam_y where the step began, two characters on at its end), which
+   shows it, or into the front while the hero stands still. */
+static unsigned char fog_due = 0;       /* to be worked out */
+static unsigned char cam_x = 0, cam_y = 0;
+
+static void fog_ahead(void)
+{
+    if (fog_due && fog_left() >= FOV_LINES) {
+        fov();
+        fog_due = 0;
+    }
+    fog_lit(0);
+    if (!moving) {
+        fog_show(0);
+    } else if (phase != PHASE_SHIFT
+               && (sm_ox != (unsigned char)(cam_x + (dirdx[dir] << 1))
+                   || sm_oy != (unsigned char)(cam_y + (dirdy[dir] << 1)))) {
+        fog_show(1);
+    }
+}
+
+/* The end of a step: what the hero sees now, if no frame of the step had
+   the room to work it out; and the monsters in sight shown, the rest not. */
+static void fog_step(void)
+{
+    if (fog_due) {
+        fov();
+        fog_due = 0;
+    }
+    fog_foes();
+}
+
 /* --- The levels --------------------------------------------------------- */
 
 /* Level `depth` of dungeon dun_index, standing on the stairs you came by:
@@ -149,10 +337,14 @@ static void dungeon_level(unsigned char came_down)
     build_area(ts_dungeon, DUN_W, DUN_H);
     muster();
     if (came_down) {
-        show_area(dun_up_x + BIAS, dun_up_y + BIAS);
+        hx = dun_up_x + BIAS;
+        hy = dun_up_y + BIAS;
     } else {
-        show_area(dun_dn_x + BIAS, dun_dn_y + BIAS);
+        hx = dun_dn_x + BIAS;
+        hy = dun_dn_y + BIAS;
     }
+    fog_level(hx, hy);
+    show_area(hx, hy);
 }
 
 /* Their names, for "Entering ...": the game's dungeon_names[], in the
@@ -175,10 +367,12 @@ void d_enter(void)
         dungeon_build(dun_index, depth);
         build_area(ts_dungeon, DUN_W, DUN_H);
         muster();
+        fog_level(resume_x + BIAS, resume_y + BIAS);
         show_area(resume_x + BIAS, resume_y + BIAS);
         return;
     }
     G->foe_made = G->fled = 0;  /* in from the world: all of them anew */
+    memset((void *)OWG_FOG, 0, OWG_FOG_SIZE);   /* and all of it unseen */
     entering = dungeon_names[dun_index];    /* (said: the core's) */
     depth = 1;
     dungeon_level(1);
@@ -193,6 +387,10 @@ void d_arrived(void)
 
     tx = hx;
     ty = hy;
+    if ((t != T_STAIRDN || depth >= dungeon_deep[dun_index])
+        && t != T_STAIRUP) {
+        fog_step();             /* (the stairs: the next level's own) */
+    }
     if (pending) {
         /* It reached the square the hero was leaving (a key held starts
            the next step before the monsters' turns): one more step after
@@ -201,6 +399,7 @@ void d_arrived(void)
         i = pending - 1;
         pace[i] = 10;
         foe_turn(i);
+        fog_foes();
         return;
     }
     if ((t == T_STAIRDN && depth < dungeon_deep[dun_index])
@@ -229,7 +428,15 @@ void d_arrived(void)
    beside them for a fight. */
 unsigned char __fastcall__ d_can_step(unsigned char d)
 {
-    return !pending && place_step(d);
+    if (pending || !place_step(d)) {
+        return 0;
+    }
+    fog_ox = hx + dirdx[d] - BIAS;      /* (the step starts: fog_ahead()) */
+    fog_oy = hy + dirdy[d] - BIAS;
+    fog_due = 1;
+    cam_x = sm_ox;
+    cam_y = sm_oy;
+    return 1;
 }
 
 /* Walked into: a monster, or the keeper, who does not step aside. */
@@ -247,22 +454,25 @@ void __fastcall__ d_bump(unsigned char d)
 /* Every frame, with what is left of it: the monsters glide on toward their
    squares; take their turns, one at a time while the raster leaves room
    before the next frame; and one that has reached the hero, once it is
-   there and the hero stands still, is a fight. */
+   there and the hero stands still, is a fight. Then, with what is left
+   after them, what the hero sees (fog_ahead()). */
 void d_idle(void)
 {
-    if (!sm_npc_n) {
-        return;
-    }
-    if (foe_glide()) {
-        if (!moving) {
-            sm_npcs();          /* (walking, the core does it) */
+    if (sm_npc_n) {
+        if (foe_glide()) {
+            if (!moving) {
+                sm_npcs();      /* (walking, the core does it) */
+            }
+        } else if (pending && !moving) {
+            fight(pending - 1);
         }
-    } else if (pending && !moving) {
-        fight(pending - 1);
+        while (think < FOES && foe_room()) {
+            if (foe_turn(think++)) {
+                fog_foes();     /* (in sight or out of it) */
+            }
+        }
     }
-    while (think < FOES && foe_room()) {
-        foe_turn(think++);
-    }
+    fog_ahead();                /* (what is left of the frame after them) */
 }
 
 /* L: a chest on the hero's square, taken once (its looted[] bit, by the

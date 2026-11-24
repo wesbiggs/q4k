@@ -249,11 +249,11 @@ static unsigned char bumped;        /* 1 + the way last bumped, while held */
 
 /* The back screen's build, in three parts a frame apart (see sm_build):
    which is still to do. */
-#define BUILT  0
+#define BUILT  0               /* (engine.h's PHASE_BUILT) */
 #define SHIFT  1
 #define ROW    2
 #define COL    3
-static unsigned char phase;
+unsigned char phase;
 
 static void build_some(void)
 {

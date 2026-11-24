@@ -421,7 +421,7 @@ def write_foes(sprites):
            "engine's VIC",
            "; bank (cfg/c64-openworld.cfg's OVDART, aligned to a block).",
            "",
-           "        .export _foe_art",
+           "        .export _foe_art, _foe_blank",
            '        .segment "OVDART"',
            "_foe_art:"]
     for name in FOE_ART:
@@ -432,6 +432,9 @@ def write_foes(sprites):
             out.append("        .byte " + ",".join("$%02X" % x
                                                    for x in block(fr))
                        + "   ; " + name)
+    out.append("; A monster out of the party's sight (dungeon.c's fog): nothing.")
+    out.append("_foe_blank:")
+    out.append("        .res 64, 0")
     out.append("")
     out.append("; Sprites: the VIC sees bank 1, $4000-$7FFF, and the hero's")
     out.append("; skin's blocks are at $7E80, the corners' at $7F00 (smooth.s).")

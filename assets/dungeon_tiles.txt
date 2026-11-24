@@ -151,6 +151,10 @@ code chestopen 0x95
 # The keeper's second frame (stlow.s's st_bob() swaps its characters with
 # the keeper's every sixteenth frame, as everyone idles): never on the map.
 code keeperbob 0x94
+# What the party has not seen yet (src/ow/dungeon.c's fog): solid black,
+# WORLD only, as the blood is. It is not open ground, so rock beside it
+# shows no face, and the floor darkens toward it as toward rock.
+code dark 0x93
 
 tile chestopen yellow on floor
 --------
@@ -190,6 +194,24 @@ aaccccaa
 -ac--ca-
 aaa--aaa
 
+tile dark black
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+
 tile blood red on floor
 --------
 --------
@@ -212,7 +234,7 @@ open floor stairup stairdn chest monster boulder blood chestopen keeperbob
 
 # The floor darkens where rock is beside it, which is what rounds a room's
 # inside corners: a dithered shadow, along a side and round a corner.
-also floor wall secretdoor
+also floor wall secretdoor dark
 
 # The rock's edges (the top left quarter, open to the west, north, both,
 # diagonal, and west and north again; then the bottom left, open to the

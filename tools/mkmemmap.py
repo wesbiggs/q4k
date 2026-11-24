@@ -216,8 +216,10 @@ def blocks():
          "Vault: home, 64 by 64, under the I/O area"],
         [0xE7C0, 0xE7FF, "tunehdr", "keep", "Tune header"],
         B(tune, "tune", "keep", "Theme (SID file)"),
-        [tune[1] + 1, 0xFFF9, "tunearea", "keep",
+        [tune[1] + 1, 0xFBFF, "tunearea", "keep",
          "Reserved for a bigger tune"],
+        [0xFC00, 0xFC00 + 4 * 192 - 1, "fog", "keep",
+         "Dungeon fog: what is seen of each level, a bit a square"],
         [0xFFFA, 0xFFFF, "cpuvec", "sys", "CPU vectors"],
     ]
     od = B(owdata, "owdata", "data", "OW-DATA: town maps, shared tables, constants")
@@ -336,8 +338,11 @@ def blocks():
                "Town overlay's scratch: the buildings' regions")] + top},
         {"id": "dungeon", "name": "Dungeon", "sub": "ow-cpu + dungeon overlay",
          "blocks": low + eng + [
-             B(overlay(cpu, "OVDHEAD", "OVDCODE"), "ovd", "ovd",
-               "Dungeon overlay and its generator")] + top},
+             B(overlay(cpu, "OVDHEAD", "OVDART"), "ovd", "ovd",
+               "Dungeon overlay, its generator and its monsters' pictures"),
+             B(seg(cpu, "OVDBSS"), "ovdbss", "ovd",
+               "Dungeon overlay's scratch: the level as drawn, what is seen")]
+             + top},
         {"id": "owtown", "name": "Text screens",
          "sub": "owtown: shop, inn, party (I), help (?)",
          "blocks": low + loader + [textscr] + town_lo + [

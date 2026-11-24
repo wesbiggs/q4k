@@ -22,8 +22,9 @@ This file is long; search it for the **bold** lead-ins named here.
   the slot, `ovl.s`'s jump table, what fits where); "The text window, and
   `L`" (the two lines under the map, `sm_say()`); "The music carries on";
   "The screens of text are a program" (`owtown`: talk, shops, inns, party,
-  help, and `ow_back()`); "Fights in the open world"; "The open world's game
-  lives in a block" (`OwGame`, saves); "The story in the open world" (gates
+  help, and `ow_back()`); "Fights in the open world"; "What the party sees
+  underground" (the dungeons' fog); "The open world's game lives in a
+  block" (`OwGame`, saves); "The story in the open world" (gates
   and refusals). Keys are listed at the top of `src/ow/engine.c`; how the
   screen is built is at the top of `src/ow/smooth.s`.
 - **Space** is the usual constraint: free bytes per region are in the open
@@ -97,7 +98,9 @@ cfg:
   bootstrap builds in place; `$E000-$E7BF`, under the KERNAL, the continent
   the engine keeps (getting in and out of all-RAM is `vault_bank.s`); the
   rest under the KERNAL is the music's, a tune's header at `$E7C0` and the
-  tune at `$E800-$FFF9` (see Music). Reaching the vault takes the machine to
+  tune at `$E800-$FBFF` (see Music), but for `$FC00-$FEFF`, what the party
+  has seen of each level of the dungeon they are in (`OWG_FOG`: "What the
+  party sees underground"). Reaching the vault takes the machine to
   all-RAM (`$01 = $34`), which takes the KERNAL and the I/O area away, so
   interrupts are off for as long as it lasts and the only code that may run
   is in ordinary RAM and calls nothing of the KERNAL's. An NMI cannot be
@@ -591,7 +594,11 @@ the fight brings. After each step of the hero's, each that sees them (no
 farther than the screen, 10 by 6, and nothing but floor on the line)
 comes for them at its speed in the arena (`Monster.speed`, tenths of a
 square a turn, banked), one monster a frame in `ov_idle` while the raster
-is above line 190 (`foe_room()`), gliding there at the hero's pace; one
+is above line 190 or the frame has only begun (`foe_room()`, through the
+fog's `fog_left()`: a quiet frame's loop runs just after the interrupt at
+250, which counted as no room once, so a monster took its turn only in a
+frame busy enough to spill past it, and `openworld-foes` passed or not by
+when the harness's keys came), gliding there at the hero's pace; one
 beside the hero after its turn, or walked into, is a fight (`OWF_FOE`,
 which `ow_fight()` fights as that kind and clears from the block if won;
 one fled from stays). The fight waits for its glide to end, and the hero
@@ -605,6 +612,57 @@ a wasp). `foes.s` has a copy of what the map needs of `bestiary.c`
 room) and `dungeon.c` of the wanderers'
 `from`: change a monster there and here. `OWG_CALM` places none, unless
 `--poke enc_always=2`.
+
+**What the party sees underground** is the classic game's (its `fov.c`,
+Rogue's model: tag `v0.11.0`): the room they stand in, walls and all (the
+generator's `dun_rx`... rectangles, which are not all of the floor a room
+seems to have), the squares round them, and straight along the four axes
+(the corridors) to the first wall or secret door, which is seen too. What
+has been seen stays on the map, as it is (the classic game drew it dim: a
+multicolour tile has no room for a dim twin); what has not is the dungeon
+set's `dark` (`$93`, solid black, not open ground, so rock beside it shows
+no face and the floor darkens toward it), in `WORLD` only, as the blood is.
+A monster out of sight is drawn as nothing (`foe_art.s`'s `foe_blank`, its
+picture pointer swapped: `fog_foes()`), so one coming diagonally is seen
+only when it is beside the hero or in their room. `src/ow/dungeon.c` decides
+(`fov()`, `in_sight()`, `fog_level()`), `src/ow/foes.s` does the squares
+(`fog_near`, `fog_rect`/`fog_lit`, `fog_dark`, `fog_show`, `paint_row`).
+**What is seen is a bit a square** (`fog_seen`, 192 bytes a level), kept
+for every level of the dungeon at `OWG_FOG` (`$FC00-$FEFF`, under the
+KERNAL, where a write reaches the RAM: `show` writes it straight through,
+and `fog_level()` reads the level's back with `sm_vcopy`), so that a level
+left by the stairs, and the way back from a fight (the engine is loaded
+again), are as far explored as they were. The game block has no room for
+it, so a save does not keep it: the bootstrap clears it (after the splash,
+whose picture is there), and so does the way in from the world, as it does
+the monsters. **The level as built** (`fog_drawn`, 48 by 32, with the
+chests drawn open and the blood: `muster()` comes first) is what a square
+is drawn as once seen; it and `fog_seen` are `OVDBSS`, the dungeon
+overlay's scratch after its art, in no file. **No frame is spent on it
+when a step ends**, which starts the next and has no room to spare: what
+the hero will see is worked out when the step starts (`d_can_step()` sets
+`fog_due` for the square it goes to) in the first of its frames with
+`FOV_LINES` (60) raster lines left (`fog_left()`), into a box of what is
+new for the squares round them, one for each ray and one for the room;
+the room is lit a row at a time (`fog_lit()`, entering it is a few hundred
+squares), and what is new is drawn a row at a time too, as much as each
+frame has room for: first its edges (`sm_shores_rect`, a square row at a
+time, three lines a square), then its characters (`paint_row`, eight lines
+a character: six measured), the new squares' and the one round them that
+their quarters' corners change. Into the back screen once it is past its
+shift for a flip still to come (the core's `phase`, and the camera not yet
+two characters on from where the step began, `cam_x/cam_y`: the back is
+the map a character on), which the
+flip colours from the screen (`sm_fromreu` 0 tells the REU's engine so);
+into the front, with its colour, while the hero stands still (and then
+`pre_dir` is forgotten). Rows off the screen are left to the scrolling. The
+rays step a pointer and a bit along rather than working each square out
+(they had cost up to 150 lines). Measured over 64 steps down two levels of
+the Hollow Crown (`late`, against the same walk before): PAL 1 (0), NTSC 6
+(2); the REU's engine 0 (0) and 1 (0); and the screen, after any of five
+walks on both engines, both video systems, is the same as a build that
+draws everything again after each step. Goldens `openworld-dungeon` and
+`-reu` are the first room lit and the corridors from it, the rest dark.
 
 **The rounded viewport.** Every map screen of the open world (the
 overworld, towns, dungeons, both window and full screen) and the arena
@@ -716,7 +774,7 @@ carries on. "The music carries on", above, is how it crosses programs.
 file loads at `$E7C0`, a 64-byte header that `mksid.py` writes (init, play,
 song count, the volume to restore after a pause, a byte a song for its
 speed), then the tune at its own address, which must be inside
-`$E800-$FFF9` (6K). The engine's player is `src/lib/ow_tune.s`, called from
+`$E800-$FBFF` (5K: past it is the dungeons' fog, `OWG_FOG`). The engine's player is `src/lib/ow_tune.s`, called from
 its raster interrupt; the screens of text play it on from the KERNAL's
 interrupt (`src/lib/ow_play.s`), with the KERNAL banked out (`$01 = $35`)
 and back in after; see the RAM under the ROMs for the NMI that this needs.
@@ -949,7 +1007,8 @@ engine and in no file, and COMMON is `$8800-$9FFF`. An engine is 13.1K (OW-CPU; 
 screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
 that the engine's file does not carry 5K of empty screens to the disk. The overlays are 5.9K (world), 7.5K
-(town) and 4.5K (dungeon, its monsters' pictures at the end) of the slot's
+(town) and 7.1K (dungeon, its monsters' pictures at the end, and after them
+1.7K of the fog's scratch, in no file) of the slot's
 9.25K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 417
 bytes in MAIN (the generators went to their overlays, and the REU cache's
 loader came in, and then the corners' multiplexer, 1.4K; the engine no longer links cc65's `conio`: its one message is
@@ -958,7 +1017,7 @@ with a poke of `$C6`), 13 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s
 OWTOP (`$5280-$53FF`), 125 in HIGH (`$5400-$59FF`, where the text window's
 routines, stlow.s's helpers and the engine's words are), 3669 beside the
 world's overlay (which has `wander()`, the overworld's encounter roll, out
-of the core: 3468 now), 1426 beside the town's (for its maps to grow into), 4864 beside the dungeon's, 1234 in BSS, and 2.2K in COMMON (`$8800-$9FFF`, less `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans; the text window's font, 768 bytes, is there too). String
+of the core: 3468 now), 1426 beside the town's (for its maps to grow into), 384 beside the dungeon's (the fog took the rest: its scratch, 1.7K, and its code), 1229 in BSS, and 2.2K in COMMON (`$8800-$9FFF`, less `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans; the text window's font, 768 bytes, is there too). String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than
