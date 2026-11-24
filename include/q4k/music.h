@@ -32,6 +32,7 @@ void music_resume(void);
 #define SFX_NO     9    /* not that way, or not yet (the open world's) */
 #define SFX_DRINK 10    /* a draught drunk */
 #define SFX_LEVEL 11    /* the party reaches a level */
+#define SFX_DIE   12    /* a foe falls, in a fight */
 
 void sfx_play(unsigned char id);
 void sfx_step(unsigned char tile);  /* a step onto that tile, by terrain */

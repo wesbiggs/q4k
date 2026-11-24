@@ -1937,6 +1937,10 @@ static unsigned char wound(unsigned char t, unsigned char dmg)
         --alive;
         show_foe();
         foe_sprites(t);
+#ifndef FIGHT_BOT
+        sfx_delay();                /* the blow heard out, then the fall */
+        sfx_play(SFX_DIE);
+#endif
         vanish(fv, fn);
         if (!alive) {
             return 1;

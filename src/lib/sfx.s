@@ -59,6 +59,7 @@ sfx_off: .byte sfx_floor - sfx_data, sfx_grass - sfx_data, sfx_forest - sfx_data
          .byte sfx_sand - sfx_data, sfx_swamp - sfx_data, sfx_rock - sfx_data
          .byte sfx_wood - sfx_data, sfx_melee - sfx_data, sfx_bow - sfx_data
          .byte sfx_no - sfx_data, sfx_drink - sfx_data, sfx_level - sfx_data
+         .byte sfx_die - sfx_data
 sfx_terrain:
          .byte 1, 2, 0, 5, 0, 3, 4, 0, 0, 0, 6, 0, 0, 6, 0, 0   ; $60 grass...
          .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0       ; $70 ...the drawbridge
@@ -93,6 +94,8 @@ sfx_no:     .byte $00, $46,  5, $41, $05, 0,  3, $40, $05, 0,  5, $41, $04, 0,  
 sfx_drink:  .byte $00, $56,  4, $11, $0C, <1,  2, $10, $0C, 0,  4, $11, $10, <1,  2, $10, $10, 0,  4, $11, $14, <1,  3, $10, $14, 0,  0
 ; a level: a bright arpeggio of triangle, C E G and the C above, held
 sfx_level:  .byte $00, $96,  5, $11, $22, 0,  5, $11, $2B, 0,  5, $11, $33, 0,  14, $11, $44, 0,  6, $10, $44, 0,  0
+; a foe falls: a sawtooth groan sliding down, and a last thud of noise
+sfx_die:    .byte $00, $86,  12, $21, $18, <-1,  6, $81, $07, 0,  6, $80, $07, 0,  0
 
 .ifdef OW_SFX
         .segment "CODE"
