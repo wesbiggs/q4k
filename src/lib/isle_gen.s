@@ -54,6 +54,10 @@ G_TOWN       = $0C
 G_CASTLE     = $0E
 G_DUNGEON    = $10
 G_LAIR       = $12
+G_SHOAL      = $14      ; the shallows round the land (shoal, below) ...
+G_NEW        = $16      ; ... while a pass is marking them
+SHOAL_PASSES = 5
+T_DEEP       = $95      ; the open sea: the overworld set's own code
 PROT         = $40      ; added to the land beside a landing: no obstacle takes it
 LANDING_APART = 3
 
@@ -106,7 +110,8 @@ ay:             .res 1
 need:           .res 1
 dd:             .res 1
 lay:            .res 1  ; what the walker is laying down
-phase:          .res 1  ; 1 land, 2 ranges, 3 lakes, 4 places, 5 tiles, 6 done
+phase:          .res 1  ; 1 land, 2 ranges, 3 lakes, 4 places, 5 shallows,
+                        ; 6 tiles, 7 done
 arms:           .res 1  ; walks from the middle still to take
 dir2:           .res 1  ; twice the compass point, for indexing words
 count:          .res 1
@@ -132,9 +137,10 @@ start:  .word (H-1)*W + W/2, (H/2)*W, W/2, (H/2)*W + W-1
         .word (HOME_H-1)*W + W/2, (HOME_H/2)*W, W/2, (HOME_H/2)*W + W-1
 
 ; The tile for each G_ value.
-final:  .byte T_WATER, T_GRASS, T_MOUNTAIN, T_FOREST, T_WATER, T_SWAMP
+final:  .byte T_DEEP, T_GRASS, T_MOUNTAIN, T_FOREST, T_WATER, T_SWAMP
         .byte T_GRASS, T_SHORE, T_GRASS, T_GRASS, T_SHORE, T_GRASS
         .byte T_TOWN, T_GRASS, T_CASTLE, T_GRASS, T_DUNGEON, T_GRASS, T_LAIR
+        .byte T_GRASS, T_WATER              ; G_SHOAL: shallow water
 
 ; Home's places, and how far each would like to be from the ones before it.
 hkind:  .byte G_TOWN, G_CASTLE, G_DUNGEON, G_LAIR, G_TOWN
@@ -682,6 +688,9 @@ _isle_work:
         bne @n4
         jmp @places
 @n4:    dex
+        bne @n5
+        jmp @shoal
+@n5:    dex
         bne @done
         jmp @tiles
 @done:  ldx #0                  ; finished
@@ -763,11 +772,29 @@ _isle_work:
         inc pidx
         dec pcount
         bne @pmore
+        lda #SHOAL_PASSES
+        sta count
         lda #5
         sta phase
 @pmore: jmp @more
 
-@tiles: lda #6
+@shoal: ldx #0                  ; the first pass always, the rest 3 in 4
+        lda count
+        cmp #SHOAL_PASSES
+        beq @first
+        inx
+@first: stx code
+        jsr scan
+        dec count
+        bne @pmore
+        lda #2                  ; and then the clean-up
+        sta code
+        jsr scan
+        lda #6
+        sta phase
+        jmp @more
+
+@tiles: lda #7
         sta phase
         lda base                ; and now the tiles
         sta ptr1
@@ -788,6 +815,130 @@ _isle_work:
         bne @fin
         ldx #0
         lda #0
+        rts
+
+; The shallows (isleref.py's shoal()): one pass over rows 1 to two from the
+; bottom, columns 1-62, making a square of sea G_NEW if one of its eight
+; neighbours is held -- not sea, nor marked by this pass -- (code 0: the
+; first pass, always; 1: a later one, three times in four), or (code 2, the
+; clean-up) if it has them west and east of it or north and south; then the
+; pass's marks are made G_SHOAL. ptr2, ptr1 and at are the rows above, on and
+; below (the generator thread keeps those, ow_gen.s); tmp the column.
+scan:   lda base
+        sta ptr2
+        clc
+        adc #W
+        sta ptr1
+        lda base+1
+        sta ptr2+1
+        adc #0
+        sta ptr1+1
+        lda ylim                ; h - 3 rows, plus one: 1 .. h - 2
+        clc
+        adc #1
+        sta len
+@row:   lda ptr1
+        clc
+        adc #W
+        sta at
+        lda ptr1+1
+        adc #0
+        sta at+1
+        ldy #1
+@sq:    sty tmp
+        lda (ptr1),y
+        bne @next
+        lda code
+        cmp #2
+        beq @clean
+        dey
+        jsr col3
+        bcs @hit
+        iny
+        jsr col3
+        bcs @hit
+        iny
+        jsr col3
+        bcc @next
+@hit:   lda code
+        beq @set
+        jsr rnd                 ; (keeps Y)
+        and #3
+        beq @next
+@set:   ldy tmp
+        lda #G_NEW
+        sta (ptr1),y
+@next:  ldy tmp
+        iny
+        cpy #W-1
+        bne @sq
+        lda ptr1                ; a row down
+        sta ptr2
+        lda ptr1+1
+        sta ptr2+1
+        lda at
+        sta ptr1
+        lda at+1
+        sta ptr1+1
+        dec len
+        bne @row
+        jmp promote
+@clean: dey
+        lda (ptr1),y
+        jsr held
+        bcc @ns
+        iny
+        iny
+        lda (ptr1),y
+        jsr held
+        bcs @set
+@ns:    ldy tmp
+        lda (ptr2),y
+        jsr held
+        bcc @next
+        lda (at),y
+        jsr held
+        bcs @set
+        bcc @next
+
+; Carry set if any of column Y of the rows above, on and below is held.
+col3:   lda (ptr2),y
+        jsr held
+        bcs @y
+        lda (ptr1),y
+        jsr held
+        bcs @y
+        lda (at),y
+        jmp held
+@y:     rts
+
+; Carry set if the square A is held: neither sea nor this pass's mark.
+held:   beq @no
+        cmp #G_NEW
+        beq @no
+        sec
+        rts
+@no:    clc
+        rts
+
+; This pass's marks, made shallows.
+promote:
+        lda base
+        sta ptr1
+        lda base+1
+        sta ptr1+1
+        ldx pages
+        ldy #0
+@p:     lda (ptr1),y
+        cmp #G_NEW
+        bne @pn
+        lda #G_SHOAL
+        sta (ptr1),y
+@pn:    iny
+        bne @p
+        inc ptr1+1
+        dex
+        bne @p
         rts
 
 ; void isle_build(unsigned char dir): all of it at once. Home is built where

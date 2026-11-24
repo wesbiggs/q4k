@@ -274,6 +274,29 @@ u_ow_fight() {
     fi
 }
 
+# A fight at sea: enc_always=3 makes every roll in the deep sea a fight
+# (and nothing on land, OWG_CALM's), so walking to the king's ship and
+# sailing east off the shallows meets a sea snake, which the seafight
+# module (SEA_FIGHT) puts in the water round the ship's deck. Alaric
+# steps to the rail and stands firm until it has swum up beside him, up
+# and to his left, then strikes that way until it is over; the engine is
+# back with him still aboard: 5 health, 6 experience, 15 marks, boat 1.
+# (The keys follow the dice and where the shallows end: a change to the
+# generator can need them worked out again, with --vicshot.)
+u_ow_seafight() {
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
+        --splash quick --lbl build/ow-cpu.lbl --poke enc_always=3 \
+        --keys "dddddddddddddddeddddddddxxxxxdddddddddddddd$(printf 'j%.0s' $(seq 20))w      qqqqqqqqqq$(printf 'j%.0s' $(seq 20))" \
+        --settle 40 --until-peek area=0 --until-peek party+2=5 \
+        --peek party+2 --peek party+88:2 --peek party+90:2 --peek boat \
+        2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
+    if [ "$got" = "5 6 15 1 " ]; then
+        result PASS openworld-seafight
+    else
+        result FAIL openworld-seafight "health, experience, gold, boat: ${got:-?}; not 5 6 15 1"
+    fi
+}
+
 # Spoils: openworld-fight's goblin, with loot_always (OWF_LOOT) so that the
 # win leaves all it can: its arms, a short sword, which Alaric takes up
 # over his dagger, and a treasure map of Keldmarch (the game block's
@@ -407,7 +430,7 @@ run_unit() {
         owarena-arrow-ul) u_arrow ;;
         openworld-save|openworld-quaff|openworld-recolour|openworld-fight|\
         openworld-spoils|openworld-dig|openworld-foes|openworld-keeper|openworld-cache|openworld-roads|\
-        openworld-portrait)
+        openworld-portrait|openworld-seafight)
             [ -f dist/openworld.d81 ] || { result SKIP "$1" "no dist/openworld.d81"; return; }
             case $1 in
                 openworld-save) u_ow_save ;;
@@ -421,6 +444,7 @@ run_unit() {
                 openworld-cache) u_ow_cache ;;
                 openworld-roads) u_ow_roads ;;
                 openworld-portrait) u_ow_portrait ;;
+                openworld-seafight) u_ow_seafight ;;
             esac ;;
         *)
             if [ -f "tests/golden/$1.txt" ]; then
@@ -435,7 +459,7 @@ run_unit() {
 # last is short and the run does not wait on one long case at the end.
 all_units() {
     echo openworld-save checkisle openworld-foes openworld-fight \
-        openworld-spoils openworld-recolour
+        openworld-seafight openworld-spoils openworld-recolour
     for g in tests/golden/*.txt; do basename "$g" .txt; done
     echo openworld-portrait openworld-quaff openworld-dig openworld-keeper openworld-cache \
         openworld-roads owarena-arrow-ul checkmap

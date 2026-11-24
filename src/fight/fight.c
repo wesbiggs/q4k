@@ -1171,8 +1171,13 @@ static unsigned char flood(void)
     tx = mx + 1;
     ty = my + 1;
     if (size == 1) {
+#ifdef SEA_FIGHT
+        stand = roomy;          /* the sea: only the water is theirs */
+        memcpy(seen, roomy, sizeof(seen));
+#else
         stand = wall;
         memcpy(seen, wall, sizeof(seen));
+#endif
         for (i = 0; i < foes; ++i) {
             if (i != cur && foe_hp[i]) {
                 seen_row[foe_y[i] + 1][foe_x[i] + 1] = 1;
@@ -1180,6 +1185,10 @@ static unsigned char flood(void)
         }
         for (i = 0; i < party_count; ++i) {
             if (here(i)) {
+#ifdef SEA_FIGHT
+                /* (on the deck, which is no square of theirs) */
+                seen_row[mem_y[i] + 1][mem_x[i] + 1] = 0;
+#endif
                 seed(mem_x[i] + 1, mem_y[i] + 1);
             }
         }
@@ -1272,14 +1281,21 @@ static void foe_step(void)
 static unsigned char foe_start(void)
 {
     unsigned char tries;
+#ifdef SEA_FIGHT
+    const unsigned char *stand = roomy;     /* in the water, anywhere */
+#else
     const unsigned char *stand = size == 1 ? wall : roomy;
+#endif
 
     for (tries = 0; tries < START_TRIES; ++tries) {
         mx = (unsigned char)(rand() % (FW - size + 1));
         my = (unsigned char)(rand() % (START_ROWS - size + 1));
         if (!stand[(unsigned char)((my + 1) * RIM_W + mx + 1)]
             && foe_at(mx, my) == NONE && member_at(mx, my) == NONE
-            && flood()) {
+#ifndef SEA_FIGHT
+            && flood()
+#endif
+            ) {
             return 1;
         }
     }
@@ -2110,7 +2126,21 @@ static void set_up(void)
         }
     }
     if (size == 1) {
+#ifdef SEA_FIGHT
+        /* At sea (the deck of the king's ship, f.deck): the monsters keep
+           to the water, the party to the deck, and nothing is scattered.
+           roomy[], a big body's room elsewhere, is the sea's: 0 where they
+           may swim. */
+        memset(roomy, 1, sizeof(roomy));
+        for (y = 0; y < FH; ++y) {
+            for (x = 0; x < FW; ++x) {
+                roomy[(unsigned char)((y + 1) * RIM_W + x + 1)] =
+                    (flag_at(x, y) & FF_KIND) != FF_WATER;
+            }
+        }
+#else
         scatter();
+#endif
     } else {
         memset(roomy, 1, sizeof(roomy));
         for (n = 0; n < sizeof(roomy) - RIM_W - 1; ++n) {
@@ -2408,6 +2438,9 @@ static void unpack(void)
    a step on it (sfx_step()). */
 static unsigned char ground_of(void)
 {
+#ifdef SEA_FIGHT
+    return T_BRIDGE;                    /* the deck's boards */
+#endif
     switch (fq_field[2]) {
     case 0x47: return T_GRASS;                                  /* g */
     case 0x46: return fq_field[3] == 0x4F ? T_FOREST : T_FLOOR; /* fo */

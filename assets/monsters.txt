@@ -453,3 +453,60 @@ kkkk...ttk..kkkk
 ........kttk....
 .........ktt....
 ..........kk....
+
+# What comes up out of the deep sea at the king's ship (ow_fight.c's
+# sea_wanderers[]): drawn rising out of the water, the bottom rows empty.
+# A sea snake is the serpent in another colour.
+sprite serpent
+........
+...ttt..
+..tktts.
+..tttt..
+....tt..
+....tt..
+...tt...
+..tt....
+..tt....
+...tt...
+.t..tt..
+tt...tt.
+t.t..tt.
+..ttt.t.
+........
+........
+
+sprite seacrab
+........
+........
+.k....k.
+.t....t.
+tt....tt
+t.t..t.t
+..tttt..
+.tttttt.
+tttttttt
+tkttttkt
+.tttttt.
+t.t..t.t
+t......t
+........
+........
+........
+
+sprite kraken
+..tttt..
+.tttttt.
+tttttttt
+tkttttkt
+tttttttt
+.tttttt.
+.t.tt.t.
+t.t..t.t
+t.t..t.t
+.t.tt.t.
+t..tt..t
+.t.t.t.t
+t.t...t.
+.t.....t
+........
+........

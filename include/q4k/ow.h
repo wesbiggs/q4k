@@ -91,6 +91,8 @@ typedef struct {
 #define OWF_FOE    4            /* a dungeon's monster that reached the
                                    party, or that it walked into: npc its
                                    index in the game block's foe_a[] */
+#define OWF_SEA    5            /* what comes up out of the deep sea at
+                                   the king's ship (the seafight module) */
 #define OWF_LOOT   0x80         /* or'd in, the tests': a win leaves gear,
                                    and on the overworld a map, every time */
 

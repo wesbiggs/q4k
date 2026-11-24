@@ -35,6 +35,7 @@
 #define FIGHT_LOAD   0x5400     /* where the file loads */
 #define FIGHT_BASE   0x5800     /* the jump; the block is 3 bytes on */
 #define FIGHT_FILE   "fight"
+#define SEA_FIGHT_FILE "seafight"   /* the same, at sea: SEA_FIGHT */
 
 #define FIGHT_NAME   16         /* a monster's name, with its terminator */
 #define FIGHT_FNAME  12         /* a file's */

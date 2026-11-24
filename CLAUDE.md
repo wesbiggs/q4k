@@ -305,7 +305,20 @@ screen's `M` lists them from the land's nearest place, as the game's
 `world.c`: 16 gold a quest stage past the second, plus `(x ^ y) & 15`, and
 two draughts). `--poke loot_always=128` (the engine's, `OWF_LOOT` in the
 fight's kind) makes a win leave everything it can: `openworld-spoils` in
-`tools/test.sh`; `openworld-dig` pokes a map under the hero and digs. Not
+`tools/test.sh`; `openworld-dig` pokes a map under the hero and digs. **At sea**: a step of
+the ship's onto the deep sea rolls too (6 in 200, `wander()`; the shallows
+are safe), and what comes up is `ow_fight.c`'s `sea_wanderers[]` (a sea
+snake, a giant crab, a sea serpent and a kraken, by the party's level, with
+sprites `s.serpent`, `s.seacrab`, `s.kraken`), fought by `seafight`
+(`OWF_SEA`): `src/fight/fight.c` built a third time, with `SEA_FIGHT`
+(the Makefile's `fight_sea.o`), on `f.deck`, the king's ship's deck
+(`assets/fields.txt`'s `sea` field: the `bridge` tile's boards, red, in
+`field_tiles.txt`, and `"` the deep sea round it). There the monsters keep
+to the water: `roomy[]`, a big body's room elsewhere, is the sea's (0
+where they may swim), which `flood()` and `foe_start()` use, and nothing
+is scattered; the party keeps to the deck (`wall[]` as ever) and cannot
+flee. `--poke enc_always=3` makes every roll at sea a fight and none on
+land: `openworld-seafight` in `tools/test.sh`. Not
 yet: pay for the foes killed before a flight.
 `OWG_CALM` in
 the game block's `quiet` keeps anything from wandering out (the quick start
@@ -877,6 +890,22 @@ ranges and lakes are walks that only turn a square into an obstacle when
 local test, sufficient (not necessary) to keep every walkable square
 reachable.
 
+**The shallows.** Last of all (`shoal`/`scan` in `isle_gen.s`, `shoal()`
+in the model), the sea round every land becomes shallow water: five passes
+over the map but its edges, each making a square of sea shallow if one of
+its eight neighbours is land or shallows from a pass before (the first
+always, the rest three times in four), then a pass that fills a deep square
+left between shallows; so they are one to five squares wide, and ragged.
+Shallow water is `T_WATER` (with the beaches, lighter: more cyan); what is
+left is the deep sea, `T_DEEP` (`$95`, the overworld set's own code, which
+`isle.h` defines for C), as is the open sea between the lands (`load_run()`
+fills with it). Its art is the water's with dark troughs, and it has no
+edges: the shallows end square by square. A ship sails both; on foot
+neither. The generator's thread keeps only sreg, ptr1, ptr2, ptr4, tmp1
+and tmp3 across a yield (`ow_gen.s`), so the pass uses `at` (ptr4) for the
+row below, not ptr3. The deep sea rolls for what comes up out of it
+("Fights in the open world").
+
 Home is 64x64 and has more land (a longer walk) and two kinds of ground, plains
 or forest; a continent is 64x31 in `local[]` and any of five. A *special*
 square (a landing, a town, a castle, a dungeon, a lair) is an even `G_` value,
@@ -1206,7 +1235,8 @@ straight, turn, crossroads, fork -- is its edges (`edges road`), drawn where
 a neighbour is not road nor a town or castle (`join`, a neighbour flag
 bit of its own), and it is open ground, so forest thins and sand frays
 toward it. It rolls for wanderers half as often as grass (4 in 200, `wander()`). The overworld set is now
-at **160 characters, the most it may have**: the road's interior is the
+at **160 characters, the most it may have** (the deep sea took the last
+four): the road's interior is the
 sand's art, and its edges took the room of the mountain pass and the
 bridge, which no land of the open world has (a square of either would draw
 as grass). Continents have no roads yet.

@@ -131,7 +131,7 @@ extern unsigned char phase;     /* the back screen's build: PHASE_BUILT
 extern unsigned char speed;     /* pixels a frame: 1 or 2 */
 extern unsigned char enc_always;    /* tests: 1 every roll a fight, and 1
                                        or 2 a dungeon's monsters even with
-                                       OWG_CALM */
+                                       OWG_CALM; 3 every roll at sea */
 extern unsigned int  steps;
 extern unsigned char whole, switch_time, roof_time;
 

@@ -1,19 +1,19 @@
     +----------------------------------------+
-  0 |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~        |
-  1 |~~~~~~~FFFF~~F,F,.FFFF~~~~~~~~~~        |
-  2 |~~~~~~~FFFFF,F,FFFFFF^F~~~~~~~~~        |
-  3 |~~~~~~~~FFFFFF,^F^FFF^F~~~~~~~~~        |
-  4 |~~~~~~~~FFFFF%FFF^FFF^F~~~~~~~~~        |
-  5 |~~~~~~~~FFF~FFFFFFFFFF~~~~~~~~~~        |
-  6 |~~~~~~FFFFF~~~FFFFFFFF~~~~~~~~~~        |
-  7 |~~~~~~FFFFFFFFF,FFFFFF~~~~~~~~~~        |
-  8 |~~~~~~~F^^^FFFFFFFFTF.~~~~~~~~~~        |
-  9 |~~~~~~~~~~~FFFFFFF~FF.~~~~~~~~~~        |
- 10 |~~~~~~~~~~~~~FFFF~FFFF~~~~~~~~~~        |
- 11 |~~~~~~~~~~~~~FFFFF~FF~~~~FFF~~~~        |
- 12 |~~~~~~~~~~~~FFFFFFFF^^D,~FFFF~~~        |
- 13 |~~~~~~~~~~~~FFFFF~FFF^,,,FFFF~~~        |
- 14 |~~~~~~~~~~~~FFF~~~FFF,,,,,~~~~~~        |
+  0 |uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu        |
+  1 |uuuu~~~FFFF~~F,F,.FFFF~~~uuuuuuu        |
+  2 |uuuuu~~FFFFF,F,FFFFFF^F~~uuuuuuu        |
+  3 |uuuu~~~~FFFFFF,^F^FFF^F~~uuuuuuu        |
+  4 |uuuu~~~~FFFFF%FFF^FFF^F~~uuuuuuu        |
+  5 |uuuu~~~~FFF~FFFFFFFFFF~~~uuuuuuu        |
+  6 |uuuu~~FFFFF~~~FFFFFFFF~~~uuuuuuu        |
+  7 |uuuu~~FFFFFFFFF,FFFFFF~~uuuuuuuu        |
+  8 |uuuu~~~F^^^FFFFFFFFTF.~~~~~~~uuu        |
+  9 |uuuu~~~~~~~FFFFFFF~FF.~~~~~~~~uu        |
+ 10 |uuuu~~~~~~~~~FFFF~FFFF~~~~~~~~~u        |
+ 11 |uuuu~~~~~~~~~FFFFF~FF~~~~FFF~~~u        |
+ 12 |uuuuuuuuu~~~FFFFFFFF^^D,~FFFF~~u        |
+ 13 |uuuuuuuuu~~~FFFFF~FFF^,,,FFFF~~u        |
+ 14 |uuuuuuuuu~~~FFF~~~FFF,,,,,~~~~~u        |
  15 |                                        |
  16 |SEED 7  COMPASS 2  WALKABLE 670         |
  17 |BIOME 1  LANDING 32,2  SHIP FROM 32,0   |

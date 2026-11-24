@@ -24,6 +24,11 @@
 #
 # Map characters are the tile glyphs of assets/tiles.txt, plus:
 #   @  where the leader starts      m  where the monster starts
+#   "  the deep sea (the overworld set's own code, not in tiles.txt)
+#
+# A `sea` field is fought by the seafight module (src/fight/fight.c built
+# with SEA_FIGHT): the monsters keep to the water, which the party cannot
+# enter, so the monster starts in it, and no way round is looked for.
 #
 # The way out is the middle row, open at both ends; mkfields.py refuses a
 # field where it is not, or where the monster could not reach the party.
@@ -95,3 +100,17 @@ ____________________
 #__________________#
 ##_______@________##
 ####____________####
+
+# The deck of the king's ship, in the deep sea (a fight at sea: ow_fight.c's
+# OWF_SEA): its boards are the bridge's, and whatever comes up out of the
+# water stays in it.
+field deck field_tiles bridge shut sea
+""""""""""""""""""""
+""""""""""m"""""""""
+""""""========""""""
+""""============""""
+"""=============="""
+""""=====@======""""
+""""""========""""""
+""""""""""""""""""""
+""""""""""""""""""""
