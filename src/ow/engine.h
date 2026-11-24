@@ -124,6 +124,10 @@ extern const unsigned char facing[8];
 extern unsigned char hx, hy;    /* the hero's square, as the engine has it */
 extern unsigned char dir, stride, pre_dir, frame, after;
 extern unsigned char moving;    /* a step is under way (dir) */
+extern unsigned char phase;     /* the back screen's build: PHASE_BUILT
+                                   once it is ready for the next flip */
+#define PHASE_BUILT 0
+#define PHASE_SHIFT 1           /* (not yet shifted from the front) */
 extern unsigned char speed;     /* pixels a frame: 1 or 2 */
 extern unsigned char enc_always;    /* tests: 1 every roll a fight, and 1
                                        or 2 a dungeon's monsters even with

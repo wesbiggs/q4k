@@ -89,6 +89,9 @@
         .export _sm_mxwant, _sm_mxdirty
         .importzp ptr1, ptr2, ptr3, ptr4, sp
         .export _sm_stack
+        .export sm_char_at, sm_cx, sm_cy, ow_chcol  ; (foes.s: the fog)
+        .export sm_fromreu      ; (and 0: the next flip coloured from the
+                                ; screen, as after sm_redraw_box)
 
 SCRA     = $4000
 SCRB     = $4400
@@ -203,6 +206,11 @@ _sm_ink:    .res 1              ; sm_say's colour
 built_dir:  .res 1              ; the way the back screen was built
 .if OW_REU
 built_reu:  .res 1              ; the back screen was built through it
+sm_fromreu = built_reu
+.else
+sm_fromreu: .res 1              ; (nothing reads it)
+.endif
+.if OW_REU
 r_c64:      .res 2              ; reu_go's arguments
 r_addr:     .res 2
 r_len:      .res 2
@@ -215,6 +223,8 @@ pendswap:   .res 1
 
 cx:         .res 1              ; char_at's arguments and workings
 cy:         .res 1
+sm_cx       = cx
+sm_cy       = cy
 tx:         .res 1
 ty:         .res 1
 qofs:       .res 1
@@ -256,6 +266,7 @@ backhi:     .res 1
 ; The character at world position (cx, cy), in A. Clobbers X, Y, ptr2.
 
 char_at:
+sm_char_at:
         lda     cy
         lsr     a
         sta     ty

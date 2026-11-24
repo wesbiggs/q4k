@@ -147,7 +147,11 @@ castle and its four ports.
 
 Step onto a town, the castle or a dungeon to go in. In a town a building you
 are not in shows only its roof, which comes off as you step in at the door. A
-dungeon's stairs go down and up; up from the first level is out.
+dungeon's stairs go down and up; up from the first level is out. Underground
+you see the room you stand in, the squares round you and straight along the
+corridors; the rest is dark until you have been near it, and stays on the map
+once you have, for every level, until you leave the dungeon. A monster you
+cannot see is not shown.
 
 Ships lie at Keldmarch's ports and the continents' docks. Step onto one to
 board it, sail the open water, and step off onto any land, where it waits for

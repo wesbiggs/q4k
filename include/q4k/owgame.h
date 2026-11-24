@@ -120,6 +120,17 @@ typedef struct {
 
 #define G ((OwGame *)OWG_ADDR)
 
+/* What the party has seen of the dungeon they are in (src/ow/dungeon.c's
+   fog): a bit a square, DUN_W / 8 bytes a row, a level after another, in
+   the RAM under the KERNAL past the music's room ($E800-$FBFF), which
+   every program of the open world leaves alone. Written straight through
+   (a write under a ROM reaches the RAM), read back with the vault banked
+   in. Not in the game block, which has no room, so not in a save: the
+   bootstrap clears it, and so does the way into a dungeon from the world. */
+#define OWG_FOG       0xFC00
+#define OWG_FOG_LEVEL (DUN_W / 8 * DUN_H)
+#define OWG_FOG_SIZE  (OWG_FOG_LEVEL * MAX_DEEP)
+
 /* Its size, which tools/mkowsave.py writes too: the engine checks that the
    two agree, and that it fits under the probe page. */
 #define OWG_SIZE 201
