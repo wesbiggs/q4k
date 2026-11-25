@@ -126,15 +126,19 @@ static void pick_wanderer(unsigned char in_dungeon, unsigned char kind)
    Their sprites by name, since none has a glyph of the game's. */
 #pragma rodata-name (push, "HIDATA")
 static const Wanderer sea_wanderers[] = {
-    { 1, { "A sea snake",   8, 3, 1,  6,  6, T_MONSTER, COLOR_CYAN,   14, 1 } },
-    { 3, { "A giant crab", 16, 5, 4, 12, 12, T_MONSTER, COLOR_RED,     8, 1 } },
+    { 1, { "A sea snake",   8, 3, 1,  6,  6, T_MONSTER, COLOR_CYAN,   14, 1,
+           3, 4, SHOT_WATER } },
+    { 2, { "A killer eagle", 12, 5, 2, 10, 8, T_MONSTER, COLOR_YELLOW, 20, 1,
+           0, 0, MF_FLY } },
+    { 3, { "A giant crab", 16, 5, 4, 12, 12, T_MONSTER, COLOR_RED,     8, 1,
+           4, 3, SHOT_WATER } },
     { 5, { "A sea serpent", 22, 7, 3, 20, 20, T_MONSTER, COLOR_GREEN, 12, 1,
            6, 4, SHOT_WATER } },
     { 7, { "A kraken",     40, 10, 5, 40, 40, T_MONSTER, COLOR_PURPLE, 8, 1,
            8, 3, SHOT_WATER } },
 };
 static const char *const sea_sprites[] = {
-    "s.serpent", "s.seacrab", "s.serpent", "s.kraken",
+    "s.serpent", "s.eagle", "s.seacrab", "s.serpent", "s.kraken",
 };
 #pragma rodata-name (pop)
 #define SEA_KINDS (sizeof(sea_wanderers) / sizeof(sea_wanderers[0]))

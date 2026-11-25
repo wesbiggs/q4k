@@ -54,6 +54,10 @@ FI_PAL, FI_HX, FI_HY, FI_MX, FI_MY, FI_ROCK, FI_NCHARS = 0, 3, 4, 5, 6, 7, 11
 FI_NSCAT, FI_SCAT, SCAT_MAX = 12, 13, 3
 FI_COLOUR, FI_FLAGS = 32, 160
 DEEP_CH = '"'            # the deep sea, which assets/tiles.txt has no glyph for
+MAST_CH = "0"           # the deck's mast and hatch (field_tiles.txt's own)
+HATCH_CH = "8"
+HULL_CH = {"7": "hullnw", "9": "hullne", "1": "hullsw", "3": "hullse"}
+                        # the hull aslant, as a keypad points
 FLAG = {"pass": 0, "enter": 0, "water": 1, "block": 2}
 # What a step onto a square costs, past the 10 tenths of grass: bits 2-3 of
 # its flag, a level of 5 tenths each (fight.h's FF_COST).
@@ -156,6 +160,12 @@ def compose(fd, tiles):
                 row.append("deep" if fd["sea"] else fd["ground"])
             elif ch == DEEP_CH:
                 row.append("deep")
+            elif ch == MAST_CH:
+                row.append("mast")
+            elif ch == HATCH_CH:
+                row.append("hatch")
+            elif ch in HULL_CH:
+                row.append(HULL_CH[ch])
             elif ch == "o":
                 rocks.append((x, y))
                 row.append(fd["ground"])
@@ -245,6 +255,10 @@ def compose(fd, tiles):
 
     kind = {t[0]: t[2] for t in tiles.values()}
     kind["deep"] = "water"              # (the overworld set's own code)
+    kind["mast"] = "block"              # (the deck's, field_tiles.txt)
+    kind["hatch"] = "pass"
+    for n in HULL_CH.values():
+        kind[n] = "block"               # (half sea, half rail)
     flags = [[FLAG.get(kind.get(n), 2) | SLOW.get(n, 0) << 2
               for n in row] for row in grid]
     for x, y in rocks:

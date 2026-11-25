@@ -2131,11 +2131,14 @@ static void set_up(void)
            to the water, the party to the deck, and nothing is scattered.
            roomy[], a big body's room elsewhere, is the sea's: 0 where they
            may swim. */
+        /* One that flies (MF_FLY: the eagle) has the deck too, and
+           only what blocks (the mast, the hull) is not its. */
         memset(roomy, 1, sizeof(roomy));
         for (y = 0; y < FH; ++y) {
             for (x = 0; x < FW; ++x) {
+                i = flag_at(x, y) & FF_KIND;
                 roomy[(unsigned char)((y + 1) * RIM_W + x + 1)] =
-                    (flag_at(x, y) & FF_KIND) != FF_WATER;
+                    fq_kind & MF_FLY ? i == FF_BLOCK : i != FF_WATER;
             }
         }
 #else
