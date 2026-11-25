@@ -840,6 +840,9 @@ void w_idle(void)
             job_lines[k] = (unsigned char)t;
         }
     }
+    if (looking) {
+        return;                 /* (L shows what has been seen, no more) */
+    }
     /* Then what the hero sees, a row at a time while there is room. */
     while (sm_frame == frame) {
         r = VIC.rasterline | ((VIC.ctrl1 & 0x80) << 1);
@@ -939,7 +942,9 @@ void w_after(void)
     stream(dirdx[after - 1], dirdy[after - 1]);
     show_ships();
     sm_npcs();
-    wf_ahead();                 /* (and the next look, if the last is done) */
+    if (!looking) {
+        wf_ahead();             /* (and the next look, if the last is done) */
+    }
     if (!(steps & 3)) {
         seek();
     }
@@ -987,15 +992,21 @@ static void play_world(void)
 /* The end of a step on the overworld: where the hero is in the world;
    on to a ship, or off one onto land, leaving it at the last of the water;
    and what the window has to take in. */
+static void view_step(void)
+{
+    wx = wrapx(wx + WORLD_W + (signed char)dirdx[dir]);
+    wy += dirdy[dir];
+    hx = wx & 127;
+    hy = wy & 127;
+    after = dir + 1;            /* (the streaming, next frame: w_after()) */
+}
+
 static void step_world(void)
 {
     unsigned char s;
     static unsigned char ashore;
 
-    wx = wrapx(wx + WORLD_W + (signed char)dirdx[dir]);
-    wy += dirdy[dir];
-    hx = wx & 127;
-    hy = wy & 127;
+    view_step();
     /* The land underfoot, which what wanders out is chosen by (a land's
        natives, ow_fight.c) and a save keeps: the cell's, or as it was out
        on the open sea, where nothing wanders. */
@@ -1027,7 +1038,6 @@ static void step_world(void)
         play_world();
         sm_blank(0);                /* (if that had to load a tune) */
     }
-    after = dir + 1;            /* and the rest next frame: see main() */
 }
 
 /* --- Going in and out of places --------------------------------------- */
@@ -1371,13 +1381,33 @@ void w_arrived(void)
 }
 
 /* + (or fire, k 1): into the place on the hero's square. */
-void __fastcall__ w_use(unsigned char k)
+unsigned char __fastcall__ w_use(unsigned char k)
 {
+    switch (k) {
+    case OVU_STEP:              /* L: the view has moved a square */
+        view_step();
+        /* fall through */
+    case OVU_LOOK:
+        return 1;
+    case OVU_HOME:              /* the view back on the party (the core */
+    case OVU_END:               /* has put wx, wy back): what the window */
+        while (job_head != job_tail) {  /* was still loading, and all of */
+            job_run();                  /* it again if the view went */
+        }                               /* farther than it has room for */
+        if (look_far > 32) {
+            fill_window();
+            sm_shores();
+        }
+        show_ships();
+        return 1;
+    }
     if (k != '-' && place_here()) {
         if (pk == PK_TOWN) {
             to_town(pa);
         } else {
             to_dungeon_if(pa);
         }
+        return 1;
     }
+    return 0;
 }

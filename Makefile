@@ -270,7 +270,7 @@ $(DIST)/%.prg: $(BUILD)/%.o $(LIB) $(wildcard cfg/*.cfg)
 # and a saved game to load until the player saves one. It is a D81 (a 1581,
 # 3160 blocks): with the fights a 1541's disk was full.
 OWENG := $(DIST)/ow-cpu.prg $(DIST)/ow-reu.prg
-OWOVL := $(foreach e,cpu reu,$(foreach o,world town dungeon hi,$(DIST)/ow-$(e).$(o)))
+OWOVL := $(foreach e,cpu reu,$(foreach o,world town dungeon hi tl,$(DIST)/ow-$(e).$(o)))
 OWFILES := $(DIST)/ow-data.prg $(DIST)/splash-p.prg $(DIST)/splash-n.prg \
            $(DIST)/ow-save.prg
 
@@ -336,7 +336,7 @@ $(BUILD)/ow/ovl.o: src/ow/ovl.s
 # The dungeon's monsters' sprites (tools/mkfields.py), and what they do
 # square by square (foes.s), in its overlay; the king's (mkoverworld.py),
 # in the town's.
-$(BUILD)/ow/foe_art.o $(BUILD)/ow/town_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(BUILD)/ow/genbuild.o $(BUILD)/ow/wfog.o $(BUILD)/ow/ow_font.o: $(BUILD)/ow/%.o: src/ow/%.s
+$(BUILD)/ow/foe_art.o $(BUILD)/ow/town_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(BUILD)/ow/look.o $(BUILD)/ow/genbuild.o $(BUILD)/ow/wfog.o $(BUILD)/ow/ow_font.o: $(BUILD)/ow/%.o: src/ow/%.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) -c -o $@ $<
 
@@ -349,15 +349,15 @@ $(BUILD)/ow/ow_sfx.o: src/lib/sfx.s
 OWGEN := $(patsubst %,$(BUILD)/ow/%.o,ow_isle genbuild wfog ow_tgen ow_town_gen ow_town_data ow_town_maps)
 OWOBJ = $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-$*.o) $(BUILD)/ow/ovl.o \
         $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o $(BUILD)/ow/foe_art.o \
-        $(BUILD)/ow/town_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o \
+        $(BUILD)/ow/town_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(BUILD)/ow/look.o \
         $(BUILD)/ow/ow_font.o $(OWGEN)
 
 # The overlays come out of the same link (ld65's %O.world, ...).
-$(DIST)/ow-%.world $(DIST)/ow-%.town $(DIST)/ow-%.dungeon $(DIST)/ow-%.hi: $(DIST)/ow-%.prg ;
+$(DIST)/ow-%.world $(DIST)/ow-%.town $(DIST)/ow-%.dungeon $(DIST)/ow-%.hi $(DIST)/ow-%.tl: $(DIST)/ow-%.prg ;
 
 $(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/ow/ovl.o \
 	    $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o $(BUILD)/ow/foe_art.o $(BUILD)/ow/foes.o \
-	    $(BUILD)/ow/town_art.o $(BUILD)/ow/stlow.o $(BUILD)/ow/ow_font.o $(OWGEN) $(LIB) cfg/c64-openworld.cfg tools/owslots.py
+	    $(BUILD)/ow/town_art.o $(BUILD)/ow/stlow.o $(BUILD)/ow/look.o $(BUILD)/ow/ow_font.o $(OWGEN) $(LIB) cfg/c64-openworld.cfg tools/owslots.py
 	@mkdir -p $(DIST)
 	$(CL65) $(LDFLAGS) -C cfg/c64-openworld.cfg -m $(BUILD)/ow-$*.map \
 	    -Wl -Ln,$(BUILD)/ow-$*.lbl -o $@ $(OWOBJ) $(LIB)
@@ -366,6 +366,7 @@ $(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/o
 	@mv $@.town $(DIST)/ow-$*.town
 	@mv $@.dungeon $(DIST)/ow-$*.dungeon
 	@mv $@.hi $(DIST)/ow-$*.hi
+	@mv $@.tl $(DIST)/ow-$*.tl
 	tools/owslots.py $(BUILD)/ow-$*.map $(OWOBJ)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
@@ -419,7 +420,7 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 # with all of them in it, for the tests (screendump.py --reucache).
 OWCACHE_FILES := $(DIST)/ow-data.prg=ow-data \
     $(DIST)/ow-cpu.prg=ow-cpu $(DIST)/ow-reu.prg=ow-reu \
-    $(foreach e,cpu reu,$(foreach o,hi world town dungeon,$(DIST)/ow-$(e).$(o)=ow-$(e).$(o))) \
+    $(foreach e,cpu reu,$(foreach o,hi tl world town dungeon,$(DIST)/ow-$(e).$(o)=ow-$(e).$(o))) \
     $(DIST)/owtown.prg=owtown $(DIST)/owtalk.prg=owtalk --glob '$(BUILD)/ow/sets/t.*' \
     $(DIST)/fight.prg=fight $(DIST)/seafight.prg=seafight --glob '$(BUILD)/music/m.*' \
     --glob '$(BUILD)/fight/disk/[fs].*' $(DIST)/owparty.prg=owparty \

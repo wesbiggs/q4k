@@ -262,6 +262,8 @@ def blocks():
             B(seg(segs, "ALIGNBSS"), "chcol", "ebss",
               "ow_chcol (page aligned)"),
             B(seg(segs, "BSS"), "ebss", "ebss", "Engine BSS"),
+            B(seg(segs, "TAILCODE"), "tail", "engine",
+              "TAIL code (from .tl): L's look about the map (look.s)"),
             [0xE000, 0xE7BF, "kept", "keep",
              "Continent kept, under the KERNAL"],
         ]

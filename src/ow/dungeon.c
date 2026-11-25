@@ -418,20 +418,23 @@ void d_arrived(void)
 /* + down the stairs, - up them (or out to the world's overlay from the
    first level); fire (k 1) whichever they are. Not while a monster is
    coming for a fight. */
-void __fastcall__ d_use(unsigned char k)
+unsigned char __fastcall__ d_use(unsigned char k)
 {
     unsigned char t = tile_at(hx, hy);
 
+    if ((unsigned char)(k - OVU_LOOK) < 4) {  /* L's (OVU_LOOK to OVU_END): */
+        return !pending;        /* not while a monster comes for a fight */
+    }
     if (pending) {
-        return;
+        return 1;               /* (and no loot) */
     }
     if (t == T_STAIRUP) {
         if (k == '+') {
-            return;
+            return 0;
         }
     } else if (t != T_STAIRDN || depth >= dungeon_deep[dun_index]
                || k == '-') {
-        return;
+        return 0;
     }
     memset(sm_npc_ox, 0, sizeof sm_npc_ox);  /* (a town's people are */
     memset(sm_npc_oy, 0, sizeof sm_npc_oy);  /* never off their squares) */
@@ -446,6 +449,7 @@ void __fastcall__ d_use(unsigned char k)
         --depth;
         dungeon_level(0);
     }
+    return 1;
 }
 
 /* Whether the hero may step that way: not while a monster is coming up
@@ -482,6 +486,9 @@ void __fastcall__ d_bump(unsigned char d)
    after them, what the hero sees (fog_ahead()). */
 void d_idle(void)
 {
+    if (looking) {
+        return;                 /* (L: nothing moves, nothing more seen) */
+    }
     if (sm_npc_n) {
         if (foe_glide()) {
             if (!moving) {

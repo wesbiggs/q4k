@@ -43,7 +43,11 @@
  *   + (or the stick's button)                    into the place underfoot,
  *                                                or down a dungeon's stairs
  *   - (or the button)                            up them (out from the first)
- *   L                                            look: a chest, the town's
+ *   L                                            look about the map: the
+ *                                                keys move the view, SPACE
+ *                                                back to the party, RUN/STOP
+ *                                                done (the overlays' OVU_*)
+ *   + on nothing else                            loot: a chest, the town's
  *                                                hidden gold, or the dead
  *   ?                                            the keys, and the quest
  *   RUN/STOP                                     quit, to the title (Y or N)
@@ -249,6 +253,24 @@ const unsigned char facing[8] = {
 
 static unsigned int camx0, camy0;   /* the camera when the step began */
 static unsigned char bumped;        /* 1 + the way last bumped, while held */
+unsigned char looking;              /* L: the view moves, not the party */
+
+/* --- L: looking about the map ----------------------------------------------
+
+   The view moves as the hero would, a square a step, but the party stays
+   where it stood, drawn among the people, and no time passes: nothing
+   wanders out, nothing comes, nothing more is seen (the overlays' fog and
+   monsters wait while `looking`), and what has not been seen is still dark
+   or cloud. SPACE puts the view back on the party, RUN/STOP (or L) ends
+   it there. The overlay moves the overworld's view (OVU_STEP: wx, wy and
+   the streaming) and puts its window back (OVU_HOME, OVU_END); the rest is
+   look.s's, in TAIL (a file of its own, ow-cpu.tl, past BSS). */
+const char look_how[] = "Looking. SPACE: the party; STOP: done.";
+unsigned char __fastcall__ look_can(unsigned char d);   /* (look.s) */
+void look_start(void);
+void look_step(void);
+void look_after(void);
+void __fastcall__ look_key(unsigned char k);
 static unsigned char wanted;        /* + or - typed, or 1 for the fire button */
 static unsigned char fired;         /* the fire button, last frame */
 
@@ -872,17 +894,22 @@ void __fastcall__ show_area(unsigned char x, unsigned char y)
 
 /* Something typed: a step, or a setting. PETSCII. */
 #pragma code-name (push, "OWTOP")  /* past the sprite blocks */
+static const unsigned char dkey[] = {
+    'w', 0x91, 's', 0x11, 'a', 0x9D, 'd', 0x1D, 'q', 'e', 'z', 'x'
+};
+static const unsigned char dway[] = {
+    DIR_UP, DIR_UP, DIR_DOWN, DIR_DOWN, DIR_LEFT, DIR_LEFT,
+    DIR_RIGHT, DIR_RIGHT, DIR_UL, DIR_UR, DIR_DL, DIR_DR
+};
+
 static unsigned char key_dir(unsigned char k)
 {
-    switch (k) {
-    case 'w': case 0x91: return DIR_UP;
-    case 's': case 0x11: return DIR_DOWN;
-    case 'a': case 0x9D: return DIR_LEFT;
-    case 'd': case 0x1D: return DIR_RIGHT;
-    case 'q': return DIR_UL;
-    case 'e': return DIR_UR;
-    case 'z': return DIR_DL;
-    case 'x': return DIR_DR;
+    static unsigned char i;
+
+    for (i = 0; i < sizeof dkey; ++i) {
+        if (dkey[i] == k) {
+            return dway[i];
+        }
     }
     return NONE;
 }
@@ -894,6 +921,10 @@ static unsigned char typed(void)
     if (d != NONE) {
         return d;
     }
+    if (looking) {              /* L: SPACE and RUN/STOP, nothing else */
+        look_key(k);
+        return NONE;
+    }
     switch (k) {
     case '1': speed = 1; break;
     case '2': speed = 2; break;
@@ -904,10 +935,10 @@ static unsigned char typed(void)
     case 'p':                   /* a draught */
         quaff();
         break;
-    case 'l':                   /* look (the overlay's) */
-        st_look();
+    case 'l':                   /* look about the map */
+        look_start();
         break;
-    case '+':                   /* in, or down the stairs */
+    case '+':                   /* in, down the stairs, or loot */
     case '-':                   /* up them */
         wanted = k;
         break;
@@ -955,13 +986,15 @@ static void use(void)
 {
     unsigned char f = ~PEEK(0xDC00) & 0x10;
 
-    if (f && !fired) {
+    if (f && !fired && !looking) {
         wanted = 1;
     }
     fired = f;
     if (wanted) {
         st_step();              /* the status over what was said */
-        ov_use(wanted);
+        if (!ov_use(wanted) && wanted != '-') {
+            st_look();          /* + on nothing else: dig, a chest, gold */
+        }
         wanted = 0;
         ov_switch();
         if (entering) {
@@ -1132,7 +1165,7 @@ void __fastcall__ ow_leave(const char *name)
 
 int main(void)
 {
-    unsigned char d, flipped;
+    unsigned char d, f, flipped;
 
     /* The C stack, which cc65 starts at the top of MAIN, into the tape
        buffer instead ($0334-$03FF, down from $0400), which nothing else
@@ -1150,6 +1183,11 @@ int main(void)
     /* The engine's code past the screens, $5280-$59FF (OWTOP, HICODE): a
        file of its own, so that this one is not 5K of empty screens longer.
        Nothing in it may run before this. */
+    while (!load3(hi_file)) {
+        load_failed(hi_file, 0);
+    }
+    hi_file[7] = 't';           /* and past BSS (TAIL): ow-cpu.tl */
+    hi_file[8] = 'l';
     while (!load3(hi_file)) {
         load_failed(hi_file, 0);
     }
@@ -1199,6 +1237,7 @@ int main(void)
         if (after) {
             ov_after();
             after = 0;
+            look_after();       /* (L's: the party among the people) */
         }
 
         if (moving) {
@@ -1249,12 +1288,16 @@ int main(void)
                     hx += dirdx[dir];
                     hy += dirdy[dir];
                 }
-                ++steps;
-                ov_arrived();   /* (the overworld's step is the world's) */
-                st_arrived();   /* a chest underfoot is opened */
-                ov_switch();    /* into a town or a dungeon, or out */
-                if (entering) {
-                    say_entering();
+                if (looking) {
+                    look_step();    /* (the view's: no time passes) */
+                } else {
+                    ++steps;
+                    ov_arrived();   /* (the overworld's step is the world's) */
+                    st_arrived();   /* a chest underfoot is opened */
+                    ov_switch();    /* into a town or a dungeon, or out */
+                    if (entering) {
+                        say_entering();
+                    }
                 }
                 publish();
             }
@@ -1284,8 +1327,13 @@ int main(void)
             }
             if (d != NONE) {
                 sm_sprite(hero_frame(d, stride));
-                if (ov_can_step(d)) {
-                    st_step();  /* the status over what was said */
+                /* (Not a ?: of the two calls: cc65 then tested the flags
+                   ov_can_step()'s C left, not what it returned.) */
+                f = looking ? look_can(d) : ov_can_step(d);
+                if (f) {
+                    if (!looking) {
+                        st_step();  /* the status over what was said */
+                    }
                     dir = d;
                     moving = 1;
                     moved = 0;
@@ -1298,11 +1346,11 @@ int main(void)
                         build_some();   /* the edges in the next frames */
                     }
                     sm_sprite(hero_frame(dir, stride ^= 1));
-                    if (!boat) {    /* a footstep, by what it lands on */
+                    if (!boat && !looking) {    /* a footstep */
                         sfx_step(tile_at(hx + dirdx[d], hy + dirdy[d]));
                     }
                     bumped = 0;
-                } else if (bumped != d + 1) {
+                } else if (bumped != d + 1 && !looking) {
                     /* Into a person (a talk, in a town), or a way not open
                        yet: once a press, not every frame it is held. */
                     bumped = d + 1;

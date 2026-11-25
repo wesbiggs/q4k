@@ -20,7 +20,7 @@
         .import _t_enter, _t_arrived, _t_bump, _t_can_step, _t_idle
         .import _w_bump, _w_look, _t_look, _d_look, _w_gen
         .import _d_enter, _d_arrived, _d_bump, _d_idle, _d_can_step
-        .import _w_use, _d_use
+        .import _w_use, _d_use, _sm_npc_n
 
 _ov_enter       = __SLOTW_START__ + 0
 _ov_can_step    = __SLOTW_START__ + 3
@@ -36,6 +36,10 @@ _ov_use         = __SLOTW_START__ + 24     ; + or - (or fire, 1): in, down, up
         .import __VICTOP_START__
         .segment "OWHIADDR"     ; the engine's code past the screens: %O.hi
         .word   __VICTOP_START__
+
+        .import __TAIL_START__
+        .segment "OWTLADDR"     ; and past BSS: %O.tl
+        .word   __TAIL_START__
 
         .segment "OVWADDR"
         .word   __SLOTW_START__
@@ -61,8 +65,22 @@ _ov_use         = __SLOTW_START__ + 24     ; + or - (or fire, 1): in, down, up
         jmp     _t_idle         ; the people idle
         jmp     _t_look
         jmp     t_nothing       ; (never: a build is dropped going in)
-        jmp     t_nothing       ; + and -: nothing (a town's way out is walked)
+        jmp     t_use           ; + and -: nothing (a town's way out is
+                                ; walked); L, if a sprite is left
 t_nothing:
+        rts
+t_use:  sec                     ; OVU_LOOK to OVU_END (engine.h):
+        sbc     #2              ; yes, unless seven people take every
+        cmp     #4              ; sprite the party could be drawn with
+        bcs     t_none
+        lda     _sm_npc_n
+        cmp     #7
+        bcs     t_none
+        ldx     #0
+        lda     #1              ; (last: cc65 tests the flags A leaves)
+        rts
+t_none: lda     #0
+        tax
         rts
 
         .segment "OVDADDR"
