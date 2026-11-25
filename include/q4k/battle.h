@@ -108,7 +108,8 @@ typedef struct {
 #define MP_HE      0x80           /* (PRON_HE ^ 3) << 6 */
 #define MP_SHE     0x40
 #define MP_PERSON  0xC0
-#define SHOT_KIND  0x3F           /* kind & SHOT_KIND: the SHOT_* */
+#define SHOT_KIND  0x1F           /* kind & SHOT_KIND: the SHOT_* */
+#define MF_FLY     0x20           /* it flies: at sea, over the deck too */
 
 /* Wandering monsters, and the level each starts turning up at. */
 typedef struct {

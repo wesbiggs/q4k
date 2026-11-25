@@ -91,7 +91,7 @@ def parse(path):
     lines = [t for t, _ in tagged]
     palette = sprcols = shore = None
     opens, fringes, drawn, also, joins = [], {}, {}, {}, {}
-    own_codes, own_pass = {}, set()
+    own_codes, own_pass, uncoded = {}, set(), set()
     tiles, sprites = [], []
     offmap = fallback = None
     i = 0
@@ -116,6 +116,21 @@ def parse(path):
                 own_pass.add(n)
             elif f[3:]:
                 fail(lineno, "code <name> <hex> [pass]")
+        elif f[0] == "uncode":
+            # uncode <name>: a tile of the set's own (code, above) that an
+            # included set has and this one does not want, its code free for
+            # another: its art, its joins and edges and its being open go
+            # too (the fields drop the road and the clouds for the deck's
+            # mast and hatch).
+            # A tile of assets/tiles.txt's that the set never draws can be
+            # uncoded too, to give its code to one of the set's own.
+            n = own_codes.pop(f[1], None)
+            if n is None and f[1] not in tile_codes():
+                fail(lineno, "uncode: %s is no tile" % f[1])
+            own_pass.discard(n)
+            joins.pop(f[1], None)
+            drawn.pop(f[1], None)
+            uncoded.add(f[1])
         elif f[0] == "ground":
             # ground, then 16 rows of 8 in . a b: what every background
             # pixel of the set shows instead, by where it is in its square
@@ -254,6 +269,8 @@ def parse(path):
         art.setdefault(name, rows)
     done = []
     OVERLAYS.clear()
+    tiles = [t for t in tiles if t[0] not in uncoded or t[0] in own_codes]
+    opens = [n for n in opens if n not in uncoded or n in own_codes]
     for name, cols, rows, lineno, base in tiles:
         if base:
             OVERLAYS.setdefault(name, (cols, rows))
@@ -265,7 +282,7 @@ def parse(path):
         done.append((name, cols, rows, lineno))
     return (palette, sprcols, done, sprites, shore,
             (fringes, opens, drawn, also, joins), offmap, fallback,
-            own_codes, own_pass)
+            own_codes, own_pass, uncoded)
 
 
 # The art of the last set parsed that stands `on` another tile, as drawn
@@ -350,8 +367,10 @@ def build(setname):
     worth printing about it."""
     path = os.path.join(ROOT, "assets", SET_FILE[setname])
     (palette, sprcols, tiles, sprites, shore, fringe, offmap,
-     fallback, own_codes, own_pass) = parse(path)
+     fallback, own_codes, own_pass, uncoded) = parse(path)
     codes = tile_codes()
+    for n in uncoded:
+        codes.pop(n, None)
     for name, n in own_codes.items():
         if n in codes.values() and codes.get(name) != n:
             sys.exit("mkoverworld: %s: code %s $%02X is assets/tiles.txt's"

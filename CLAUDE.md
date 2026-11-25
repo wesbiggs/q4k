@@ -316,15 +316,22 @@ fight's kind) makes a win leave everything it can: `openworld-spoils` in
 `tools/test.sh`; `openworld-dig` pokes a map under the hero and digs. **At sea**: a step of
 the ship's onto the deep sea rolls too (6 in 200, `wander()`; the shallows
 are safe), and what comes up is `ow_fight.c`'s `sea_wanderers[]` (a sea
-snake, a giant crab, a sea serpent and a kraken, by the party's level, with
-sprites `s.serpent`, `s.seacrab`, `s.kraken`), fought by `seafight`
+snake, a killer eagle, a giant crab, a sea serpent and a kraken, by the
+party's level, with sprites `s.serpent`, `s.eagle`, `s.seacrab`,
+`s.kraken`; all but the eagle spit water from afar, `SHOT_WATER`, or bows
+and spells would pick them off from the deck), fought by `seafight`
 (`OWF_SEA`): `src/fight/fight.c` built a third time, with `SEA_FIGHT`
 (the Makefile's `fight_sea.o`), on `f.deck`, the king's ship's deck
 (`assets/fields.txt`'s `sea` field: the `bridge` tile's boards, red, in
-`field_tiles.txt`, and `"` the deep sea round it). There the monsters keep
+`field_tiles.txt`, and `"` the deep sea round it; a mast, `0`, which
+blocks, hatches, `8`, and the hull aslant, `7 9 1 3` as a keypad points:
+codes of that set's own, freed with `uncode` from the road, the clouds and
+four of the signs, which no field has; the boards' edges are drawn toward
+the sea, `edges bridge`). There the monsters keep
 to the water: `roomy[]`, a big body's room elsewhere, is the sea's (0
 where they may swim), which `flood()` and `foe_start()` use, and nothing
-is scattered; the party keeps to the deck (`wall[]` as ever) and cannot
+is scattered; one that flies (`MF_FLY` in its `kind`, above the shot's
+five bits: the eagle) has the deck too, all but what blocks; the party keeps to the deck (`wall[]` as ever) and cannot
 flee. `--poke enc_always=3` makes every roll at sea a fight and none on
 land: `openworld-seafight` in `tools/test.sh`. Not
 yet: pay for the foes killed before a flight.

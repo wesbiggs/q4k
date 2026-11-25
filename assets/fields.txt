@@ -25,6 +25,8 @@
 # Map characters are the tile glyphs of assets/tiles.txt, plus:
 #   @  where the leader starts      m  where the monster starts
 #   "  the deep sea (the overworld set's own code, not in tiles.txt)
+#   0  the deck's mast, 8 a hatch, 7 9 1 3 its hull aslant, as a keypad
+#      points (field_tiles.txt's own codes)
 #
 # A `sea` field is fought by the seafight module (src/fight/fight.c built
 # with SEA_FIGHT): the monsters keep to the water, which the party cannot
@@ -107,10 +109,10 @@ ____________________
 field deck field_tiles bridge shut sea
 """"""""""""""""""""
 """"""""""m"""""""""
-""""""========""""""
-""""============""""
-"""=============="""
-""""=====@======""""
-""""""========""""""
+"""""7==========9"""
+""""7=8======0===9""
+"""========8======="
+""""1=====@======3""
+"""""1==========3"""
 """"""""""""""""""""
 """"""""""""""""""""

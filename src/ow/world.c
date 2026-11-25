@@ -1174,7 +1174,10 @@ void w_look(void)
     unsigned char i, x = wx & 63, y = wy & 63;
     unsigned int t, amount;
 
-    if (!boat) {
+    if (boat) {
+        return;                 /* (no digging at sea) */
+    }
+    {
         if (land != ISLE_HOME) {
             y -= ISLE_TOP;
         }
@@ -1196,7 +1199,7 @@ void w_look(void)
             }
         }
     }
-    look_nothing(boat ? NONE : tile_at(hx, hy));
+    look_nothing(tile_at(hx, hy));
 }
 
 /* Into dungeon n, if its seal is broken: the Sigil for the Hollow Crown,

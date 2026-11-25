@@ -165,7 +165,8 @@ a saved game, which starts the map unseen again.
 Every land is ringed by shallows, lighter water a few squares wide, where
 nothing troubles a ship; out on the dark deep sea things come up out of the
 water at you, and are fought on the ship's deck -- they cannot leave the
-water, and you cannot leave the deck.
+water (most spit at you from it), and you cannot leave the deck; only the
+killer eagles come down onto it.
 
 The king's ship lies at the port nearest the castle. Bring him the
 Emberstone out of the Hollow Crown and he lends it to you: step onto it to

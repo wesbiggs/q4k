@@ -9,8 +9,8 @@
 
 include overworld.txt
 
-# No clouds on a field: their join's neighbour flag bit is the tree's here.
-nojoin dark
+# No clouds on a field (uncode dark, at the end): their join's neighbour
+# flag bit is the tree's here.
 
 tile tree black
 ...cc...
@@ -134,3 +134,157 @@ cccccccc
 cbcccccc
 cccccccc
 bbbbbbbb
+
+# The king's ship's deck, made more of (a fight at sea): the road and the
+# clouds, which no field has, give their codes to a mast (white, which
+# blocks) and a hatch (a grating in the boards, walked over); and the deck
+# has a hull, its edges drawn toward the sea, cut diagonally at its outside
+# corners (and a slant drawn whole: the hull tiles below).
+uncode road
+uncode dark
+join deep
+code mast 0x96
+code hatch 0x94
+uncode signinn
+uncode signweapon
+uncode signarmour
+uncode signbow
+code hullnw 0x9A
+code hullne 0x9B
+code hullsw 0x9C
+code hullse 0x9D
+join bridge mast hatch hullnw hullne hullsw hullse
+
+tile mast white
+bbbccbbb
+bbccccbb
+bccccccb
+bccccccb
+cccccccc
+cccccccc
+cccbbccc
+ccbbbbcc
+ccbbbbcc
+cccbbccc
+cccccccc
+cccccccc
+bccccccb
+bccccccb
+bbccccbb
+bbbccbbb
+
+# The hull where it runs aslant, a square a row (the signs, which no
+# field has, give their codes): the sea on one side of the diagonal, the
+# rail along it, the boards on the other.
+tile hullnw red
+bbbbbbbb
+bbbbbbbc
+bbbbbbbc
+bbbbbbcc
+bbbbbbcc
+bbbbbccc
+bbbbbccc
+bbbbccbb
+bbbbcccc
+bbbccccc
+bbbccccc
+bbccbbbb
+bbcccccc
+bccccccc
+bccccccc
+ccbbbbbb
+
+tile hullne red
+bbbbbbbb
+cbbbbbbb
+cbbbbbbb
+ccbbbbbb
+ccbbbbbb
+cccbbbbb
+cccbbbbb
+bbccbbbb
+ccccbbbb
+cccccbbb
+cccccbbb
+bbbbccbb
+ccccccbb
+cccccccb
+cccccccb
+bbbbbbcc
+
+tile hullsw red
+cccccccc
+bccccccc
+bccccccc
+bbcbbbbb
+bbcccccc
+bbbccccc
+bbbccccc
+bbbbcbbb
+bbbbcccc
+bbbbbccc
+bbbbbccc
+bbbbbbcb
+bbbbbbcc
+bbbbbbbc
+bbbbbbbc
+bbbbbbbb
+
+tile hullse red
+cccccccc
+cccccccb
+cccccccb
+bbbbbcbb
+ccccccbb
+cccccbbb
+cccccbbb
+bbbcbbbb
+ccccbbbb
+cccbbbbb
+cccbbbbb
+bcbbbbbb
+ccbbbbbb
+cbbbbbbb
+cbbbbbbb
+bbbbbbbb
+
+tile hatch red
+cccccccc
+cbbbbbbc
+cbcbcbcc
+cbbbbbbc
+cbcbcbcc
+cbbbbbbc
+cbcbcbcc
+cbbbbbbc
+cbcbcbcc
+cbbbbbbc
+cbcbcbcc
+cbbbbbbc
+cbcbcbcc
+cbbbbbbc
+cccccccc
+bbbbbbbb
+
+# The deck's edges, as the clouds' are drawn (overworld.txt): the top left
+# quarter with sea beside it (west), above it (north), both, only on the
+# diagonal, then beside and above again; then the bottom left quarter, the
+# same with the sea below rather than above. A blue margin, the red rail,
+# the boards' blue seams carried on.
+edges bridge
+bccc bbbb bbbb cccc bccc bbbb
+bccc cccc bbbc cccc bccc cccc
+bccc cccc bbbc cccc bccc cccc
+bcbb bbbb bbcb bbbb bcbb bbbb
+bccc cccc bbcc cccc bccc cccc
+bcbc ccbc bccc ccbc bcbc ccbc
+bccc cccc bccc cccc bccc cccc
+bcbb bbbb bcbb bbbb bcbb bbbb
+bccc cccc bccc cccc bccc cccc
+bccc cccc bccc cccc bccc cccc
+bccc cccc bbcc cccc bccc cccc
+bcbb bbbb bbcb bbbb bcbb bbbb
+bccc cccc bbbc cccc bccc cccc
+bcbc cbcc bbbc cbcc bcbc cbcc
+bccc cccc bbbc cccc bccc cccc
+bcbb bbbb bbbb bbbb bcbb bbbb
