@@ -234,9 +234,8 @@ _wf_row:
 
 ; A square seen for the first time. In the look (wf_lok), from wf_line,
 ; which world.c's wf_fill() (through wf_fillv) fills at the row's first:
-; into WORLD, its bit set, and the boxes grown round it (the edges' but for
-; the deep sea, whose edges are none and which is to its neighbours what the
-; dark was; and what to draw, if it is on the screen). Else (the near look,
+; into WORLD, its bit set, and the boxes grown round it (the edges', and
+; what to draw, if it is on the screen). Else (the near look,
 ; round the hero) world.c's wf_hit(), through wf_hitv. A: its tile.
         .export _wf_line, _wf_lok, _wf_fillv, _wf_box, _wf_pbox
 T_DEEP  = $95
@@ -291,13 +290,10 @@ hit:    lda     _wf_lok
         sta     _gx
         lda     _wf_gy
         sta     _gy
-        lda     tile
-        cmp     #T_DEEP
-        beq     :+
         lda     #<_wf_box
         ldx     #>_wf_box
         jsr     _box_grow
-:       lda     _gx             ; on the screen (10 across, 7 down)?
+        lda     _gx             ; on the screen (10 across, 7 down)?
         clc
         adc     #10
         cmp     #21

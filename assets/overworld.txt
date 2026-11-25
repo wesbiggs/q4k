@@ -231,25 +231,27 @@ bbbbbbbb
 bbbbbbbb
 bbbbbbbb
 
-# What the party has not seen yet (src/ow/wfog.c, as the dungeons' fog):
-# solid black, WORLD only. Not land, so the shallows draw no beach toward
-# it; not open ground, so nothing frays toward it.
-tile dark black
+# What the party has not seen yet (src/ow/world.c and wfog.s, as the
+# dungeons' fog): cloud, white, its folds in the sea's blue (the only grey
+# a multicolour character has: its own colour is 0-7, and the three shared
+# are the land's). WORLD only. Not land, so the shallows draw no beach
+# toward it, and not open ground; its edges are drawn (below).
+tile dark white
+cccccccc
+ccccbccc
+cccbbccc
+cccccccc
+ccccccbc
+cbcccccc
+bbcccccb
 cccccccc
 cccccccc
+cccbcccc
+ccbbcccc
 cccccccc
 cccccccc
-cccccccc
-cccccccc
-cccccccc
-cccccccc
-cccccccc
-cccccccc
-cccccccc
-cccccccc
-cccccccc
-cccccccc
-cccccccc
+cccccbcc
+ccccbbcc
 cccccccc
 
 tile shore yellow
@@ -432,6 +434,11 @@ cccccccc
 
 join road town castle
 
+# The clouds' edge is wherever they meet anything else, and the deep sea's
+# wherever it meets anything but itself and the clouds: the shallows.
+join dark
+join deep dark
+
 # A road's edges: the top left quarter with no road beside it (to the west),
 # above it (north), both (the outside of a turn, rounded), and only on the
 # diagonal (the inside of a turn or a crossroads), then beside and above
@@ -497,19 +504,19 @@ also swamp forest mountain
 also forest mountain
 
 # Sand, mountains and swamp: a shallow, ragged edge (the forest's are
-# drawn, below). Each fringe has two
-# beside-and-above masks, one for each of the terrain's variants (which a
-# hash of the square picks), so that a long edge wanders in and out; the
-# two have the same ends, so they meet. A terrain drawn once is drawn twice
-# (the same art) to have a second variant.
+# drawn, below). A fringe has room for two beside-and-above masks, one for
+# each of the terrain's variants (which a hash of the square picks), so
+# that a long edge wanders in and out; they are one and the same now, which
+# gave 24 characters to the clouds' edges and the deep sea's. A terrain
+# drawn once is drawn twice (the same art) to have a second variant.
 fringe shore mountain swamp
 x... xxxx xxxx x... x... xxxx
-xx.. x.xx xxxx x... x... xxxx
-x... .... xxx. .... xx.. .xx.
-.... .... xx.. .... xxx. ..x.
-x... .... xx.. .... xx.. ....
-xx.. .... x... .... x... ....
-x... .... xx.. .... .... ....
+xx.. x.xx xxxx x... xx.. x.xx
+x... .... xxx. .... x... ....
+.... .... xx.. .... .... ....
+x... .... xx.. .... x... ....
+xx.. .... x... .... xx.. ....
+x... .... xx.. .... x... ....
 .... .... .... .... .... ....
 
 # The forest is trees, one to a quarter, so cutting pixels off its edge
@@ -602,3 +609,47 @@ kttttttk
 .kttttk.
 ..kkkk..
 ........
+
+# The clouds' edges: billows, and outside them their shadow in the sea's
+# blue (which is the deep sea itself, and on land reads as shade): the top
+# left quarter with no cloud beside it (west), above it (north), both, and
+# only on the diagonal, then beside and above again (one variant); the
+# first eight rows the top left quarter, the next eight the bottom left.
+edges dark
+bccc bcbb bbbb bccc bccc bcbb
+cccc cccc bbcb cccc cccc cccc
+bccc cccc bccc cccc bccc cccc
+bbcc cccc bbcc cccc bbcc cccc
+bccc cccc bccc cccc bccc cccc
+cccc cccc cccc cccc cccc cccc
+cccc cccc cccc cccc cccc cccc
+bccc cccc bccc cccc bccc cccc
+bccc cccc bccc cccc bccc cccc
+cccc cccc cccc cccc cccc cccc
+bccc cccc cccc cccc bccc cccc
+bbcc cccc bccc cccc bbcc cccc
+bccc cccc bbcc cccc bccc cccc
+cccc cccc bccc cccc cccc cccc
+cccc cccc bbcb cccc cccc cccc
+bccc bcbb bbbb bccc bccc bcbb
+
+# The deep sea's edge toward the shallows: its blue, and the shallows' cyan
+# glints thinning out from the side they are on, in their colour (the deep
+# sea's own troughs, black, would need a character of another colour).
+edges deep colour=cyan
+bbbb bbcb bbcb bbbb bbbb bbcb
+cbbb bbbb bbbb bbbb cbbb bbbb
+bbbb cbbb cbbb bbbb bbbb cbbb
+bbbb bbbb bbbb bbbb bbbb bbbb
+bbbb bbbb bbbb bbbb bbbb bbbb
+bcbb bbbb bcbb bbbb bcbb bbbb
+cbbb bbbb cbbb bbbb cbbb bbbb
+bbbb bbbb bbbb bbbb bbbb bbbb
+bbbb bbbb bbbb bbbb bbbb bbbb
+cbbb bbbb cbbb bbbb cbbb bbbb
+bbbb bbbb bcbb bbbb bbbb bbbb
+bbbb bbbb bbbb bbbb bbbb bbbb
+bbbb bbbb bbbb bbbb bbbb bbbb
+bcbb cbbb cbbb bbbb bcbb cbbb
+cbbb bbbb bbbb bbbb cbbb bbbb
+bbbb bbcb bbcb bbbb bbbb bbcb

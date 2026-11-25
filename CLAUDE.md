@@ -692,8 +692,13 @@ draws everything again after each step. Goldens `openworld-dungeon` and
 **What the party sees of the land** is the dungeons' fog out in the
 open (`src/ow/world.c`'s "What the party has seen of the land" and "What
 the hero sees", and `src/ow/wfog.s`): a square never seen is the overworld
-set's `dark` (`$94`, solid black, not land and not open ground, so nothing
-takes an edge toward it) in `WORLD`, which is what is drawn and what
+set's `dark` (`$94`) in `WORLD`, drawn as cloud: white, its folds in the
+sea's blue (the only grey a multicolour character has: its own colour is
+0-7 and the shared three are the land's); not land and not open ground,
+and with drawn edges of its own (`join dark`, `edges dark`: billows, their
+hollows in that blue, which is the deep sea itself and on land reads as
+shade) wherever it meets anything else. Every square seen for the first
+time has its edges worked out again, the clouds' round it among them, which is what is drawn and what
 `tile_at()` reads; the open sea between the lands is always seen. **What
 is seen is a bit a square**, home's 512 bytes and each continent's 248, at
 `OWG_WFOG` (`$F600`, under the KERNAL, written straight through), with a
@@ -723,8 +728,8 @@ one copy a row, at its first such square), its bit, and the boxes grown
 round it: the edges' (`sm_shores_rect()`, as a band worked through
 `EQ_CHUNK` squares at a time in `w_idle()`, before the look goes on: about
 fourteen raster lines a square, so a row of new land cannot be done at
-once; none for the deep sea, which is to its neighbours what the dark
-was), and, if on the screen, what to draw (`wf_draw()`, into the screen
+once; the deep sea's too since both have edges: skipping them left a
+cloud's old edge drawn in the sea), and, if on the screen, what to draw (`wf_draw()`, into the screen
 on show with its colour, as the dungeons' fog draws while the hero stands
 still, and `pre_dir` forgotten). The look runs in `w_idle()`, a row while
 the frame has the lines a row has taken (`wf_lines`, learned); one started
@@ -735,7 +740,8 @@ onto them, and **nothing may be added to the frame a step ends in**: a
 few thousand cycles of bookkeeping there cost a missed frame a step), are
 seen there and then, their edges worked out and drawn. **What it costs**
 (`late` over `openworld-sail`'s 101 steps, all on land and sea never
-seen, PAL): about 27 on OW-CPU (1 without the fog) and 22 on OW-REU (1),
+seen, PAL): about 36 on OW-CPU (1 without the fog) and 26 on OW-REU (1;
+27 and 22 before every square seen had its edges worked out),
 nearly all at step ends beside something that hid what is now seen;
 walking back over what has been seen, about 9 in 58 steps on OW-CPU and 1
 on OW-REU. Not measured on NTSC. Drawing those step ends' squares over
@@ -965,8 +971,13 @@ left between shallows; so they are one to five squares wide, and ragged.
 Shallow water is `T_WATER` (with the beaches, lighter: more cyan); what is
 left is the deep sea, `T_DEEP` (`$95`, the overworld set's own code, which
 `isle.h` defines for C), as is the open sea between the lands (`load_run()`
-fills with it). Its art is the water's with dark troughs, and it has no
-edges: the shallows end square by square. A ship sails both; on foot
+fills with it). Its art is one still character, dark troughs on the blue,
+and its edges toward the shallows are drawn (`join deep dark`, `edges deep
+colour=cyan`: a drawn edge's characters may have a colour of their own,
+here the shallows' cyan, glints thinning into the deep), in the fields'
+set too (the ship's deck gets them). The fields have no clouds: their set
+drops the overworld's `join dark` (`nojoin`), since a set has six
+neighbour flag bits for `also` and `join` and theirs has the tree. A ship sails both; on foot
 neither. The generator's thread keeps only sreg, ptr1, ptr2, ptr4, tmp1
 and tmp3 across a yield (`ow_gen.s`), so the pass uses `at` (ptr4) for the
 row below, not ptr3. The deep sea rolls for what comes up out of it
@@ -1302,8 +1313,9 @@ straight, turn, crossroads, fork -- is its edges (`edges road`), drawn where
 a neighbour is not road nor a town or castle (`join`, a neighbour flag
 bit of its own), and it is open ground, so forest thins and sand frays
 toward it. It rolls for wanderers half as often as grass (4 in 200, `wander()`). The overworld set is now
-at 158 characters of the most it may have, **160** (the deep sea took
-four, and gave three back as one still character when the dark came): the road's interior is the
+at 158 characters of the most it may have, **160**: the deep sea is one
+still character, the clouds one, and their edges took the 24 the fringe's
+second variant had (`fringe`'s last two masks are its first two again): the road's interior is the
 sand's art, and its edges took the room of the mountain pass and the
 bridge, which no land of the open world has (a square of either would draw
 as grass). Continents have no roads yet.
