@@ -214,6 +214,7 @@ int main(void)
     /* No dungeon seen yet (owgame.h's OWG_FOG): the splash's picture was
        there, or another game's. A write under the KERNAL reaches the RAM. */
     memset((void *)OWG_FOG, 0, OWG_FOG_SIZE);
+    memset((void *)OWG_WFOG, 0, OWG_WFOG_SIZE);    /* nor any land */
     OW->seed = lore_seed;
     OW->reu = ow_reu_detect();
     if (OW->reu && OW_TESTCPU == OW_TESTCPU_ON) {

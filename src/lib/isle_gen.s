@@ -122,8 +122,8 @@ nn:             .res 1
 ee:             .res 1
 b:              .res 18 ; the ring's walkability, at twice its index
 
-.ifdef OW_WORLD                 ; the open world's engines: in the world's
-        .segment "OVWCODE"      ; overlay (Makefile's ow_isle.o)
+.ifdef OW_WORLD                 ; the open world's engines: in OW-DATA
+        .segment "RODATA"       ; (COMMON), off the world's full overlay
 .else
         .segment "CHDATA1"
 .endif

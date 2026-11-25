@@ -360,7 +360,7 @@ def build(setname):
                 char_of[key] = len(chars)
                 chars.append(key)
             quad.append(char_of[key])
-        if name in ("water", "deep"):
+        if name == "water":
             water += [(quad[0], quad[1]), (quad[2], quad[3])]
         by_name.setdefault(name, []).append(len(metatiles))
         metatiles.append(quad)
@@ -448,7 +448,7 @@ def build(setname):
                  for n in slot_name]
     nflag, bsel, binv = [], [], []
     for name in slot_name:
-        nflag.append((name not in ("water", "deep", "bridge")) |
+        nflag.append((name not in ("water", "deep", "dark", "bridge")) |
                      (name in open_names) << 1 | bit_of.get(name, 0) |
                      sum(b for t, b in join_bit.items()
                          if name == t or name in joins[t]))

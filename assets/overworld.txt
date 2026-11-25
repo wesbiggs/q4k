@@ -210,25 +210,47 @@ bbbbbcbb
 bcbbbbbb
 bbbbbbbb
 
-# The deep sea, past the shallows: the same blue, troughs dark where the
-# shallows' crests are light. No edges: the shallows end square by square.
+# The deep sea, past the shallows: the same blue, darker, and still (one
+# character, the same in all four quarters: the set is full). No edges:
+# the shallows end square by square.
 tile deep black
 bbbbbbbb
-bbbbbccb
-bbbbcbbc
+bbcbbbcb
+bbbbbbbb
+bbbbbbbb
+bcbbbcbb
 bbbbbbbb
 bbbbbbbb
 bbbbbbbb
 bbbbbbbb
-bccbbbbb
-cbbcbbbb
+bbcbbbcb
+bbbbbbbb
+bbbbbbbb
+bcbbbcbb
 bbbbbbbb
 bbbbbbbb
 bbbbbbbb
-bbbbbbcc
-bbbbbcbb
-bbbbbbbb
-bbbbbbbb
+
+# What the party has not seen yet (src/ow/wfog.c, as the dungeons' fog):
+# solid black, WORLD only. Not land, so the shallows draw no beach toward
+# it; not open ground, so nothing frays toward it.
+tile dark black
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
+cccccccc
 
 tile shore yellow
 cccccccc
@@ -388,6 +410,8 @@ a......a
 code road 0x96 pass
 # The deep sea (isle_gen.s, and the open sea between the lands).
 code deep 0x95
+# What has not been seen (src/ow/wfog.c).
+code dark 0x94
 tile road yellow
 cccccccc
 ccccccac

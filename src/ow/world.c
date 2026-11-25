@@ -28,6 +28,9 @@
 
 #include "engine.h"
 
+/* (The slot is full: memcpy and the like called, not inlined.) */
+#pragma inline-stdfuncs (off)
+
 #define SHIP_FRAME (64 + 8)     /* the ship's sprite frames, facing left and
                                    right, after the hero's six and the
                                    villager's two */
@@ -59,8 +62,9 @@
    row a step, done in frames with time to spare (the jobs, below). */
 
 #define WORLD_W   384u
+#define grid world_grid
 #define CELL_HOME 5
-static const unsigned char grid[4][6] = {
+const unsigned char world_grid[4][6] = {   /* (wfog.s reads it too) */
     { 0, 0, 1, 0, 0, 0 },       /* the continents are d + 1, by compass */
     { 4, 0, CELL_HOME, 0, 2, 0 },
     { 0, 0, 3, 0, 0, 0 },
@@ -127,11 +131,14 @@ static unsigned char nearest(void)
 }
 
 /* A build that has finished is the continent kept. */
+static void wf_take(unsigned char k);  /* (below: the land's fog) */
+
 static void settle(void)
 {
     if (gen_state == 2) {
         kept = want;
         gen_state = 0;
+        wf_take(kept);          /* and what has been seen of it */
     }
 }
 
@@ -174,6 +181,88 @@ static void need_isle(unsigned char d)
         gen_run(sm_frame);
     }
 }
+
+/* --- What the party has seen of the land ------------------------------------
+
+   As the dungeons' fog (dungeon.c), but out in the open: a bit a square of
+   home and of each continent (owgame.h's OWG_WFOG, under the KERNAL, written
+   straight through and read with sm_vcopy), and a square never seen is the
+   set's `dark` in WORLD (load_run(), below), which is what is drawn; the
+   open sea between the lands is always seen. What is seen is worked out
+   after each step (wf_look(), below): from the hero, out to a little past
+   the screen's edges, blocked by mountains and forest. */
+#define T_ODARK  0x94           /* assets/overworld.txt's code dark */
+
+#pragma codesize (push, 100)     /* (small, over fast: the slot is full) */
+/* The bits of home and of the continent kept (`kept`), copied out from
+   under the KERNAL (w_enter(), settle()) so that the streaming reads them
+   without banking; a bit set is written to both. */
+unsigned char wf_ram[OWG_WFOG_HOME + OWG_WFOG_ISLE];   /* (wfog.s: wf_ramp) */
+extern unsigned char *wf_ramp;
+extern unsigned char wf_isle;           /* the continent's in wf_ram */
+extern unsigned char *wf_far;           /* the byte's, under the KERNAL */
+extern unsigned int  wf_isle_far;       /* the continent's, there */
+
+/* n bytes from under the KERNAL to `to`, 128 at a time (vc_n is a byte). */
+static void wf_fetch(unsigned char *from, unsigned char *to, unsigned int n)
+{
+    vc_sstep = vc_dstep = 1;
+    for (; n; n -= vc_n, from += vc_n, to += vc_n) {
+        vc_n = n > 128 ? 128 : n;
+        vc_src = from;
+        vc_dst = to;
+        sm_vcopy();
+    }
+}
+
+/* Continent k's bits into wf_ram, if they are not there. */
+
+static void wf_take(unsigned char k)
+{
+    if (wf_isle != k) {
+        wf_isle = k;
+        wf_isle_far = OWG_WFOG + OWG_WFOG_HOME + k * OWG_WFOG_ISLE;
+        wf_fetch((unsigned char *)wf_isle_far, wf_ram + OWG_WFOG_HOME,
+                 OWG_WFOG_ISLE);
+    }
+}
+
+extern unsigned char wf_mask;   /* the square's bit in its byte (wfog.s's) */
+
+/* Where the byte with world square (x, y)'s bit is, in wf_ram (and in
+   wf_far under the KERNAL), and its bit in wf_mask; or 0 out on the open
+   sea, where everything is seen: wfog.s's, from wf_ux and wf_uy. */
+extern unsigned int  wf_ux;
+extern unsigned char wf_uy;
+unsigned char *wf_byte_(void);
+
+static unsigned char *wf_byte(unsigned int x, unsigned char y)
+{
+    wf_ux = x;
+    wf_uy = y;
+    return wf_byte_();
+}
+
+/* The run load_run() has just copied into the window, n squares from world
+   square (x, y) along the row or down the column (never across a cell),
+   at dst: each never seen is dark (wfog.s's wf_dark()). */
+extern unsigned char *wf_dp, *wf_bp;   /* (wfog.s's) */
+extern unsigned char wf_n, wf_down;
+void wf_dark(void);
+
+static void wf_dark_run(unsigned int x, unsigned char y, unsigned char n,
+                        unsigned char down, unsigned char *dst)
+{
+    wf_bp = wf_byte(x, y);
+    if (wf_bp) {
+        wf_dp = dst;
+        wf_n = n;
+        wf_down = down;
+        wf_dark();
+    }
+}
+
+#pragma codesize (pop)
 
 /* Where square (x, y) of the world is kept, or 0 for the sea; and in `run`,
    how many squares on from it, along its row (or down its column), are
@@ -230,6 +319,10 @@ static void load_run(unsigned int x, unsigned char y, unsigned char n,
         vc_dst = WORLD + ((unsigned int)(y & 63) << 6) + (x & 63);
         vc_sstep = vc_dstep = down ? 64 : 1;
         sm_vcopy();
+        if (vc_src >= (unsigned char *)0x100) {
+            wf_dark_run(x, y, vc_n, down,
+                        WORLD + ((unsigned int)(y & 63) << 6) + (x & 63));
+        }
         n -= vc_n;
         if (down) {
             y += vc_n;
@@ -284,6 +377,10 @@ unsigned char job_head, job_tail;     /* not static: tests peek them */
    and then the most that jobs() has measured. Small jobs, so that they fit
    what a frame has left. */
 unsigned char job_lines[8] = { 60, 60, 90, 90, 90, 90, 90, 90 };
+#define EQ_LINES 120            /* and a chunk of the edges of what it shows */
+static unsigned char wf_lines = 30;     /* what a row is given (w_idle()) */
+#define WF_LINES 30             /* the raster lines a row of the look wants
+                                   (more when it shows land, for its edges) */
 
 /* The edges of n squares of the window from (x, y) (each 0-63), down or
    across, in as many pieces as the window's wrap cuts them into. */
@@ -312,6 +409,379 @@ static void edges(unsigned char x, unsigned char y, unsigned char n,
         n -= m;
     }
 }
+
+/* --- What the hero sees -----------------------------------------------------
+
+   From the hero's square out to WF_X squares across and WF_Y down, two past
+   what the screen shows, so that a step's new column or row has been seen
+   (or not) before the scrolling draws it: a quarter at a time, row by row
+   out from the hero, each square seen if the one before it on the way back
+   to the hero was seen and is not a mountain or forest (that one by the
+   slope: across, down, or the diagonal), and the hero's own square seen
+   through whatever it is. So a range hides what is behind it, and in a
+   forest only the trees round the hero are seen. A square seen for the
+   first time is drawn (its true tile into WORLD from where the world keeps
+   it), its bit set, and the box of what changed grows round it (as offsets
+   from the hero); then the edges of that box are worked out again, and
+   what of it is on the screen drawn (wf_paint()). */
+#pragma codesize (push, 100)
+#define WF_X 12
+#define WF_Y 8
+#define WF_ROW (WF_X + 1)
+
+/* wfog.s's, in OW-DATA: */
+extern unsigned char vis[];     /* 2 seen and open, 1 seen and blocking, 0 not */
+extern unsigned char wf_q, wf_dy;       /* the quarter and row next; 4 done */
+extern signed char wf_box[4];   /* (wfog.s's) what changed, from the look's
+                                   square: x0 x1 y0 y1, x0 > x1 none */
+#define wf_x0 wf_box[0]
+#define wf_x1 wf_box[1]
+#define wf_y0 wf_box[2]
+#define wf_y1 wf_box[3]
+extern unsigned int  wf_wx;             /* the hero, when it started */
+extern unsigned char wf_wy, wf_hx, wf_hy;
+
+/* World square (x, y) seen for the first time: its tile into WORLD (at
+   *at), its bit set (straight through to the RAM under the KERNAL). */
+static unsigned char wf_show(unsigned int x, unsigned char y,
+                             unsigned char *at)
+{
+    unsigned char *b = wf_byte(x, y);
+
+    vc_src = kept_at(x, y, 0);
+    if (!vc_src) {
+        vc_src = (unsigned char *)T_DEEP;
+    }
+    vc_dst = at;
+    vc_n = 1;
+    vc_sstep = vc_dstep = 1;
+    sm_vcopy();
+    if (b) {
+        *wf_far = *b |= wf_mask;    /* (a write under the ROM reaches the RAM) */
+    }
+    return *at;
+}
+
+static void show_ships(void);
+
+/* (x, y), from where the look started, into the box of what changed
+   (its edges to be worked out again) and, if it is within the screen of
+   it, the box to be drawn. */
+extern signed char wf_pbox[4];  /* and what to draw */
+#define wf_px0 wf_pbox[0]
+#define wf_px1 wf_pbox[1]
+#define wf_py0 wf_pbox[2]
+#define wf_py1 wf_pbox[3]
+extern signed char gx, gy;      /* (wfog.s's) */
+
+/* Box b (x0, x1, y0, y1: x0 > x1 is none) grown round (gx, gy): wfog.s. */
+void __fastcall__ box_grow(signed char *b);
+
+static void __fastcall__ wf_grow(unsigned char t)
+{
+    if (t != T_DEEP) {
+        /* (The deep sea's edges are none, and to its neighbours it is
+           what the dark was: nothing to work out again.) */
+        box_grow(wf_box);
+    }
+    if ((unsigned char)(gx + 10) <= 20 && (unsigned char)(gy + 7) <= 14) {
+        box_grow(wf_pbox);      /* (off the screen the scrolling draws it) */
+    }
+}
+
+/* A square the look (wf_row(), wfog.s) has seen for the first time:
+   world square (wf_ux, wf_uy), at wf_at in WORLD, (wf_gx, wf_gy) from the
+   hero. Returns its tile. */
+extern unsigned char *wf_at;     /* (wfog.s's) */
+extern signed char   wf_gx, wf_gy;
+extern unsigned char (*wf_hitv)(void);
+
+static signed char wf_ox, wf_oy;        /* the near look's, from the look's */
+
+/* The row of the look under way, as the world keeps it (wf_fill()), dx
+   0 on from where it starts, if wf_lok: so that each square it shows is
+   not a copy from under the ROMs of its own, each waiting for the split. */
+extern unsigned char wf_line[], wf_lok;  /* (wfog.s's) */
+extern void (*wf_fillv)(void);
+
+/* The look's row as the world keeps it, into wf_line: when its first
+   square never seen is met (wf_hit()). */
+void wf_fill(void)
+{
+    static unsigned int x;
+    static unsigned char n, *d;
+
+    x = wf_q & 1 ? wrapx(wf_wx + WORLD_W - WF_X) : wf_wx;
+    vc_sstep = vc_dstep = 1;
+    for (n = WF_X + 1, d = wf_line; n; n -= vc_n, d += vc_n) {
+        vc_src = kept_at(x, wf_uy, 0);
+        if (!vc_src) {
+            vc_src = (unsigned char *)T_DEEP;
+        }
+        vc_n = run < n ? run : n;
+        vc_dst = d;
+        sm_vcopy();
+        x = wrapx(x + vc_n);
+    }
+}
+
+
+unsigned char wf_hit(void)
+{
+    unsigned char t;
+
+    t = wf_show(wf_ux, wf_uy, wf_at);   /* (the near look's: wfog.s does
+                                           the look's own) */
+
+    gx = wf_gx + wf_ox;
+    gy = wf_gy + wf_oy;
+    wf_grow(t);
+    return t;
+}
+
+void __fastcall__ wf_row(unsigned char last);   /* (wfog.s) */
+
+/* Start again from where the hero is now. */
+static unsigned char wf_part = 15;     /* the quarters this look covers */
+
+/* (Quarter q is bit q: bit 0 of q west, bit 1 north.) Walking, a look
+   covers only the quarters the hero is going toward, whose squares are
+   the new ones; standing, all four. */
+static void __fastcall__ wf_start(unsigned char part)
+{
+    wf_part = part;
+    wf_q = wf_dy = 0;
+    wf_wx = wx;
+    wf_wy = wy;
+    wf_hx = hx;
+    wf_hy = hy;
+}
+
+/* The next row, if there is one. Returns 0 once it has all been seen. */
+/* The box's edges, to be worked out again (and a square round it, whose
+   edges it decides): a band of rows, one at a time (wf_band()), since
+   each costs three raster lines a square and a row of the look's land
+   can want more of them than a frame has. Then no box. */
+static unsigned char eq[5];     /* (the band's, as one: wf_step() sets it
+                                   aside round the near look's own) */
+#define eq_x    eq[0]
+#define eq_n    eq[1]
+#define eq_y    eq[2]
+#define eq_left eq[3]
+#define eq_done eq[4]
+#define EQ_CHUNK 8              /* squares of a band's row at a time */
+
+static void wf_queue(void)
+{
+    if (wf_x0 > wf_x1) {
+        return;
+    }
+    eq_x = (wf_hx + wf_x0 - 1) & 63;
+    eq_n = wf_x1 - wf_x0 + 3;
+    eq_y = (wf_hy + wf_y0 - 1) & 63;
+    eq_left = wf_y1 - wf_y0 + 3;
+    wf_x0 = 1;                  /* (none, from here) */
+    wf_x1 = 0;
+}
+
+/* The band's next row, if it has one: 0 if not. */
+static unsigned char wf_band(void)
+{
+    static unsigned char m;
+
+    if (!eq_left) {
+        return 0;
+    }
+    m = eq_n - eq_done;
+    if (m > EQ_CHUNK) {
+        m = EQ_CHUNK;
+    }
+    edges((eq_x + eq_done) & 63, eq_y, m, 0);
+    eq_done += m;
+    if (eq_done >= eq_n) {
+        eq_done = 0;
+        eq_y = (eq_y + 1) & 63;
+        --eq_left;
+    }
+    return 1;
+}
+
+/* One row of the look out to dx = last, and the edges of what it showed
+   queued (now: the band, all of it, with `now`). */
+static void __fastcall__ wf_look_row(unsigned char last)
+{
+    wf_row(last);
+    wf_queue();
+}
+
+static void wf_flush(void)
+{
+    while (wf_band()) {
+    }
+}
+
+static unsigned char wf_next(void)
+{
+    while (wf_q < 4 && !(wf_part & (1 << wf_q))) {
+        ++wf_q;
+    }
+    if (wf_q >= 4) {
+        return 0;
+    }
+    wf_lok = 1;                 /* (wf_line filled when it is wanted) */
+    wf_look_row(WF_X);
+    wf_lok = 0;
+    if (++wf_dy > WF_Y) {
+        wf_dy = 0;
+        ++wf_q;
+    }
+    return 1;
+}
+
+/* What the look has shown on the screen, drawn into the screen on show
+   (wfog.s's wf_draw()), as the dungeons' fog draws while the hero stands
+   still: only ever with the hero standing, at the end of a step or after.
+   Then no box. */
+void wf_draw(void);
+static void wf_paint(void)
+{
+    static signed char c0, c1, r0, r1;
+
+    if (wf_px0 > wf_px1) {
+        return;
+    }
+    /* On the screen: from the look's square's first character (wf_hx: the
+       hero may have moved on since), a square more each way. */
+    c0 = (signed char)(wf_hx * 2 - sm_ox);
+    r0 = (signed char)(wf_hy * 2 - sm_oy);
+    c1 = c0 + 2 * wf_px1 + 3;
+    r1 = r0 + 2 * wf_py1 + 3;
+    c0 += 2 * wf_px0 - 2;
+    r0 += 2 * wf_py0 - 2;
+    wf_px0 = 1;
+    wf_px1 = 0;
+    if (c0 < 0) c0 = 0;
+    if (r0 < 0) r0 = 0;
+    if (c1 > 39) c1 = 39;
+    if (r1 >= (signed char)sm_rows) r1 = sm_rows - 1;
+    if (c0 > c1 || r0 > r1) {
+        return;                 /* none of it on the screen */
+    }
+    sm_box_c0 = c0;
+    sm_box_c1 = c1;
+    sm_box_r0 = r0;
+    sm_box_r1 = r1;
+    wf_draw();                  /* into the screen on show, there and then */
+    pre_dir = NONE;             /* (over any shift made for the next step) */
+}
+
+/* All of it at once, from where the hero is (the screen is about to be
+   drawn whole): its edges, but nothing drawn. */
+static void wf_all(void)
+{
+    wf_start(15);
+    while (wf_next()) {
+        wf_flush();
+    }
+    wf_px0 = 1;
+    wf_px1 = 0;
+}
+
+/* For tests: each step's look done all round at its end, and drawn, so
+   that a screen does not depend on how much of a frame the look had. */
+unsigned char wf_sync;
+
+/* Once a look is done, the next: from where the hero is, ahead of them
+   (the quarters toward where they last stepped). */
+static void wf_ahead(void)
+{
+    static unsigned char s;
+
+    if (wf_q >= 4) {
+        s = 0;
+        if (dirdx[dir] > 0) s |= 0x5;
+        if (dirdx[dir] < 0) s |= 0xA;
+        if (dirdy[dir] > 0) s |= 0x3;
+        if (dirdy[dir] < 0) s |= 0xC;
+        wf_start(s);
+    }
+}
+
+/* The end of a step: the squares round the hero seen there and then (a
+   step into a forest shows the trees about it), and what of the look so
+   far is on the screen drawn; the look goes on in the frames after
+   (w_idle()), and once it is done the next starts from where the hero is
+   then. So a long walk is looked at a few steps late, which the two
+   squares the look reaches past the screen make up for. */
+static void wf_step(void)
+{
+    static unsigned char q, d, ohx, ohy, owy, s, eqs[5], y, x, *r;
+    static unsigned int owx;
+    static signed char pb[4];
+
+    /* Nothing more at all unless a square round the hero is still dark:
+       the frame a step ends in has nothing to spare (on NTSC, nor PAL
+       with the CPU scrolling). */
+    if (wf_sync) {              /* (the tests': all of it, now) */
+        while (wf_next()) {
+            wf_flush();
+        }
+        wf_start(15);
+        while (wf_next()) {
+            wf_flush();
+        }
+        wf_paint();
+        return;
+    }
+    for (y = hy - 1, s = 0; y != (unsigned char)(hy + 2); ++y) {
+        r = WORLD + ((unsigned int)(y & 63) << 6);
+        for (x = hx - 1; x != (unsigned char)(hx + 2); ++x) {
+            if (r[x & 63] == T_ODARK) {
+                s = 1;
+            }
+        }
+    }
+    if (!s) {
+        return;
+    }
+    wf_ahead();
+    q = wf_q;                   /* (the look's, round the near one) */
+    d = wf_dy;
+    ohx = wf_hx;
+    ohy = wf_hy;
+    owx = wf_wx;
+    owy = wf_wy;
+    wf_ox = (signed char)(hx - ohx);
+    wf_oy = (signed char)(hy - ohy);
+    wf_hx = hx;
+    wf_hy = hy;
+    wf_wx = wx;
+    wf_wy = wy;
+    memcpy(pb, wf_pbox, 4);     /* (the look's, drawn once the hero stops) */
+    wf_px0 = 1;
+    wf_px1 = 0;
+    memcpy(eqs, eq, 5);         /* (the look's band waits) */
+    eq_left = eq_done = 0;
+    for (wf_q = 0; wf_q < 4; ++wf_q) {
+        for (wf_dy = 0; wf_dy < 2; ++wf_dy) {
+            wf_row(1);
+        }
+    }
+    wf_queue();                 /* the near squares' edges, now */
+    wf_flush();
+    memcpy(eq, eqs, 5);
+    wf_q = q;
+    wf_dy = d;
+    wf_hx = ohx;
+    wf_hy = ohy;
+    wf_wx = owx;
+    wf_wy = owy;
+    wf_ox = wf_oy = 0;
+    wf_paint();                 /* the near squares only, now */
+    memcpy(wf_pbox, pb, 4);
+}
+
+#pragma codesize (pop)
 
 /* One job of the window's, the oldest. A column or a row it takes in is
    wherever the window is when it runs; the edges are where it was when they
@@ -364,7 +834,7 @@ void w_idle(void)
         if (t < job_lines[k]) {
             return;
         }
-        job_run();
+            job_run();
         /* What it took, if the interrupt did not come in the middle: the
            most yet is what that kind is given from now on. */
         t = VIC.rasterline | ((VIC.ctrl1 & 0x80) << 1);
@@ -372,6 +842,35 @@ void w_idle(void)
         if (sm_frame == frame && t > job_lines[k] && t < 250) {
             job_lines[k] = (unsigned char)t;
         }
+    }
+    /* Then what the hero sees, a row at a time while there is room. */
+    while (sm_frame == frame) {
+        r = VIC.rasterline | ((VIC.ctrl1 & 0x80) << 1);
+        t = r <= 250 ? 250 - r : 250 + n - r;
+        if (eq_left) {          /* the edges first: the look waits */
+            if (t < EQ_LINES || !wf_band()) {
+                break;
+            }
+        } else {
+            if (t < wf_lines || !wf_next()) {
+                break;
+            }
+            /* What that row took, if the frame is still this one: the most
+               yet is what a row is given, easing off a line a row. */
+            t = VIC.rasterline | ((VIC.ctrl1 & 0x80) << 1);
+            t = t >= r ? t - r : t + n - r;
+            if (sm_frame == frame && t > wf_lines && t < 250) {
+                wf_lines = (unsigned char)t;
+            } else if (wf_lines > WF_LINES) {
+                --wf_lines;
+            }
+        }
+    }
+    if (!moving && wf_q >= 4 && wf_part != 15) {
+        wf_start(15);           /* standing: all round */
+    }
+    if (!moving && !eq_left && wf_px0 <= wf_px1 && sm_frame == frame) {
+        wf_paint();
     }
 }
 
@@ -405,14 +904,10 @@ static void stream(signed char dx, signed char dy)
 
 static unsigned char ship_at(unsigned int x, unsigned char y)
 {
-    unsigned char i;
-
-    for (i = 0; i < SHIPS; ++i) {
-        if (ship_y[i] == y && ship_x[i] == x && boat != i + 1) {
-            return i;
-        }
+    if (boat || ship_y[0] != y || ship_x[0] != x) {
+        return NONE;            /* (one ship: SHIPS) */
     }
-    return NONE;
+    return 0;
 }
 
 /* Whether ship s will not sail yet: the king's, until he lends it to the
@@ -423,34 +918,19 @@ static unsigned char ship_held(unsigned char s)
     return !(items & IT_SHIP);
 }
 
-/* The ships within sight, up to seven (sm_npcs places them). */
+/* The king's ship, if it is within sight and not sailed (sm_npcs places it). */
 static void show_ships(void)
 {
-    unsigned char i, n = 0;
-    int dx;
-    signed char dy;
-
-    for (i = 0; i < SHIPS && n < 7; ++i) {
-        if (boat == i + 1) {
-            continue;
-        }
-        dx = (int)(ship_x[i] - wx);
-        if (dx < -(int)WORLD_W / 2) {
-            dx += WORLD_W;
-        } else if (dx >= (int)WORLD_W / 2) {
-            dx -= WORLD_W;
-        }
-        dy = (signed char)(ship_y[i] - wy);
-        if (dx < -12 || dx > 12 || dy < -9 || dy > 9) {
-            continue;
-        }
-        sm_npc_x[n] = ship_x[i] & 127;
-        sm_npc_y[n] = ship_y[i] & 127;
-        sm_npc_ptr[n] = SHIP_FRAME + 1;
-        sm_npc_col[n] = COLOR_BROWN;
-        ++n;
+    sm_npc_n = 0;
+    if (boat || wrapx(ship_x[0] + WORLD_W + 12 - wx) > 24
+        || (unsigned char)(ship_y[0] - wy + 9) > 18) {
+        return;                 /* (one ship: SHIPS) */
     }
-    sm_npc_n = n;
+    sm_npc_x[0] = ship_x[0] & 127;
+    sm_npc_y[0] = ship_y[0] & 127;
+    sm_npc_ptr[0] = SHIP_FRAME + 1;
+    sm_npc_col[0] = COLOR_BROWN;
+    sm_npc_n = 1;
 }
 
 /* The frame after a step: what it brings into the window, the ships in
@@ -462,6 +942,7 @@ void w_after(void)
     stream(dirdx[after - 1], dirdy[after - 1]);
     show_ships();
     sm_npcs();
+    wf_ahead();                 /* (and the next look, if the last is done) */
     if (!(steps & 3)) {
         seek();
     }
@@ -631,6 +1112,9 @@ static void back_home(void)
     }
     seek();
     show_ships();
+    hx = wx & 127;              /* (show_area() sets them too) */
+    hy = wy & 127;
+    wf_all();
     show_area(wx & 127, wy & 127);
 }
 
@@ -640,6 +1124,10 @@ void w_enter(void)
 {
     if (!taken) {
         taken = fresh = 1;
+        wf_hitv = wf_hit;       /* (wfog.s's look, in OW-DATA, calls it) */
+        wf_fillv = wf_fill;
+        wf_ramp = wf_ram;
+        wf_fetch((unsigned char *)OWG_WFOG, wf_ram, OWG_WFOG_HOME);
         memcpy(ipx, OW->ipx, sizeof ipx);
         memcpy(ipy, OW->ipy, sizeof ipy);
         memcpy(ibiome, OW->ibiome, sizeof ibiome);
@@ -648,13 +1136,11 @@ void w_enter(void)
 }
 
 /* The refusals' words, in the overlay (OW-DATA has little room). */
-#pragma rodata-name (push, "OVWCODE")
 static const char not_yet[]  = "The ship sails on the king's word.";
 static const char sealed[]   = "The way in is sealed.";
 static const char the_heat[] = "The heat drives you back.";
 static const char dug[]      = "You dig up ";
 static const char dug2[]     = " gold and 2 draughts!";
-#pragma rodata-name (pop)
 
 /* A step that could not be taken: a refusal, if it was a ship that will
    not sail yet. */
@@ -773,7 +1259,6 @@ static void __fastcall__ wander(unsigned char tile)
 #define PK_DUNGEON 2
 static unsigned char pk, pa;
 
-#pragma rodata-name (push, "OVWCODE")
 static const char pn_mill[]  = "Millford";
 static const char pn_cast[]  = "Castle Matheson";
 static const char pn_ward[]  = "Wardlow";
@@ -800,7 +1285,6 @@ static const char *const pn_dun[NUM_DUNGEONS] = {
     pn_crown, pn_stair, pn_pit
 };
 static const char to_enter[] = " (+ to enter)";
-#pragma rodata-name (pop)
 
 static const char *place_here(void)
 {
@@ -864,6 +1348,7 @@ void w_arrived(void)
     const char *name;
 
     step_world();
+    wf_step();
     if (tile_at(hx, hy) == T_LAIR && grid[wy >> 6][wx >> 6] == CELL_HOME) {
         /* Maldrath: with Dragonbane, until he is banished. */
         if (quest_stage < Q_VICTORY) {

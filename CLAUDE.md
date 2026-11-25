@@ -98,9 +98,10 @@ cfg:
   bootstrap builds in place; `$E000-$E7BF`, under the KERNAL, the continent
   the engine keeps (getting in and out of all-RAM is `vault_bank.s`); the
   rest under the KERNAL is the music's, a tune's header at `$E7C0` and the
-  tune at `$E800-$FBFF` (see Music), but for `$FC00-$FEFF`, what the party
-  has seen of each level of the dungeon they are in (`OWG_FOG`: "What the
-  party sees underground"). Reaching the vault takes the machine to
+  tune at `$E800-$F5FF` (see Music), but for `$F600-$FBDF`, what the party
+  has seen of the land (`OWG_WFOG`: "What the party sees of the land"), and
+  `$FC00-$FEFF`, what they have seen of each level of the dungeon they are
+  in (`OWG_FOG`: "What the party sees underground"). Reaching the vault takes the machine to
   all-RAM (`$01 = $34`), which takes the KERNAL and the I/O area away, so
   interrupts are off for as long as it lasts and the only code that may run
   is in ordinary RAM and calls nothing of the KERNAL's. An NMI cannot be
@@ -687,6 +688,60 @@ walks on both engines, both video systems, is the same as a build that
 draws everything again after each step. Goldens `openworld-dungeon` and
 `-reu` are the first room lit and the corridors from it, the rest dark.
 
+**What the party sees of the land** is the dungeons' fog out in the
+open (`src/ow/world.c`'s "What the party has seen of the land" and "What
+the hero sees", and `src/ow/wfog.s`): a square never seen is the overworld
+set's `dark` (`$94`, solid black, not land and not open ground, so nothing
+takes an edge toward it) in `WORLD`, which is what is drawn and what
+`tile_at()` reads; the open sea between the lands is always seen. **What
+is seen is a bit a square**, home's 512 bytes and each continent's 248, at
+`OWG_WFOG` (`$F600`, under the KERNAL, written straight through), with a
+copy of home's and the kept continent's in the engine's BSS (`wf_ram`,
+fetched by `w_enter()` and `wf_take()` from `settle()`), from which the
+streaming darkens each run it copies in (`wf_dark_run()`, `wfog.s`'s
+`wf_dark`). Not in the game block, so not in a save (the bootstrap clears
+it, as it does the dungeons'). **The look** (`wf_row()`, `wfog.s`) goes
+from the hero out to 12 squares across and 8 down (two past the screen,
+so that a step's new column has been looked at before the scrolling draws
+it), a quarter at a time and a row at a time out from the hero: a square
+is seen if the one before it on the way back (across, down or the
+diagonal, by the slope) was seen and is not a mountain or forest, and the
+hero's own is seen through; so a range hides what is behind it, and in a
+forest only the trees round the hero are seen. A square seen for the
+first time gets its tile from the row as the world keeps it (`wf_fill()`,
+one copy a row, at its first such square), its bit, and the boxes grown
+round it: the edges' (`sm_shores_rect()`, as a band worked through
+`EQ_CHUNK` squares at a time in `w_idle()`, before the look goes on: about
+fourteen raster lines a square, so a row of new land cannot be done at
+once; none for the deep sea, which is to its neighbours what the dark
+was), and, if on the screen, what to draw (`wf_draw()`, into the screen
+on show with its colour, as the dungeons' fog draws while the hero stands
+still, and `pre_dir` forgotten). The look runs in `w_idle()`, a row while
+the frame has the lines a row has taken (`wf_lines`, learned); one started
+while walking covers only the quarters ahead (`wf_ahead()` in `w_after()`),
+and standing, all four. At a step's end only the squares round the hero,
+and only if one is still dark (`wf_step()`: a step must be able to go
+onto them, and **nothing may be added to the frame a step ends in**: a
+few thousand cycles of bookkeeping there cost a missed frame a step), are
+seen there and then, their edges worked out and drawn. **What it costs**
+(`late` over `openworld-sail`'s 101 steps, all on land and sea never
+seen, PAL): about 27 on OW-CPU (1 without the fog) and 22 on OW-REU (1),
+nearly all at step ends beside something that hid what is now seen;
+walking back over what has been seen, about 9 in 58 steps on OW-CPU and 1
+on OW-REU. Not measured on NTSC. Drawing those step ends' squares over
+the frames after (into the back screen too, as `foes.s`'s `fog_show` does
+underground) would be the next saving. **Room**: the world's overlay was
+full, so what is in `wfog.s` but `wf_draw()` -- the row loop, the bits'
+lookup, the darkening and the boxes -- is in `OWDATA`, in `ow-data`, the
+file both engines load: it may use only zero page, its own variables and
+fixed addresses (`WORLD`, `OWG_WFOG`), and reaches back through vectors
+the overlay sets as it starts (`wf_hitv`, `wf_fillv`, `wf_ramp`: world.c's
+`wf_hit()`, `wf_fill()` and `wf_ram`, whose addresses differ between the
+engines); the words world.c says, and the land generator's tables (under
+`OW_WORLD`), went there too. `--poke wf_sync=1` (the tests', in the
+overworld goldens) does each step's look all round at its end and draws
+it, so that a screen does not depend on how much of a frame the look had.
+
 **The rounded viewport.** Every map screen of the open world (the
 overworld, towns, dungeons, both window and full screen) and the arena
 has its four corners rounded off: black outside a quarter circle of three
@@ -797,7 +852,8 @@ carries on. "The music carries on", above, is how it crosses programs.
 file loads at `$E7C0`, a 64-byte header that `mksid.py` writes (init, play,
 song count, the volume to restore after a pause, a byte a song for its
 speed), then the tune at its own address, which must be inside
-`$E800-$FBFF` (5K: past it is the dungeons' fog, `OWG_FOG`). The engine's player is `src/lib/ow_tune.s`, called from
+`$E800-$F5FF` (3.5K: past it is the land's fog, `OWG_WFOG`, and the
+dungeons', `OWG_FOG`; the theme is 470 bytes). The engine's player is `src/lib/ow_tune.s`, called from
 its raster interrupt; the screens of text play it on from the KERNAL's
 interrupt (`src/lib/ow_play.s`), with the KERNAL banked out (`$01 = $35`)
 and back in after; see the RAM under the ROMs for the NMI that this needs.
@@ -1054,9 +1110,10 @@ loader came in, and then the corners' multiplexer, 1.4K; the engine no longer li
 written to the text screen's top row, and the keyboard's buffer is emptied
 with a poke of `$C6`), 13 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 19 in
 OWTOP (`$5280-$53FF`), 125 in HIGH (`$5400-$59FF`, where the text window's
-routines, stlow.s's helpers and the engine's words are), 3669 beside the
+routines, stlow.s's helpers and the engine's words are), about 100 beside the
 world's overlay (which has `wander()`, the overworld's encounter roll, out
-of the core: 3468 now), 1426 beside the town's (for its maps to grow into), 384 beside the dungeon's (the fog took the rest: its scratch, 1.7K, and its code), 1229 in BSS, and 2.2K in COMMON (`$8800-$9FFF`, less `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans; the text window's font, 768 bytes, is there too). String
+of the core, and the land's fog: what more it needs goes in `ow-data`, as
+the fog's did), 1426 beside the town's (for its maps to grow into), 384 beside the dungeon's (the fog took the rest: its scratch, 1.7K, and its code), 1229 in BSS, and 2.2K in COMMON (`$8800-$9FFF`, less `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans; the text window's font, 768 bytes, is there too). String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than
@@ -1235,8 +1292,8 @@ straight, turn, crossroads, fork -- is its edges (`edges road`), drawn where
 a neighbour is not road nor a town or castle (`join`, a neighbour flag
 bit of its own), and it is open ground, so forest thins and sand frays
 toward it. It rolls for wanderers half as often as grass (4 in 200, `wander()`). The overworld set is now
-at **160 characters, the most it may have** (the deep sea took the last
-four): the road's interior is the
+at 158 characters of the most it may have, **160** (the deep sea took
+four, and gave three back as one still character when the dark came): the road's interior is the
 sand's art, and its edges took the room of the mountain pass and the
 bridge, which no land of the open world has (a square of either would draw
 as grass). Continents have no roads yet.
