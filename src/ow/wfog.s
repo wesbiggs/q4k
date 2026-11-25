@@ -643,3 +643,81 @@ _wf_byte_:
         sta     _wf_bp+1
         tax
         rts
+
+; unsigned char __fastcall__ wf_save(unsigned char lfn) -- the save, to
+; logical file lfn (open for writing, a PRG): its load address, the game
+; block (owgame.h, $CE37, OWG_SIZE) and then what the party has seen of the
+; land (OWG_WFOG), which KERNAL SAVE cannot read (it reads the ROM there):
+; a byte at a time with the KERNAL out round the read only. Returns the
+; KERNAL's status (0: all went). Only fixed addresses: OW-DATA's.
+        .export _wf_save
+
+OWG_ADDR  = $CE37
+OWG_SIZE  = 201
+WFOG_SIZE = 512 + 4 * 248
+CHKOUT  = $FFC9
+CHROUT  = $FFD2
+CLRCHN  = $FFCC
+READST  = $FFB7
+
+sv_n:   .word 0
+sv_p:   .word 0
+sv_01:  .byte 0
+
+_wf_save:
+        tax
+        jsr     CHKOUT
+        bcs     @fail
+        lda     #<OWG_ADDR
+        jsr     CHROUT
+        lda     #>OWG_ADDR
+        jsr     CHROUT
+        lda     #0
+        sta     sv_n
+@blk:   ldx     sv_n
+        lda     OWG_ADDR,x
+        jsr     CHROUT
+        inc     sv_n
+        lda     sv_n
+        cmp     #OWG_SIZE
+        bne     @blk
+        lda     #<OWG_WFOG
+        sta     sv_p
+        lda     #>OWG_WFOG
+        sta     sv_p+1
+        lda     #<WFOG_SIZE
+        sta     sv_n
+        lda     #>WFOG_SIZE
+        sta     sv_n+1
+@fog:   lda     sv_p
+        sta     @rd+1
+        lda     sv_p+1
+        sta     @rd+2
+        sei
+        lda     $01
+        sta     sv_01
+        lda     #$35            ; the KERNAL out, I/O in
+        sta     $01
+@rd:    lda     $FFFF           ; (patched: the byte, under the KERNAL)
+        ldx     sv_01
+        stx     $01
+        cli
+        jsr     CHROUT
+        inc     sv_p
+        bne     :+
+        inc     sv_p+1
+:       lda     sv_n
+        bne     :+
+        dec     sv_n+1
+:       dec     sv_n
+        lda     sv_n
+        ora     sv_n+1
+        bne     @fog
+        jsr     CLRCHN
+        jsr     READST
+        ldx     #0
+        rts
+@fail:  jsr     CLRCHN
+        lda     #$FF
+        ldx     #0
+        rts

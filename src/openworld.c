@@ -89,6 +89,27 @@ static void need(const char *name, void *at)
     }
 }
 
+/* The saved game: OW-SAVE, the game block and, after it in a save from
+   an engine since the land's fog came, what the party had seen of the land
+   (owgame.h's OWG_WFOG). Loaded where nothing is yet (the roads' grid comes
+   later), the block put where it lives; the land's bits wait there for
+   main() to put back under the KERNAL once it has cleared the old ones
+   (wf_back). Nonzero if there was a save. */
+#define SAVE_AT ((unsigned char *)0x7000)
+static unsigned char wf_back;
+
+static unsigned char load_save(void)
+{
+    unsigned int n = cbm_load("ow-save", 8, SAVE_AT);
+
+    if (n < OWG_SIZE) {
+        return 0;
+    }
+    memcpy(G, SAVE_AT, OWG_SIZE);
+    wf_back = n >= OWG_SIZE + OWG_WFOG_SIZE;
+    return 1;
+}
+
 /* The splash screen and what the player chose there: the seed, and whether
    it is a saved game, with `save` loaded if so. The screen is black until
    the picture is ready, and from the key on it shows the disk. */
@@ -167,7 +188,7 @@ static void splash(void)
     OWB->mode = key == OW_KEY_QUICK ? OWB_QUICK : OWB_NEW;
     if (key == OW_KEY_F3) {
         /* The saved game is the game block, loaded where it lives. */
-        if (cbm_load("ow-save", 8, G) && save_version()) {
+        if (load_save() && save_version()) {
             lore_seed = G->seed;
             OW->saved = 1;
             OWB->mode = OWB_NONE;
@@ -195,7 +216,7 @@ int main(void)
     if (again && OWB->mode == OWB_LOAD) {
         /* F3 in an engine: the saved game's world, if there is one. */
         OWB->mode = OWB_NONE;
-        cbm_load("ow-save", 8, G);     /* none: the game goes on as it was */
+        load_save();            /* none: the game goes on as it was */
         save_version();
         lore_seed = G->seed;
         OW->saved = 1;
@@ -214,7 +235,10 @@ int main(void)
     /* No dungeon seen yet (owgame.h's OWG_FOG): the splash's picture was
        there, or another game's. A write under the KERNAL reaches the RAM. */
     memset((void *)OWG_FOG, 0, OWG_FOG_SIZE);
-    memset((void *)OWG_WFOG, 0, OWG_WFOG_SIZE);    /* nor any land */
+    memset((void *)OWG_WFOG, 0, OWG_WFOG_SIZE);    /* nor any land ... */
+    if (wf_back) {              /* ... but what a save says was seen */
+        memcpy((void *)OWG_WFOG, SAVE_AT + OWG_SIZE, OWG_WFOG_SIZE);
+    }
     OW->seed = lore_seed;
     OW->reu = ow_reu_detect();
     if (OW->reu && OW_TESTCPU == OW_TESTCPU_ON) {

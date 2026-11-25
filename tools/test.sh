@@ -172,15 +172,19 @@ u_ow_save() {
     cp dist/openworld.d81 "$saves"
     wxof() { sed -n 's/.*wx+0 @ .* = \([0-9]*\) .*/\1/p'; }
     saved=$(tools/screendump.py dist/openworld.prg --disk "$saves" \
-        --splash quick --lbl build/ow-cpu.lbl --keys 'dd\x85yddd' \
+        --splash quick --lbl build/ow-cpu.lbl --poke wf_sync=1 \
+        --keys 'ddddddddddaaaaaaaa\x85yddd' \
         --settle 20 --peek wx:2 2>&1 >/dev/null | wxof) || true
     restored=$(tools/screendump.py dist/openworld.prg --disk "$saves" \
         --splash quick --lbl build/ow-cpu.lbl --keys '\x86y' \
-        --settle 40 ${saved:+--until-peek wx:2=$((saved - 3))} --peek wx:2 2>&1 >/dev/null | wxof) || true
-    if [ -n "$saved" ] && [ "$restored" = $((saved - 3)) ]; then
+        --settle 40 ${saved:+--until-peek wx:2=$((saved - 3))} --peek wx:2 \
+        --peek wf_ram+228 2>&1 >/dev/null)
+    seen=$(printf '%s\n' "$restored" | sed -n 's/.*wf_ram+228 @ .* = \([0-9]*\) .*/\1/p')
+    restored=$(printf '%s\n' "$restored" | wxof)
+    if [ -n "$saved" ] && [ "$restored" = $((saved - 3)) ] && [ $(( ${seen:-0} & 32 )) = 32 ]; then
         result PASS openworld-save
     else
-        result FAIL openworld-save "left at ${saved:-?}, restored at ${restored:-?}"
+        result FAIL openworld-save "left at ${saved:-?}, restored at ${restored:-?}, home (37, 28) seen ${seen:-?}"
     fi
     rm -f "$saves" "$base"
 }
