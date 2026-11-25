@@ -473,7 +473,9 @@ void play_for(unsigned char s)
     carry_on = 0;
 }
 
-/* F1: the game block (owgame.h) into OW-SAVE, over the one there. The
+/* F1: the game block (owgame.h) into OW-SAVE, over the one there, and
+   after it what the party has seen of the land (OWG_WFOG: src/ow/wfog.s's
+   wf_save(), since KERNAL SAVE reads the ROM over it). The
    drive will not overwrite, so the old one is scratched first; the command
    is spelled in bytes (cc65 would shift a literal's S: CLAUDE.md). The
    border is light blue while the drive works, and red for a second if it
@@ -483,6 +485,11 @@ static const char scratch_save[] = {
     0x4F, 0x57, 0x2D, 0x53, 0x41, 0x56, 0x45,   /* OW-SAVE  */
     0
 };
+static const char write_save[] = {
+    0x4F, 0x57, 0x2D, 0x53, 0x41, 0x56, 0x45,   /* OW-SAVE  */
+    0x2C, 0x50, 0x2C, 0x57, 0                   /* ,P,W     */
+};
+unsigned char __fastcall__ wf_save(unsigned char lfn);  /* (wfog.s) */
 
 void save_game(void)
 {
@@ -494,7 +501,10 @@ void save_game(void)
     ok = 0;
     if (cbm_open(15, 8, 15, scratch_save) == 0) {
         cbm_read(15, st, 2);            /* (no save yet is fine) */
-        ok = cbm_save(scratch_save + 3, 8, G, OWG_SIZE) == 0;
+        if (cbm_open(2, 8, 2, write_save) == 0) {
+            ok = wf_save(2) == 0;
+        }
+        cbm_close(2);
         st[0] = 0;
         cbm_read(15, st, 2);
         ok &= st[0] == 0x30 && st[1] == 0x30;

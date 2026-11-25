@@ -182,7 +182,8 @@ and, last, the treasure maps carried, `tmap[]`). ld65 does not clear it. The eng
 (`owg_where()`, before a save or another program); a program that links
 the game's own `actor.c` uses `owg_in()`/`owg_out()`
 (`src/lib/owgame.c`). A save is this block as it is, in `ow-save` (201
-bytes, `OWG_SIZE`: the whole of `$CE37-$CEFF`, so a new field must move the
+bytes, `OWG_SIZE`, and after it what has been seen of the land: "What the
+party sees of the land"; the whole of `$CE37-$CEFF`, so a new field must move the
 bound first, or find spare bits as the pronouns did (below) -- `OWG_ADDR`, the engines' cfg (`_party` and BSS), `foes.s`'s
 `FOE_A`, `stlow.s`'s base (its offsets are from the start, engine.c checks
 them), `mkowsave.py`, and `tools/test.sh`'s `party+N` peeks if a field
@@ -699,8 +700,17 @@ is seen is a bit a square**, home's 512 bytes and each continent's 248, at
 copy of home's and the kept continent's in the engine's BSS (`wf_ram`,
 fetched by `w_enter()` and `wf_take()` from `settle()`), from which the
 streaming darkens each run it copies in (`wf_dark_run()`, `wfog.s`'s
-`wf_dark`). Not in the game block, so not in a save (the bootstrap clears
-it, as it does the dungeons'). **The look** (`wf_row()`, `wfog.s`) goes
+`wf_dark`). Not in the game block, but **in the save, after it**: F1
+writes the block and then all 1504 bytes of bits to `ow-save` (1707 bytes
+now) with `wfog.s`'s `wf_save()` (in OW-DATA: KERNAL SAVE reads the ROM
+over `$F600`, so this opens the file with `cbm_open` and sends each byte
+itself, the KERNAL out round each read), and the bootstrap loads a save at
+`$7000` (`load_save()`: at `OWG_ADDR` it would run over the probe page
+and the disk icon), copies the block into place, and puts the bits back
+under the KERNAL once it has cleared them (a 201-byte save, as owparty's
+and `mkowsave.py`'s are, has none: nothing seen). The `openworld-save`
+case walks ten squares east and back, saves, and finds a square seen only
+from there seen after the restore. **The look** (`wf_row()`, `wfog.s`) goes
 from the hero out to 12 squares across and 8 down (two past the screen,
 so that a step's new column has been looked at before the scrolling draws
 it), a quarter at a time and a row at a time out from the hero: a square
