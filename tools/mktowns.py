@@ -116,9 +116,11 @@ def neighbour_tile(t, grid, by_char, x, y, default):
         nx, ny = x + dx, y + dy
         if 0 <= nx < t.w and 0 <= ny < t.h:
             c = grid[ny][nx]
-            # Nobody stands on a wall, a counter of potions or a bed, and
-            # nobody where they would leave the town.
-            if (isinstance(c, str) and c in by_char and c != "x"
+            # Nobody stands on a wall, a counter of potions or a bed,
+            # nobody where they would leave the town, and nobody in a
+            # doorway: a keeper just inside one would stand on a door, which
+            # is no building's floor, so its roof would not hide them.
+            if (isinstance(c, str) and c in by_char and c not in "x+?"
                     and by_char[c].flag != "TF_BLOCK"):
                 return by_char[c].code
     return default
