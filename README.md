@@ -119,7 +119,7 @@ order, and then the monsters move. You walk into a foe to strike.
 | the up-arrow key, or the stick's button | aim this one's bow, if they have one (one arrow a shot); a wizard's casts. A yellow cursor marks the nearest foe in reach with a clear line; the direction keys (or the stick) go through the others, `SPACE` or the button again shoots, and any other key lowers the bow without spending the turn |
 | `*` | a wizard casts a prepared spell (Spark and Bolt are aimed the same way) |
 | `SPACE` | stand your ground: take less from the next blow |
-| `P` | give a draught to any of the party |
+| `P` | the one whose turn it is drinks a healing draught |
 | walk off the side | the gap in the middle of the left or right edge: each of you who reaches it is out, and the fight is fled when the last one is -- but not from a keeper or Maldrath |
 
 Sand and swamp are slow going. A shot flies straight at the foe it is aimed

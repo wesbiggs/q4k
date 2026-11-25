@@ -14,59 +14,107 @@ classic game's.
   `.d64`), is retired, with its experimental networked build and the
   dialogue host: the open world (`dist/openworld.d81`) is the game now. The
   0.11.0 tag builds the classic one.
+- The open world scrolls smoothly over multicolour tiles, a pixel or two a
+  frame (`1` or `2` chooses), and the party walks eight ways: the cursor
+  keys, `WASD` or a joystick in port 2, and `Q` `E` `Z` `X` or the stick's
+  diagonals go aslant. Keldmarch lies in the middle of a sea that wraps
+  round both ways, with a continent across the water to each side of it, and
+  roads join its towns, the castle and its four ports; things wander out
+  less often on a road. Ships lie at Keldmarch's ports and the continents'
+  docks: step onto one to board it, and it waits wherever you step off.
+  Those at Keldmarch's ports sail only as the quest moves on.
+- Places are entered and left by walking, not with `>` and `<`: step onto a
+  town, the castle or a dungeon to go in, onto a way out of a town or the
+  castle to leave, and onto a dungeon's stairs to go down or up (up from the
+  first level is out). The text window says which place you are entering. In
+  a town a building you are not in shows only its roof, which comes off as
+  you step in at the door. A chest opens when you stand on it, and looks
+  open once it is looted.
+- Underground the party sees the room it stands in, the squares round it and
+  straight along the corridors; the rest is dark until it has been near, and
+  what has been seen stays on the map, for every level, until you leave the
+  dungeon (a save does not keep it). A dungeon's monsters are on its map,
+  where they were left, and come for the party once they see it: one that
+  reaches you, or that you walk into, is a fight, and one you cannot see is
+  not shown. Walk into a keeper to fight it.
+- The two lines under the map show each member's health (green over half,
+  yellow down to a quarter, red under it) and a wizard's magic, with the
+  party's draughts, arrows and gold. Anything said takes them until the next
+  step; `SPACE` hides them for a bigger map.
+- Keys on the map: `L` looks where you stand, `P` is a draught for whoever
+  is worst hurt, `I` is the party screen, `M` and `SHIFT+M` turn the music
+  and the effects off and on, `?` lists the keys and what to do next, and
+  RUN/STOP quits to the title (asking `Y` first). `F1` and `F3` save and
+  restore, as before.
+- The game saves to its own disk (`ow-save`), and loads the parts of the
+  world, the fights, the shops and the conversations from it as they are
+  wanted, so keep the disk in the drive. It is made for a fast drive that
+  takes a D81 (a TeensyROM, an SD card drive); with an REU, everything
+  loaded is kept there after the first time, and the screen scrolls through
+  it. A save from 0.11.0 or before will not load.
+- The title picture takes `F1` for a new game and `F3` for the saved one,
+  and a new game's world comes from how long the picture waited: `F5` no
+  longer chooses it. Tam, the princess and the king are shown in a portrait
+  beside what they say.
 - A party: the king's letter went to strangers, and up to three of them meet
-  in Millford. The title screen asks each one's name and class -- warrior,
-  archer or wizard -- and Garrett arms each by class: a dagger, a hunting bow
-  (and arrows), a staff. Gold, draughts (one each to start), arrows,
-  experience and the level are the party's; health, arms and a wizard's magic
-  are each member's own. A fourth place is kept for a companion who joins
-  later.
+  in Millford. A new game tells the story and then offers a warrior, an
+  archer and a wizard, named for you. `1`-`3` opens one's page, where `C`
+  changes their class, `N` their name, `P` their pronouns (he/him, she/her,
+  they/them or it), `S` their skin's colour and `T` their tunic's, and DEL
+  sends them home; `A` adds another while there are fewer than three, and
+  RETURN begins, saving the new game. Garrett arms each by class -- a
+  dagger, a hunting bow (and arrows), a staff -- and Millford's gate stays
+  shut until he has. Gold, draughts (one each to start), arrows, experience
+  and the level are the party's; health, arms and a wizard's magic are each
+  member's own. A fourth place is kept for a companion who joins later.
 - Only a warrior wields anything better than a short sword, only an archer
   draws anything better than a shortbow, and a wizard wears nothing heavier
   than robes, which now go between travel clothes and leather. Whatever is
-  bought or dropped goes to whoever it would be better for, and you are asked
-  who when that is more than one of you.
-- In a fight everyone stands on the field and takes a turn, the one whose turn
-  it is as the figure (each class has its own) and the rest as their class's
-  glyph; monsters go for whoever they can reach soonest. Anyone can give a
-  draught (`P`) to anyone. A member who falls gets up after a fight that is
-  won or fled; the fight is lost only when everyone falls. A monster that
-  comes alone is tougher for each of the party past the first.
-- Wizards cast (`C`) the spells they have prepared, for magic that comes back
-  slowly on the road, fully at an inn and with a level: Spark, Heal, Ward,
-  Sleep, Bolt and Blaze. Every wizard knows Spark; the others are books sold at
-  the magic shop in home's own town, each from a level. A wizard prepares two
-  spells at first and one more every third level (`I`, then their number).
-- `I` shows the party and what each carries, and `T` from there the treasure
-  maps. The panel shows each member's health, and a wizard's magic.
-- Saves are a new format (`Q4K9`): an earlier save will not load.
+  bought or dropped goes to whoever it would be better for, and you are
+  asked who when that is more than one of you; what they had goes on to
+  whoever it would be better for in turn.
+- In a fight everyone stands on the field, fanned out, and takes a turn,
+  walking and striking eight ways; monsters go for whoever they can reach
+  soonest. `P` is a draught for whoever's turn it is. A member who falls
+  gets up after a fight that is won or fled; the fight is lost only when
+  everyone falls. Fleeing takes the whole party: each walks out of a side's
+  gap on their own turn, and the fight is fled when the last one is out.
+  Sand and swamp are slow going. A monster that comes alone is tougher for
+  each of the party past the first.
+- The up-arrow key (or the stick's button) aims a bow, instead of `F` and a
+  direction: a yellow cursor marks the nearest foe in reach with a clear
+  line, the direction keys go through the others, `SPACE` looses, and any
+  other key lowers the bow without spending the turn. A shot flies straight
+  at its foe at any angle, but nothing can be aimed at past a boulder, a
+  tree, a wall, another foe or one of the party.
+- Wizards cast (`*`) the spells they have prepared, for magic that comes
+  back slowly on the road, fully at an inn and with a level: Spark, Heal,
+  Ward, Sleep, Bolt and Blaze, with Spark and Bolt aimed as a bow is. Every
+  wizard knows Spark; the others are books, each from a level, at two magic
+  shops: Keldmarch's own town (not Millford) sells Heal, Ward and Sleep, and
+  Ashcombe's, across the sea, Ward, Sleep, Bolt and Blaze. A wizard prepares
+  two spells at first and one more every third level, up to five (`I`, then
+  `S`).
+- `I` shows the party one at a time and what each carries: cursor left and
+  right go through them, `1`-`3` puts the one shown in that place (the first
+  leads), `T` changes their tunic's colour, `P` their pronouns, `S` prepares
+  a wizard's spells and `M` lists the treasure maps.
+- As in the classic game, a fight won now and then leaves something: arms
+  from a foe that goes armed, for whoever in the party they would be better
+  for, and out on the land a treasure map, which says where on that land
+  something is buried. `M` on the party screen lists the maps by the nearest
+  place; stand on the spot and press `L` to dig it up.
 - The fights are balanced for a party, measured by having the arena play
   itself hundreds of times (`tools/balance.py`). A keeper, Maldrath or any
   monster that comes alone has more health and hits harder for each of the
-  party past the first, and moves between their turns; a mixed party now
-  spends about what one hero did on each keeper. Archers' arrows and wizards'
-  spells grow stronger with the party's level, wizards turn some of every
-  blow with their own wards and regain a point of magic each round of a
-  fight, and Ward is a little stronger. A party of one fights as before.
-
-- The offline build loads its engines from the disk: the map, the fights,
-  conversations and the inns, and the shops each come in when they are wanted,
-  which frees about 14K for what comes next. Each scene brings its own music
-  (the same tune everywhere for now), which starts again at every fight and
-  conversation. Keep the disk in the drive: without it the game cannot leave
-  the title screen, and it asks for the disk back if a load fails. Meant for
-  a fast drive (TeensyROM's vdrive); a stock 1541 would take most of a minute
-  for every fight. See ENGINES.md.
-- The offline build is now the game: `q4k-<version>.d64`, and what `make`
-  builds. The networked one, where people answer through a language model, is
-  experimental: `q4k-<version>-online.d64`, and `q4k-<version>-online.zip`
-  with the host (`make online`, `make play`). There is no `.prg` on its own,
-  since the game needs its disk.
-- The online build loads its engines from the disk too, and so has everything
-  the offline one has: each continent's own monsters, the arms monsters drop,
-  lightning, and the joystick in port 2. The two differ only in who talks.
-  `tools/play.sh` plays from a copy of its disk, `dist/online/saves.d64`, and
-  carries your save over when the game is rebuilt.
+  party past the first, and moves between their turns. Archers' arrows and
+  wizards' spells grow stronger with the party's level, wizards turn some of
+  every blow with their own wards and regain a point of magic each round of
+  a fight, and Ward is a little stronger.
+- `make` builds the disk and `make run` plays it in VICE (`make run-reu`
+  with a 512K REU); `make playtown TOWN=id` starts a saved game inside one
+  town, for trying it out. CI and `tools/cloud-setup.sh` take cc65 and VICE
+  from wesbiggs/c64-cloud-toolchain.
 
 ## 0.11.0 — 2026-11-06
 
