@@ -128,6 +128,16 @@ typedef struct {
    in. Not in the game block, which has no room, so not in a save: the
    bootstrap clears it, and so does the way into a dungeon from the world. */
 #define OWG_FOG       0xFC00
+
+/* And of the land (src/ow/wfog.c): a bit a square, home's 64 by 64 (512
+   bytes) and then each continent's 64 by 31 (248), below the dungeons',
+   in what was the music's room, the same way (and so not in a save
+   either: the bootstrap clears it). Out on the open sea everything is
+   seen. */
+#define OWG_WFOG       0xF600
+#define OWG_WFOG_HOME  512
+#define OWG_WFOG_ISLE  248
+#define OWG_WFOG_SIZE  (OWG_WFOG_HOME + 4 * OWG_WFOG_ISLE)
 #define OWG_FOG_LEVEL (DUN_W / 8 * DUN_H)
 #define OWG_FOG_SIZE  (OWG_FOG_LEVEL * MAX_DEEP)
 

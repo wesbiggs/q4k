@@ -10,7 +10,7 @@
 The game plays standard SID files (PSID): a 6502 player and its song data,
 with an init routine (the song number in A) and a play routine called 60 or
 50 times a second. It keeps one tune at a time under the KERNAL, at
-$E800-$FBFF (the rest is the dungeons' fog: owgame.h), and loads each from the disk when a scene wants it
+$E800-$F5FF (the rest is the land's fog and the dungeons': owgame.h), and loads each from the disk when a scene wants it
 (play_for() in src/ow/engine.c, src/lib/ow_tune.s). assets/music.txt is the map from scene to
 (SID file, song); `map` makes it into include/q4k/music_map.h and
 src/lib/music_map.c, which are committed like the other generated sources.
@@ -31,7 +31,7 @@ at its own address:
 What a tune may do, which the check enforces:
   - be a PSID (not an RSID, which wants the machine to itself), with a play
     routine (not one that installs its own interrupt), for one SID chip;
-  - load within $E800-$FBFF, and run only from there;
+  - load within $E800-$F5FF, and run only from there;
   - write only there, the SID's voices 1 and 2, its filter and volume
     ($D415-$D418), and zero page $FB-$FE: voice 3 is the sound effects';
   - read only those, the stack, and $02A6 (the KERNAL's PAL flag);
@@ -51,7 +51,7 @@ MAP_SRC = "assets/music.txt"
 MAP_H = "include/q4k/music_map.h"
 MAP_C = "src/lib/music_map.c"
 
-AREA_LO, AREA_HI = 0xE800, 0xFC00       # the tune's (cfg/sid.cfg, ow_tune.s)
+AREA_LO, AREA_HI = 0xE800, 0xF600       # the tune's (cfg/sid.cfg, ow_tune.s)
 HEADER_AT = 0xE7C0                      # 64 bytes between vault slot 0 and it
 HEADER_SIZE = 0x40
 MAX_SONGS = HEADER_SIZE - 6

@@ -336,7 +336,7 @@ $(BUILD)/ow/ovl.o: src/ow/ovl.s
 # The dungeon's monsters' sprites (tools/mkfields.py), and what they do
 # square by square (foes.s), in its overlay; the king's (mkoverworld.py),
 # in the town's.
-$(BUILD)/ow/foe_art.o $(BUILD)/ow/town_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(BUILD)/ow/genbuild.o $(BUILD)/ow/ow_font.o: $(BUILD)/ow/%.o: src/ow/%.s
+$(BUILD)/ow/foe_art.o $(BUILD)/ow/town_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(BUILD)/ow/genbuild.o $(BUILD)/ow/wfog.o $(BUILD)/ow/ow_font.o: $(BUILD)/ow/%.o: src/ow/%.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) -c -o $@ $<
 
@@ -346,7 +346,7 @@ $(BUILD)/ow/ow_sfx.o: src/lib/sfx.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) --asm-define OW_SFX=1 -c -o $@ $<
 
-OWGEN := $(patsubst %,$(BUILD)/ow/%.o,ow_isle genbuild ow_tgen ow_town_gen ow_town_data ow_town_maps)
+OWGEN := $(patsubst %,$(BUILD)/ow/%.o,ow_isle genbuild wfog ow_tgen ow_town_gen ow_town_data ow_town_maps)
 OWOBJ = $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-$*.o) $(BUILD)/ow/ovl.o \
         $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o $(BUILD)/ow/foe_art.o \
         $(BUILD)/ow/town_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o \

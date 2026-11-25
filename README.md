@@ -157,6 +157,11 @@ corridors; the rest is dark until you have been near it, and stays on the map
 once you have, for every level, until you leave the dungeon. A monster you
 cannot see is not shown.
 
+You see what is in your line of sight: mountains and forest hide what
+lies beyond them (in a forest, only the trees about you), and what you have
+not yet seen is dark. What you have seen stays on the map -- until you load
+a saved game, which starts the map unseen again.
+
 Every land is ringed by shallows, lighter water a few squares wide, where
 nothing troubles a ship; out on the dark deep sea things come up out of the
 water at you, and are fought on the ship's deck -- they cannot leave the
