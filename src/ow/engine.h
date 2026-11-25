@@ -216,8 +216,19 @@ void __fastcall__ ov_bump(unsigned char d);  /* a step that could not be */
 void ov_after(void);            /* the frame after a step (after != 0) */
 void ov_idle(void);             /* what is left of a frame (every frame) */
 void ov_look(void);             /* L: what is on the hero's square */
-void __fastcall__ ov_use(unsigned char k);  /* + or -, or fire (1): in,
-                                   down the stairs or up them */
+unsigned char __fastcall__ ov_use(unsigned char k);
+                                /* + or -, or fire (OVU_FIRE): in, down the
+                                   stairs or up them, nonzero if it did
+                                   (else + loots: st_look()); and L's look
+                                   about the map, the OVU_* below */
+#define OVU_FIRE 1
+#define OVU_LOOK 2              /* L: start looking (or say why not) */
+#define OVU_STEP 3              /* the view has moved a square */
+#define OVU_HOME 4              /* SPACE: the view back on the party */
+#define OVU_END  5              /* RUN/STOP: that, and the look done */
+extern unsigned char looking;   /* L's: the view moves, the party stays,
+                                   and no time passes */
+extern unsigned char look_far;  /* how far it has gone (squares, to 255) */
 
 /* --- stlow.s, in OWLO (the engine's file, below $0801) ------------------- */
 

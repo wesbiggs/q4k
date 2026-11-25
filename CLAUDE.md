@@ -20,7 +20,8 @@ This file is long; search it for the **bold** lead-ins named here.
   world" (the disk, the bootstrap, the world, streaming, the REU, places and
   roofs); "The open world's engine is a core and three overlays" (`src/ow/`,
   the slot, `ovl.s`'s jump table, what fits where); "The text window, and
-  `L`" (the two lines under the map, `sm_say()`); "The music carries on";
+  `+`" (the two lines under the map, `sm_say()`); "Looking about the
+  map" (`L`); "The music carries on";
   "The screens of text are a program" (`owtown`: talk, shops, inns, party,
   help, and `ow_back()`); "Fights in the open world"; "What the party sees
   underground" (the dungeons' fog); "The open world's game lives in a
@@ -139,7 +140,12 @@ pointer past its top). Those are now `cc65` and `ca65` through
 `k == '-' && t == DN || k == '+' && t == UP || t != UP && (...)`, compiled
 to a `beq`/`bne` pair to the same label, so `+` on the stairs down did
 nothing. Spell such tests out as nested `if`s, and read the `.s`
-(`build/ow/NAME-cpu.s`) when a condition misbehaves.
+(`build/ow/NAME-cpu.s`) when a condition misbehaves. Likewise `if (c ? f(x) : g(x))`
+with two calls: cc65 branched on the flags the called function left, not
+on the value it returned, so the overworld's `w_can_step()` let the hero
+onto a mountain. Put the result in a variable first. And a function in
+assembly that returns a char should load A last (`ldx #0`, then `lda`):
+cc65 may test the flags it leaves.
 
 **Screen codes are not ASCII and not PETSCII.** They index the active charset.
 The screens of text run the lowercase/mixed set (`VIC.addr = 0x17`, i.e.
@@ -303,7 +309,7 @@ road or the hero's), read from the vault with `vault_peek()` (home at
 `$D000`, the continent the party is on at `$E000`, the one the engine
 keeps). A map is `OWG_TMAP(land, x, y)`, the land's own square. The party
 screen's `M` lists them from the land's nearest place, as the game's
-`treasure_maps()` did, and `L` on the square digs it up (`w_look()` in
+`treasure_maps()` did, and `+` on the square digs it up (`w_look()` in
 `world.c`: 16 gold a quest stage past the second, plus `(x ^ y) & 15`, and
 two draughts). `--poke loot_always=128` (the engine's, `OWF_LOOT` in the
 fight's kind) makes a win leave everything it can: `openworld-spoils` in
@@ -335,7 +341,7 @@ the disk (`tools/mkfields.py`'s `pack()`, unpacked by the module from
 splash picture is asked F1 or F3 in words (`title_text()` in
 `src/openworld.c`).
 
-**The text window, and `L`.** The engine's map is rows 0-21 of its screens;
+**The text window, and `+`.** The engine's map is rows 0-21 of its screens;
 rows 22 and 23 are two lines of text that stay put while the map scrolls
 (`sm_say()`, `sm_ink` -- 0-7 only: 8-15 is a multicolour character, which
 is how the captain's refusal in light grey came out as smeared yellow --
@@ -359,8 +365,10 @@ split comes too late to work and the window shows rubbish for a frame;
 (`$DD`; it must have been written by cycle 58 of `$DF`). People's sprites below the
 map's last row are not shown. `screendump.py --vicshot PNG` saves VICE's
 own picture of the frame, which is the only way to see the split: `--shot`
-draws from memory. `L` (`ov_look`, a fourth jump in each overlay's table)
-is the game's `look()`: a town's hidden gold (`loot_table`), a dungeon's
+draws from memory. `+` where it does nothing else (`ov_use()` says it did
+not: no place, no stairs; `use()` in `engine.c`), or the stick's button, is
+`ov_look` (a fourth jump in each overlay's table, through `st_look()`),
+the game's `look()`: a town's hidden gold (`loot_table`), a dungeon's
 chests (`dun_cx`/`dun_cy`, even odds gold or a draught), and elsewhere
 nothing, or one time in `grave_odds` the dead (`OWF_UNDEAD`, the game's
 `battle_undead()`); never in a town or with `OWG_CALM`. On the
@@ -585,7 +593,8 @@ REU's copy of the window is put back as before. The core calls an overlay
 only through the jump table at the start of the slot (`ovl.s`: `ov_enter`,
 `ov_can_step`, `ov_arrived`, `ov_bump`, `ov_after`, `ov_idle`, `ov_look`,
 `ov_gen`, where a continent's build starts: the others' never run, and
-`ov_use`, `+`, `-` or the stick's button: below), and an
+`ov_use`, `+`, `-` or the stick's button, which says whether it did
+anything, and L's look about the map, `OVU_*`: below), and an
 overlay asks for another by setting `ov_want` and returning, never by
 loading it itself (it would load over its own code). `tools/owslots.py` runs
 after each link and fails it if anything else calls into an overlay's code.
@@ -1125,16 +1134,17 @@ screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 that the engine's file does not carry 5K of empty screens to the disk. The overlays are 5.9K (world), 7.5K
 (town) and 7.1K (dungeon, its monsters' pictures at the end, and after them
 1.7K of the fog's scratch, in no file) of the slot's
-9.25K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 417
+9.25K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 34
 bytes in MAIN (the generators went to their overlays, and the REU cache's
 loader came in, and then the corners' multiplexer, 1.4K; the engine no longer links cc65's `conio`: its one message is
 written to the text screen's top row, and the keyboard's buffer is emptied
-with a poke of `$C6`), 13 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 19 in
-OWTOP (`$5280-$53FF`), 125 in HIGH (`$5400-$59FF`, where the text window's
-routines, stlow.s's helpers and the engine's words are), about 100 beside the
+with a poke of `$C6`), 17 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 39 in
+OWTOP (`$5280-$53FF`), 36 in HIGH (`$5400-$59FF`, where the text window's
+routines, stlow.s's helpers and the engine's words are), 11 in TAIL
+(`$CCC0-$CE36`, L's look: above), 24 beside the
 world's overlay (which has `wander()`, the overworld's encounter roll, out
 of the core, and the land's fog: what more it needs goes in `ow-data`, as
-the fog's did), 1426 beside the town's (for its maps to grow into), 384 beside the dungeon's (the fog took the rest: its scratch, 1.7K, and its code), 1229 in BSS, and 2.2K in COMMON (`$8800-$9FFF`, less `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans; the text window's font, 768 bytes, is there too). String
+the fog's did, or TAIL), 1234 beside the town's (for its maps to grow into), 192 beside the dungeon's (the fog took the rest: its scratch, 1.7K, and its code), 38 in BSS (which TAIL could give back), and 175 in COMMON (`$8800-$9FFF`, past `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans; the text window's font, 768 bytes, is there too). String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than
@@ -1327,7 +1337,33 @@ the towns' and dungeons' are in their overlays); `+` or the stick's button
 `ov_use()`: `w_use()`, `d_use()`, nothing in a town) goes in, and the way
 out leaves the hero on the place's own square. A dungeon's stairs say which
 way they go, and `+` goes down, `-` up (`d_use()`; the button whichever they
-are). The tests type the `+` after the step onto the place. A place is built the game's own way (`town_maps.c`'s maps,
+are). The tests type the `+` after the step onto the place. **Looking
+about the map** (`L`, `src/ow/look.s`): the direction keys move the view a
+square a step as the hero would walk, while the party stays where it
+stood, drawn as the last of the people (`sm_npc_*`: after the ship, a
+dungeon's monsters or a town's people, its skin left out), and no time
+passes: nothing wanders out (`ov_arrived()` is not called), the monsters
+wait and nothing more is seen (`w_idle()`, `w_after()` and `d_idle()` do no
+fog or turns while `looking`), so what has not been seen stays cloud or
+dark. SPACE puts the view back on the party, RUN/STOP or `L` ends the look
+there; nothing else is read, and the fire button is ignored. The core does
+it (`look_start()`, `look_key()`, `look_step()`, `look_can()`: anywhere on
+the overworld, which wraps, and within a place's map), hiding the hero's
+two sprites by their line (`$D001`, `$D00F` 0, and 138 again) and asking
+the overlay through `ov_use()`: `OVU_LOOK` whether it may (not with seven
+people in a town, nor while a dungeon's monster comes for a fight),
+`OVU_STEP` the overworld's view moved (`view_step()`: `wx`, `wy` and the
+streaming, as `step_world()`'s first lines), `OVU_HOME`/`OVU_END` the
+window put back (`w_use()`: the queue run out, and the window filled and
+its edges worked out again only if the view went more than 32 squares,
+`look_far`, which the window has room to lag); then the front screen is
+drawn again where the party stands. The party is not drawn once the view
+is 100 squares off, since the engine's squares repeat every 128 of the
+world's. Measured: 45 steps east and back, `late` 0 on both engines. It
+is assembly in **TAIL** (`$CCC0-$CE36`, past BSS: a file of its own,
+`ow-cpu.tl`/`ow-reu.tl`, which `main()` loads after the `.hi`; in C it was
+630 bytes, twice the room). cc65 may test the flags a function's return
+leaves ("cc65 can get a chain of `&&` and `||` wrong"). A place is built the game's own way (`town_maps.c`'s maps,
 `town_gen()`, `dungeon_build()`) into `local[]` and copied into `WORLD`, in a
 tile set of its own: `assets/town_tiles.txt`, `castle_tiles.txt`,
 `dungeon_tiles.txt` (sharing `common_tiles.txt`'s furniture, drawn `on

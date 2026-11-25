@@ -332,7 +332,7 @@ u_ow_spoils() {
 u_ow_dig() {
     got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
         --splash quick --lbl build/ow-cpu.lbl --poke party+193=19 \
-        --poke party+194=87 --poke grave_odds=0 --keys "jjl" \
+        --poke party+194=87 --poke grave_odds=0 --keys "jj+" \
         --settle 20 --until 'You dig up 159 gold and 2 draughts!' \
         --until-peek party+193:2=0 \
         --peek party+193:2 --peek party+90:2 --peek party+94 \
@@ -426,6 +426,34 @@ u_ow_cache() {
     fi
 }
 
+# L, looking about the map (src/ow/look.s): forty squares east over the
+# overworld (more than the window has room to lag, so it is filled again),
+# SPACE back, three west, RUN/STOP, and a step east: the party took that one
+# step and no other, and the map is the one a plain step east shows. Then
+# in the Hollow Crown: eight west and RUN/STOP, and a step west from where
+# the party stood.
+u_ow_look() {
+    ow="dist/openworld.prg --disk dist/openworld.d81 --fastdisk --splash quick
+        --lbl build/ow-cpu.lbl --poke still=1 --poke wf_sync=1"
+    east=$(printf 'd%.0s' $(seq 40))
+    a=$(tools/screendump.py $ow --keys "jjl${east} aaa\x03jjjjjjjjjjd" \
+        --settle 30 --until-peek steps=1 --peek steps --peek wx:2 --peek looking \
+        2>&1 | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
+    m1=$(tools/screendump.py $ow --keys "jjl${east} aaa\x03jjjjjjjjjjd" \
+        --settle 30 --until-peek steps=1 2>/dev/null | sed -n '/^ *0 |/,/^ *21 |/p')
+    m2=$(tools/screendump.py $ow --keys "jjd" --settle 20 --until-peek steps=1 \
+        2>/dev/null | sed -n '/^ *0 |/,/^ *21 |/p')
+    d=$(tools/screendump.py $ow --keys "${ow_enter}jjjjjjjjjjlaaaaaaaa\x03jjjjjjjjjja" \
+        --settle 40 --until-peek hx=63 --peek hx --peek hy --peek looking \
+        2>&1 | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
+    if [ "$a" = "1 148 0 " ] && [ "$m1" = "$m2" ] && [ -n "$m1" ] \
+        && [ "$d" = "63 43 0 " ]; then
+        result PASS openworld-look
+    else
+        result FAIL openworld-look "steps, wx, looking: ${a:-?}; dungeon hx, hy, looking: ${d:-?}; map the same: $([ "$m1" = "$m2" ] && echo yes || echo no)"
+    fi
+}
+
 # run_unit <name>: one unit, whatever it needs missing is a SKIP.
 run_unit() {
     case $1 in
@@ -434,7 +462,7 @@ run_unit() {
         owarena-arrow-ul) u_arrow ;;
         openworld-save|openworld-quaff|openworld-recolour|openworld-fight|\
         openworld-spoils|openworld-dig|openworld-foes|openworld-keeper|openworld-cache|openworld-roads|\
-        openworld-portrait|openworld-seafight)
+        openworld-portrait|openworld-seafight|openworld-look)
             [ -f dist/openworld.d81 ] || { result SKIP "$1" "no dist/openworld.d81"; return; }
             case $1 in
                 openworld-save) u_ow_save ;;
@@ -449,6 +477,7 @@ run_unit() {
                 openworld-roads) u_ow_roads ;;
                 openworld-portrait) u_ow_portrait ;;
                 openworld-seafight) u_ow_seafight ;;
+                openworld-look) u_ow_look ;;
             esac ;;
         *)
             if [ -f "tests/golden/$1.txt" ]; then
@@ -465,7 +494,7 @@ all_units() {
     echo openworld-save checkisle openworld-foes openworld-fight \
         openworld-seafight openworld-spoils openworld-recolour
     for g in tests/golden/*.txt; do basename "$g" .txt; done
-    echo openworld-portrait openworld-quaff openworld-dig openworld-keeper openworld-cache \
+    echo openworld-portrait openworld-look openworld-quaff openworld-dig openworld-keeper openworld-cache \
         openworld-roads owarena-arrow-ul checkmap
 }
 

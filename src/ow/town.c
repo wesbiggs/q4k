@@ -473,7 +473,7 @@ void t_idle(void)
         return;
     }
     bob ^= 1;
-    for (i = sm_npc_n; i--; ) {
+    for (i = sm_npc_n - looking; i--; ) {  /* (L's party is the last) */
         sm_npc_ptr[i] = npc_frame[i] + bob;
     }
     sm_mxdirty = 1;             /* (the interrupt writes them) */

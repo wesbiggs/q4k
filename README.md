@@ -59,8 +59,8 @@ and you start at Millford's gate.
 |---|---|
 | cursor keys, `WASD`, a joystick in port 2 | walk |
 | `Q` `E` `Z` `X`, or the stick's diagonals | walk diagonally |
-| `+` / `-`, or the stick's button | go into the town or dungeon you stand on; down / up a dungeon's stairs |
-| `L` | look where you stand, and take anything hidden there |
+| `+` / `-`, or the stick's button | go into the town or dungeon you stand on; down / up a dungeon's stairs; anywhere else `+` searches where you stand, and takes anything hidden there (a chest, gold, a treasure map's hoard) |
+| `L` | look about the map: the direction keys move the view (over what you have seen; the rest stays cloud or dark) while the party stays put and no time passes; `SPACE` brings the view back to the party, `RUN/STOP` (or `L`) ends the look there |
 | `I` | the party, one at a time, and what each carries; cursor left and right for the next, `1`-`3` to put the one shown in that place (the first leads), `T` their tunic's colour (SHIFT+`T` back), `P` their pronouns, `S` to prepare a wizard's spells, `M` the treasure maps you carry; RUN/STOP goes back to the game |
 | `P` | the worst hurt of the party drinks a healing draught |
 | `SPACE` | hide the two lines of text under the map, for a bigger map |
@@ -135,7 +135,7 @@ past the first, and moves between your turns.
 A foe beaten may leave something behind: what goes armed now and then drops
 a blade, mail or a bow, which goes to whoever in the party it is better for;
 and out on the land, now and then a treasure map, which says where on that
-land something is buried. Stand on the spot and press `L` to dig it up.
+land something is buried. Stand on the spot and press `+` to dig it up.
 
 ## The world
 
