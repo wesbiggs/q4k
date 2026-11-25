@@ -9,6 +9,9 @@
 
 include overworld.txt
 
+# No clouds on a field: their join's neighbour flag bit is the tree's here.
+nojoin dark
+
 tile tree black
 ...cc...
 ..caac..

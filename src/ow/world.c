@@ -479,11 +479,8 @@ void __fastcall__ box_grow(signed char *b);
 
 static void __fastcall__ wf_grow(unsigned char t)
 {
-    if (t != T_DEEP) {
-        /* (The deep sea's edges are none, and to its neighbours it is
-           what the dark was: nothing to work out again.) */
-        box_grow(wf_box);
-    }
+    (void)t;
+    box_grow(wf_box);           /* (the clouds' edges round it, and its own) */
     if ((unsigned char)(gx + 10) <= 20 && (unsigned char)(gy + 7) <= 14) {
         box_grow(wf_pbox);      /* (off the screen the scrolling draws it) */
     }

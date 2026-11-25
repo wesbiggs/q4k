@@ -156,10 +156,18 @@ def parse(path):
             head_col = colour(f[2], lineno, ram=True) if len(f) > 2 else water_col
             shore = (water_col, v, head_col, against)
         elif f[0] == "edges":
-            # edges <terrain>...: their edges drawn, not cut: beside, above, both,
-            # diagonal, then beside and above for its second variant; eight
-            # rows for the top left quarter and eight for the bottom left,
-            # since what is drawn has a top and must not be turned over.
+            # edges <terrain>... [colour=<colour>]: their edges drawn, not
+            # cut: beside, above, both, diagonal, then beside and above for
+            # its second variant; eight rows for the top left quarter and
+            # eight for the bottom left, since what is drawn has a top and
+            # must not be turned over. With a colour, the edges' characters
+            # have it as their own, not the terrain's (the deep sea's edge
+            # toward the shallows has their cyan in it).
+            ecol = None
+            for w in f[1:]:
+                if w.startswith("colour="):
+                    ecol = colour(w[7:], lineno, ram=True)
+            f = [w for w in f if not w.startswith("colour=")]
             rows = [r.split() for r in lines[i:i + 16]]
             i += 16
             for n, r in enumerate(rows):
@@ -172,7 +180,7 @@ def parse(path):
                     for h in range(2)]
             for n in f[1:]:
                 drawn[n] = [[h[:4] for h in half],
-                            [h[4:6] + h[2:4] for h in half]]
+                            [h[4:6] + h[2:4] for h in half], ecol]
         elif f[0] == "open":
             opens = f[1:]
         elif f[0] == "also":
@@ -182,6 +190,12 @@ def parse(path):
             # neighbour is neither itself nor one of those (a road runs into
             # a town, and ends anywhere else).
             joins[f[1]] = f[2:]
+        elif f[0] == "nojoin":
+            # nojoin <terrain>: no join (nor drawn edges) for it after all,
+            # in a set that includes another's (the fields have no clouds,
+            # and no neighbour flag bit to spare for them).
+            joins.pop(f[1], None)
+            drawn.pop(f[1], None)
         elif f[0] == "fringe":
             # fringe <terrain>...: those terrains fray where they meet open
             # ground, in the masks that follow: beside, above, both and
@@ -411,7 +425,9 @@ def build(setname):
                     art_q = drawn[name][nth][q >> 1][v]
                     if q & 1 and v != 1:
                         art_q = [r[::-1] for r in art_q]
-                    c = char(art_glyph(art_q, q), mt_cols[m][q])
+                    c = char(art_glyph(art_q, q),
+                             drawn[name][2] if drawn[name][2] is not None
+                             else mt_cols[m][q])
                 elif name in fringes:
                     nth = by_name[name].index(m)
                     mask = quarter(fringes[name][min(nth, 1)][v], q)
