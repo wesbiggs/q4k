@@ -152,6 +152,9 @@ void owg_out(void);
 /* A new game into the block: the party asked for and made, at Millford's
    gate, or (quick) the tests' lone warrior outside it (src/lib/ow_party.c, for src/owparty.c). */
 void ow_new_game(unsigned char quick);
+/* The world's seed, asked for (0-255; RETURN alone keeps the one it was
+   built from): nonzero, with OW->seed set, if another was given. */
+unsigned char ow_ask_seed(void);
 
 /* A fight (OWF_*, as OWB has it) with the fight module (q4k/fight.h),
    loaded over the caller's own code above $4000: so the caller's code that

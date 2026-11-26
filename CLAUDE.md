@@ -1150,11 +1150,15 @@ until F1, a new game (its seed is 1 plus the frames the player took: the
 lands are built, then `owparty` makes the party and the game starts at
 Millford's gate), or F3, a saved one: `ow-save`, the game block, which the
 disk comes with one of from `tools/mkowsave.py` (seed 7, a lone warrior at
-the castle). The bootstrap asks the drive whether `ow-save` is there
-before the picture (`save_there()`); with none, `ow_splash()` cuts the
+the castle). The bootstrap loads `ow-save` before the picture to see
+whether there is one (`load_save()`, again for F3, the picture being
+loaded over it); with none, `ow_splash()` cuts the
 text's line at its first two spaces, centres "F1 Start New Game" and does
-not read F3. SHIFT+F1 (F2, on no picture's text) asks for the seed on the
-text screen (`ask_seed()`, 0-255), which `?` shows at the top. A talk or a
+not read F3. SHIFT+F1 (F2, on no picture's text) is a new game whose seed
+`owparty` asks for (`OW_ASKSEED`, `$02F3`; `ow_ask_seed()`, 0-255) before
+the party: another seed sends it back to the bootstrap to build that world,
+as N in an engine does, and it is run again for the party. `?` shows the
+seed at the top. A talk or a
 fight that moves `quest_stage` on sets `OW_NEWTASK` (`$02F2`, past
 `OW_TESTCPU`) and the engine says "You have a new task! (? for help)" as
 it starts (`say_new_task()`). The tests' `--splash quick` (`OW_KEY_QUICK`, `$87`, no key on

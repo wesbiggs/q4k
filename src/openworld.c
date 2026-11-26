@@ -112,72 +112,6 @@ static unsigned char load_save(void)
     return 1;
 }
 
-/* Whether the disk has a saved game: OW-SAVE opens, as the drive's status
-   says (62, FILE NOT FOUND, if not). Asked before the splash, which offers
-   F3 only if so; read only after it (load_save()), since the picture is
-   loaded over SAVE_AT. */
-static unsigned char save_there(void)
-{
-    static const char ow_save[] = "ow-save";
-    unsigned char st[2], ok = 0;
-
-    if (cbm_open(15, 8, 15, "") == 0) {
-        st[0] = 0;
-        if (cbm_open(2, 8, 2, ow_save) == 0) {
-            cbm_read(15, st, 2);
-            ok = st[0] == 0x30 && st[1] == 0x30;    /* "00" (ASCII) */
-        }
-        cbm_close(2);
-        cbm_close(15);
-    }
-    return ok;
-}
-
-/* SHIFT+F1: the new world's seed, typed (0-255; RETURN alone, or RUN/STOP,
-   leaves the one the splash made). On the text screen, in the lowercase
-   set, which conio writes for, and back to the KERNAL's set after. */
-static void ask_seed(void)
-{
-    unsigned char k, n = 0;
-    unsigned int v = 0;
-
-    POKE(0xD018, 0x17);
-    clrscr();
-    textcolor(COLOR_YELLOW);
-    cputsxy(11, 10, "Quest for the King");
-    textcolor(COLOR_GRAY3);
-    cputsxy(8, 13, "The world's seed (0-255):");
-    cputsxy(8, 15, "RETURN alone for a new one");
-    gotoxy(34, 13);
-    cursor(1);
-    for (;;) {
-        k = cgetc();
-        if (k == 0x0D || k == 0x03) {           /* RETURN, RUN/STOP */
-            break;
-        }
-        if (k == 0x14 && n) {                  /* DEL */
-            --n;
-            v /= 10;
-            gotoxy(34 + n, 13);
-            cputc(' ');
-            gotoxy(34 + n, 13);
-        } else if (k >= 0x30 && k <= 0x39 && n < 3) {
-            k -= 0x30;                  /* (PETSCII digits are ASCII's) */
-            if (v * 10 + k < 256) {
-                v = v * 10 + k;
-                cputc(k + 0x30);
-                ++n;
-            }
-        }
-    }
-    cursor(0);
-    if (n && k != 0x03) {
-        lore_seed = v;
-    }
-    clrscr();
-    POKE(0xD018, 0x15);
-}
-
 /* The splash screen and what the player chose there: the seed, and whether
    it is a saved game, with `save` loaded if so. The screen is black until
    the picture is ready, and from the key on it shows the die, rolling. */
@@ -243,8 +177,12 @@ static unsigned char save_version(void)
 
 static void splash(void)
 {
-    unsigned char key = 0, saved = save_there();
+    unsigned char key = 0, saved;
 
+    /* Whether there is a saved game, which the splash offers (F3) only if
+       so: read now and again for F3, the picture being loaded over it. */
+    saved = load_save();
+    wf_back = 0;
     OW->video = ow_video();
     if (OW->video <= OW_NTSC &&
         cbm_load(OW->video == OW_NTSC ? "splash-n" : "splash-p", 8,
@@ -253,13 +191,11 @@ static void splash(void)
     } else {
         key = title_text(saved);
     }
-    /* A new world for a new game, from how long the player took, or (F2)
-       from the seed the player gives, and a party to make for it
-       (src/owparty.c), unless it is the tests' quick start. */
+    /* A new world for a new game, from how long the player took, and a
+       party to make for it (src/owparty.c), unless it is the tests' quick
+       start. F2 has owparty ask for a seed first (OW_ASKSEED). */
     lore_seed = 1 + ow_splash_ticks;
-    if (key == OW_KEY_F2) {
-        ask_seed();
-    }
+    OW_ASKSEED = key == OW_KEY_F2;
     disk_resident();
     /* The loading icon's pictures, the disk's and the die's (q4k/ow.h's
        OW_ICON_ART), under the KERNAL, where they stay for the whole game:
