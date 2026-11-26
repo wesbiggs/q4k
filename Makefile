@@ -388,9 +388,10 @@ $(DIST)/ow-data.prg: $(OWENG)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
 $(DIST)/splash-%.prg: $(SPLASHKIT)/data/splash-%.v2i $(SPLASHKIT)/data/splash-%.v2t \
-                      tools/mksplash.py
+                      $(SPLASHKIT)/lib/font.inc tools/mksplash.py
 	@mkdir -p $(DIST)
-	tools/mksplash.py $(SPLASHKIT)/data/splash-$*.v2i $(SPLASHKIT)/data/splash-$*.v2t $@
+	tools/mksplash.py $(SPLASHKIT)/data/splash-$*.v2i $(SPLASHKIT)/data/splash-$*.v2t \
+	    $(SPLASHKIT)/lib/font.inc $@
 
 $(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py tools/mktowns.py
 	@mkdir -p $(DIST)
