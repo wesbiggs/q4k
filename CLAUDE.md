@@ -1155,7 +1155,7 @@ whether there is one (`load_save()`, again for F3, the picture being
 loaded over it); with none, `ow_splash()` shows the
 page's second .v2t instead, which `tools/mksplash.py` makes from the
 text's line as far as its first two spaces, centred with spaces ("F1 Start
-New Game"), and does not read F3. SHIFT+F1 (F2, on no picture's text) is a new game whose seed
+New Game"), and does not read F3. SHIFT+F1 (the left SHIFT or SHIFT LOCK: the right one reads as a joystick button; not on the no-picture text screen) is a new game whose seed
 `owseed` (`src/owseed.c`, a program of its own: neither the bootstrap nor
 `owparty` has the room) asks for, 0-255, after the lands are built and
 before `owparty` (`OW_ASKSEED`, `$02F3`): another seed sends it back to the

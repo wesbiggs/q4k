@@ -197,7 +197,7 @@ void ow_roads(void);
 
 /* A talk or a fight (owtalk, owtown) moved the quest on: the engine says
    so in the text window when it has the screen again, and clears it.
-   Cleared by a cold start of the bootstrap. Past OW_TESTCPU. */
+   Zero from a reset, which clears page 2. Past OW_TESTCPU. */
 #define OW_NEWTASK    (*(unsigned char *)0x02F2)
 
 /* SHIFT+F1 (F2) on the splash: the bootstrap runs owseed (src/owseed.c)

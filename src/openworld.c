@@ -45,10 +45,8 @@
 unsigned char lore_seed, land, local_w, local_h, quest_stage;
 unsigned char home_fx[NUM_HOME_PLACES], home_fy[NUM_HOME_PLACES];
 
-/* The continents' cells by compass point, and a continent's first row in
-   its cell (src/ow/engine.c has the world's map). */
-static const unsigned char cell_x[4] = { 2, 4, 2, 0 };
-static const unsigned char cell_y[4] = { 0, 1, 2, 1 };
+/* A continent's first row in its cell, and its rows (src/ow/engine.c has
+   the world's map). */
 #define ISLE_TOP 16
 #define ISLE_ROWS 31
 
@@ -131,21 +129,16 @@ static void disk_resident(void)
 
 /* A machine with no picture (neither PAL nor NTSC), or a disk without one,
    is asked in words instead. The tests' hook works here too. */
-static unsigned char title_text(unsigned char saved)
+static unsigned char title_text(void)
 {
     unsigned char k = 0;
 
     textcolor(COLOR_YELLOW);
     cputsxy(11, 10, "Quest for the King");
     textcolor(COLOR_GRAY3);
-    if (saved) {
-        cputsxy(6, 13, "F1 a new game   F3 the saved one");
-    } else {
-        cputsxy(14, 13, "F1 a new game");
-    }
+    cputsxy(6, 13, "F1 a new game   F3 the saved one");
     OW->hook = OW_HOOK_WAIT;
-    while (k != OW_KEY_F1 && k != OW_KEY_F2 &&
-           (k != OW_KEY_F3 || !saved)) {
+    while (k != OW_KEY_F1 && k != OW_KEY_F3) {
         ++ow_splash_ticks;
         if (OW->hook != OW_HOOK_WAIT) {
             k = OW->hook;           /* (OW_KEY_QUICK too) */
@@ -189,7 +182,7 @@ static void splash(void)
                  (void *)OW_SPLASH_AT)) {
         key = ow_splash(saved);
     } else {
-        key = title_text(saved);
+        key = title_text();
     }
     /* A new world for a new game, from how long the player took, and a
        party to make for it (src/owparty.c), unless it is the tests' quick
@@ -228,7 +221,6 @@ int main(void)
     clrscr();
     if (!again) {
         OW_TESTCPU = 0;         /* (the tests' --cpu-engine sets it later) */
-        OW_NEWTASK = 0;
     }
     /* MEMSIZ up to the probe page before the drive is touched, as the
        game has it. */
