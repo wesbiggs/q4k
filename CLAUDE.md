@@ -833,8 +833,9 @@ and `$03C0` (blocks 14 and 15, the only place in bank 0 no program's code
 is; the die shows them in turn). Block 15 is the engines' C stack's top, so
 only the stub or the bootstrap (whose stack is at its MAIN's top) may call
 `$CF14`, never an engine's C code. The resident code has 4 bytes to spare.
-The interrupt stops itself after about thirty seconds, so a soft reset
-during a load cannot leave it blinking at READY. The talk program's BSS2
+The interrupt stops itself after 34 to 38 seconds (a real drive can take
+half a minute over one load), so a soft reset during a load cannot leave
+it blinking at READY. The talk program's BSS2
 starts at `$CF14` too, but nothing there writes it.
 
 **The REU load cache** (`src/lib/ow_cache.s`, `ow_cload()` in

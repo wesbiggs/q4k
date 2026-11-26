@@ -103,7 +103,7 @@ icon_copy:
         sta     $D016           ; (the engine's file loads code into it)
         lda     #1
         sta     $D015
-        lda     #7              ; about thirty seconds: see _ow_disk_irq
+        lda     #9              ; 34 to 38 seconds: see _ow_disk_irq
         sta     disk_left
         lda     #<_ow_disk_irq
         sta     $0314
@@ -155,8 +155,9 @@ disk_off:
 ; off, or with the die, the other face every eighth. It chains to the
 ; KERNAL's, which does the keyboard and the clock. It does not run forever:
 ; a soft reset during a load leaves the vector here, and the sprite would
-; blink at READY. Every 256th interrupt counts down disk_left (7, about
-; thirty seconds), and at zero it turns itself off.
+; blink at READY. Every 256th interrupt counts down disk_left (9: 34 to
+; 38 seconds, as disk_n carries on from the last load), and at zero it
+; turns itself off. (A load from a real drive can take half a minute.)
 _ow_disk_irq:
         inc     disk_n
         bne     :+
