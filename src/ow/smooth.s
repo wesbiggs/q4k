@@ -611,6 +611,11 @@ _sm_shores_rect:
 
 ; void sm_stack(void) -- the C stack to the tape buffer, down from $0400:
 ; MAIN, at whose top cc65 starts it, is full. Called first thing.
+; Until it does, the stack is cc65's, at MAIN's top, where the startup has
+; already pushed main()'s argc and argv (four bytes below $4000): MAIN must
+; stop short of them, or they land on its last code. (The linker says so.)
+        .import __MAIN_LAST__
+        .assert __MAIN_LAST__ < $4000 - 4, lderror, "MAIN runs into the four bytes cc65's startup pushes at its top (sm_stack)"
 _sm_stack:
         lda     #<$0400
         sta     sp
@@ -1231,8 +1236,10 @@ _sm_animate:
         sty     ptr1+1
         lda     ow_water+1,x
         cmp     ow_water,x
-        beq     @one
-        jsr     @addr
+        bne     :+
+        jsr     sm_flow1        ; (HICODE: MAIN is full)
+        jmp     @next
+:       jsr     @addr
         sta     ptr2
         sty     ptr2+1
         ldy     #7
@@ -1255,19 +1262,6 @@ _sm_animate:
         bne     @pair
 @done:  rts
 
-@one:   ldy     #7
-@orow:  lda     (ptr1),y
-        ldx     #2
-@obit:  lsr     a               ; a bit round, twice: a double-width pixel
-        bcc     :+
-        ora     #$80
-:       dex
-        bne     @obit
-        sta     (ptr1),y
-        dey
-        bpl     @orow
-        bmi     @next
-
 @addr:  ldy     #0              ; CHARS + A * 8, in A (low) and Y (high)
         sty     cnt
         asl     a
@@ -1283,6 +1277,24 @@ _sm_animate:
         tay
         pla
         rts
+
+; sm_animate's pair that is one character twice, at ptr1: each row rotated
+; one double-width pixel east (a bit round, twice). X is not kept.
+        .segment "HICODE"
+sm_flow1:
+        ldy     #7
+@row:   lda     (ptr1),y
+        ldx     #2
+@bit:   lsr     a
+        bcc     :+
+        ora     #$80
+:       dex
+        bne     @bit
+        sta     (ptr1),y
+        dey
+        bpl     @row
+        rts
+        .segment "CODE"
 
 .if OW_REU
 ; ---------------------------------------------------------------------------

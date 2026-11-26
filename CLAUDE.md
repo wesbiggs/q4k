@@ -1192,12 +1192,12 @@ screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 that the engine's file does not carry 5K of empty screens to the disk. The overlays are 5.9K (world), 7.5K
 (town) and 7.1K (dungeon, its monsters' pictures at the end, and after them
 1.7K of the fog's scratch, in no file) of the slot's
-9.25K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 34
-bytes in MAIN (the generators went to their overlays, and the REU cache's
+9.25K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 14
+bytes in MAIN, which has to stop four short of `$4000`, since cc65's startup pushes `main()`'s arguments there before `sm_stack()` moves the stack (smooth.s asserts it; 2026-11 a MAIN that reached them crashed OW-CPU into BASIC as it started) (the generators went to their overlays, and the REU cache's
 loader came in, and then the corners' multiplexer, 1.4K; the engine no longer links cc65's `conio`: its one message is
 written to the text screen's top row, and the keyboard's buffer is emptied
-with a poke of `$C6`), 17 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 39 in
-OWTOP (`$5280-$53FF`), 36 in HIGH (`$5400-$59FF`, where the text window's
+with a poke of `$C6`), 17 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 15 in
+OWTOP (`$5280-$53FF`), 3 in HIGH (`$5400-$59FF`, where the text window's
 routines, stlow.s's helpers and the engine's words are), 11 in TAIL
 (`$CCC0-$CE36`, L's look: above), 24 beside the
 world's overlay (which has `wander()`, the overworld's encounter roll, out
