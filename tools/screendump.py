@@ -363,7 +363,7 @@ def wait_for_stage(mon, stage, timeout=60.0):
 # (OW->hook, include/q4k/ow.h), and takes a key written there as pressed.
 SPLASH_HOOK = 0x02A7 + 62
 SPLASH_WAIT = 0xA5
-SPLASH_KEYS = {"f1": 0x85, "f3": 0x86, "quick": 0x87}
+SPLASH_KEYS = {"f1": 0x85, "f2": 0x89, "f3": 0x86, "quick": 0x87}
 # Written with the key: the bootstrap takes the REU for one that cannot
 # scroll, and runs OW-CPU with its cache (OW_TESTCPU, q4k/ow.h).
 TESTCPU, TESTCPU_ON = 0x02F1, 0xC7

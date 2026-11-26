@@ -1150,7 +1150,14 @@ until F1, a new game (its seed is 1 plus the frames the player took: the
 lands are built, then `owparty` makes the party and the game starts at
 Millford's gate), or F3, a saved one: `ow-save`, the game block, which the
 disk comes with one of from `tools/mkowsave.py` (seed 7, a lone warrior at
-the castle). The tests' `--splash quick` (`OW_KEY_QUICK`, `$87`, no key on
+the castle). The bootstrap asks the drive whether `ow-save` is there
+before the picture (`save_there()`); with none, `ow_splash()` cuts the
+text's line at its first two spaces, centres "F1 Start New Game" and does
+not read F3. SHIFT+F1 (F2, on no picture's text) asks for the seed on the
+text screen (`ask_seed()`, 0-255), which `?` shows at the top. A talk or a
+fight that moves `quest_stage` on sets `OW_NEWTASK` (`$02F2`, past
+`OW_TESTCPU`) and the engine says "You have a new task! (? for help)" as
+it starts (`say_new_task()`). The tests' `--splash quick` (`OW_KEY_QUICK`, `$87`, no key on
 the matrix) is the old quick start: a lone warrior, Alaric, with every
 dungeon's key, on the overworld outside Millford, made without asking;
 golden `openworld-party` is the F1 path.

@@ -101,6 +101,9 @@ int main(void)
     talk(OWB->npc);
     owt_nowait = ow_cached("ow-data");  /* (no drive: no wait) */
     owt_music_off();            /* paused, for the engine to carry on with */
+    if (quest_stage != G->quest_stage) {
+        OW_NEWTASK = 1;         /* the quest moved on: the engine says so */
+    }
     owg_out();
     ow_back();                  /* the engine, which carries on from the
                                    game block (owgame.h) */

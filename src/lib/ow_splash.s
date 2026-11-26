@@ -6,8 +6,9 @@
 ; says to when the picture comes off the disk rather than out of the
 ; program: the bootstrap (src/openworld.c) loads SPLASH-P or SPLASH-N at
 ; OW_SPLASH_AT, the text and then the picture (tools/mksplash.py), and calls
-; ow_splash(), which is the kit's splash_show() with only F1 and F3 for keys
-; and no time limit.
+; ow_splash(), which is the kit's splash_show() with only F1 (and SHIFT+F1)
+; and F3 for keys and no time limit; with no saved game, its text is cut to
+; "F1 Start New Game", centred, and F3 does nothing.
 ;
 ; While the picture is up the KERNAL is out, the picture's raster interrupt
 ; has every sprite and most of the frame, and VIC bank 3, $C000-$FFFF, is
@@ -27,6 +28,7 @@ HOOK      = $02A7 + 62          ; OW->hook: openworld.c checks the offset
 HOOK_WAIT = $A5                 ; OW_HOOK_WAIT
 KEY_F1    = $85
 KEY_F3    = $86
+KEY_F2    = $89                 ; SHIFT+F1
 
         .segment "CODE"
 
@@ -38,9 +40,12 @@ _ow_video:
         ldx #0
         rts
 
-; unsigned char ow_splash(void) -- show the picture loaded at OW_SPLASH_AT
-; until F1 or F3 is pressed and let go: OW_KEY_F1 or OW_KEY_F3, or 0 if what
-; is there is not a picture for this machine. The text screen, the KERNAL
+; unsigned char __fastcall__ ow_splash(unsigned char saved) -- show the
+; picture loaded at OW_SPLASH_AT until F1, SHIFT+F1 or F3 is pressed and let
+; go: OW_KEY_F1, OW_KEY_F2 or OW_KEY_F3, or 0 if what is there is not a
+; picture for this machine. `saved` 0 (no saved game) cuts the text's line
+; at its first run of two spaces ("F1 Start New Game"), centres what is
+; left, and leaves F3 unread. The text screen, the KERNAL
 ; and the interrupts are back as they were. ow_splash_ticks is how many
 ; frames it took the player, less whole 256s: the one number at this point
 ; that is not the same on every run.
@@ -50,6 +55,7 @@ _ow_video:
 ; else written there is taken as the key (tools/screendump.py --splash).
 ; Then ow_splash_ticks is 0, so that a test's new game is always the same.
 _ow_splash:
+        sta saved
         lda $02                 ; the picture's display code uses $02, which
         sta save02              ; is half of cc65's stack pointer
         lda #0
@@ -59,9 +65,14 @@ _ow_splash:
         ldy #>PIC
         jsr v2i_show
         bcs @done               ; not a .v2i, or not this machine's: key 0
-        lda #<TXT
+        lda saved
+        bne @all
+        jsr lone                ; just F1, centred
+        bcc @text
+@all:   lda #<TXT
         ldy #>TXT
         jsr v2t_draw            ; (no text if that is not a .v2t)
+@text:
         jsr v2i_start
         lda #HOOK_WAIT
         sta HOOK
@@ -93,26 +104,114 @@ _ow_splash:
         lda key
         rts
 
-; A = OW_KEY_F1 or OW_KEY_F3 if that key is down, else 0 (Z set). Both are
-; in column 0 of the matrix, F1 on row 4 and F3 on row 5. (So is the button
-; of a joystick in port 1, which reads as F1.)
+; A = OW_KEY_F1, OW_KEY_F2 or OW_KEY_F3 if that key is down, else 0 (Z
+; set). F1 and F3 are in column 0 of the matrix, F1 on row 4 and F3 on row
+; 5 (so is the button of a joystick in port 1, which reads as F1); F1 with
+; either SHIFT down (the left one column 1 row 7, as SHIFT LOCK is; the
+; right one column 6 row 4) is F2, as the KERNAL has it. F3 is not read
+; when there is no saved game.
 scan:   lda #$fe
         sta $dc00
         lda $dc01
         and #$10
         beq @f1
+        lda saved
+        beq @none
         lda $dc01
         and #$20
         beq @f3
-        lda #0
+@none:  lda #0
         rts
-@f1:    lda #KEY_F1
+@f1:    lda #$fd                ; the left SHIFT
+        sta $dc00
+        lda $dc01
+        and #$80
+        beq @f2
+        lda #$bf                ; the right one
+        sta $dc00
+        lda $dc01
+        and #$10
+        beq @f2
+        lda #KEY_F1
+        rts
+@f2:    lda #KEY_F2
         rts
 @f3:    lda #KEY_F3
         rts
 
+; With no saved game: the text's one line cut at its first run of two
+; spaces (TXT+10 is its colour, then its glyph count and the glyphs: the
+; kit's docs/v2t-format.md), and drawn in the middle of the screen instead
+; of at its header's column, on the line's colour across the rows it
+; touches (the picture leaves them as they were). C=1: not a .v2t.
+lone:   ldx #0
+@find:  cpx TXT+11
+        bcs @cut
+        lda TXT+12,x
+        cmp #$20
+        bne @next
+        lda TXT+13,x            ; (past the last glyph: the page's padding)
+        cmp #$20
+        beq @cut
+@next:  inx
+        bne @find
+@cut:   stx TXT+11
+        lda #0                  ; its width, in pixels
+        sta width
+        sta width+1
+        tax
+@sum:   cpx TXT+11
+        beq @wide
+        lda TXT+12,x
+        and #$7f                ; (as v2t.inc draws 128-255)
+        sec
+        sbc #$20
+        bcs :+
+        lda #0                  ; (and below 32, a space)
+:       tay
+        lda v2t_font_w,y
+        clc
+        adc width
+        sta width
+        bcc :+
+        inc width+1
+:       inx
+        bne @sum
+@wide:  sec                     ; x = (320 - width) / 2
+        lda #<320
+        sbc width
+        sta v2t_x
+        lda #>320
+        sbc width+1
+        lsr
+        sta v2t_x+1
+        ror v2t_x
+        lda TXT+5               ; y: the header's row
+        sta v2t_row
+        asl
+        asl
+        asl
+        sta v2t_y
+        lda TXT+9               ; its leading
+        sta v2t_lead
+        lda #0                  ; the rows from there down, every column,
+        sta v2t_col             ; cleared to the line's colour
+        lda #40
+        sta v2t_cols
+        lda #25
+        sec
+        sbc v2t_row
+        sta v2t_rows
+        lda TXT+10
+        jsr v2t_clear
+        lda #<TXT
+        ldy #>TXT
+        jmp v2t_draw_at
+
 save02:           .byte 0
 key:              .byte 0
+saved:            .byte 0
+width:            .word 0
 _ow_splash_ticks: .byte 0
 
         .include "v2i.inc"
