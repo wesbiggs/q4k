@@ -454,6 +454,41 @@ u_ow_look() {
     fi
 }
 
+# The open sea's islands (q4k/isles.h): with seed 7, the cell east of
+# home has a town on an island at 205,90 and the one west a sea cave at
+# 85,74 (src/lib/ow_isles.c). A save on each (mkowsave.py --world) on a
+# copy of the disk: F3, and the town's square is in the window as a town
+# ($67 at WORLD + 26 * 64 + 13); + goes in, and it is Thistledown, the
+# island's own (TOWN_PROC + 1 + its cell, 9); and the cave is dungeon
+# NUM_DUNGEONS + 7.
+u_ow_isle() {
+    tmp=$(mktemp -d)
+    for k in t:205,90 d:85,74; do
+        tools/mkowsave.py "$tmp/${k%%:*}.prg" 7 --world "${k#*:}"
+        cp dist/openworld.d81 "$tmp/${k%%:*}.d81"
+        c1541 -attach "$tmp/${k%%:*}.d81" -delete ow-save \
+            -write "$tmp/${k%%:*}.prg" ow-save >/dev/null 2>&1
+    done
+    ow="dist/openworld.prg --fastdisk --splash f3 --lbl build/ow-cpu.lbl"
+    t=$(tools/screendump.py $ow --disk "$tmp/t.d81" --keys "+" --settle 30 \
+        --until 'Entering Thistledown' --peek town_index 2>&1 \
+        | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p;s/.*\(Entering [A-Za-z ]*\).*/\1/p' \
+        | tr '\n' ' ')
+    w=$(tools/screendump.py $ow --disk "$tmp/t.d81" --settle 20 \
+        --until-peek '$B68D=103' --peek '$B68D' 2>&1 \
+        | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
+    d=$(tools/screendump.py $ow --disk "$tmp/d.d81" --keys "+" --settle 30 \
+        --until 'Entering a sea cave' --peek dun_index 2>&1 \
+        | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
+    rm -rf "$tmp"
+    if [ "$t" = "14 Entering Thistledown " ] && [ "$w" = "103 " ] \
+        && [ "$d" = "10 " ]; then
+        result PASS openworld-isle
+    else
+        result FAIL openworld-isle "town: ${t:-?}; its square: ${w:-?} (103); cave: ${d:-?} (10)"
+    fi
+}
+
 # run_unit <name>: one unit, whatever it needs missing is a SKIP.
 run_unit() {
     case $1 in
@@ -462,7 +497,7 @@ run_unit() {
         owarena-arrow-ul) u_arrow ;;
         openworld-save|openworld-quaff|openworld-recolour|openworld-fight|\
         openworld-spoils|openworld-dig|openworld-foes|openworld-keeper|openworld-cache|openworld-roads|\
-        openworld-portrait|openworld-seafight|openworld-look)
+        openworld-portrait|openworld-seafight|openworld-look|openworld-isle)
             [ -f dist/openworld.d81 ] || { result SKIP "$1" "no dist/openworld.d81"; return; }
             case $1 in
                 openworld-save) u_ow_save ;;
@@ -478,6 +513,7 @@ run_unit() {
                 openworld-portrait) u_ow_portrait ;;
                 openworld-seafight) u_ow_seafight ;;
                 openworld-look) u_ow_look ;;
+                openworld-isle) u_ow_isle ;;
             esac ;;
         *)
             if [ -f "tests/golden/$1.txt" ]; then
@@ -494,7 +530,7 @@ all_units() {
     echo openworld-save checkisle openworld-foes openworld-fight \
         openworld-seafight openworld-spoils openworld-recolour
     for g in tests/golden/*.txt; do basename "$g" .txt; done
-    echo openworld-portrait openworld-look openworld-quaff openworld-dig openworld-keeper openworld-cache \
+    echo openworld-portrait openworld-look openworld-isle openworld-quaff openworld-dig openworld-keeper openworld-cache \
         openworld-roads owarena-arrow-ul checkmap
 }
 

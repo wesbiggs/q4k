@@ -27,6 +27,7 @@
 #include <q4k/town_data.h>
 #include <q4k/town_gen.h>
 
+#include <q4k/isles.h>
 #include "engine.h"
 
 /* The villager's sprite frames, after the hero's six (assets/overworld.txt:
@@ -414,7 +415,18 @@ void t_enter(void)
         hero.x    = town_sx[index];
         hero.y    = town_sy[index];
     } else {
+        /* An island's (q4k/isles.h) is made as if its land were one of its
+           own, ISL_LAND + its cell, of a ground of its own. */
+        y = land;
+        if (index > TOWN_PROC) {
+            land = index - (TOWN_PROC + 1) + ISL_LAND;
+            isle_biome = land % 5;
+        }
         town_gen();             /* the people, the way out and where to stand */
+        if (!resuming) {
+            entering = town_gen_name();
+        }
+        land = y;
     }
     build_area(area == AREA_CASTLE ? ts_castle : ts_town, local_w, local_h);
     find_buildings();           /* (from the gate: the outside is region 1) */
@@ -427,7 +439,9 @@ void t_enter(void)
             inside = 0;
         }                       /* ... and the roof off what they stand in */
     } else {                    /* in at the gate: said (the core's) */
-        entering = index < NUM_TOWNS ? town_names[index] : town_gen_name();
+        if (index < NUM_TOWNS) {
+            entering = town_names[index];
+        }
     }
     bx0 = by0 = 0;
     bx1 = local_w - 1;

@@ -99,7 +99,8 @@ cfg:
   bootstrap builds in place; `$E000-$E7BF`, under the KERNAL, the continent
   the engine keeps (getting in and out of all-RAM is `vault_bank.s`); the
   rest under the KERNAL is the music's, a tune's header at `$E7C0` and the
-  tune at `$E800-$F5FF` (see Music), but for `$F600-$FBDF`, what the party
+  tune at `$E800-$EFFF` (see Music), but for `$F000-$F5FF`, the open sea's
+  islands ("The open sea's islands"), `$F600-$FBDF`, what the party
   has seen of the land (`OWG_WFOG`: "What the party sees of the land"), and
   `$FC00-$FEFF`, what they have seen of each level of the dungeon they are
   in (`OWG_FOG`: "What the party sees underground"). Reaching the vault takes the machine to
@@ -884,8 +885,9 @@ carries on. "The music carries on", above, is how it crosses programs.
 file loads at `$E7C0`, a 64-byte header that `mksid.py` writes (init, play,
 song count, the volume to restore after a pause, a byte a song for its
 speed), then the tune at its own address, which must be inside
-`$E800-$F5FF` (3.5K: past it is the land's fog, `OWG_WFOG`, and the
-dungeons', `OWG_FOG`; the theme is 470 bytes). The engine's player is `src/lib/ow_tune.s`, called from
+`$E800-$EFFF` (2K: past it are the open sea's islands, `ISL_AREA`, the
+land's fog, `OWG_WFOG`, and the dungeons', `OWG_FOG`; the theme is 470
+bytes; `cfg/sid.cfg` and `mksid.py`'s `AREA_HI` say so). The engine's player is `src/lib/ow_tune.s`, called from
 its raster interrupt; the screens of text play it on from the KERNAL's
 interrupt (`src/lib/ow_play.s`), with the KERNAL banked out (`$01 = $35`)
 and back in after; see the RAM under the ROMs for the NMI that this needs.
@@ -1033,6 +1035,38 @@ when it is built, because building a continent overwrites those) and a
 continent's are `isle_fx/fy`; the bootstrap hands them to the engine in the
 hand-off block.
 
+**The open sea's islands** (`include/q4k/isles.h`). Every cell of the
+world with no land of its own (19 of the 24) has three to six small
+islands, of 1 to 15 squares each, and on the first of them a town or a
+dungeon, on its top row, so always beside the sea. Each island stands in a
+block of its own (a cell is 8 by 8 blocks of 8 by 8 squares; only the 6
+by 6 within the cell's edge are used): its squares in the 4 by 4 at (2, 2)
+of the block, a random walk from its top row; shallow water round them;
+a ground of its own, and some squares of a second (mountains only there).
+So nothing of one island reaches another, and a square is drawn from its
+block alone. The bootstrap makes them from `lore_seed` and the cell
+(`isles_make()`, `src/lib/ow_isles.c`, with an LFSR of its own) into a
+table under the KERNAL (`ISL_TABLE`, `$F000`, 46 bytes a cell), and loads
+`ow-isles` (`src/isl/isl_draw.s`, `cfg/isl.cfg`: engine-independent, at
+`ISL_CODE`, `$F460`) beside it, which draws them: the world's `load_run()`
+fills a run of the sea with `T_DEEP` and then calls `isl_run()` (`wfog.s`),
+which puts the run's cell and square (`kept_at()`'s `kc`, `kx`, `ky`) at
+`ISL_PARAMS` and runs `isl_draw` in all-RAM (`vault_enter()`, after
+`sm_guard()`; its scratch is the table's entry for home's cell, which has
+no islands). Nothing of them is saved: the seed makes them again. The open
+sea is always seen, so are they. **Their places**: the tile says which
+(`place_here()`: one a cell), a town is `TOWN_PROC + 1 + cell` and a
+dungeon, "a sea cave", `NUM_DUNGEONS + cell`, both in the game block's
+`place`. A town is made by `tgen.s` as a continent's is, as if its land
+were `ISL_LAND + cell` (`t_enter()` sets `land` for that long, and
+`isle_biome` from it; `owtown` does the same for its inn's name); a sea
+cave is `dungeon_build()` with that index: `ISL_DEEP` (2) levels, nobody
+at the bottom and no chests (`looted[]` has no bits for them), and no key
+(`to_dungeon_if()`). `tools/mkowsave.py --world X,Y` starts on any square;
+`openworld-isle` in `tools/test.sh` goes into one of each. **Room**:
+`kept_at()` and `nearest()` went to assembly (`wfog.s`'s OVWCODE part) and
+home's places to a table to make the world's overlay room for the rest.
+
 Every land has a town of its own, made by `src/lib/tgen.s` (in C it came to
 1.8K): an inn, a shop (a smithy, an armourer or a bowyer), a third building
 (a potion shop, or an empty house small or large) and up to two houses with a
@@ -1151,7 +1185,7 @@ routines, stlow.s's helpers and the engine's words are), 11 in TAIL
 (`$CCC0-$CE36`, L's look: above), 24 beside the
 world's overlay (which has `wander()`, the overworld's encounter roll, out
 of the core, and the land's fog: what more it needs goes in `ow-data`, as
-the fog's did, or TAIL), 1234 beside the town's (for its maps to grow into), 192 beside the dungeon's (the fog took the rest: its scratch, 1.7K, and its code), 38 in BSS (which TAIL could give back), and 175 in COMMON (`$8800-$9FFF`, past `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans; the text window's font, 768 bytes, is there too). String
+the fog's did, or TAIL, or under the KERNAL as the islands' drawing is), 1234 beside the town's (for its maps to grow into), 192 beside the dungeon's (the fog took the rest: its scratch, 1.7K, and its code), 38 in BSS (which TAIL could give back), and 175 in COMMON (`$8800-$9FFF`, past `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans; the text window's font, 768 bytes, is there too). String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than

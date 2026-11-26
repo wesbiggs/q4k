@@ -162,6 +162,10 @@ lies beyond them (in a forest, only the trees about you), and what you have
 not yet seen is dark. What you have seen stays on the map -- until you load
 a saved game, which starts the map unseen again.
 
+Out on the open sea between the lands lie small islands, a few in every
+stretch of it, and on one of each group a town or a sea cave: sail there
+and step ashore.
+
 Every land is ringed by shallows, lighter water a few squares wide, where
 nothing troubles a ship; out on the dark deep sea things come up out of the
 water at you, and are fought on the ship's deck -- they cannot leave the

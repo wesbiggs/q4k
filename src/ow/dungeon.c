@@ -352,8 +352,9 @@ static void dungeon_level(unsigned char came_down)
 static const char dn_crown[] = "the Hollow Crown";
 static const char dn_stair[] = "the Drowned Stair";
 static const char dn_pit[]   = "Blackpit";
-static const char *const dungeon_names[NUM_DUNGEONS] = {
-    dn_crown, dn_stair, dn_pit
+static const char dn_cave[]  = "a sea cave";
+static const char *const dungeon_names[NUM_DUNGEONS + 1] = {
+    dn_crown, dn_stair, dn_pit, dn_cave     /* (the islands' all) */
 };
 
 /* Just loaded into the slot: the first level of dun_index, on its way up,
@@ -373,7 +374,8 @@ void d_enter(void)
     }
     G->foe_made = G->fled = 0;  /* in from the world: all of them anew */
     memset((void *)OWG_FOG, 0, OWG_FOG_SIZE);   /* and all of it unseen */
-    entering = dungeon_names[dun_index];    /* (said: the core's) */
+    entering = dungeon_names[dun_index < NUM_DUNGEONS ? dun_index
+                                                      : NUM_DUNGEONS];
     depth = 1;
     dungeon_level(1);
 }
@@ -405,7 +407,7 @@ void d_arrived(void)
     }
     if (G->quiet & OWG_HIDE) {
         /* (said nothing: it would bring the window back) */
-    } else if (t == T_STAIRDN && depth < dungeon_deep[dun_index]) {
+    } else if (t == T_STAIRDN) {     /* (never on the bottom level) */
         sm_say(st_down);
     } else if (t == T_STAIRUP) {
         sm_say(depth == 1 ? st_out : st_up);
@@ -432,8 +434,7 @@ unsigned char __fastcall__ d_use(unsigned char k)
         if (k == '+') {
             return 0;
         }
-    } else if (t != T_STAIRDN || depth >= dungeon_deep[dun_index]
-               || k == '-') {
+    } else if (t != T_STAIRDN || k == '-') {
         return 0;
     }
     memset(sm_npc_ox, 0, sizeof sm_npc_ox);  /* (a town's people are */

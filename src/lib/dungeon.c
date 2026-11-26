@@ -4,6 +4,7 @@
 
 #include <q4k/dungeon.h>
 #include <q4k/game.h>
+#include <q4k/isles.h>
 #include <q4k/tiles.h>
 
 #define MIN_W     3
@@ -148,7 +149,11 @@ void dungeon_build(unsigned char index, unsigned char level)
     dun_dn_x = rx[i] + rw[i] / 2;
     dun_dn_y = ry[i] + rh[i] / 2;
 
-    if (level >= dungeon_deep[index]) {
+    if (index >= NUM_DUNGEONS) {
+        /* A sea cave (q4k/isles.h): its levels, nobody at the bottom. */
+        local[LOCAL_AT(dun_dn_x, dun_dn_y)] =
+            level >= ISL_DEEP ? T_FLOOR : T_STAIRDN;
+    } else if (level >= dungeon_deep[index]) {
         /* The bottom: the keeper stands where the stairs would have been --
            unless it has already been killed, which is what holding its stone
            means. Levels are rebuilt from scratch every visit, so without this
@@ -167,6 +172,9 @@ void dungeon_build(unsigned char index, unsigned char level)
        only. A chest placed earlier this build is the same on every visit,
        so testing for its tile is safe. */
     dun_chests = 0;
+    if (index >= NUM_DUNGEONS) {
+        return;                 /* (a sea cave's: no bits to keep them) */
+    }
     n = 1 + (unsigned char)(rand() % DUN_CHESTS);
     for (tries = 0; tries < 24 && dun_chests < n; ++tries) {
         i = (unsigned char)(rand() % rooms);

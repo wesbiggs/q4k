@@ -37,6 +37,7 @@
 #include <q4k/owgame.h>
 #include <q4k/tiles.h>
 #include <q4k/vault.h>
+#include <q4k/isles.h>
 
 /* What the land generator and the vault read and write of game.c's, which
    is not linked: defined here. */
@@ -247,6 +248,7 @@ int main(void)
     ow_cinit();                 /* its load cache, kept or laid out anew */
     if (!again) {               /* else they are still there */
         need("ow-data", 0);     /* to its own address, $8800 */
+        need("ow-isles", 0);     /* under the KERNAL, ISL_CODE (isles.h) */
         /* The music a game starts with, to where the game keeps a tune:
            $E7C0, under the KERNAL. Not worth stopping for if it is not on
            the disk; an engine loads any other itself. */
@@ -268,6 +270,9 @@ int main(void)
     }
     isle_build(ISLE_HOME);      /* and home, in place, with its roads */
     ow_roads();
+    /* The open sea's small islands, under the KERNAL (q4k/isles.h), where
+       ow-isl, which the engine draws them with, was loaded beside them. */
+    isles_make();
     OW->home_biome = isle_biome;
     memcpy(OW->home_fx, isle_fx, OW_PLACES);
     memcpy(OW->home_fy, isle_fy, OW_PLACES);
