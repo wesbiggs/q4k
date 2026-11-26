@@ -178,8 +178,9 @@ void ow_roads(void);
 
 #define OW_KEY_F1 0x85          /* a new game */
 #define OW_KEY_F3 0x86          /* a saved one */
-#define OW_KEY_F2 0x89          /* (SHIFT+F1, not on the picture) a new
-                                   game from a seed the player types */
+#define OW_KEY_F2 0x89          /* (the left SHIFT+F1) a new game from a
+                                   seed the player types: the only key here
+                                   with bit 3, which the bootstrap reads */
 #define OW_KEY_QUICK 0x87       /* the tests': a lone warrior outside Millford,
                                    as the prototype began (no matrix key) */
 
@@ -210,8 +211,9 @@ void ow_roads(void);
 unsigned char ow_video(void);
 /* Show the picture at OW_SPLASH_AT until F1, SHIFT+F1 or F3: OW_KEY_F1,
    OW_KEY_F2, OW_KEY_F3, or 0 if there is no picture there for this
-   machine. With `saved` 0 (no OW-SAVE on the disk) the text is cut to its
-   first part, "F1 Start New Game", centred, and F3 does nothing. */
+   machine. With `saved` 0 (no OW-SAVE on the disk) the text is only its
+   first part, "F1 Start New Game", centred, and F3 does nothing; else it
+   is $80 (the bootstrap's load_save()). */
 unsigned char __fastcall__ ow_splash(unsigned char saved);
 extern unsigned char ow_splash_ticks;   /* frames the player took, mod 256 */
 

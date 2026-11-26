@@ -107,7 +107,7 @@ static unsigned char load_save(void)
     }
     memcpy(G, SAVE_AT, OWG_SIZE);
     wf_back = n >= OWG_SIZE + OWG_WFOG_SIZE;
-    return 1;
+    return 0x80;                /* (the splash's text's offset: ow_splash.s) */
 }
 
 /* The splash screen and what the player chose there: the seed, and whether
@@ -188,7 +188,7 @@ static void splash(void)
        party to make for it (src/owparty.c), unless it is the tests' quick
        start. F2 has owseed ask for a seed first (OW_ASKSEED). */
     lore_seed = 1 + ow_splash_ticks;
-    OW_ASKSEED = key == OW_KEY_F2;
+    OW_ASKSEED = key & 0x08;    /* F2: of the keys, only $89 has it */
     disk_resident();
     /* The loading icon's pictures, the disk's and the die's (q4k/ow.h's
        OW_ICON_ART), under the KERNAL, where they stay for the whole game:
