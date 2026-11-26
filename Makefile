@@ -432,6 +432,8 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 # the REU's directory, where it loads, how long it is) and this build's
 # stamp, and fails if two names share an entry; and the image of an REU
 # with all of them in it, for the tests (screendump.py --reucache).
+# owseed is loaded through it but not kept (the bootstrap has no room for
+# its line in the table): --uncached makes sure no file takes it for theirs.
 OWCACHE_FILES := $(DIST)/ow-data.prg=ow-data $(DIST)/ow-isl.prg=ow-isles \
     $(DIST)/ow-icon.prg=ow-icon \
     $(DIST)/ow-cpu.prg=ow-cpu $(DIST)/ow-reu.prg=ow-reu \
@@ -439,7 +441,7 @@ OWCACHE_FILES := $(DIST)/ow-data.prg=ow-data $(DIST)/ow-isl.prg=ow-isles \
     $(DIST)/owtown.prg=owtown $(DIST)/owtalk.prg=owtalk --glob '$(BUILD)/ow/sets/t.*' \
     $(DIST)/fight.prg=fight $(DIST)/seafight.prg=seafight --glob '$(BUILD)/music/m.*' \
     --glob '$(BUILD)/fight/disk/[fs].*' $(DIST)/owparty.prg=owparty \
-    --glob '$(BUILD)/talk/[0-9]*'
+    --glob '$(BUILD)/talk/[0-9]*' --uncached owseed
 OWCACHE_DEPS := $(DIST)/ow-data.prg $(DIST)/ow-isl.prg $(DIST)/ow-icon.prg $(OWENG) $(OWOVL) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
     $(DIST)/fight.prg $(DIST)/seafight.prg $(DIST)/owparty.prg $(OWSETS) $(BUILD)/music/.stamp \
     $(BUILD)/fight/disk/.stamp $(BUILD)/talk/.stamp tools/mkowcache.py include/q4k/owcache.inc
