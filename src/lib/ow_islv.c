@@ -3,7 +3,7 @@
  * Quest for the King -- the level an island's place was made for
  * (q4k/isles.h's ISL_STATE), for owtown: the island towns' shops, and the
  * fights and the spoils in a sea cave. The engine marks a place's first
- * visit as the party goes in (src/ow/engine.c's isl_mark()); this marks it
+ * visit as the party goes in (src/ow/islmark.s's isl_mark()); this marks it
  * too, for a game saved inside one before there were marks.
  */
 
