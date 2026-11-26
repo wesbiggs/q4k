@@ -232,7 +232,7 @@ int main(void)
 {
     unsigned char mode = OWB->mode, stage;
 
-    if (mode < OWB_SHOP || mode > OWB_SPOILS ||
+    if (mode < OWB_SHOP || mode > OWB_HOARD ||
         mode == OWB_LOAD) {     /* (a conversation is owtalk's) */
         cputs("Load OPENWORLD: it builds the world.");
         for (;;) {
