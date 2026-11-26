@@ -13,6 +13,7 @@
         .export _foe_sees, _foe_closer, _foe_glide, _foe_room, _foe_turn
         .export _foe_muster, _foe_who, _foe_spawn, _foe_top, _foe_nat
         .export _tx, _ty, _glide, _pace, _speeds, _pending, _base
+        .export k_art, k_colour, k_speed        ; (and roam.s's)
         .import sm_char_at, sm_cx, sm_cy, ow_chcol
         .import _sm_ox, _sm_oy, _sm_front
         .import _foe_art, _sm_npc_n, _rand, _sm_npc_ptr, _sm_npc_col
