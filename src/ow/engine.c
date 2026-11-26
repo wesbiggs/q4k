@@ -205,6 +205,8 @@ static const char s_drinks[] = " drinks a draught.";
 static const char s_boot[] = "openworld";
 #pragma data-name (pop)
 #pragma rodata-name (pop)
+/* (in OW-DATA, which has a little more room than HICODE now) */
+static const char s_newtask[] = "You have a new task! (? for help)";
 
 /* Poke-able. */
 unsigned char seed;             /* lore_seed for the land (the bootstrap's) */
@@ -618,9 +620,8 @@ static void __fastcall__ say_what(const char *s)
 
 /* A talk or a fight just moved the quest on (OW_NEWTASK, which owtalk and
    owtown set): said once the window is up, even if it was hidden, since
-   it is what to do next. */
-static const char s_newtask[] = "You have a new task! (? for help)";
-
+   it is what to do next. (Its words are in COMMON, with s_saved's: HIGH
+   is full.) */
 void say_new_task(void)
 {
     if (OW_NEWTASK) {
