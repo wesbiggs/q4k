@@ -272,7 +272,13 @@ $(DIST)/%.prg: $(BUILD)/%.o $(LIB) $(wildcard cfg/*.cfg)
 OWENG := $(DIST)/ow-cpu.prg $(DIST)/ow-reu.prg
 OWOVL := $(foreach e,cpu reu,$(foreach o,world town dungeon hi tl,$(DIST)/ow-$(e).$(o)))
 OWFILES := $(DIST)/ow-data.prg $(DIST)/splash-p.prg $(DIST)/splash-n.prg \
-           $(DIST)/ow-save.prg $(DIST)/ow-isl.prg
+           $(DIST)/ow-save.prg $(DIST)/ow-isl.prg $(DIST)/ow-icon.prg
+
+# The loader's icon's pictures, the disk and the die (src/lib/ow_disk.s),
+# which the bootstrap loads under the KERNAL once.
+$(DIST)/ow-icon.prg: assets/icons.txt tools/mkicons.py
+	@mkdir -p $(DIST)
+	tools/mkicons.py $@
 
 # The open sea's islands' drawing (q4k/isles.h): a file of its own, which
 # the bootstrap loads under the KERNAL, where it runs.
@@ -403,7 +409,7 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 	$(C1541) -attach $@ -write $(DIST)/openworld.prg openworld \
 	    -write $(DIST)/splash-p.prg splash-p -write $(DIST)/splash-n.prg splash-n \
 	    -write $(DIST)/ow-save.prg ow-save -write $(DIST)/ow-data.prg ow-data \
-	    -write $(DIST)/ow-isl.prg ow-isles \
+	    -write $(DIST)/ow-isl.prg ow-isles -write $(DIST)/ow-icon.prg ow-icon \
 	    -write $(DIST)/ow-cpu.prg ow-cpu -write $(DIST)/ow-reu.prg ow-reu \
 	    $(foreach f,$(OWOVL),-write $(f) $(notdir $(f))) \
 	    -write $(DIST)/owtown.prg owtown -write $(DIST)/owtalk.prg owtalk \

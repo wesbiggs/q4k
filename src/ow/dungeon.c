@@ -37,6 +37,7 @@
 #include <c64.h>
 #include <peekpoke.h>
 #include <stdlib.h>
+#include <c64.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -142,9 +143,22 @@ static void muster(void)
     think = FOES;
 }
 
+/* The monsters' pictures (foe_art.s), a block each in the engine's VIC
+   bank, the keeper's tenth (foes.s's A_KEEPER). */
+extern const unsigned char foe_art[];
+#define KEEPER_ART (foe_art + 9 * 64)
+
+/* While the fight loads, the loader's icon is the monster, doubled,
+   flashing in its colour (q4k/ow.h): its own picture, which out of sight
+   is not the one on its sprite (fog_foes()). */
+static unsigned char fptr[FOES] = { 0 };    /* each monster's picture */
+
 /* A fight with monster i, now (ow_fight.c's OWF_FOE). Never returns. */
 static void __fastcall__ fight(unsigned char n)
 {
+    OW_ICON_SRC = 0x4000 + ((unsigned int)fptr[n] << 6);
+    OW_ICON_COL = sm_npc_col[n];
+    OW_ICON_MODE = OW_ICON_FLASH;
     ow_fight_with(OWF_FOE, base + n);
 }
 
@@ -178,7 +192,6 @@ unsigned char fog_left(void);
 
 static unsigned char room = NONE;       /* the room the hero is in */
 static unsigned char room_was = NONE;   /* ... and was in, lit already */
-static unsigned char fptr[FOES] = { 0 };    /* each monster's picture */
 
 /* Room r's box, with its walls, into fog_x0-x1 by fog_y0-y1. */
 static void __fastcall__ room_box(unsigned char r)
@@ -476,6 +489,9 @@ void __fastcall__ d_bump(unsigned char d)
         fight(i);
     }
     if (tile_at(hx + dirdx[d], hy + dirdy[d]) == T_MONSTER) {
+        OW_ICON_SRC = (unsigned int)KEEPER_ART;     /* (red, as drawn) */
+        OW_ICON_COL = COLOR_RED;
+        OW_ICON_MODE = OW_ICON_FLASH;
         ow_fight_with(OWF_KEEPER, dun_index);
     }
 }

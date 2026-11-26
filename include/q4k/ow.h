@@ -139,6 +139,23 @@ void ow_back(void);
    engine has the screen: the machine is busy. */
 void ow_disk_on(void);
 
+/* What the loader's icon (src/lib/ow_disk.s, resident at $CF14) shows for
+   the next load, or for ow_disk_on(): set before it, and back to the disk
+   after every load. OW_ICON_MODE is the disk (0), OW_ICON_ROLL, the die
+   rolling while the world is built (its faces at OW_ICON_D20), or
+   OW_ICON_FLASH, someone's sprite (a block in the engine's VIC bank, whose
+   address goes in OW_ICON_SRC, and its colour in OW_ICON_COL), doubled and
+   blinking. The pictures of the disk and the die are OW-ICON
+   (assets/icons.txt), which the bootstrap loads under the KERNAL. */
+#define OW_ICON_MODE   (*(unsigned char *)0xCF1A)
+#define OW_ICON_COL    (*(unsigned char *)0xCF1B)
+#define OW_ICON_SRC    (*(unsigned int *)0xCF27)
+#define OW_ICON_DISK   0x00
+#define OW_ICON_FLASH  0x01
+#define OW_ICON_ROLL   0x80
+#define OW_ICON_ART    0xFF00
+#define OW_ICON_D20    (OW_ICON_ART + 64)
+
 /* 0 no REU, 1 one whose transfers reach colour RAM, 2 one whose do not:
    OW_NO_REU, OW_REU_OK, OW_REU_BLIND. */
 unsigned char ow_reu_detect(void);

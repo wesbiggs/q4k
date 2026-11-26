@@ -548,11 +548,28 @@ void save_game(void)
 const char owtown[] = "owtown";
 const char owtalk[] = "owtalk";
 
+/* The loader's icon for the load that comes next (q4k/ow.h): the die,
+   rolling, for a world being built, or for a fight with whatever the dice
+   bring, which there is no sprite of yet. */
+#pragma code-name (push, "OWTOP")   /* (MAIN is full) */
+static void icon_die(void)
+{
+    OW_ICON_MODE = OW_ICON_ROLL;
+    OW_ICON_SRC = OW_ICON_D20;
+    OW_ICON_COL = COLOR_WHITE;
+}
+#pragma code-name (pop)
+
 #pragma code-name (push, "HICODE")    /* (MAIN is full) */
 /* A fight: owtown (src/lib/ow_fight.c) calls the fight module, and the
-   engine comes back to where it was, or to Millford. Never returns. */
+   engine comes back to where it was, or to Millford. Never returns. While
+   it loads, the icon is the monster, if the caller has set it to someone
+   (a monster seen in a dungeon, the keeper), or else the die. */
 void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg)
 {
+    if (OW_ICON_MODE == OW_ICON_DISK) {
+        icon_die();
+    }
     OWB->mode = OWB_FIGHT;
     OWB->arg  = kind | loot_always;
     OWB->npc  = arg;
@@ -760,6 +777,7 @@ void __fastcall__ rebuild(unsigned char mode)
     ow_tune_stop();             /* (so nothing to carry on: OWB->song 0) */
     OWB->mode = mode;
     OW->seed = seed + 1;
+    icon_die();                 /* (the bootstrap's load is the build's) */
     ow_leave(s_boot);           /* (which clears the screen it would show:
                                    stlow.s's code is in it) */
 }

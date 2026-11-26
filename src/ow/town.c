@@ -527,6 +527,11 @@ static void talk_to(unsigned char n)
     default:       return;      /* a villager is a wall */
     }
     OWB->npc = OWB->arg = e->param;
+    /* While the talk, the shop or the inn loads, the loader's icon is this
+       person, doubled, flashing in their colour (q4k/ow.h). */
+    OW_ICON_SRC = 0x4000 + ((unsigned int)sm_npc_ptr[n] << 6);
+    OW_ICON_COL = sm_npc_col[n];
+    OW_ICON_MODE = OW_ICON_FLASH;
     ow_leave(e->kind == ENT_NPC ? owtalk : owtown);
 }
 
