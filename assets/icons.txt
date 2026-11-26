@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
 # Quest for the King -- the open world's loading icon's pictures
 # (src/lib/ow_disk.s), which tools/mkicons.py makes into OW-ICON: three
 # hi-res sprites, 24 by 21, '#' set. The bootstrap loads the file under the
