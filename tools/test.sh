@@ -195,7 +195,9 @@ u_ow_save() {
 # bitmap, which a text dump cannot read, so this reads the machine: the
 # question's row is white and the answer's light green, beside the PAL
 # portrait (cells 17 on: $4000 + 40 * row + 17), and the VIC is in bitmap
-# mode. Then RUN/STOP goes back to the engine, where she stood.
+# mode ($D011's bit 7, read, is the raster's line bit 8: where the beam
+# was when the harness looked, so it is masked off). Then RUN/STOP goes
+# back to the engine, where she stood.
 PRINCESS='ddddddddddddssssdsssdsdddddddddddddddddddsssssddddddsd+wwwwwwwwssdddddwwdwwwwawwdddw'
 u_ow_portrait() {
     got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
@@ -203,7 +205,8 @@ u_ow_portrait() {
         --keys "${PRINCESS}jjjjjjjjjjj2" --settle 30 \
         --until-peek '$4061=16' --until-peek '$4089=208' \
         --peek '$4061' --peek '$4089' --peek '$D011' \
-        2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
+        2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' \
+        | awk 'NR == 3 { $0 = $0 % 128 } 1' | tr '\n' ' ')
     if [ "$got" != "16 208 59 " ]; then
         result FAIL openworld-portrait "question, answer, \$D011: ${got:-?}; not 16 208 59"
         return
