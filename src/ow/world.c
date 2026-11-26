@@ -26,7 +26,10 @@
 #include <q4k/tiles.h>
 #include <q4k/town_data.h>
 
+#include <q4k/isles.h>
 #include "engine.h"
+
+void isl_run(void);             /* the islands in the run just loaded (wfog.s) */
 
 /* (The slot is full: memcpy and the like called, not inlined.) */
 #pragma inline-stdfuncs (off)
@@ -94,41 +97,17 @@ static unsigned char taken, fresh;
    squares off Keldmarch's coasts -- need_isle() runs the build to its end
    there and then, and the world stands still for what is left of it. */
 
-static unsigned char kept = NONE;       /* the continent in the slot */
+unsigned char kept = NONE;      /* the continent in the slot (wfog.s too) */
 static unsigned char want;              /* the one being built */
 
 /* The middle of each continent: half its column, and its row. */
-static const unsigned char isle_mx[4] = { 80, 144, 80, 16 };
-static const unsigned char isle_my[4] = { 31, 95, 159, 95 };
+const unsigned char isle_mx[4] = { 80, 144, 80, 16 };
+const unsigned char isle_my[4] = { 31, 95, 159, 95 };
 
 /* Which continent the hero is nearest, by the squares to its edge, across
    or down, whichever is more (the world wraps: 192 half columns, and the
    rows as a byte does). */
-static unsigned char nearest(void)
-{
-    unsigned char d, dx, dy, at = 0, best = 255, x = wx >> 1;
-
-    for (d = 0; d < 4; ++d) {
-        dx = x > isle_mx[d] ? x - isle_mx[d] : isle_mx[d] - x;
-        if (dx > 96) {
-            dx = 192 - dx;
-        }
-        dx = dx > 16 ? (dx - 16) << 1 : 0;
-        dy = wy - isle_my[d];
-        if (dy & 0x80) {
-            dy = -dy;
-        }
-        dy = dy > 15 ? dy - 15 : 0;
-        if (dy > dx) {
-            dx = dy;
-        }
-        if (dx < best) {
-            best = dx;
-            at = d;
-        }
-    }
-    return at;
-}
+unsigned char nearest(void);    /* (wfog.s, for the overlay's room) */
 
 /* A build that has finished is the continent kept. */
 static void wf_take(unsigned char k);  /* (below: the land's fog) */
@@ -166,7 +145,7 @@ static void seek(void)
 }
 
 /* Continent d in the slot before this returns. */
-static void need_isle(unsigned char d)
+void __fastcall__ need_isle(unsigned char d)
 {
     for (;;) {
         settle();
@@ -264,38 +243,14 @@ static void wf_dark_run(unsigned int x, unsigned char y, unsigned char n,
 
 #pragma codesize (pop)
 
-/* Where square (x, y) of the world is kept, or 0 for the sea; and in `run`,
-   how many squares on from it, along its row (or down its column), are
-   kept the same way. */
-static unsigned char run;
-
-static unsigned char *kept_at(unsigned int x, unsigned char y,
-                              unsigned char down)
-{
-    unsigned char lx = x & 63, ly = y & 63, k = grid[y >> 6][x >> 6];
-
-    run = 64 - (down ? ly : lx);
-    if (k == CELL_HOME) {
-        return (unsigned char *)0xD000 + ((unsigned int)ly << 6) + lx;
-    }
-    if (!k || ly >= ISLE_TOP + ISLE_H) {
-        return 0;
-    }
-    if (ly < ISLE_TOP) {
-        if (down) {
-            run = ISLE_TOP - ly;
-        }
-        return 0;
-    }
-    if (down) {
-        run = ISLE_TOP + ISLE_H - ly;
-    }
-    --k;
-    if (gen_state >= 2 || kept != k) {
-        need_isle(k);
-    }
-    return (unsigned char *)0xE000 + ((unsigned int)(ly - ISLE_TOP) << 6) + lx;
-}
+/* Where square (x, y) of the world is kept, or 0 for the sea; and in
+   kept_run, how many squares on from it, along its row (or down its column),
+   are kept the same way (wfog.s: in assembly, for the overlay's room). It
+   leaves the cell and the square in it in kc, kx, ky, for isl_run(). */
+unsigned char kept_run, kc, kx, ky;
+unsigned char * __fastcall__ kept_at(unsigned int x, unsigned char y,
+                                     unsigned char down);
+#define run kept_run
 
 /* A column of the world, from one a world's width either side of it:
    cheaper than %, which is a division. */
@@ -322,6 +277,8 @@ static void load_run(unsigned int x, unsigned char y, unsigned char n,
         if (vc_src >= (unsigned char *)0x100) {
             wf_dark_run(x, y, vc_n, down,
                         WORLD + ((unsigned int)(y & 63) << 6) + (x & 63));
+        } else {
+            isl_run();          /* the open sea's small islands */
         }
         n -= vc_n;
         if (down) {
@@ -1212,7 +1169,8 @@ const unsigned char dungeon_key[NUM_DUNGEONS] = {
 
 static void to_dungeon_if(unsigned char n)
 {
-    if (items & dungeon_key[n]) {
+    if (n >= NUM_DUNGEONS || items & dungeon_key[n]) {  /* (a sea cave's
+                                                           has none) */
         to_dungeon(n);
     } else {
         refuse(sealed);
@@ -1291,10 +1249,20 @@ static const char *const pn_gen[TOWN_COUNT] = {
 static const char *const pn_town[NUM_TOWNS] = {
     pn_mill, pn_cast, pn_ward, pn_ash
 };
-static const char *const pn_dun[NUM_DUNGEONS] = {
-    pn_crown, pn_stair, pn_pit
+static const char pn_cave[] = "A sea cave";
+static const char *const pn_dun[NUM_DUNGEONS + 1] = {
+    pn_crown, pn_stair, pn_pit, pn_cave     /* (the islands' all) */
 };
 static const char to_enter[] = " (+ to enter)";
+
+/* Home's five places, in isle_gen.s's order: Millford, the castle, the
+   Hollow Crown, Maldrath's lair and its own town. */
+static const unsigned char home_pk[5] = {
+    PK_TOWN, PK_TOWN, PK_DUNGEON, 0, PK_TOWN
+};
+static const unsigned char home_pa[5] = {
+    TOWN_MILLFORD, TOWN_CASTLE, 0, 0, TOWN_PROC
+};
 
 static const char *place_here(void)
 {
@@ -1304,23 +1272,32 @@ static const char *place_here(void)
     if (t != T_TOWN && t != T_CASTLE && t != T_DUNGEON) {
         return 0;
     }
-    k = grid[wy >> 6][wx >> 6];
+    d = (wy >> 6) * 6 + (wx >> 6);
+    k = grid[0][d];
     lx = wx & 63;
     ly = wy & 63;
-    if (k == CELL_HOME) {
+    if (!k) {
+        /* An island's (q4k/isles.h): one place a cell, so the tile says
+           which, and the cell which of them. */
+        if (t == T_TOWN) {
+            pk = PK_TOWN;
+            pa = TOWN_PROC + 1 + d;
+        } else {
+            pk = PK_DUNGEON;
+            pa = NUM_DUNGEONS + d;
+        }
+    } else if (k == CELL_HOME) {
         for (i = 0; i < 5; ++i) {
             if (home_fx[i] == lx && home_fy[i] == ly) {
                 break;
             }
         }
         land = ISLE_HOME;
-        switch (i) {
-        case 0: pk = PK_TOWN; pa = TOWN_MILLFORD; break;
-        case 1: pk = PK_TOWN; pa = TOWN_CASTLE;   break;
-        case 2: pk = PK_DUNGEON; pa = 0;          break;
-        case 4: pk = PK_TOWN; pa = TOWN_PROC;     break;
+        if (i < 5) {            /* (the lair, 3, is no place to go in) */
+            pk = home_pk[i];
+            pa = home_pa[i];
         }
-    } else if (k) {
+    } else {
         k -= 1;
         ly -= ISLE_TOP;
         for (i = 0; i < 2; ++i) {
@@ -1342,11 +1319,14 @@ static const char *place_here(void)
         }
     }
     if (pk == PK_DUNGEON) {
-        return pn_dun[pa];
+        return pn_dun[pa < NUM_DUNGEONS ? pa : NUM_DUNGEONS];
     }
     if (pk == PK_TOWN) {
-        return pa < NUM_TOWNS ? pn_town[pa]
-             : pn_gen[(lore_seed + TOWN_STRIDE * land) & (TOWN_COUNT - 1)];
+        if (pa < NUM_TOWNS) {
+            return pn_town[pa];
+        }
+        d = pa > TOWN_PROC ? pa - TOWN_PROC - 1 + ISL_LAND : land;
+        return pn_gen[(lore_seed + TOWN_STRIDE * d) & (TOWN_COUNT - 1)];
     }
     return 0;
 }

@@ -122,11 +122,15 @@ def main():
                     "id, or gen)")
     ap.add_argument("--at", help="X,Y: the square in the town to start on "
                     "(default: the map's $)")
+    ap.add_argument("--world", help="X,Y: start on foot on this square of "
+                    "the world, on the overworld (the tests': an island)")
     args = ap.parse_args()
     out = os.path.abspath(args.out)
     os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     seed = args.seed
     place, wx, wy = where(seed, args.town, args.at)
+    if args.world:
+        wx, wy = (int(v) for v in args.world.split(","))
     b = actor("Alaric", 22, PRON_HE) + bytes(ACTOR * 3)
     b += bytes([MAGIC, seed, 1, 1])                 # one member, level 1
     b += struct.pack("<HHH", 0, 9, 1)               # xp, gold, turn (not 0: a new game)

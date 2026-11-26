@@ -51,6 +51,7 @@
 #include <q4k/gift.h>
 #include <q4k/inn.h>
 #include <q4k/town_gen.h>
+#include <q4k/isles.h>
 #include <q4k/ow.h>
 #include <q4k/owfig.h>
 #include <q4k/owgame.h>
@@ -261,8 +262,12 @@ int main(void)
         shop_entry();
         break;
     case OWB_INN:               /* ale and a rumour, or beds (inn.c) */
+        if (G->place > TOWN_PROC) {     /* an island's (q4k/isles.h) */
+            land = G->place - (TOWN_PROC + 1) + ISL_LAND;
+        }
         strcpy(eng_text, OWB->arg < NUM_INNS ? inn_names[OWB->arg]
                                              : town_gen_inn());
+        land = G->land;
         inn_open(OWB->arg);
         break;
     case OWB_FIGHT:             /* the fight module, over HIGH */

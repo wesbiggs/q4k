@@ -498,6 +498,244 @@ _wf_draw:
         bcc     @row
         rts
 
+; --- The open sea's small islands (q4k/isles.h) --------------------------------
+;
+; void isl_run(void): the islands of the run load_run() has just filled
+; with the deep sea: kept_at()'s cell and square, vc_n long, down if
+; vc_dstep is a row's 64. isl_draw, under the KERNAL, draws them, with the
+; machine in all-RAM for that long (and the split seen to first).
+
+        .export _isl_run
+        .import _kc, _kx, _ky, _vc_n, _vc_dstep, _sm_guard
+        .import vault_enter, vault_leave
+
+ISL_PARAMS = $F450
+ISL_CODE   = $F460
+
+        .segment "OVWCODE"
+
+_isl_run:
+        lda     _kc
+        sta     ISL_PARAMS
+        lda     _kx
+        sta     ISL_PARAMS + 1
+        lda     _ky
+        sta     ISL_PARAMS + 2
+        lda     _vc_n
+        sta     ISL_PARAMS + 3
+        lda     _vc_dstep
+        and     #64
+        sta     ISL_PARAMS + 4
+        lda     _ky             ; WORLD + ky * 64 + kx
+        lsr     a
+        lsr     a
+        ora     #>WORLD
+        sta     ISL_PARAMS + 6
+        lda     _ky
+        asl     a
+        asl     a
+        asl     a
+        asl     a
+        asl     a
+        asl     a
+        ora     _kx
+        sta     ISL_PARAMS + 5
+        jsr     _sm_guard
+        jsr     vault_enter
+        jsr     ISL_CODE
+        jmp     vault_leave
+
+; unsigned char * __fastcall__ kept_at(unsigned int x, unsigned char y,
+;                                      unsigned char down)
+; Where square (x, y) of the world is kept (world.c): home under the I/O
+; area, the kept continent under the KERNAL (built first if it is not
+; there: need_isle()), or 0 for the sea; kept_run how many on along the
+; row or down the column are the same; kc, kx, ky the cell and the square
+; in it. (C's, once: in assembly for the world's overlay's room.)
+
+        .export _kept_at
+        .import _kept_run, _kept, _need_isle, _gen_state, incsp3
+        .importzp sp
+
+ISLE_END  = 16 + 31             ; (CELL_HOME, ISLE_TOP: below)
+
+        .segment "BSS"
+ka_down: .res 1
+ka_y:    .res 1
+ka_k:    .res 1
+
+        .segment "OVWCODE"
+
+_kept_at:
+        sta     ka_down
+        ldy     #0
+        lda     (sp),y          ; y
+        sta     ka_y
+        and     #63
+        sta     _ky
+        iny
+        lda     (sp),y          ; x
+        tax
+        and     #63
+        sta     _kx
+        iny
+        lda     (sp),y
+        sta     ka_k            ; (x's high byte, for now)
+        txa                     ; the cell's column: x >> 6 (x < 384)
+        asl     a
+        rol     ka_k
+        asl     a
+        rol     ka_k
+        lda     ka_y            ; its row, times 6
+        lsr     a
+        lsr     a
+        lsr     a
+        lsr     a
+        lsr     a
+        and     #$FE            ; row * 2
+        sta     ka_y
+        asl     a               ; row * 4
+        clc
+        adc     ka_y
+        adc     ka_k
+        sta     _kc
+        tax
+        lda     _world_grid,x
+        sta     ka_k
+        jsr     incsp3
+        lda     _kx             ; kept_run: to the cell's edge
+        ldx     ka_down
+        beq     :+
+        lda     _ky
+:       eor     #$FF
+        sec
+        adc     #64
+        sta     _kept_run
+        lda     ka_k
+        cmp     #CELL_HOME
+        bne     @isle
+        lda     _ky
+        ldx     #$D0            ; home, under the I/O area
+        bne     @at             ; (always)
+@isle:  lda     ka_k            ; the open sea
+        beq     @sea
+        lda     _ky
+        cmp     #ISLE_END
+        bcs     @sea
+        cmp     #ISLE_TOP
+        bcs     @in
+        ldx     ka_down         ; above it: the sea, down to it
+        beq     @sea
+        lda     #ISLE_TOP
+        bne     @run            ; (always)
+@in:    ldx     ka_down
+        beq     @kept
+        lda     #ISLE_END
+@run:   sec
+        sbc     _ky
+        sta     _kept_run
+        lda     _ky
+        cmp     #ISLE_TOP
+        bcc     @sea
+@kept:  dec     ka_k            ; the continent: that one kept?
+        lda     _gen_state
+        cmp     #2
+        bcs     @need
+        lda     _kept
+        cmp     ka_k
+        beq     @ok
+@need:  lda     ka_k
+        jsr     _need_isle
+@ok:    lda     _ky
+        sec
+        sbc     #ISLE_TOP
+        ldx     #$E0            ; under the KERNAL
+@at:    sta     ka_y            ; X * 256 + row * 64 + kx
+        lsr     a
+        lsr     a
+        stx     ka_k
+        ora     ka_k
+        tax
+        lda     ka_y
+        asl     a
+        asl     a
+        asl     a
+        asl     a
+        asl     a
+        asl     a
+        ora     _kx
+        rts
+@sea:   lda     #0
+        tax
+        rts
+
+; unsigned char nearest(void): the continent nearest the hero (world.c's
+; seek()), by how far each is past the box round its middle (isle_mx, in
+; half squares across, and isle_my), across taken twice, the world's width
+; wrapping.
+
+        .export _nearest
+        .import _isle_mx, _isle_my, _wx, _wy
+
+        .segment "BSS"
+nr_x:    .res 1
+nr_dx:   .res 1
+nr_best: .res 1
+nr_at:   .res 1
+
+        .segment "OVWCODE"
+
+_nearest:
+        lda     _wx+1           ; wx / 2
+        lsr     a
+        lda     _wx
+        ror     a
+        sta     nr_x
+        lda     #255
+        sta     nr_best
+        ldy     #3
+@d:     lda     nr_x            ; across: |x - mx|, the short way round
+        sec
+        sbc     _isle_mx,y
+        bcs     :+
+        eor     #$FF
+        adc     #1
+:       cmp     #97
+        bcc     :+
+        eor     #$FF
+        sec
+        adc     #192            ; 192 - dx
+:       sec
+        sbc     #16             ; past the box, twice over
+        bcs     :+
+        lda     #0
+:       asl     a
+        sta     nr_dx
+        lda     _wy             ; down: |wy - my|, past 15
+        sec
+        sbc     _isle_my,y
+        bpl     :+
+        eor     #$FF
+        clc
+        adc     #1
+:       sec
+        sbc     #15
+        bcs     :+
+        lda     #0
+:       cmp     nr_dx           ; the larger of the two
+        bcs     :+
+        lda     nr_dx
+:       cmp     nr_best         ; (no farther: the lower d, as C's had it)
+        beq     :+
+        bcs     :++
+:       sta     nr_best
+        sty     nr_at
+:       dey
+        bpl     @d
+        lda     nr_at
+        ldx     #0
+        rts
+
 ; --- What has been seen of the land: the bits ---------------------------------
 ;
 ; world.c's wf_ram (wf_ramp: in its BSS, which differs between the

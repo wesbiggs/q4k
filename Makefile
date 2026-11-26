@@ -272,7 +272,13 @@ $(DIST)/%.prg: $(BUILD)/%.o $(LIB) $(wildcard cfg/*.cfg)
 OWENG := $(DIST)/ow-cpu.prg $(DIST)/ow-reu.prg
 OWOVL := $(foreach e,cpu reu,$(foreach o,world town dungeon hi tl,$(DIST)/ow-$(e).$(o)))
 OWFILES := $(DIST)/ow-data.prg $(DIST)/splash-p.prg $(DIST)/splash-n.prg \
-           $(DIST)/ow-save.prg
+           $(DIST)/ow-save.prg $(DIST)/ow-isl.prg
+
+# The open sea's islands' drawing (q4k/isles.h): a file of its own, which
+# the bootstrap loads under the KERNAL, where it runs.
+$(DIST)/ow-isl.prg: src/isl/isl_draw.s cfg/isl.cfg
+	@mkdir -p $(DIST) $(BUILD)/isl
+	$(CL65) -t none -C cfg/isl.cfg -m $(BUILD)/isl/isl.map -o $@ $<
 
 # Each engine is a core (engine.c, smooth.s) and three overlays that take
 # turns in one slot (src/ow/engine.h): the world's (world.c, OVWCODE), the
@@ -397,6 +403,7 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 	$(C1541) -attach $@ -write $(DIST)/openworld.prg openworld \
 	    -write $(DIST)/splash-p.prg splash-p -write $(DIST)/splash-n.prg splash-n \
 	    -write $(DIST)/ow-save.prg ow-save -write $(DIST)/ow-data.prg ow-data \
+	    -write $(DIST)/ow-isl.prg ow-isles \
 	    -write $(DIST)/ow-cpu.prg ow-cpu -write $(DIST)/ow-reu.prg ow-reu \
 	    $(foreach f,$(OWOVL),-write $(f) $(notdir $(f))) \
 	    -write $(DIST)/owtown.prg owtown -write $(DIST)/owtalk.prg owtalk \
@@ -418,14 +425,14 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 # the REU's directory, where it loads, how long it is) and this build's
 # stamp, and fails if two names share an entry; and the image of an REU
 # with all of them in it, for the tests (screendump.py --reucache).
-OWCACHE_FILES := $(DIST)/ow-data.prg=ow-data \
+OWCACHE_FILES := $(DIST)/ow-data.prg=ow-data $(DIST)/ow-isl.prg=ow-isles \
     $(DIST)/ow-cpu.prg=ow-cpu $(DIST)/ow-reu.prg=ow-reu \
     $(foreach e,cpu reu,$(foreach o,hi tl world town dungeon,$(DIST)/ow-$(e).$(o)=ow-$(e).$(o))) \
     $(DIST)/owtown.prg=owtown $(DIST)/owtalk.prg=owtalk --glob '$(BUILD)/ow/sets/t.*' \
     $(DIST)/fight.prg=fight $(DIST)/seafight.prg=seafight --glob '$(BUILD)/music/m.*' \
     --glob '$(BUILD)/fight/disk/[fs].*' $(DIST)/owparty.prg=owparty \
     --glob '$(BUILD)/talk/[0-9]*'
-OWCACHE_DEPS := $(DIST)/ow-data.prg $(OWENG) $(OWOVL) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
+OWCACHE_DEPS := $(DIST)/ow-data.prg $(DIST)/ow-isl.prg $(OWENG) $(OWOVL) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
     $(DIST)/fight.prg $(DIST)/seafight.prg $(DIST)/owparty.prg $(OWSETS) $(BUILD)/music/.stamp \
     $(BUILD)/fight/disk/.stamp $(BUILD)/talk/.stamp tools/mkowcache.py include/q4k/owcache.inc
 
