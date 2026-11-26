@@ -19,8 +19,12 @@ and fetches it from there every time after.
         an REU image as the loader would leave it with every file in it,
         for VICE's -reuimage (tools/screendump.py --reucache)
 
-A --glob's files are named by their basenames, as the disk has them. The
-hash and its salt are the loader's: the salt is include/q4k/owcache.inc's.
+A --glob's files are named by their basenames, as the disk has them. An
+--uncached NAME is a program loaded through the cache that the cache does not
+keep (owseed, run once in a while): the loader finds it no room, as it finds
+OW-SAVE none, only while no file the cache keeps has its entry and its check,
+so dir and image fail if one does. The hash and its salt are the loader's:
+the salt is include/q4k/owcache.inc's.
 """
 
 import glob
@@ -61,12 +65,20 @@ def hashes(name, s):
     return h, (ck & 0x7E) | 0x80
 
 
+UNCACHED = []           # --uncached NAMEs (files() fills it)
+
+
 def files(args):
     out, pats = [], []
+    del UNCACHED[:]
     i = 0
     while i < len(args):
         if args[i] == "--glob":
             pats.append(args[i + 1])
+            i += 2
+            continue
+        if args[i] == "--uncached":
+            UNCACHED.append(args[i + 1])
             i += 2
             continue
         path, name = args[i].split("=")
@@ -94,6 +106,13 @@ def entries(args):
         seen[h] = name
         start = data[0] | data[1] << 8
         ents.append((name, h, ck, start, data[2:]))
+    for name in UNCACHED:
+        h, ck = hashes(name, s)
+        if h in seen and hashes(seen[h], s)[1] == ck:
+            sys.exit("mkowcache: %s, which is not cached, would be taken for "
+                     "%s (entry %d, salt %d): pick another salt with "
+                     "'mkowcache.py salt' and put it in %s"
+                     % (name, seen[h], h, s, os.path.relpath(INC, ROOT)))
     stamp = hashlib.sha1()
     for name, h, ck, start, body in ents:
         stamp.update(name.encode() + bytes([start & 255, start >> 8]) + body)
