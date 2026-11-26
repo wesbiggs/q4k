@@ -99,12 +99,18 @@ cfg:
   bootstrap builds in place; `$E000-$E7BF`, under the KERNAL, the continent
   the engine keeps (getting in and out of all-RAM is `vault_bank.s`); the
   rest under the KERNAL is the music's, a tune's header at `$E7C0` and the
-  tune at `$E800-$EFFF` (see Music), but for `$F000-$F5FF`, the open sea's
+  tune at `$E800-$EABF` (see Music), but for `$EAC0-$EFFF`, half of the
+  monsters about on the overworld ("The monsters about on the
+  overworld"), `$F000-$F5FF`, the open sea's
   islands ("The open sea's islands"), `$F600-$FBDF`, what the party
   has seen of the land (`OWG_WFOG`: "What the party sees of the land"),
   `$FBE0-$FBF7`, where they have been on the islands (`ISL_STATE`, a byte a
   cell: "The open sea's islands"), and `$FC00-$FEFF`, what they have seen of each level of the dungeon they are
   in (`OWG_FOG`: "What the party sees underground"). Reaching the vault takes the machine to
+  has seen of the land (`OWG_WFOG`: "What the party sees of the land"), and
+  `$FC00-$FEFF`, what they have seen of each level of the dungeon they are
+  in (`OWG_FOG`: "What the party sees underground"; out of a dungeon, the
+  monsters' other half, to `$FFBD`). Reaching the vault takes the machine to
   all-RAM (`$01 = $34`), which takes the KERNAL and the I/O area away, so
   interrupts are off for as long as it lasts and the only code that may run
   is in ordinary RAM and calls nothing of the KERNAL's. An NMI cannot be
@@ -282,10 +288,9 @@ east.
 
 **Fights in the open world** are the multicolour arena's module (below),
 called by `owtown` (`OWB_FIGHT`, `src/lib/ow_fight.c`). The engine rolls
-after a step on foot as the game's `encounter_roll()` does (`wander()` in
-`engine.c`, out of 200 by the ground, never in towns or ships, dice seeded
-from the game's turn and seed; not in a dungeon, whose monsters are on
-the map: below), sends the keeper (walked into: `d_bump()`) and
+as the game's `encounter_roll()` does, out of 200 by the ground, but for a
+square coming into view, where a monster then is (below: never in towns;
+not in a dungeon, whose monsters are on the map), sends the keeper (walked into: `d_bump()`) and
 Maldrath's lair (with Dragonbane, before `Q_VICTORY`) the same way, and
 leaves (`ow_fight_with()`). `ow_fight()` picks what turns up as
 `battle_wander()` does, copies it out of the bestiary, loads the module
@@ -316,7 +321,7 @@ screen's `M` lists them from the land's nearest place, as the game's
 two draughts). `--poke loot_always=128` (the engine's, `OWF_LOOT` in the
 fight's kind) makes a win leave everything it can: `openworld-spoils` in
 `tools/test.sh`; `openworld-dig` pokes a map under the hero and digs. **At sea**: a step of
-the ship's onto the deep sea rolls too (6 in 200, `wander()`; the shallows
+the ship's rolls for the deep sea coming into view (6 in 200; the shallows
 are safe), and what comes up is `ow_fight.c`'s `sea_wanderers[]` (a sea
 snake, a killer eagle, a giant crab, a sea serpent and a kraken, by the
 party's level, with sprites `s.serpent`, `s.eagle`, `s.seacrab`,
@@ -656,6 +661,33 @@ room) and `dungeon.c` of the wanderers'
 `from`: change a monster there and here. `OWG_CALM` places none, unless
 `--poke enc_always=2`.
 
+**The monsters about on the overworld** (`src/ow/roam.s`, called through
+`roamcall.s`'s `roam()` in the world's overlay) are the dungeons' idea
+out in the open, with
+no fixed count: after each step on foot or by ship, one roll (the old
+odds, by the ground) for a square one in from the edge the step brought
+into view (a diagonal step, one of its two edges at random), and on the
+way out of a town or a dungeon one for each of the screen's four edges;
+a hit puts a monster there, as `battle_wander()` would choose it (or
+`sea_wanderers[]` on the deep sea), if it is not dark, and is the right
+water or land (not dark: a square never seen). Up to four at once,
+beside the ship (the people's sprites); one off the screen is forgotten. Each
+comes for the party at its arena speed, gliding, as a dungeon's does, and
+one beside them is a fight (`OWF_ROAM`, `ow_fight.c`'s `roam_ground[]` for
+the field); won or fled, that one is gone, and the rest stay only if the
+party is back on the same square. Boarding or leaving the ship clears
+them, as going into a place does (`R_CLEAR`). The code is under the
+KERNAL in two files of each engine's own: `ow-cpu.rh` at `$EAC0` (the
+tune room above 704 bytes) and `ow-cpu.rl` at `$FC00`, over the
+dungeons' fog, which `roam()` loads again when its signature is gone
+(after a dungeon). It all runs in all-RAM (`sm_guard()` first). With
+`OWG_CALM` nothing comes, unless `--poke enc_always=4` (every roll a
+monster, in spite of it): `openworld-roam` in `tools/test.sh`.
+`enc_always=1` and `3` are still the old fight at once on every roll.
+What it costs: no more missed frames over `openworld-sail` (calm); with
+`enc_always=4`, 8 steps went from 2 to 3 late on PAL and 4 to 7 on NTSC
+with the CPU's engine, and none on the REU's.
+
 **What the party sees underground** is the classic game's (its `fov.c`,
 Rogue's model: tag `v0.11.0`): the room they stand in, walls and all (the
 generator's `dun_rx`... rectangles, which are not all of the floor a room
@@ -905,7 +937,8 @@ carries on. "The music carries on", above, is how it crosses programs.
 file loads at `$E7C0`, a 64-byte header that `mksid.py` writes (init, play,
 song count, the volume to restore after a pause, a byte a song for its
 speed), then the tune at its own address, which must be inside
-`$E800-$EFFF` (2K: past it are the open sea's islands, `ISL_AREA`, the
+`$E800-$EABF` (704 bytes: past it are the monsters about on the overworld,
+`roam.s`'s upper half, then the open sea's islands, `ISL_AREA`, the
 land's fog, `OWG_WFOG`, and the dungeons', `OWG_FOG`; the theme is 470
 bytes; `cfg/sid.cfg` and `mksid.py`'s `AREA_HI` say so). The engine's player is `src/lib/ow_tune.s`, called from
 its raster interrupt; the screens of text play it on from the KERNAL's
@@ -1249,8 +1282,8 @@ with a poke of `$C6`), 17 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s
 OWTOP (`$5280-$53FF`), 3 in HIGH (`$5400-$59FF`, where the text window's
 routines, stlow.s's helpers and the engine's words are), 11 in TAIL
 (`$CCC0-$CE36`, L's look: above), 24 beside the
-world's overlay (which has `wander()`, the overworld's encounter roll, out
-of the core, and the land's fog: what more it needs goes in `ow-data`, as
+world's overlay (5 for OW-REU's; which has the land's fog and the way to
+the monsters about: what more it needs goes in `ow-data`, as
 the fog's did, or TAIL, or under the KERNAL as the islands' drawing is), 1234 beside the town's (for its maps to grow into), 192 beside the dungeon's (the fog took the rest: its scratch, 1.7K, and its code), 38 in BSS (which TAIL could give back), and 175 in COMMON (`$8800-$9FFF`, past `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans; the text window's font, 768 bytes, is there too). String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
@@ -1429,7 +1462,7 @@ set and not in `tiles.txt`, so the game never sees one): its shape --
 straight, turn, crossroads, fork -- is its edges (`edges road`), drawn where
 a neighbour is not road nor a town or castle (`join`, a neighbour flag
 bit of its own), and it is open ground, so forest thins and sand frays
-toward it. It rolls for wanderers half as often as grass (4 in 200, `wander()`). The overworld set is now
+toward it. It rolls for wanderers half as often as grass (4 in 200, `roam.s`). The overworld set is now
 at 158 characters of the most it may have, **160**: the deep sea is one
 still character, the clouds one, and their edges took the 24 the fringe's
 second variant had (`fringe`'s last two masks are its first two again): the road's interior is the

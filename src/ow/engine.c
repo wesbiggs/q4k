@@ -219,8 +219,9 @@ unsigned char enc_always = 0;   /* for tests: 1, every roll is a fight (and
                                    L finds the dead), and a dungeon has its
                                    monsters, calm or not; 2, only that; 3,
                                    every roll in the deep sea; 4, monsters
-                                   roam the overworld, calm or not (roam.s),
-                                   and a dungeon has its own */
+                                   roam the overworld, calm or not, and
+                                   every roll there is one (roam.s), and a
+                                   dungeon has its own */
 unsigned char whole     = 0;    /* 1: a roof change redraws everything, for
                                    checking that the box it does is enough */
 unsigned char loot_always = 0;  /* for tests: OWF_LOOT (128), a fight won
@@ -1229,7 +1230,7 @@ int main(void)
         load_failed(hi_file, 0);
     }
     hi_file[7] = 't';           /* and past BSS (TAIL): ow-cpu.tl (and then
-                                   roamcall.s's ow-cpu.rm) */
+                                   roamcall.s's ow-cpu.rl) */
     hi_file[8] = 'l';
     while (!load3(hi_file)) {
         load_failed(hi_file, 0);

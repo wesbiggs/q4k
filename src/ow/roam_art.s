@@ -6,7 +6,7 @@
 ; a sprite block the overworld does not use when a monster turns up.
 
         .export roam_art
-        .segment "ROAMCODE"
+        .segment "ROAMHI"
 roam_art:
         .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$10,$04,$64,$19,$69,$69,$6E,$AD,$6A,$A9,$1A,$A4,$06,$91,$1A,$A5,$19,$64,$04,$10   ; rat
         .byte $00,$00,$00,$00,$81,$42,$A6,$9A,$2A,$A8,$2E,$B8,$29,$68,$0A,$A0,$1A,$A4,$66,$99,$8A,$A2,$86,$93,$0A,$A0,$08,$20,$18,$24,$14,$14   ; goblin

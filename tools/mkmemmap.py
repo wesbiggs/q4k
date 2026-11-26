@@ -184,6 +184,8 @@ def blocks():
     field = max(fields, key=os.path.getsize)
     packed = prg_end(field)
     disk = seg(boot, "OWDISK")
+    roamhi = span(cpu, 0xEAC0, 0xEFFF)
+    roamlo = span(cpu, 0xFC00, 0xFFF9)
 
     low = [
         [0x0000, 0x0001, "cpuport", "sys", "CPU port ($01: ROM banking)"],
@@ -202,9 +204,8 @@ def blocks():
     loader = [
         [0x0334, 0x037F, "loader", "keep",
          "ow_run loader, copied in for each load"],
-        [0x0380, 0x03BF, "disksprite", "keep", "Loading icon's sprite"],
-        [0x03C0, 0x03FF, "diskirq", "keep",
-         "Loading icon's second block (the die's other face)"],
+        [0x0380, 0x03BF, "disksprite", "keep", "Disk icon sprite"],
+        [0x03C0, 0x03FF, "diskirq", "keep", "Disk icon interrupt hook"],
     ]
     textscr = [0x0400, 0x07FF, "textscr", "video", "Text screen"]
     top = [
@@ -217,8 +218,10 @@ def blocks():
          "Vault: home, 64 by 64, under the I/O area"],
         [0xE7C0, 0xE7FF, "tunehdr", "keep", "Tune header"],
         B(tune, "tune", "keep", "Theme (SID file)"),
-        [tune[1] + 1, 0xEFFF, "tunearea", "keep",
-         "Reserved for a bigger tune"],
+        [tune[1] + 1, roamhi[0] - 1, "tunearea", "keep",
+         "Reserved for a bigger tune (up to 704 bytes: mksid.py's AREA_HI)"],
+        B(roamhi, "roamhi", "keep",
+          "The roaming monsters: code, pictures, tables (ow-cpu.rh, roam.s)"),
         [0xF000, 0xF44F, "isltab", "keep",
          "The open sea's islands: 46 bytes a cell (ow_isles.c, isles.h)"],
         [0xF460, 0xF5FF, "islcode", "keep",
@@ -226,9 +229,10 @@ def blocks():
         [0xF600, 0xF600 + 512 + 4 * 248 - 1, "wfog", "keep",
          "Land fog: what is seen of home and each continent, a bit a square"],
         [0xFC00, 0xFC00 + 4 * 192 - 1, "fog", "keep",
-         "Dungeon fog: what is seen of each level, a bit a square"],
-        [0xFF00, 0xFFBF, "icon", "keep",
-         "OW-ICON: the loading icon's disk and die (ow_disk.s)"],
+         "Dungeon fog: what is seen of each level, a bit a square; out of "
+         "a dungeon, the roaming monsters' other half (ow-cpu.rl, reloaded)"],
+        [0xFC00 + 4 * 192, roamlo[1], "roamlo", "keep",
+         "The roaming monsters' other half, past the fog (ow-cpu.rl)"],
         [0xFFFA, 0xFFFF, "cpuvec", "sys", "CPU vectors"],
     ]
     od = B(owdata, "owdata", "data", "OW-DATA: town maps, shared tables, constants")

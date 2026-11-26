@@ -281,6 +281,27 @@ u_ow_fight() {
     fi
 }
 
+# The monsters about on the overworld (roam.s): enc_always=4 lets them
+# out in spite of OWG_CALM and makes every roll one, so the first steps
+# east bring four into view, one on each edge they show; a rat comes for
+# Alaric as he walks to and fro, and the fight is won (2 experience, 11
+# marks, 12 health). Back on the overworld the three he did not fight are
+# still about (sm_npc_n 3: there is no ship in view). The j's are padding
+# while the fight loads and after it.
+u_ow_roam() {
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
+        --splash quick --lbl build/ow-cpu.lbl --poke enc_always=4 --poke wf_sync=1 \
+        --keys "dddadadadad$(printf 'j%.0s' $(seq 20))      esss$(printf 'j%.0s' $(seq 30))" \
+        --settle 40 --until-peek area=0 --until-peek party+88:2=2 \
+        --peek party+2 --peek party+88:2 --peek party+90:2 --peek sm_npc_n \
+        2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
+    if [ "$got" = "12 2 11 3 " ]; then
+        result PASS openworld-roam
+    else
+        result FAIL openworld-roam "health, experience, gold, people: ${got:-?}; not 12 2 11 3"
+    fi
+}
+
 # A fight at sea: enc_always=3 makes every roll in the deep sea a fight
 # (and nothing on land, OWG_CALM's), so walking to the king's ship and
 # sailing east off the shallows meets a sea snake, which the seafight
@@ -500,7 +521,7 @@ run_unit() {
         owarena-arrow-ul) u_arrow ;;
         openworld-save|openworld-quaff|openworld-recolour|openworld-fight|\
         openworld-spoils|openworld-dig|openworld-foes|openworld-keeper|openworld-cache|openworld-roads|\
-        openworld-portrait|openworld-seafight|openworld-look|openworld-isle)
+        openworld-portrait|openworld-seafight|openworld-look|openworld-isle|openworld-roam)
             [ -f dist/openworld.d81 ] || { result SKIP "$1" "no dist/openworld.d81"; return; }
             case $1 in
                 openworld-save) u_ow_save ;;
@@ -517,6 +538,7 @@ run_unit() {
                 openworld-seafight) u_ow_seafight ;;
                 openworld-look) u_ow_look ;;
                 openworld-isle) u_ow_isle ;;
+                openworld-roam) u_ow_roam ;;
             esac ;;
         *)
             if [ -f "tests/golden/$1.txt" ]; then
@@ -531,7 +553,7 @@ run_unit() {
 # last is short and the run does not wait on one long case at the end.
 all_units() {
     echo openworld-save checkisle openworld-foes openworld-fight \
-        openworld-seafight openworld-spoils openworld-recolour
+        openworld-seafight openworld-roam openworld-spoils openworld-recolour
     for g in tests/golden/*.txt; do basename "$g" .txt; done
     echo openworld-portrait openworld-look openworld-isle openworld-quaff openworld-dig openworld-keeper openworld-cache \
         openworld-roads owarena-arrow-ul checkmap
