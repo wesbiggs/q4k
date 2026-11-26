@@ -84,6 +84,7 @@ src/ow/             the engine (built twice, ow-cpu and ow-reu) and its overlays
 src/owtown.c        the screens of text: shops, inns, the party, help, a fight
 src/owtalk.c        a conversation
 src/owparty.c       the party's making, for a new game
+src/owseed.c        the seed, asked for (SHIFT+F1 on the splash)
 src/fight/          the fight module, loaded by owtown and by the arena
 src/owarena.c       the multicolour arena: pick any fight
 src/isletest.c      the generators' check, which tools/checkisle.py drives

@@ -403,7 +403,7 @@ $(DIST)/ow-save.prg: tools/mkowsave.py tools/isleref.py tools/mktowns.py
 # the talk's files (tools/mktalk.py); and the fights (src/lib/ow_fight.c):
 # the module and its fields and sprites, as the arena's disk has them.
 $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
-	    $(DIST)/owparty.prg \
+	    $(DIST)/owparty.prg $(DIST)/owseed.prg \
 	    $(BUILD)/music/.stamp $(BUILD)/talk/.stamp $(DIST)/fight.prg $(DIST)/seafight.prg \
 	    $(BUILD)/fight/disk/.stamp $(OWSETS)
 	$(C1541) -format "openworld,01" d81 $@ >/dev/null
@@ -416,7 +416,7 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 	    -write $(DIST)/owtown.prg owtown -write $(DIST)/owtalk.prg owtalk \
 	    $$(for p in $(PORTRAITS); do n=$(call NPC_NUM,$$p); \
 	        for s in n p; do printf ' -write %s v.%s%s' $(BUILD)/portraits/$$p-$$s $$n $$s; done; done) \
-	    -write $(DIST)/owparty.prg owparty \
+	    -write $(DIST)/owparty.prg owparty -write $(DIST)/owseed.prg owseed \
 	    -write $(DIST)/fight.prg fight -write $(DIST)/seafight.prg seafight \
 	    $$(for f in $(BUILD)/ow/sets/t.*; do printf ' -write %s %s' $$f $${f##*/}; done) \
 	    $$(for f in $(BUILD)/fight/disk/[fs].*; do printf ' -write %s %s' $$f $${f##*/}; done) \

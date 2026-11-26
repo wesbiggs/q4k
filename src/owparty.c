@@ -8,9 +8,7 @@
  * king's letter, as the game's title screen does (src/lib/ow_party.c),
  * puts the new game in the game block (q4k/owgame.h) at Millford's gate,
  * and loads the engine over itself (ow_back()), which starts there. Nothing
- * of this is in memory after that. With OW_ASKSEED (SHIFT+F1 on the splash)
- * it asks for the world's seed first (ow_ask_seed()), and has the
- * bootstrap build that world if it is another. OWB_QUICK, the tests' start
+ * of this is in memory after that. OWB_QUICK, the tests' start
  * (screendump.py --splash quick), makes a lone warrior outside Millford
  * without asking.
  *
@@ -51,19 +49,6 @@ int main(void)
     *(unsigned char *)0x0291 = 0x80;    /* C=+Shift keeps this set */
     clrscr();
 
-    /* SHIFT+F1 on the splash: a seed first, and if it is another, that
-       world built (by the bootstrap, as N in an engine has it built), which
-       runs this again for the party. Back to the KERNAL's characters for
-       it, since the bootstrap loads over these. */
-    if (OW_ASKSEED) {
-        OW_ASKSEED = 0;
-        if (mode == OWB_NEW && ow_ask_seed()) {
-            clrscr();
-            VIC.addr = 0x15;
-            OWB->mode = OWB_NONE;
-            ow_run("openworld");
-        }
-    }
     ow_new_game(mode == OWB_QUICK);     /* (turns the screen on to ask) */
     ow_back();                  /* the engine, at Millford */
     return 0;
