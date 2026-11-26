@@ -175,17 +175,14 @@ static void pron_at(unsigned char x, unsigned char y, const char *pre,
     cputs(post);
 }
 
-/* A name into entry[], starting from member `who`'s: typed over (DEL
-   takes a letter back), or RETURN with none for one picked. */
-static void read_name(unsigned char who)
+/* entry[] typed into from its first n characters, to RETURN, which gives
+   how many there are then: DEL takes one back, and no more than `most` go
+   in. Digits only for a seed, else what a name may have. */
+static unsigned char typed(unsigned char n, unsigned char most,
+                           unsigned char digits)
 {
-    unsigned char n, key;
+    unsigned char key;
 
-    strcpy(entry, party[who].name);
-    n = (unsigned char)strlen(entry);
-    ask("");
-    textcolor(COLOR_YELLOW);
-    pron_at(1, ASK_Y, "", p_poss, who, " name? (RETURN alone picks one)");
     for (;;) {
         textcolor(COLOR_WHITE);
         cclearxy(1, ENTRY_Y, SCR_W - 2);
@@ -196,10 +193,7 @@ static void read_name(unsigned char who)
 
         key = timed_key();
         if (key == KEY_RETURN) {
-            if (!n) {
-                pick_name(who);
-            }
-            return;
+            return n;
         }
         if (key == KEY_DEL) {
             if (n) {
@@ -207,14 +201,31 @@ static void read_name(unsigned char who)
             }
             continue;
         }
+        if (digits) {
+            if (key < 0x30 || key > 0x39) {     /* (PETSCII's are ASCII's) */
+                continue;
+            }
         /* PETSCII as typed: $41-$5A unshifted, $C1-$DA shifted. */
-        if (key < 0x20 || (key > 0x3F && key < 0x41)
-            || (key > 0x5A && key < 0xC1) || key > 0xDA) {
+        } else if (key < 0x20 || (key > 0x3F && key < 0x41)
+                   || (key > 0x5A && key < 0xC1) || key > 0xDA) {
             continue;
         }
-        if (n < NAME_LEN - 1) {
+        if (n < most) {
             entry[n++] = (char)key;
         }
+    }
+}
+
+/* A name into entry[], starting from member `who`'s: typed over (DEL
+   takes a letter back), or RETURN with none for one picked. */
+static void read_name(unsigned char who)
+{
+    strcpy(entry, party[who].name);
+    ask("");
+    textcolor(COLOR_YELLOW);
+    pron_at(1, ASK_Y, "", p_poss, who, " name? (RETURN alone picks one)");
+    if (!typed((unsigned char)strlen(entry), NAME_LEN - 1, 0)) {
+        pick_name(who);
     }
 }
 
@@ -457,6 +468,30 @@ static void save_new(void)
         hint(9, "Press any key");
         cgetc();
     }
+}
+
+/* SHIFT+F1 on the splash (OW_ASKSEED): the world's seed, typed, until it
+   is one of 0-255. */
+unsigned char ow_ask_seed(void)
+{
+    unsigned char n, i;
+    unsigned int v;
+
+    heading();
+    ask("The world's seed? (0-255)");
+    hint(HINT_Y, "RETURN alone keeps this one");
+    do {
+        n = typed(0, 3, 1);
+        v = 0;
+        for (i = 0; i < n; ++i) {
+            v = v * 10 + (entry[i] - 0x30);
+        }
+    } while (v > 255);
+    if (n && v != OW->seed) {
+        OW->seed = (unsigned char)v;
+        return 1;
+    }
+    return 0;
 }
 
 void ow_new_game(unsigned char quick)
