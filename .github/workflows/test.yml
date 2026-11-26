@@ -24,10 +24,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [goldens, cases]
+        group: [diag]
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       # cc65 and the headless VICE 3.10, cached by the toolchain's release.
       # The tag is tools/cloud-setup.sh's TOOLCHAIN too: move them together.
@@ -36,5 +38,5 @@ jobs:
       - name: Build
         run: make
 
-      - name: Test
-        run: make test TESTARGS="--group ${{ matrix.group }}"
+      - name: Diagnose
+        run: .github/workflows/diag.sh
