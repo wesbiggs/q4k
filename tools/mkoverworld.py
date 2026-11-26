@@ -395,6 +395,15 @@ def build(setname):
             quad.append(char_of[key])
         if name == "water":
             water += [(quad[0], quad[1]), (quad[2], quad[3])]
+        elif name == "deep":
+            # The deep sea flows as the shallows do. Its art is one
+            # character in all four quarters (the set has no room for
+            # more), so that character is a "pair" of itself, which
+            # sm_animate rotates on its own; two halves that differ are
+            # pairs as water's are.
+            for pair in ((quad[0], quad[1]), (quad[2], quad[3])):
+                if pair not in water:
+                    water.append(pair)
         by_name.setdefault(name, []).append(len(metatiles))
         metatiles.append(quad)
         mt_name.append(name)
@@ -519,9 +528,14 @@ def build(setname):
         sys.exit("mkoverworld: %s: %d water pairs, %d at most"
                  % (setname, len(water), WATER_MAX))
     # A water character shared with anything else would animate there too.
-    flat = [c for pair in water for c in pair]
+    flat = [c for pair in water for c in (set(pair) if pair[0] == pair[1]
+                                         else pair)]
     if len(set(flat)) != len(flat):
         sys.exit("mkoverworld: water characters must be distinct")
+    for name, quad in zip(mt_name, metatiles):
+        if name not in ("water", "deep") and set(quad) & set(flat):
+            sys.exit("mkoverworld: %s: %s shares a character with the water"
+                     % (setname, name))
 
     fallback = fallback or mt_name[0]
     if fallback not in by_name:

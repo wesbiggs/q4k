@@ -1214,7 +1214,9 @@ _sm_sprite:
 
 ; void sm_animate(void) -- water flows a pixel east: each row of each water
 ; metatile, sixteen pixels across two characters, rotated one double-width
-; pixel.
+; pixel. A pair that is one character twice (the deep sea's, which is the
+; same in all four quarters) is that character's eight pixels rotated, which
+; is the same flow: its sixteen repeat every eight.
 _sm_animate:
         ldx     #0
 @pair:  cpx     ow_nwater
@@ -1228,6 +1230,8 @@ _sm_animate:
         sta     ptr1
         sty     ptr1+1
         lda     ow_water+1,x
+        cmp     ow_water,x
+        beq     @one
         jsr     @addr
         sta     ptr2
         sty     ptr2+1
@@ -1245,11 +1249,24 @@ _sm_animate:
         bne     @bit
         dey
         bpl     @row
-        pla
+@next:  pla
         tax
         inx
         bne     @pair
 @done:  rts
+
+@one:   ldy     #7
+@orow:  lda     (ptr1),y
+        ldx     #2
+@obit:  lsr     a               ; a bit round, twice: a double-width pixel
+        bcc     :+
+        ora     #$80
+:       dex
+        bne     @obit
+        sta     (ptr1),y
+        dey
+        bpl     @orow
+        bmi     @next
 
 @addr:  ldy     #0              ; CHARS + A * 8, in A (low) and Y (high)
         sty     cnt
