@@ -1086,7 +1086,7 @@ and no key (`to_dungeon_if()`). **Each place is made for the party's level
 when they first went in**, not for the land they last left (which is
 mostly Keldmarch): `ISL_STATE` (`$FBE0`, under the KERNAL past the land's
 fog, a byte a cell, written straight through) holds that level
-(`ISL_LEVEL`, 0 until then), marked by the engine's `isl_mark()` as the
+(`ISL_LEVEL`, 0 until then), marked by the engine's `isl_mark()` (src/ow/islmark.s) as the
 party goes in (and by `isl_level()`, `src/lib/ow_islv.c`, owtown's, for a
 game saved inside one before there were marks). `ISL_TIER()` turns it into
 shop.c's tier of lands (0 home's, 1-4 the continents' in the story's order:

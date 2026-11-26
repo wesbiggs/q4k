@@ -78,7 +78,6 @@
 #include <q4k/dungeon.h>
 #include <q4k/game.h>
 #include <q4k/isle.h>
-#include <q4k/isles.h>
 #include <q4k/loot_data.h>
 #include <q4k/music.h>
 #include <q4k/music_map.h>
@@ -157,6 +156,7 @@ typedef char owgame_fits_below_the_probe[2 * (OWG_ADDR + OWG_SIZE <= 0xCF00) - 1
 /* stlow.s has these by number. */
 typedef char st_g[2 * (OWG_ADDR == 0xCE37) - 1];
 typedef char st_count[2 * (offsetof(OwGame, party_count) == 86) - 1];
+typedef char st_level[2 * (offsetof(OwGame, party_level) == 87) - 1]; /* islmark.s */
 typedef char st_gold[2 * (offsetof(OwGame, gold) == 90) - 1];
 typedef char st_turn[2 * (offsetof(OwGame, game_turn) == 92) - 1];
 typedef char st_potions[2 * (offsetof(OwGame, potions) == 94) - 1];
@@ -579,22 +579,6 @@ void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg)
     ow_leave(owtown);
 }
 
-/* Island cell c's place's byte (q4k/isles.h's ISL_STATE), from under the
-   KERNAL; its first visit marked with the party's level if it was not
-   before (a write under the KERNAL reaches the RAM). */
-unsigned char __fastcall__ isl_mark(unsigned char c)
-{
-    static unsigned char b;
-
-    vc_src = (unsigned char *)ISL_STATE + c;
-    vc_dst = &b;
-    vc_n = vc_sstep = vc_dstep = 1;
-    sm_vcopy();
-    if (!(b & ISL_LEVEL)) {
-        *(unsigned char *)(ISL_STATE + c) = b |= G->party_level;
-    }
-    return b;
-}
 
 
 #pragma code-name (pop)
