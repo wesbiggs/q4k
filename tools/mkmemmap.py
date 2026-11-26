@@ -202,8 +202,9 @@ def blocks():
     loader = [
         [0x0334, 0x037F, "loader", "keep",
          "ow_run loader, copied in for each load"],
-        [0x0380, 0x03BF, "disksprite", "keep", "Disk icon sprite"],
-        [0x03C0, 0x03FF, "diskirq", "keep", "Disk icon interrupt hook"],
+        [0x0380, 0x03BF, "disksprite", "keep", "Loading icon's sprite"],
+        [0x03C0, 0x03FF, "diskirq", "keep",
+         "Loading icon's second block (the die's other face)"],
     ]
     textscr = [0x0400, 0x07FF, "textscr", "video", "Text screen"]
     top = [
@@ -226,6 +227,8 @@ def blocks():
          "Land fog: what is seen of home and each continent, a bit a square"],
         [0xFC00, 0xFC00 + 4 * 192 - 1, "fog", "keep",
          "Dungeon fog: what is seen of each level, a bit a square"],
+        [0xFF00, 0xFFBF, "icon", "keep",
+         "OW-ICON: the loading icon's disk and die (ow_disk.s)"],
         [0xFFFA, 0xFFFF, "cpuvec", "sys", "CPU vectors"],
     ]
     od = B(owdata, "owdata", "data", "OW-DATA: town maps, shared tables, constants")

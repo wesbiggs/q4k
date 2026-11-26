@@ -809,16 +809,32 @@ cannot spare: missed frames (`late`) over `openworld-sail`'s 59 steps went
 from 2 to about 26 there (with the corners on but not shown, 5); PAL 0 to
 1; the REU's engine stayed at 0 on both.
 
-**The open world's disk icon is resident at `$CF14`.** `src/lib/ow_disk.s`
-(segment `OWDISK`, `cfg/c64-owboot.cfg`) holds the code, the sprite's picture
-and the interrupt, and the loader stub (`ow_run.s`) calls it at fixed
-addresses `$CF14` (show) and `$CF17` (stop) before and after every `LOAD`. The
-bootstrap copies the block there, and it must do so after the splash, not at
-the start of `main()`: the splash unpacks its picture into `$C000-$FFFF`,
-which covers `$CF14`. The sprite lives at `$0380`, the only place in bank 0
-no program's code is. The interrupt stops itself after about thirty seconds,
-so a soft reset during a load cannot leave it blinking at READY. The talk
-program's BSS2 starts at `$CF14` too, but nothing there writes it.
+**The open world's loading icon is resident at `$CF14`.** `src/lib/ow_disk.s`
+(segment `OWDISK`, `cfg/c64-owboot.cfg`) holds the code and the interrupt,
+and the loader stub (`ow_run.s`) calls it at fixed addresses `$CF14` (show)
+and `$CF17` (stop) before and after every `LOAD`. The bootstrap copies the
+block there, and it must do so after the splash, not at the start of
+`main()`: the splash unpacks its picture into `$C000-$FFFF`, which covers
+`$CF14`. It shows one of three things, which whoever asks sets beforehand at
+fixed addresses (`OW_ICON_MODE`, `OW_ICON_COL`, `OW_ICON_SRC` in
+`include/q4k/ow.h`), and `$CF17` puts back the disk after every load: the
+yellow floppy (a load), the white d20 rolling (the world being built: the
+bootstrap from the end of its loads, `rebuild()` for `N`/`F3`, and a fight
+with no sprite to show, `ow_fight_with()`), or someone's own sprite doubled
+and blinking in their colour (the monster a dungeon fight is with, the
+keeper, the person a talk, a shop or an inn is with: `dungeon.c`'s
+`fight()`/`d_bump()`, `town.c`'s `talk_to()`), copied from the engine's VIC
+bank, which nothing changes before the `LOAD`. The disk's and the die's
+pictures are `OW-ICON` (`assets/icons.txt`, `tools/mkicons.py`), which the
+bootstrap loads under the KERNAL at `$FF00` once, after the splash, where
+nothing else is. The icon copies two blocks from where it is told to `$0380`
+and `$03C0` (blocks 14 and 15, the only place in bank 0 no program's code
+is; the die shows them in turn). Block 15 is the engines' C stack's top, so
+only the stub or the bootstrap (whose stack is at its MAIN's top) may call
+`$CF14`, never an engine's C code. The resident code has 4 bytes to spare.
+The interrupt stops itself after about thirty seconds, so a soft reset
+during a load cannot leave it blinking at READY. The talk program's BSS2
+starts at `$CF14` too, but nothing there writes it.
 
 **The REU load cache** (`src/lib/ow_cache.s`, `ow_cload()` in
 `include/q4k/ow.h`): with an REU, a file the open world loads comes from the
@@ -1146,11 +1162,11 @@ waits `OW->hook` is `$A5`, and `screendump.py --splash f1|f3|quick` writes the k
 there (then the new game's seed is 1, as the goldens have it). `N` skips all
 of this. Golden `openworld-load` is the F3 path. The bootstrap says nothing:
 the screen is black until the picture is up, and from the key until the
-engine has the screen a yellow floppy blinks in the middle (`ow_disk_on()`
-in `ow_run.s`: sprite 0 at `$0380` and a few instructions in front of the
-KERNAL's interrupt at `$03C0`, in the tape buffer past the loader, since they
-must outlast the bootstrap; it stands still while the lands are built, with
-interrupts off). Only a failed load prints anything.
+engine has the screen the loading icon is in the middle (`ow_disk_on()`,
+`ow_disk.s`, above): the yellow floppy while it loads its files, then the
+white d20 rolling while it builds the lands (it stands still while home is
+built, with interrupts off), then the floppy again for the next program.
+Only a failed load prints anything.
 
 **What both engines read and neither changes** is one file, `ow-data`
 (2.8K from `$8800`: the tables every tile set shares, in `OWDATA`, the

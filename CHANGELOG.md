@@ -23,6 +23,11 @@ classic game's.
   less often on a road. Ships lie at Keldmarch's ports and the continents'
   docks: step onto one to board it, and it waits wherever you step off.
   Those at Keldmarch's ports sail only as the quest moves on.
+- The deep sea flows as the shallows do. While something loads, the icon in
+  the middle of the screen says what is happening: a floppy for a load, a
+  twenty-sided die rolling while the world is built (and before a fight
+  with whatever the dice bring), and the monster a dungeon fight is with,
+  or the person a talk, a shop or an inn is with, flashing in their colour.
 - Places are entered and left by walking, not with `>` and `<`: step onto a
   town, the castle or a dungeon to go in, onto a way out of a town or the
   castle to leave, and onto a dungeon's stairs to go down or up (up from the

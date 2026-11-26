@@ -82,10 +82,24 @@ typedef char hook_is_where_ow_splash_has_it
     [2 * (sizeof(OwWorld) == OW_HOOK_OFF + 7) - 1];
 
 /* A file that has to be there. Nothing is said unless it is not. */
+static const char s_back[] = "Put the disk back and press a key.\r\n";
+
 static void need(const char *name, void *at)
 {
     while (!ow_cload(name, at)) {
-        cputs("Put the disk back and press a key.\r\n");
+        cputs(s_back);
+        cgetc();
+    }
+}
+
+/* The loading icon's pictures, the disk's and the die's (q4k/ow.h's
+   OW_ICON_ART), under the KERNAL, where they stay for the whole game: once,
+   from the splash, which had its picture there, before the icon is first
+   shown. A plain load, like OW-SAVE's: the cache has no room kept for it. */
+static void icon_art(void)
+{
+    while (!cbm_load("ow-icon", 8, 0)) {
+        cputs(s_back);
         cgetc();
     }
 }
@@ -179,6 +193,7 @@ static void splash(void)
         key = title_text();
     }
     disk_resident();
+    icon_art();
     ow_disk_on();
     /* A new world for a new game, from how long the player took, and a
        party to make for it (src/owparty.c), unless it is the tests' quick
@@ -256,6 +271,13 @@ int main(void)
         OW->tune = ow_cload(tune_name[d], 0) ? d : OW_NO_TUNE;
     }
 
+    /* From here on the world is being built, not loaded: the icon is the
+       die, rolling, until the next program is loaded (below). */
+    OW_ICON_MODE = OW_ICON_ROLL;
+    OW_ICON_SRC = OW_ICON_D20;
+    OW_ICON_COL = COLOR_WHITE;
+    ow_disk_on();
+
     /* Each continent, for where its places and its landing are. It is not
        kept: an engine builds the one it needs (ow_gen.s). */
     for (d = 0; d < 4; ++d) {
@@ -304,6 +326,11 @@ int main(void)
     }
     OW->saved = 0;              /* (N comes back here) */
     OW->magic = OW_MAGIC;
+
+    /* Built: the icon off, and back to the disk (ow_disk.s's disk_stop,
+       which the loader's stub calls after a load), which the loader shows
+       again for the load that comes next. */
+    __asm__("jsr $CF17");
 
     /* The party is made first, unless the game has one. */
     if (G->magic != OWG_MAGIC) {
