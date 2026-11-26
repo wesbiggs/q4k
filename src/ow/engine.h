@@ -132,7 +132,7 @@ extern unsigned char speed;     /* pixels a frame: 1 or 2 */
 extern unsigned char enc_always;    /* tests: 1 every roll a fight, and 1
                                        or 2 a dungeon's monsters even with
                                        OWG_CALM; 3 every roll at sea; 4
-                                       the overworld's roaming monsters */
+                                       a roaming monster on every roll */
 extern unsigned int  steps;
 extern unsigned char whole, switch_time, roof_time;
 
@@ -177,7 +177,7 @@ extern unsigned char chest_bit; /* the looted[] bit of the level's first
                                    chest (stlow.s's st_chests()) */
 /* A file of the engine's to its own address (the screen off), tried until
    it loads; and the name of the last of the engine's own (ow-cpu.tl, which
-   roamcall.s makes ow-cpu.rm). */
+   roamcall.s makes ow-cpu.rl). */
 void __fastcall__ fetch(const char *name);
 extern char hi_file[];
 

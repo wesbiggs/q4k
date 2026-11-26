@@ -440,11 +440,15 @@ typedef char roam_quiet[2 * (offsetof(OwGame, quiet) == 138) - 1];
 typedef char roam_g[2 * (OWG_ADDR == 0xCE37) - 1];
 typedef char roam_ow[2 * (offsetof(OwWorld, ibiome) == 30) - 1];
 typedef char roam_fog[2 * (OWG_FOG == 0xFC00) - 1];
-typedef char roam_calm[2 * (OWG_CALM == 4 && OWG_NATIVE == 16) - 1];
+typedef char roam_calm[2 * (OWG_CALM == 4) - 1];
+typedef char roam_native[2 * (OWG_NATIVE == 16) - 1];
 typedef char roam_home[2 * (ISLE_HOME == 4) - 1];
-typedef char roam_tiles[2 * (T_GRASS == 0x60 && T_FOREST == 0x61
-                             && T_SHORE == 0x65 && T_SWAMP == 0x66
-                             && T_FLOOR == 0x6C && T_DEEP == 0x95) - 1];
+typedef char roam_grass[2 * (T_GRASS == 0x60) - 1];
+typedef char roam_forest[2 * (T_FOREST == 0x61) - 1];
+typedef char roam_shore[2 * (T_SHORE == 0x65) - 1];
+typedef char roam_swamp[2 * (T_SWAMP == 0x66) - 1];
+typedef char roam_floor[2 * (T_FLOOR == 0x6C) - 1];
+typedef char roam_deep[2 * (T_DEEP == 0x95) - 1];
 
 /* (x, y), from where the look started, into the box of what changed
    (its edges to be worked out again) and, if it is within the screen of
@@ -1107,12 +1111,12 @@ static void back_home(void)
         sm_sprite(hero_frame(DIR_RIGHT, 0));
     }
     seek();
-    show_ships();
     hx = wx & 127;              /* (show_area() sets them too) */
     hy = wy & 127;
     wf_all();
     roam(R_ENTER);              /* the monsters: the rest of a fight's, or
                                    what is about on the screen's edges */
+    show_ships();               /* (and them after the ship) */
     show_area(wx & 127, wy & 127);
 }
 

@@ -456,7 +456,7 @@ def write_roam(sprites):
            "up.",
            "",
            "        .export roam_art",
-           '        .segment "ROAMCODE"',
+           '        .segment "ROAMHI"',
            "roam_art:"]
     for name in ROAM_ART:
         size, frames = sprites[name]

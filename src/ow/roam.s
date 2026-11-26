@@ -5,16 +5,19 @@
 ; view, and come at the hero the way a dungeon's monsters do (foes.s), a
 ; turn for every step; one that gets beside them is a fight.
 ;
-; Where it runs: under the KERNAL, at $FC00 (cfg/c64-openworld.cfg's ROAM),
-; over the dungeon's fog, which means nothing on the overworld: a file of
-; its own (ow-cpu.rm, ow-reu.rm), which the world's overlay loads (roamcall.s)
-; when it finds it is not there, the first time out and after a dungeon,
-; whose way in clears the fog. The overlay calls rm_run with the machine in
+; Where it runs: under the KERNAL, in two halves, each a file of its own,
+; which the world's overlay loads (roamcall.s) when it finds one is not
+; there: ROAM (ROAMCODE, and the records, ROAMBSS) at $FC00, over the
+; dungeon's fog, which means nothing on the overworld (ow-cpu.rl, ow-reu.rl:
+; the first time out, and after a dungeon, whose way in clears the fog);
+; ROAMHI (ROAMHI, with the pictures) at $EAC0, the top of the tune's room,
+; past what a tune may have (ow-cpu.rh, ow-reu.rh: the first time out). The overlay calls rm_run with the machine in
 ; all-RAM (vault_enter()), interrupts off, with what it is to do in A:
 ;
 ;   R_ENTER   back on the overworld, the screen off: the monsters kept if
 ;             this is the square a fight with one of them started on, else
-;             none, and then a roll on each of the screen's four edges
+;             none, and then a roll on each of the screen's four edges (the
+;             R_SHOW after it shows them)
 ;   R_CLEAR   into a town or a dungeon: none
 ;   R_ROLL    the end of a step that can meet one (as the old roll had it:
 ;             not onto a place, nor in a ship off the deep sea): the turn
@@ -36,8 +39,9 @@
 ; the square it rolls for, not the hero's: one square in from the edge that
 ; came into view, since the edge itself may not have been looked at yet and
 ; still be dark. On foot only land rolls, and in a ship only the deep sea.
-; With OWG_CALM (the tests'), none, unless enc_always is 4; and enc_always 1
-; (or 3, in the deep sea) is still the old fight on every roll, at once.
+; With OWG_CALM (the tests'), none, unless enc_always is 4, which also makes
+; every roll one; and enc_always 1 (or 3, in the deep sea) is still the old
+; fight on every roll, at once.
 ;
 ; Squares are the engine's (hx, hy: the world's, & 127); the window
 ; (WORLD) has them & 63. A monster is a record here, and its picture is one
@@ -45,7 +49,8 @@
 ; leader's is the hero's), unpacked from roam_art.s: it is a person
 ; (sm_npc_*) after the king's ship once its picture is there.
 
-        .export rm_sig, rm_run
+        .export rm_sig, rm_sig2, rm_run
+        .include "zeropage.inc"
         .import roam_art, k_art, k_colour, k_speed
         .import _hx, _hy, _moving, _dir, _dirdx, _dirdy, _speed, _boat
         .import _land, _enc_always, _looking, _rand
@@ -75,6 +80,22 @@ OWF_SEA   = 5
 OWF_ROAM  = 6
 THINK_LINE = 190                ; foes.s's: no turn later on the raster
 
+; Scratch, in cc65's (none of it kept across a call: the caller is C)
+cx        = ptr1
+cy        = ptr1+1
+ax        = ptr2
+ay        = ptr2+1
+sx        = ptr3
+sy        = ptr3+1
+tx        = ptr4
+ty        = ptr4+1
+nx        = tmp1
+ny        = tmp2
+t         = tmp3
+fi        = tmp4
+gx        = sreg
+gy        = sreg+1
+
 R_ENTER = 0
 R_CLEAR = 1
 R_ROLL  = 2
@@ -86,6 +107,9 @@ R_CAN   = 8
         .segment "ROAMHEAD"
 ; First, where a dungeon's fog clears it: that this is here (roamcall.s).
 rm_sig: .byte   $A5, $5A, $C3
+        .segment "ROAMHIHEAD"
+; And the half in the tune's room, which nothing but a load clears.
+rm_sig2: .byte  $C3, $5A, $A5
 
         .segment "ROAMCODE"
 
@@ -236,8 +260,8 @@ enter:  jsr     mode
         jsr     edge
         dec     e
         bpl     @e
-@done:  inc     changed
-        ; (and on to R_SHOW)
+@done:  inc     changed         ; (shown by the R_SHOW after it)
+        rts
 
 ; --- R_SHOW: the monsters after the people there are --------------------
 
@@ -391,6 +415,8 @@ mode:   lda     _boat
         lda     #SEA_FLAG
 :       rts
 
+        .segment "ROAMHI"
+
 ; A roll for a square on edge A of the screen, one in: 0 right, 1 left,
 ; 2 down, 3 up, along it at random.
 edge:   tax
@@ -437,7 +463,7 @@ spawn:  lda     cx
         beq     @got
         dex
         bpl     @free
-        rts
+@no:    rts
 @got:   stx     fi
         lda     cx
         ldy     cy
@@ -458,11 +484,15 @@ spawn:  lda     cx
 @odds:  lda     odds,x
         beq     @no
         sta     t
+        lda     _enc_always     ; (4, the tests': every roll one)
+        cmp     #4
+        beq     @hit
 @roll:  jsr     _rand
         cmp     #200
         bcs     @roll
         cmp     t
         bcs     @no
+@hit:
         lda     G_LEVEL
         sta     t
         lda     inship
@@ -550,7 +580,9 @@ spawn:  lda     cx
         sta     r_pace,x
         sta     r_glide,x
         inc     changed
-@no:    rts
+        rts
+
+        .segment "ROAMCODE"
 
 ; --- R_IDLE: every frame ----------------------------------------------------
 
@@ -652,6 +684,8 @@ room:   lda     #$35            ; (the I/O for a moment, the KERNAL still out)
 @yes:   clc
         rts
 
+        .segment "ROAMHI"
+
 ; One square of the turn: monster `think`'s next, if its pace has banked a
 ; square, else on to the next one's.
 turn:   ldx     think
@@ -683,6 +717,8 @@ turn:   ldx     think
         sta     r_pace,x
 @next:  inc     think
         rts
+
+        .segment "ROAMHI"
 
 ; Monster X a square nearer the hero (foes.s's foe_closer): straight at them
 ; if it can, else along the longer way, else the other. In A: 1 if it went
@@ -852,6 +888,8 @@ try:    sta     dx
         clc
         rts
 
+        .segment "ROAMCODE"
+
 ; --- The rest -------------------------------------------------------------
 
 ; Carry set, and X who, if a monster stands on square (A, Y).
@@ -911,6 +949,8 @@ blockof:
         bcc     :+
         adc     #1              ; (carry set: 2)
 :       rts
+
+        .segment "ROAMHI"
 
 ; Monster X's picture into its block: two bytes a row, the third 0, and
 ; the last five rows 0.
@@ -1007,22 +1047,8 @@ inship: .res    1               ; SEA_FLAG in a ship
 changed: .res   1               ; who is shown has changed
 anyg:   .res    1
 e:      .res    1
-fi:     .res    1
-t:      .res    1
 top:    .res    1
 bk:     .res    1
 px:     .res    1
-cx:     .res    1               ; (cx, cy; ax, ay; sx, sy; tx, ty: pairs,
-cy:     .res    1               ; x then y, as apart has them)
-ax:     .res    1
-ay:     .res    1
-sx:     .res    1
-sy:     .res    1
-tx:     .res    1
-ty:     .res    1
-gx:     .res    1
-gy:     .res    1
-nx:     .res    1
-ny:     .res    1
 dx:     .res    1
 dy:     .res    1

@@ -270,7 +270,7 @@ $(DIST)/%.prg: $(BUILD)/%.o $(LIB) $(wildcard cfg/*.cfg)
 # and a saved game to load until the player saves one. It is a D81 (a 1581,
 # 3160 blocks): with the fights a 1541's disk was full.
 OWENG := $(DIST)/ow-cpu.prg $(DIST)/ow-reu.prg
-OWOVL := $(foreach e,cpu reu,$(foreach o,world town dungeon hi tl rm,$(DIST)/ow-$(e).$(o)))
+OWOVL := $(foreach e,cpu reu,$(foreach o,world town dungeon hi tl rl rh,$(DIST)/ow-$(e).$(o)))
 OWFILES := $(DIST)/ow-data.prg $(DIST)/splash-p.prg $(DIST)/splash-n.prg \
            $(DIST)/ow-save.prg $(DIST)/ow-isl.prg $(DIST)/ow-icon.prg
 
@@ -345,8 +345,8 @@ $(BUILD)/ow/ovl.o: src/ow/ovl.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) -c -o $@ $<
 
-# The overworld's roaming monsters (roam.s, in their own file, %O.rm) and the
-# world's overlay's way to them.
+# The overworld's roaming monsters (roam.s, in two files of their own,
+# %O.rl and %O.rh) and the world's overlay's way to them.
 OWROAM := $(patsubst %,$(BUILD)/ow/%.o,roam roam_art roamcall)
 
 # The dungeon's monsters' sprites (tools/mkfields.py), and what they do
@@ -369,7 +369,7 @@ OWOBJ = $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-$*.o) $(BUILD)/ow/ovl.o \
         $(BUILD)/ow/ow_font.o $(OWGEN) $(OWROAM)
 
 # The overlays come out of the same link (ld65's %O.world, ...).
-$(DIST)/ow-%.world $(DIST)/ow-%.town $(DIST)/ow-%.dungeon $(DIST)/ow-%.hi $(DIST)/ow-%.tl $(DIST)/ow-%.rm: $(DIST)/ow-%.prg ;
+$(DIST)/ow-%.world $(DIST)/ow-%.town $(DIST)/ow-%.dungeon $(DIST)/ow-%.hi $(DIST)/ow-%.tl $(DIST)/ow-%.rl $(DIST)/ow-%.rh: $(DIST)/ow-%.prg ;
 
 $(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/ow/ovl.o \
 	    $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o $(BUILD)/ow/foe_art.o $(BUILD)/ow/foes.o \
@@ -383,7 +383,8 @@ $(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/o
 	@mv $@.dungeon $(DIST)/ow-$*.dungeon
 	@mv $@.hi $(DIST)/ow-$*.hi
 	@mv $@.tl $(DIST)/ow-$*.tl
-	@mv $@.rm $(DIST)/ow-$*.rm
+	@mv $@.rl $(DIST)/ow-$*.rl
+	@mv $@.rh $(DIST)/ow-$*.rh
 	tools/owslots.py $(BUILD)/ow-$*.map $(OWOBJ)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
@@ -442,7 +443,7 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 OWCACHE_FILES := $(DIST)/ow-data.prg=ow-data $(DIST)/ow-isl.prg=ow-isles \
     $(DIST)/ow-icon.prg=ow-icon \
     $(DIST)/ow-cpu.prg=ow-cpu $(DIST)/ow-reu.prg=ow-reu \
-    $(foreach e,cpu reu,$(foreach o,hi tl rm world town dungeon,$(DIST)/ow-$(e).$(o)=ow-$(e).$(o))) \
+    $(foreach e,cpu reu,$(foreach o,hi tl rl rh world town dungeon,$(DIST)/ow-$(e).$(o)=ow-$(e).$(o))) \
     $(DIST)/owtown.prg=owtown $(DIST)/owtalk.prg=owtalk --glob '$(BUILD)/ow/sets/t.*' \
     $(DIST)/fight.prg=fight $(DIST)/seafight.prg=seafight --glob '$(BUILD)/music/m.*' \
     --glob '$(BUILD)/fight/disk/[fs].*' $(DIST)/owparty.prg=owparty \
