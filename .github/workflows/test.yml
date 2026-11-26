@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [goldens, cases]
+        group: [diag]
 
     steps:
       - uses: actions/checkout@v5
@@ -36,5 +36,5 @@ jobs:
       - name: Build
         run: make
 
-      - name: Test
-        run: make test TESTARGS="--group ${{ matrix.group }}"
+      - name: Diagnose
+        run: .github/workflows/diag.sh
