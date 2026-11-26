@@ -7,7 +7,8 @@
 ;
 ;  - a yellow floppy, blinking about twice a second: a load (OW_ICON_DISK,
 ;    what it always goes back to)
-;  - a white twenty-sided die, rolling: the world being built (OW_ICON_ROLL)
+;  - a white twenty-sided die, rolling: the world being built (OW_ICON_ROLL,
+;    which the bootstrap shows from the splash's key until the game is up)
 ;  - someone's own sprite, doubled, blinking in their colour: the monster a
 ;    fight is with, or the person a talk is with, out of the VIC bank the
 ;    engine leaves as it is until the LOAD (OW_ICON_FLASH)
@@ -39,8 +40,10 @@ ICON_ROLL  = $80                ; and doubled; the two blocks in turn
 ; Two entries at fixed addresses, which ow_run.s calls: $CF14 shows the icon,
 ; $CF17 turns it off and the KERNAL's interrupt back on (once a load is done).
 ; Then what to show, at fixed addresses too (ow.h): what the icon is, the
-; sprite's colour, and (in the copy's LDA) where its blocks are. disk_stop
-; puts them back as they were, the disk, after every load.
+; sprite's colour, and (in the copy's LDA) where its blocks are. As the
+; bootstrap copies it here it is the die, which it is until the program
+; after the bootstrap has loaded (the bootstrap builds the world); disk_stop
+; puts back the disk after every load.
         .segment "OWDISK"
 
 _ow_disk_on:
@@ -49,9 +52,9 @@ disk_stop_entry:
         jmp     disk_stop
         .assert disk_stop_entry = $CF17, error, "ow_run.s calls the disk at $CF14 and $CF17"
 icon_mode:
-        .byte   0               ; OW_ICON_MODE: 0, ICON_FLASH or ICON_ROLL
+        .byte   ICON_ROLL       ; OW_ICON_MODE: 0, ICON_FLASH or ICON_ROLL
 icon_col:
-        .byte   DISK_COL        ; OW_ICON_COL
+        .byte   1               ; OW_ICON_COL (the die: white)
         .assert icon_mode = $CF1A, error, "ow.h has the icon's mode at $CF1A"
         .assert icon_col = $CF1B, error, "ow.h has the icon's colour at $CF1B"
 
@@ -68,7 +71,7 @@ disk_show:
         sta     $01
         ldx     #127
 icon_copy:
-        lda     ICON_ART,x      ; (OW_ICON_SRC: this operand)
+        lda     ICON_ART + 64,x ; (OW_ICON_SRC: this operand; the die's)
         sta     DISK_SPR,x
         dex
         bpl     icon_copy
