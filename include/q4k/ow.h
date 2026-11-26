@@ -178,6 +178,8 @@ void ow_roads(void);
 
 #define OW_KEY_F1 0x85          /* a new game */
 #define OW_KEY_F3 0x86          /* a saved one */
+#define OW_KEY_F2 0x89          /* (SHIFT+F1, not on the picture) a new
+                                   game from a seed the player types */
 #define OW_KEY_QUICK 0x87       /* the tests': a lone warrior outside Millford,
                                    as the prototype began (no matrix key) */
 
@@ -193,10 +195,17 @@ void ow_roads(void);
 #define OW_TESTCPU    (*(unsigned char *)0x02F1)
 #define OW_TESTCPU_ON 0xC7
 
+/* A talk or a fight (owtalk, owtown) moved the quest on: the engine says
+   so in the text window when it has the screen again, and clears it.
+   Cleared by a cold start of the bootstrap. Past OW_TESTCPU. */
+#define OW_NEWTASK    (*(unsigned char *)0x02F2)
+
 unsigned char ow_video(void);
-/* Show the picture at OW_SPLASH_AT until F1 or F3: OW_KEY_F1, OW_KEY_F3, or
-   0 if there is no picture there for this machine. */
-unsigned char ow_splash(void);
+/* Show the picture at OW_SPLASH_AT until F1, SHIFT+F1 or F3: OW_KEY_F1,
+   OW_KEY_F2, OW_KEY_F3, or 0 if there is no picture there for this
+   machine. With `saved` 0 (no OW-SAVE on the disk) the text is cut to its
+   first part, "F1 Start New Game", centred, and F3 does nothing. */
+unsigned char __fastcall__ ow_splash(unsigned char saved);
 extern unsigned char ow_splash_ticks;   /* frames the player took, mod 256 */
 
 /* A saved game is the game block (owgame.h) in OW-SAVE, which the disk

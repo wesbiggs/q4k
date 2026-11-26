@@ -127,6 +127,23 @@ static void stock(unsigned char kind)
     }
 }
 
+/* The bowyer's arrows: a bundle of ARROW_PACK, or as many as the quiver
+   has room for (ARROW_MAX) if that is fewer, at the bundle's price for
+   each arrow, rounded to the nearest mark. 0 when it is full. */
+static unsigned char arrows_room(void)
+{
+    return arrows >= ARROW_MAX ? 0
+         : ARROW_MAX - arrows < ARROW_PACK ? ARROW_MAX - arrows : ARROW_PACK;
+}
+
+static unsigned int arrows_cost(unsigned char n)
+{
+    if (n == 0 || n == ARROW_PACK) {
+        return ARROW_PRICE;
+    }
+    return (ARROW_PRICE * n + ARROW_PACK / 2) / ARROW_PACK;
+}
+
 /* What line `row` (from 1) of the list is. */
 static unsigned char item(unsigned char row)
 {
@@ -357,17 +374,29 @@ static char *row_price(char *p, unsigned int cost)
 
 static void draw(void)
 {
-    unsigned char i, k;
+    unsigned char i, k, c;
     char *p;
 
     if (gear != NONE) {
         for (i = 1; i <= rows; ++i) {
             k = item(i);
             p = row_start(i);
-            p = str_lit(p, names[k]);
-            row_price(p, costs[k]);
-            row_out(i, k != NUM_BOWS && owned(k) ? COLOR_LIGHTGREEN
-                                                  : COLOR_WHITE);
+            if (bow && k == NUM_BOWS && arrows_room() &&
+                arrows_room() < ARROW_PACK) {
+                p = str_num(p, arrows_room());  /* (a quiver nearly full) */
+                p = str_lit(p, " arrows");
+                row_price(p, arrows_cost(arrows_room()));
+            } else {
+                p = str_lit(p, names[k]);
+                row_price(p, costs[k]);
+            }
+            c = COLOR_WHITE;
+            if (!bow || k != NUM_BOWS) {    /* (the arrows are never had) */
+                if (owned(k)) {
+                    c = COLOR_LIGHTGREEN;
+                }
+            }
+            row_out(i, c);
         }
     } else if (magic) {
         p = row_start(1);
@@ -495,19 +524,23 @@ void shop_open(unsigned char kind)
         cost = gear != NONE ? costs[pick]
              : !magic       ? potion_price()
              : pick == 1    ? ROBES_COST : book_cost[book0 + pick - 2];
+        if (bow && pick == NUM_BOWS) {  /* (not a smith's or armourer's
+                                           sixth tier, which is 6 too) */
+            cost = arrows_cost(arrows_room());
+        }
 
         if (gold < cost) {
             note("You cannot afford that.", COLOR_LIGHTRED);
             continue;
         }
-        if (pick == NUM_BOWS) {
-            if (!party_has_bow() || arrows > ARROW_MAX - ARROW_PACK) {
+        if (bow && pick == NUM_BOWS) {
+            if (!party_has_bow() || !arrows_room()) {
                 note(party_has_bow() ? "Your quiver is full."
                                      : "None of you has a bow.",
                      COLOR_GRAY2);
             } else {
                 gold -= cost;
-                arrows += ARROW_PACK;
+                arrows += arrows_room();
                 note("Straight ones, mind.", COLOR_LIGHTGREEN);
             }
             continue;

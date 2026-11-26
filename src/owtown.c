@@ -58,6 +58,7 @@
 #include <q4k/owtmap.h>
 #include <q4k/help.h>
 #include <q4k/shop.h>
+#include <q4k/text.h>
 #include <q4k/tiles.h>
 #include <q4k/town_data.h>
 
@@ -193,6 +194,9 @@ static void help(void)
 {
     textcolor(COLOR_YELLOW);
     cputsxy(1, 0, "Quest for the King");
+    /* The world's seed (SHIFT+F1 at the title makes a world from one) */
+    str_num(str_lit(eng_text, "Seed "), lore_seed);
+    text_put(30, 0, eng_text, COLOR_GRAY2);
     textcolor(COLOR_GRAY1);
     chlinexy(0, 1, 40);
     chlinexy(0, 19, 40);
@@ -226,7 +230,7 @@ static void help(void)
 
 int main(void)
 {
-    unsigned char mode = OWB->mode;
+    unsigned char mode = OWB->mode, stage;
 
     if (mode < OWB_SHOP || mode > OWB_SPOILS ||
         mode == OWB_LOAD) {     /* (a conversation is owtalk's) */
@@ -247,6 +251,7 @@ int main(void)
     VIC.ctrl1 |= 0x10;          /* set up: the screen on */
 
     owg_in();
+    stage = quest_stage;        /* (a fight may move the quest on) */
     /* rand() starts from the same seed in every program, so every visit
        would hear the same greeting and the same rumour: the game's turn
        and seed make it another one each time, and the same in a test. */
@@ -288,6 +293,9 @@ int main(void)
        for a fight's spoils (OWB_SPOILS, which ow_fight() sets) */
     owt_nowait = ow_cached(OWB->mode == OWB_SPOILS ? "owtown" : "ow-data");
     owt_music_off();            /* paused, for the engine to carry on with */
+    if (quest_stage != stage) {
+        OW_NEWTASK = 1;         /* for the engine to say */
+    }
     owg_out();
     ow_back();                  /* the engine, which carries on from the
                                    game block (owgame.h) */

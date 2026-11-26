@@ -183,6 +183,9 @@ void __fastcall__ refuse(const char *why);
    NAME." once the window is up (say_entering()), unless it is hidden. */
 extern const char *entering;
 void say_entering(void);
+/* "You have a new task!", if a talk or a fight moved the quest on
+   (OW_NEWTASK in q4k/ow.h), once. */
+void say_new_task(void);
 
 void next_frame(void);
 void play_for(unsigned char scene);

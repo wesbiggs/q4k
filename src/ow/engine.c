@@ -616,6 +616,20 @@ static void __fastcall__ say_what(const char *s)
     sm_say(s);
 }
 
+/* A talk or a fight just moved the quest on (OW_NEWTASK, which owtalk and
+   owtown set): said once the window is up, even if it was hidden, since
+   it is what to do next. */
+static const char s_newtask[] = "You have a new task! (? for help)";
+
+void say_new_task(void)
+{
+    if (OW_NEWTASK) {
+        OW_NEWTASK = 0;
+        sm_ink = COLOR_YELLOW;
+        sm_say(s_newtask);
+    }
+}
+
 /* L found something: draughts or gold, said, and a turn spent. */
 void __fastcall__ loot_found(unsigned char draughts, unsigned int amount)
 {
@@ -1228,6 +1242,7 @@ int main(void)
     if (entering) {
         say_entering();         /* (after the greeting, or the party) */
     }
+    say_new_task();             /* (and after that: it matters more) */
 
     POKE(0xC6, 0);              /* the keyboard's buffer emptied */
     publish();

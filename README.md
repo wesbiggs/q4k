@@ -41,7 +41,10 @@ square at a time; they are still on the
 
 ## Playing
 
-The title picture waits for `F1`, a new game, or `F3`, the saved one. A new
+The title picture waits for `F1`, a new game, or `F3`, the saved one (offered
+only when the disk has a saved game). `SHIFT`+`F1` (`F2`) starts a new game
+from a seed you type, 0 to 255, so that the same seed makes the same world;
+`?` in the game shows the world's seed at the top. A new
 game tells the story (any key goes on) and then shows who answered the
 king's letter: a warrior, an archer and a wizard, named for you, with their
 health and a wizard's magic. `1`-`3` opens one's page, with their figure,
