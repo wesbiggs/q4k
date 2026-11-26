@@ -200,11 +200,11 @@ void ow_roads(void);
    Cleared by a cold start of the bootstrap. Past OW_TESTCPU. */
 #define OW_NEWTASK    (*(unsigned char *)0x02F2)
 
-/* SHIFT+F1 (F2) on the splash: owparty asks for the world's seed before the
-   party is made (src/lib/ow_party.c's ow_ask_seed()), and clears it. If the
-   seed is another, it sends the bootstrap back to build that world, as N in
-   an engine does, and is run again for the party. Set (or cleared) by the
-   splash. Past OW_NEWTASK. */
+/* SHIFT+F1 (F2) on the splash: the bootstrap runs owseed (src/owseed.c)
+   before owparty, which asks for the world's seed and clears it. If the seed
+   is another, it sends the bootstrap back to build that world, as N in an
+   engine does, which then runs owparty. Set (or cleared) by the splash.
+   Past OW_NEWTASK. */
 #define OW_ASKSEED    (*(unsigned char *)0x02F3)
 
 unsigned char ow_video(void);

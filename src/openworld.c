@@ -193,7 +193,7 @@ static void splash(void)
     }
     /* A new world for a new game, from how long the player took, and a
        party to make for it (src/owparty.c), unless it is the tests' quick
-       start. F2 has owparty ask for a seed first (OW_ASKSEED). */
+       start. F2 has owseed ask for a seed first (OW_ASKSEED). */
     lore_seed = 1 + ow_splash_ticks;
     OW_ASKSEED = key == OW_KEY_F2;
     disk_resident();
@@ -330,7 +330,7 @@ int main(void)
         if (OWB->mode != OWB_QUICK) {
             OWB->mode = OWB_NEW;
         }
-        ow_run("owparty");
+        ow_run(OW_ASKSEED ? "owseed" : "owparty");  /* (F2: a seed first) */
     }
     ow_run(OW->reu == OW_REU_OK ? "ow-reu" : "ow-cpu");
     return 0;

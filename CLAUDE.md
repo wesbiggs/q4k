@@ -1156,9 +1156,11 @@ loaded over it); with none, `ow_splash()` shows the
 page's second .v2t instead, which `tools/mksplash.py` makes from the
 text's line as far as its first two spaces, centred with spaces ("F1 Start
 New Game"), and does not read F3. SHIFT+F1 (F2, on no picture's text) is a new game whose seed
-`owparty` asks for (`OW_ASKSEED`, `$02F3`; `ow_ask_seed()`, 0-255) before
-the party: another seed sends it back to the bootstrap to build that world,
-as N in an engine does, and it is run again for the party. `?` shows the
+`owseed` (`src/owseed.c`, a program of its own: neither the bootstrap nor
+`owparty` has the room) asks for, 0-255, after the lands are built and
+before `owparty` (`OW_ASKSEED`, `$02F3`): another seed sends it back to the
+bootstrap to build that world, as N in an engine does, which then runs
+`owparty`. `?` shows the
 seed at the top. A talk or a
 fight that moves `quest_stage` on sets `OW_NEWTASK` (`$02F2`, past
 `OW_TESTCPU`) and the engine says "You have a new task! (? for help)" as
