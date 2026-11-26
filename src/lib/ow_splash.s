@@ -22,9 +22,10 @@
 
         .export _ow_video, _ow_splash, _ow_splash_ticks
 
-TXT       = $4000               ; OW_SPLASH_AT: the .v2t, in half a page
-LONE      = TXT + $80           ; and its line's first part alone, centred
-                                ; (tools/mksplash.py), for no saved game
+TXT       = $4000               ; OW_SPLASH_AT: the .v2t's line's first
+                                ; part alone, centred, for no saved game,
+                                ; then at TXT + $80 the .v2t, each in half
+                                ; a page (tools/mksplash.py)
 PIC       = TXT + $100          ; and the .v2i
 HOOK      = $02A7 + 62          ; OW->hook: openworld.c checks the offset
 HOOK_WAIT = $A5                 ; OW_HOOK_WAIT
@@ -47,7 +48,8 @@ _ow_video:
 ; go: OW_KEY_F1, OW_KEY_F2 or OW_KEY_F3, or 0 if what is there is not a
 ; picture for this machine. `saved` 0 (no saved game) shows the text's
 ; line as far as its first run of two spaces ("F1 Start New Game"),
-; centred, which mksplash.py puts at LONE, and leaves F3 unread. The text screen, the KERNAL
+; centred, which mksplash.py puts first, and leaves F3 unread. `saved` is
+; $80 if there is one (load_save()'s answer), the text's offset. The text screen, the KERNAL
 ; and the interrupts are back as they were. ow_splash_ticks is how many
 ; frames it took the player, less whole 256s: the one number at this point
 ; that is not the same on every run.
@@ -67,11 +69,8 @@ _ow_splash:
         ldy #>PIC
         jsr v2i_show
         bcs @done               ; not a .v2i, or not this machine's: key 0
-        lda #<TXT
-        ldx saved
-        bne :+
-        lda #<LONE              ; just F1, centred
-:       ldy #>TXT
+        lda saved               ; $80: all of it; 0: just F1, centred
+        ldy #>TXT
         jsr v2t_draw            ; (no text if that is not a .v2t)
         jsr v2i_start
         lda #HOOK_WAIT

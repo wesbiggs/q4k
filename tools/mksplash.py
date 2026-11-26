@@ -10,8 +10,8 @@ two, so the disk's SPLASH-P and SPLASH-N are the text, padded to a page, and
 then the picture: loaded at OW_SPLASH_AT (include/q4k/ow.h), the text is there
 and the picture a page on.
 
-The text has the first half of the page. The second is another .v2t for a disk
-with no saved game, where src/lib/ow_splash.s shows it instead: the text's
+The text has the second half of the page. The first is another .v2t for a disk
+with no saved game, which src/lib/ow_splash.s shows instead: the text's
 first line as far as its first run of two spaces ("F1 Start New Game", without
 "F3 Load Saved Game"), with spaces before it to put it in the middle of the
 screen, as near as the font's space allows. Its header is the text's, so it
@@ -66,8 +66,8 @@ def main():
     one = lone(txt, widths(font_inc))
     with open(out, "wb") as f:
         f.write(bytes([0x00, 0x40]))            # not used: loaded to an address
-        f.write(txt.ljust(HALF, b"\0"))
         f.write(one.ljust(HALF, b"\0"))
+        f.write(txt.ljust(HALF, b"\0"))
         f.write(pic)
 
 
