@@ -25,6 +25,14 @@ void shop_open(unsigned char kind);
 extern unsigned char gear_odds;
 unsigned char __fastcall__ gear_drop(unsigned char r, unsigned char y);
 
+/* The chest at the end of a sea cave found at level `lv` (OWB_HOARD: the
+   cave has fallen in behind the party, src/ow/dungeon.c's hoard()): lv x
+   50 marks, and something nobody in the party has yet that one of them
+   could use -- a blade, mail or a bow of the tier of lands that level is
+   for, or a spellbook a wizard can follow -- taken up as gear_drop()'s is.
+   A screen of its own, until a key. */
+void __fastcall__ cave_hoard(unsigned char lv);
+
 /* The party screen's parts (I), for the open world's own (src/owtown.c),
    which shows one member at a time with their figure. The game's own is
    party_draw() and is reached through shop_entry() (SHOP_PARTY).

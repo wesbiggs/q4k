@@ -881,14 +881,16 @@ _wf_byte_:
 ; unsigned char __fastcall__ wf_save(unsigned char lfn) -- the save, to
 ; logical file lfn (open for writing, a PRG): its load address, the game
 ; block (owgame.h, $CE37, OWG_SIZE) and then what the party has seen of the
-; land (OWG_WFOG), which KERNAL SAVE cannot read (it reads the ROM there):
+; land (OWG_WFOG) and, straight after it, where they have been on the
+; islands (q4k/isles.h's ISL_STATE, $FBE0, ISL_CELLS bytes), which KERNAL
+; SAVE cannot read (it reads the ROM there):
 ; a byte at a time with the KERNAL out round the read only. Returns the
 ; KERNAL's status (0: all went). Only fixed addresses: OW-DATA's.
         .export _wf_save
 
 OWG_ADDR  = $CE37
 OWG_SIZE  = 201
-WFOG_SIZE = 512 + 4 * 248
+WFOG_SIZE = 512 + 4 * 248 + 24 ; and ISL_STATE's ISL_CELLS, which follow
 CHKOUT  = $FFC9
 CHROUT  = $FFD2
 CLRCHN  = $FFCC

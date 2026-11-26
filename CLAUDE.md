@@ -101,8 +101,9 @@ cfg:
   rest under the KERNAL is the music's, a tune's header at `$E7C0` and the
   tune at `$E800-$EFFF` (see Music), but for `$F000-$F5FF`, the open sea's
   islands ("The open sea's islands"), `$F600-$FBDF`, what the party
-  has seen of the land (`OWG_WFOG`: "What the party sees of the land"), and
-  `$FC00-$FEFF`, what they have seen of each level of the dungeon they are
+  has seen of the land (`OWG_WFOG`: "What the party sees of the land"),
+  `$FBE0-$FBF7`, where they have been on the islands (`ISL_STATE`, a byte a
+  cell: "The open sea's islands"), and `$FC00-$FEFF`, what they have seen of each level of the dungeon they are
   in (`OWG_FOG`: "What the party sees underground"). Reaching the vault takes the machine to
   all-RAM (`$01 = $34`), which takes the KERNAL and the I/O area away, so
   interrupts are off for as long as it lasts and the only code that may run
@@ -723,8 +724,9 @@ copy of home's and the kept continent's in the engine's BSS (`wf_ram`,
 fetched by `w_enter()` and `wf_take()` from `settle()`), from which the
 streaming darkens each run it copies in (`wf_dark_run()`, `wfog.s`'s
 `wf_dark`). Not in the game block, but **in the save, after it**: F1
-writes the block and then all 1504 bytes of bits to `ow-save` (1707 bytes
-now) with `wfog.s`'s `wf_save()` (in OW-DATA: KERNAL SAVE reads the ROM
+writes the block and then all 1504 bytes of bits, and the islands' 24
+(`ISL_STATE`, just after them), to `ow-save` (1731 bytes
+now; a 1707-byte save from before the islands' loads with none) with `wfog.s`'s `wf_save()` (in OW-DATA: KERNAL SAVE reads the ROM
 over `$F600`, so this opens the file with `cbm_open` and sends each byte
 itself, the KERNAL out round each read), and the bootstrap loads a save at
 `$7000` (`load_save()`: at `OWG_ADDR` it would run over the probe page
@@ -1079,8 +1081,31 @@ dungeon, "a sea cave", `NUM_DUNGEONS + cell`, both in the game block's
 were `ISL_LAND + cell` (`t_enter()` sets `land` for that long, and
 `isle_biome` from it; `owtown` does the same for its inn's name); a sea
 cave is `dungeon_build()` with that index: `ISL_DEEP` (2) levels, nobody
-at the bottom and no chests (`looted[]` has no bits for them), and no key
-(`to_dungeon_if()`). `tools/mkowsave.py --world X,Y` starts on any square;
+at the bottom and no chests on the way (`looted[]` has no bits for them),
+and no key (`to_dungeon_if()`). **Each place is made for the party's level
+when they first went in**, not for the land they last left (which is
+mostly Keldmarch): `ISL_STATE` (`$FBE0`, under the KERNAL past the land's
+fog, a byte a cell, written straight through) holds that level
+(`ISL_LEVEL`, 0 until then), marked by the engine's `isl_mark()` as the
+party goes in (and by `isl_level()`, `src/lib/ow_islv.c`, owtown's, for a
+game saved inside one before there were marks). `ISL_TIER()` turns it into
+shop.c's tier of lands (0 home's, 1-4 the continents' in the story's order:
+levels 1-2, 3-4, 5-6, 7-8, 9 on), which an island town's shops sell from
+(`tier_here()`), and a sea cave's spoils and natives go by; its wanderers
+are chosen for that level too (`spawn()` in `src/ow/dungeon.c`,
+`pick_wanderer()` in `ow_fight.c`). **A sea cave is had once**: at the end
+of its last level, where the stairs would be, is a chest, and L on it
+(`hoard()`, `src/ow/dungeon.c`) sets the cell's `ISL_GONE`, puts the party
+back on the island where they went in and has owtown open it
+(`OWB_HOARD`: shop.c's `cave_hoard()`): the level x 50 marks, and
+something nobody in the party carries that one of them could use -- a
+blade, mail or a bow of the cave's tier, or a book of a spell no wizard of
+theirs knows and their level allows -- taken up as a monster's arms are
+(`hand_out()`). The cave is gone after: `isl_draw` draws its square as the
+island's ground, and `to_dungeon_if()` would refuse it anyway. `ISL_STATE`
+is in the save after the land's bits (`wf_save()` sends them together),
+cleared by the bootstrap with them; a save from before it has none, and
+its islands count as not yet visited. `tools/mkowsave.py --world X,Y` starts on any square;
 `openworld-isle` in `tools/test.sh` goes into one of each. **Room**:
 `kept_at()` and `nearest()` went to assembly (`wfog.s`'s OVWCODE part) and
 home's places to a table to make the world's overlay room for the rest.

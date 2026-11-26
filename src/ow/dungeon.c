@@ -44,6 +44,7 @@
 #include <q4k/dungeon.h>
 #include <q4k/game.h>
 #include <q4k/isle.h>
+#include <q4k/isles.h>
 #include <q4k/music_map.h>
 #include <q4k/ow.h>
 #include <q4k/tiles.h>
@@ -106,6 +107,10 @@ extern unsigned char pace[FOES];        /* tenths of a square banked */
 extern unsigned char speeds[FOES];      /* its speed: tenths a turn */
 extern unsigned char base;              /* the game block's first here */
 static unsigned char i = 0, a = 0;      /* (-Or: statics are cheapest) */
+/* A sea cave's level (q4k/isles.h's ISL_LEVEL): the party's when they
+   first went in, which its monsters and its chest are for; 0 in the
+   others. */
+static unsigned char cave_lv;
 
 /* The level's monsters, the first time it is seen since the way in (none
    with OWG_CALM, the tests', unless enc_always says otherwise): foes.s
@@ -114,7 +119,7 @@ static void spawn(void)
 {
     unsigned char top;
 
-    a = G->party_level + depth - 1;
+    a = (cave_lv ? cave_lv : G->party_level) + depth - 1;
     for (top = 0; top < WANDERERS && w_from[top] <= a; ++top) {
     }
     foe_top = top;
@@ -375,6 +380,8 @@ static const char *const dungeon_names[NUM_DUNGEONS + 1] = {
 void d_enter(void)
 {
     area = AREA_DUNGEON;
+    cave_lv = dun_index < NUM_DUNGEONS ? 0
+            : isl_mark(dun_index - NUM_DUNGEONS) & ISL_LEVEL;
     play_for(MUSIC_DUNGEON);
     if (resuming) {             /* back from another program: as left */
         resuming = 0;
@@ -523,6 +530,22 @@ void d_idle(void)
     fog_ahead();                /* (what is left of the frame after them) */
 }
 
+/* L on the chest at a sea cave's end: its mouth falls in behind the party
+   (ISL_GONE, and the world draws the island's ground there), who are out
+   on the island where they went in, and owtown hands out what is in it
+   (OWB_HOARD: shop.c's cave_hoard(), for the cave's level). */
+static void hoard(void)
+{
+    *(unsigned char *)(ISL_STATE + dun_index - NUM_DUNGEONS)
+        = cave_lv | ISL_GONE;   /* (a write under the KERNAL reaches it) */
+    area = AREA_HOME;
+    wx = out_wx;
+    wy = out_wy;
+    OWB->mode = OWB_HOARD;
+    OWB->arg  = cave_lv;
+    ow_leave(owtown);
+}
+
 /* L: a chest on the hero's square, taken once (its looted[] bit, by the
    dungeon, the level and which chest, as the game counts them): even odds a
    draught or gold, the gold worth more with the story and the depth, as the
@@ -531,6 +554,9 @@ void d_look(void)
 {
     unsigned char i, x = hx - BIAS, y = hy - BIAS;
 
+    if (cave_lv && depth == ISL_DEEP && x == dun_dn_x && y == dun_dn_y) {
+        hoard();                /* (never returns) */
+    }
     for (i = 0; i < dun_chests; ++i) {
         if (dun_cx[i] == x && dun_cy[i] == y) {
             if (take_bit((dun_index * MAX_DEEP + depth - 1) * DUN_CHESTS + i)) {

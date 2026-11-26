@@ -24,6 +24,7 @@ P_LY       = $F452
 P_N        = $F453
 P_DOWN     = $F454
 P_DST      = $F455
+ISL_STATE  = $FBE0              ; a byte a cell: bit 7 a sea cave fallen in
 
 T_WATER    = $64
 
@@ -154,6 +155,9 @@ one:    lda     lx
         lda     (ent),y
         cmp     k
         bne     @gr
+        ldx     P_CELL          ; unless it is a sea cave fallen in (its
+        lda     ISL_STATE,x     ; chest taken: ISL_GONE), drawn as the
+        bmi     @gr             ; ground round it
         dey
         lda     (ent),y
         bne     @put            ; (always: T_TOWN or T_DUNGEON)

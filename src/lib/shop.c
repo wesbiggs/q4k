@@ -23,6 +23,7 @@
 #include <q4k/game.h>
 #include <q4k/help.h>
 #include <q4k/isle.h>
+#include <q4k/isles.h>
 #include <q4k/shop.h>
 #include <q4k/sprite.h>
 #include <q4k/text.h>
@@ -93,9 +94,23 @@ static const char *const *names;
 static const unsigned int *costs;
 static unsigned char       gear, lo, hi, rows, bow, magic, book0;
 
+/* The tier the place is of: the land's, or for an island's town or sea
+   cave the one for the party's level when they first went in (q4k/isles.h),
+   or (cave_hoard()) one set beforehand. */
+static unsigned char tier_set = NONE;
+
+static unsigned char tier_here(void)
+{
+    unsigned char lv = isl_level();
+
+    return tier_set != NONE ? tier_set
+         : lv              ? ISL_TIER(lv)
+         : land == ISLE_HOME ? 0 : 1 + slot_of(land);
+}
+
 static void stock(unsigned char kind)
 {
-    unsigned char t = land == ISLE_HOME ? 0 : 1 + slot_of(land);
+    unsigned char t = tier_here();
 
     bow   = kind == SHOP_BOW;
     magic = kind == SHOP_MAGIC;
@@ -291,12 +306,24 @@ unsigned char gear_odds = 12;
 
 /* What a beaten monster left (shop.h): `r` a roll, for which of the three
    and which tier. */
+static unsigned char __fastcall__ hand_out(unsigned char pick,
+                                          unsigned char y);
+
 unsigned char __fastcall__ gear_drop(unsigned char r, unsigned char y)
 {
-    unsigned char k = r % 3, pick, who, i;
+    unsigned char k = r % 3;
 
     stock(k == 2 ? SHOP_BOW : k);
-    pick = lo + (unsigned char)((r >> 2) % (hi - lo + 1));
+    return hand_out(lo + (unsigned char)((r >> 2) % (hi - lo + 1)), y);
+}
+
+/* Line `pick` of what stock() chose, offered from row y, and said: who took
+   it up, or that it was left. Returns the row after. */
+static unsigned char __fastcall__ hand_out(unsigned char pick,
+                                          unsigned char y)
+{
+    unsigned char who, i;
+
     ask_y = y;
     who = offer(pick);
     ask_y = NOTE_Y;
@@ -788,4 +815,107 @@ unsigned char shop_entry(void)
         default:         shop_open(eng_a);     break;
     }
     return 0;
+}
+
+/* --- a sea cave's chest -------------------------------------------------- */
+
+/* What the chest at a sea cave's end could hold: a blade, mail or a bow
+   (k 0-2, as gear_drop() counts them) of the cave's tier, that nobody
+   carries and that would be better for one of them; or (k 3) a book of a
+   spell no wizard of theirs knows, that their level lets them follow.
+   Counts them, and stops at number `want` (NONE: never), its kind in
+   hoard_k and which in hoard_x. */
+static unsigned char hoard_k, hoard_x;
+
+static unsigned char __fastcall__ hoard_scan(unsigned char want)
+{
+    unsigned char n = 0, k, x, i;
+
+    for (k = 0; k < 4; ++k) {
+        if (k < 3) {
+            stock(k == 2 ? SHOP_BOW : k);
+        } else {
+            lo = 0;
+            hi = BOOKS - 1;
+        }
+        for (x = lo; x <= hi; ++x) {
+            for (i = 0; i < party_count; ++i) {
+                if (k < 3 ? !owned(x) && gear_better(i, gear, x)
+                          : party_level >= book_level[x]
+                            && party[i].cls == CL_WIZARD
+                            && !(party[i].known & (1 << (SP_HEAL + x)))) {
+                    break;
+                }
+            }
+            if (i < party_count) {
+                if (n == want) {
+                    hoard_k = k;
+                    hoard_x = x;
+                    return n;
+                }
+                ++n;
+            }
+        }
+    }
+    return n;
+}
+
+void __fastcall__ cave_hoard(unsigned char lv)
+{
+    unsigned char n, i, s, y = 7;
+    unsigned int  g = lv * 50u;
+    char *p;
+
+    tier_set = ISL_TIER(lv);
+    clrscr();
+    textcolor(COLOR_YELLOW);
+    cputsxy(1, 2, "In the chest at the cave's end:");
+    gold += g;
+    p = str_num(str_lit(line, " "), g);
+    str_lit(p, " marks!");
+    text_put(0, 4, line, COLOR_LIGHTGREEN);
+    n = hoard_scan(NONE);
+    if (n) {
+        hoard_scan((unsigned char)(rand() % n));
+        if (hoard_k < 3) {
+            stock(hoard_k == 2 ? SHOP_BOW : hoard_k);
+            y = hand_out(hoard_x, 5);
+        } else {
+            s = SP_HEAL + hoard_x;
+            for (i = 0; i < party_count; ++i) {
+                can[i] = party[i].cls == CL_WIZARD
+                         && !(party[i].known & (1 << s));
+            }
+            strcpy(book_text, "Book of ");
+            strcat(book_text, spell_names[s]);
+            ask_y = 5;
+            i = choose(book_text);
+            ask_y = NOTE_Y;
+            cclearxy(0, 5, SCR_W);
+            cclearxy(0, 6, SCR_W);
+            gotoxy(1, 5);
+            if (i != NONE) {
+                party[i].known |= 1 << s;
+                if (spells_ready(i) < spell_slots()) {
+                    party[i].ready |= 1 << s;
+                }
+                textcolor(COLOR_LIGHTGREEN);
+                cputs(party[i].name);
+                cputs(" takes up its ");
+            } else {
+                textcolor(COLOR_GRAY3);
+                cputs("You leave its ");
+            }
+            cputs(book_text);
+            cputs(i != NONE ? "!" : ".");
+            y = 8;
+        }
+    }
+    tier_set = NONE;
+    textcolor(COLOR_GRAY3);
+    cputsxy(1, y, "As you climb out, the cave falls in");
+    cputsxy(1, y + 1, "behind you.");
+    textcolor(COLOR_GRAY2);
+    cputsxy(1, 22, "Press a key.");
+    cgetc();
 }

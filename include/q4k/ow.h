@@ -83,6 +83,8 @@ typedef struct {
 #define OWB_SPOILS 11           /* (owtown to itself, after a fight won)
                                    what the foe left: arg OWS_*, npc a roll
                                    for which gear (src/lib/ow_tmap.c) */
+#define OWB_HOARD 12            /* a sea cave's chest, taken: arg the
+                                   cave's level (shop.c's cave_hoard()) */
 
 #define OWF_WANDER 0            /* what wanders out at you, on npc's ground */
 #define OWF_KEEPER 1            /* a dungeon's keeper: npc the dungeon */

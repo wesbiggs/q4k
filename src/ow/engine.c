@@ -78,6 +78,7 @@
 #include <q4k/dungeon.h>
 #include <q4k/game.h>
 #include <q4k/isle.h>
+#include <q4k/isles.h>
 #include <q4k/loot_data.h>
 #include <q4k/music.h>
 #include <q4k/music_map.h>
@@ -576,6 +577,23 @@ void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg)
     OWB->arg  = kind | loot_always;
     OWB->npc  = arg;
     ow_leave(owtown);
+}
+
+/* Island cell c's place's byte (q4k/isles.h's ISL_STATE), from under the
+   KERNAL; its first visit marked with the party's level if it was not
+   before (a write under the KERNAL reaches the RAM). */
+unsigned char __fastcall__ isl_mark(unsigned char c)
+{
+    static unsigned char b;
+
+    vc_src = (unsigned char *)ISL_STATE + c;
+    vc_dst = &b;
+    vc_n = vc_sstep = vc_dstep = 1;
+    sm_vcopy();
+    if (!(b & ISL_LEVEL)) {
+        *(unsigned char *)(ISL_STATE + c) = b |= G->party_level;
+    }
+    return b;
 }
 
 

@@ -29,6 +29,7 @@
 #include <q4k/fight.h>
 #include <q4k/game.h>
 #include <q4k/isle.h>
+#include <q4k/isles.h>
 #include <q4k/music_map.h>
 #include <q4k/ow.h>
 #include <q4k/owgame.h>
@@ -85,12 +86,19 @@ static void pick_wanderer(unsigned char in_dungeon, unsigned char kind)
 {
     unsigned char top, i, most, lvl, s;
 
+    /* A sea cave's are for the level the party found it at, as its tier is
+       (q4k/isles.h); anywhere else for theirs, and the land's. */
+    lvl = isl_level();
+    s = lvl ? ISL_TIER(lvl) : land == ISLE_HOME ? 0 : 1 + slot_of(land);
+    if (!lvl) {
+        lvl = party_level;
+    }
     if (kind == NONE ? land != ISLE_HOME && !(rand() & 3)
                      : kind >= OWG_NATIVE) {
         pick(&natives[kind == NONE ? OW->ibiome[land] * 2 + (rand() & 1)
                                    : kind - OWG_NATIVE],
              1 + (rand() & 1));
-        for (s = slot_of(land); s; --s) {
+        for (; s > 1; --s) {
             foe.hp   += 10;
             foe.atk  += 3;
             foe.def  += 1;
@@ -102,7 +110,9 @@ static void pick_wanderer(unsigned char in_dungeon, unsigned char kind)
         }
         return;
     }
-    lvl = party_level + (in_dungeon ? G->depth - 1 : 0);
+    if (in_dungeon) {
+        lvl += G->depth - 1;
+    }
     if (kind == NONE) {
         for (top = 0; top < num_wanderers && wanderers[top].from <= lvl;
              ++top) {

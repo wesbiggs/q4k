@@ -284,6 +284,9 @@ int main(void)
     case OWB_HELP:
         help();
         break;
+    case OWB_HOARD:             /* a sea cave's chest (shop.c) */
+        cave_hoard(OWB->arg);
+        break;
     case OWB_SPOILS:            /* what the fight just won left */
         ow_spoils();
         OWB->mode = OWB_BACK;   /* (and then the engine) */

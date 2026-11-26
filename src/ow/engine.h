@@ -166,6 +166,9 @@ extern const char owtalk[];     /* "owtalk": a conversation */
 /* A fight (OWF_* in ow.h; arg the ground or the dungeon), in owtown.
    Never returns. */
 void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg);
+/* Island cell c's place's byte of ISL_STATE (q4k/isles.h), its first
+   visit marked with the party's level now if it was not before. */
+unsigned char __fastcall__ isl_mark(unsigned char c);
 
 /* L, the overlays' (ov_look): what they found, said and taken -- gold or
    draughts -- and a looted[] bit taken (0, and said, if it was before); or
