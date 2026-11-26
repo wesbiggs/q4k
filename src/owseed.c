@@ -37,6 +37,10 @@ int main(void)
     textcolor(COLOR_GRAY3);
     cputsxy(8, 13, "The world's seed (0-255):");
     cputsxy(8, 15, "RETURN alone for this one");
+    VIC.ctrl1 |= 0x10;          /* the screen on: the loader left it off */
+    while (kbhit()) {           /* and nothing typed while it was building */
+        cgetc();
+    }
     gotoxy(34, 13);
     cursor(1);
     for (;;) {
