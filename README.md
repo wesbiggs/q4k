@@ -42,7 +42,7 @@ square at a time; they are still on the
 ## Playing
 
 The title picture waits for `F1`, a new game, or `F3`, the saved one (offered
-only when the disk has a saved game). `SHIFT`+`F1` (`F2`) starts a new game
+only when the disk has a saved game). The left `SHIFT`+`F1` (`F2`) starts a new game
 from a seed you type, 0 to 255, so that the same seed makes the same world;
 `?` in the game shows the world's seed at the top. A new
 game tells the story (any key goes on) and then shows who answered the

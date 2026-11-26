@@ -107,9 +107,9 @@ _ow_splash:
 ; A = OW_KEY_F1, OW_KEY_F2 or OW_KEY_F3 if that key is down, else 0 (Z
 ; set). F1 and F3 are in column 0 of the matrix, F1 on row 4 and F3 on row
 ; 5 (so is the button of a joystick in port 1, which reads as F1); F1 with
-; either SHIFT down (the left one column 1 row 7, as SHIFT LOCK is; the
-; right one column 6 row 4) is F2, as the KERNAL has it. F3 is not read
-; when there is no saved game.
+; the left SHIFT or SHIFT LOCK down (column 1, row 7) is F2, as the KERNAL
+; has it. (Not the right SHIFT: row 4, as the joystick's button is, which
+; would make it F2.) F3 is not read when there is no saved game.
 scan:   lda #$fe
         sta $dc00
         lda $dc01
@@ -125,13 +125,7 @@ scan:   lda #$fe
 @f1:    lda #$fd                ; the left SHIFT
         sta $dc00
         lda $dc01
-        and #$80
-        beq @f2
-        lda #$bf                ; the right one
-        sta $dc00
-        lda $dc01
-        and #$10
-        beq @f2
+        bpl @f2
         lda #KEY_F1
         rts
 @f2:    lda #KEY_F2
