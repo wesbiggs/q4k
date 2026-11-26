@@ -41,6 +41,10 @@ _ov_use         = __SLOTW_START__ + 24     ; + or - (or fire, 1): in, down, up
         .segment "OWTLADDR"     ; and past BSS: %O.tl
         .word   __TAIL_START__
 
+        .import __ROAM_START__
+        .segment "OWRMADDR"     ; and the roaming monsters: %O.rm (roam.s)
+        .word   __ROAM_START__
+
         .segment "OVWADDR"
         .word   __SLOTW_START__
         .segment "OVWHEAD"

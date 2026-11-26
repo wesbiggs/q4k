@@ -115,12 +115,12 @@ const char *entering;           /* the place just gone into (engine.h) */
 static char world_file[]   = "ow-reu.world";
 static char town_file[]    = "ow-reu.town";
 static char dungeon_file[] = "ow-reu.dungeon";
-static char hi_file[]      = "ow-reu.hi";
+char hi_file[]             = "ow-reu.hi";
 #else
 static char world_file[]   = "ow-cpu.world";
 static char town_file[]    = "ow-cpu.town";
 static char dungeon_file[] = "ow-cpu.dungeon";
-static char hi_file[]      = "ow-cpu.hi";
+char hi_file[]             = "ow-cpu.hi";
 #endif
 unsigned char ov_want, ov_have;
 
@@ -217,7 +217,10 @@ unsigned char freeze_after = 0; /* ... once this many steps are done */
 unsigned char still     = 0;    /* 1: the water does not flow, nobody bobs */
 unsigned char enc_always = 0;   /* for tests: 1, every roll is a fight (and
                                    L finds the dead), and a dungeon has its
-                                   monsters, calm or not; 2, only that */
+                                   monsters, calm or not; 2, only that; 3,
+                                   every roll in the deep sea; 4, monsters
+                                   roam the overworld, calm or not (roam.s),
+                                   and a dungeon has its own */
 unsigned char whole     = 0;    /* 1: a roof change redraws everything, for
                                    checking that the box it does is enough */
 unsigned char loot_always = 0;  /* for tests: OWF_LOOT (128), a fight won
@@ -837,8 +840,9 @@ static void __fastcall__ load_failed(const char *name, unsigned char up)
 /* The overlay ov_want asks for, into the slot (the screen is off), and
    started. The game's disk is needed: load_failed() says what the drive
    said, and it is tried again after a key.
-   An overlay's ov_enter() may ask for the other in turn. */
-static void __fastcall__ fetch(const char *name)
+   An overlay's ov_enter() may ask for the other in turn. The world's
+   overlay loads the roaming monsters' file with it too (roamcall.s). */
+void __fastcall__ fetch(const char *name)
 {
     unsigned char s = disk_on(name);
 
@@ -1224,7 +1228,8 @@ int main(void)
     while (!load3(hi_file)) {
         load_failed(hi_file, 0);
     }
-    hi_file[7] = 't';           /* and past BSS (TAIL): ow-cpu.tl */
+    hi_file[7] = 't';           /* and past BSS (TAIL): ow-cpu.tl (and then
+                                   roamcall.s's ow-cpu.rm) */
     hi_file[8] = 'l';
     while (!load3(hi_file)) {
         load_failed(hi_file, 0);

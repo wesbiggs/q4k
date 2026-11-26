@@ -125,7 +125,7 @@ GEN_LOOT  := include/q4k/loot_data.h src/lib/loot_data.c
 GEN_MUSIC := src/sid/theme_data.s
 GEN_TUNES := include/q4k/music_map.h src/lib/music_map.c
 GEN_OW    := src/lib/ow_data.s src/lib/ow_figs.s src/ow/town_art.s
-GEN_FIGHT := src/fight/fight_data.s src/ow/foe_art.s
+GEN_FIGHT := src/fight/fight_data.s src/ow/foe_art.s src/ow/roam_art.s
 GEN_OWFONT := src/ow/ow_font.s
 
 # Where the letters come from. FONT_SOURCE is "rom" for the machine's own
@@ -270,7 +270,7 @@ $(DIST)/%.prg: $(BUILD)/%.o $(LIB) $(wildcard cfg/*.cfg)
 # and a saved game to load until the player saves one. It is a D81 (a 1581,
 # 3160 blocks): with the fights a 1541's disk was full.
 OWENG := $(DIST)/ow-cpu.prg $(DIST)/ow-reu.prg
-OWOVL := $(foreach e,cpu reu,$(foreach o,world town dungeon hi tl,$(DIST)/ow-$(e).$(o)))
+OWOVL := $(foreach e,cpu reu,$(foreach o,world town dungeon hi tl rm,$(DIST)/ow-$(e).$(o)))
 OWFILES := $(DIST)/ow-data.prg $(DIST)/splash-p.prg $(DIST)/splash-n.prg \
            $(DIST)/ow-save.prg $(DIST)/ow-isl.prg $(DIST)/ow-icon.prg
 
@@ -345,10 +345,14 @@ $(BUILD)/ow/ovl.o: src/ow/ovl.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) -c -o $@ $<
 
+# The overworld's roaming monsters (roam.s, in their own file, %O.rm) and the
+# world's overlay's way to them.
+OWROAM := $(patsubst %,$(BUILD)/ow/%.o,roam roam_art roamcall)
+
 # The dungeon's monsters' sprites (tools/mkfields.py), and what they do
 # square by square (foes.s), in its overlay; the king's (mkoverworld.py),
 # in the town's.
-$(BUILD)/ow/foe_art.o $(BUILD)/ow/town_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(BUILD)/ow/look.o $(BUILD)/ow/genbuild.o $(BUILD)/ow/wfog.o $(BUILD)/ow/ow_font.o $(BUILD)/ow/islmark.o: $(BUILD)/ow/%.o: src/ow/%.s
+$(BUILD)/ow/foe_art.o $(BUILD)/ow/town_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(BUILD)/ow/look.o $(BUILD)/ow/genbuild.o $(BUILD)/ow/wfog.o $(BUILD)/ow/ow_font.o $(BUILD)/ow/islmark.o $(OWROAM): $(BUILD)/ow/%.o: src/ow/%.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) -c -o $@ $<
 
@@ -362,14 +366,14 @@ OWGEN := $(patsubst %,$(BUILD)/ow/%.o,ow_isle genbuild wfog islmark ow_tgen ow_t
 OWOBJ = $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-$*.o) $(BUILD)/ow/ovl.o \
         $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o $(BUILD)/ow/foe_art.o \
         $(BUILD)/ow/town_art.o $(BUILD)/ow/foes.o $(BUILD)/ow/stlow.o $(BUILD)/ow/look.o \
-        $(BUILD)/ow/ow_font.o $(OWGEN)
+        $(BUILD)/ow/ow_font.o $(OWGEN) $(OWROAM)
 
 # The overlays come out of the same link (ld65's %O.world, ...).
-$(DIST)/ow-%.world $(DIST)/ow-%.town $(DIST)/ow-%.dungeon $(DIST)/ow-%.hi $(DIST)/ow-%.tl: $(DIST)/ow-%.prg ;
+$(DIST)/ow-%.world $(DIST)/ow-%.town $(DIST)/ow-%.dungeon $(DIST)/ow-%.hi $(DIST)/ow-%.tl $(DIST)/ow-%.rm: $(DIST)/ow-%.prg ;
 
 $(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/ow/ovl.o \
 	    $(BUILD)/ow/ow_dungeon.o $(BUILD)/ow/ow_sfx.o $(BUILD)/ow/foe_art.o $(BUILD)/ow/foes.o \
-	    $(BUILD)/ow/town_art.o $(BUILD)/ow/stlow.o $(BUILD)/ow/look.o $(BUILD)/ow/ow_font.o $(OWGEN) $(LIB) cfg/c64-openworld.cfg tools/owslots.py
+	    $(BUILD)/ow/town_art.o $(BUILD)/ow/stlow.o $(BUILD)/ow/look.o $(BUILD)/ow/ow_font.o $(OWGEN) $(OWROAM) $(LIB) cfg/c64-openworld.cfg tools/owslots.py
 	@mkdir -p $(DIST)
 	$(CL65) $(LDFLAGS) -C cfg/c64-openworld.cfg -m $(BUILD)/ow-$*.map \
 	    -Wl -Ln,$(BUILD)/ow-$*.lbl -o $@ $(OWOBJ) $(LIB)
@@ -379,6 +383,7 @@ $(DIST)/ow-%.prg: $(foreach p,$(OWPARTS) smooth,$(BUILD)/ow/$(p)-%.o) $(BUILD)/o
 	@mv $@.dungeon $(DIST)/ow-$*.dungeon
 	@mv $@.hi $(DIST)/ow-$*.hi
 	@mv $@.tl $(DIST)/ow-$*.tl
+	@mv $@.rm $(DIST)/ow-$*.rm
 	tools/owslots.py $(BUILD)/ow-$*.map $(OWOBJ)
 	@printf '%-14s %6d bytes\n' "$@" "$$(( $$(wc -c < $@) - 2 ))"
 
@@ -437,7 +442,7 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 OWCACHE_FILES := $(DIST)/ow-data.prg=ow-data $(DIST)/ow-isl.prg=ow-isles \
     $(DIST)/ow-icon.prg=ow-icon \
     $(DIST)/ow-cpu.prg=ow-cpu $(DIST)/ow-reu.prg=ow-reu \
-    $(foreach e,cpu reu,$(foreach o,hi tl world town dungeon,$(DIST)/ow-$(e).$(o)=ow-$(e).$(o))) \
+    $(foreach e,cpu reu,$(foreach o,hi tl rm world town dungeon,$(DIST)/ow-$(e).$(o)=ow-$(e).$(o))) \
     $(DIST)/owtown.prg=owtown $(DIST)/owtalk.prg=owtalk --glob '$(BUILD)/ow/sets/t.*' \
     $(DIST)/fight.prg=fight $(DIST)/seafight.prg=seafight --glob '$(BUILD)/music/m.*' \
     --glob '$(BUILD)/fight/disk/[fs].*' $(DIST)/owparty.prg=owparty \

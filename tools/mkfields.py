@@ -38,11 +38,15 @@ SPRITES = os.path.join(ROOT, "assets", "monsters.txt")
 TILES = os.path.join(ROOT, "assets", "tiles.txt")
 OUT_S = os.path.join(ROOT, "src", "fight", "fight_data.s")
 OUT_FOES = os.path.join(ROOT, "src", "ow", "foe_art.s")
+OUT_ROAM = os.path.join(ROOT, "src", "ow", "roam_art.s")
 
 # The monsters the open world's dungeons show on the map (src/ow/dungeon.c's
 # A_*, in this order): two frames each, in the dungeon's overlay.
 FOE_ART = ["rat", "goblin", "wolf", "wasp", "bandit", "skeleton", "ogre",
            "wraith", "drake", "keeper"]
+# And the overworld's (src/ow/roam.s): the dungeon's, then what comes up out
+# of the deep sea, packed to two bytes a row (roam.s's sea_art: 10 on).
+ROAM_ART = FOE_ART + ["serpent", "eagle", "seacrab", "kraken"]
 FOE_FRAMES = 1          # src/ow/dungeon.c's: the slot has room for one
 
 FW, FH = 20, 9
@@ -438,6 +442,38 @@ def write_static(sprites):
     open(OUT_S, "w").write("\n".join(out))
 
 
+def write_roam(sprites):
+    out = ["; GENERATED from assets/monsters.txt by tools/mkfields.py -- do "
+           "not edit.",
+           "",
+           "; The monsters that roam the overworld (src/ow/roam.s): a picture "
+           "each, the",
+           "; first frame, two bytes for each of sixteen rows (the third byte "
+           "of a",
+           "; sprite's row is 0, and so are its last five rows): roam.s "
+           "unpacks one into",
+           "; a sprite block the overworld does not use when a monster turns "
+           "up.",
+           "",
+           "        .export roam_art",
+           '        .segment "ROAMCODE"',
+           "roam_art:"]
+    for name in ROAM_ART:
+        size, frames = sprites[name]
+        if size != 1:
+            die("%s: a roaming monster is one square" % name)
+        b = block(frames[0])
+        if any(b[48:]):
+            die("%s: a roaming monster is sixteen rows" % name)
+        two = [b[i] for i in range(48) if i % 3 != 2]
+        if any(b[i] for i in range(2, 48, 3)):
+            die("%s: a roaming monster is eight pixels wide" % name)
+        out.append("        .byte " + ",".join("$%02X" % x for x in two)
+                   + "   ; " + name)
+    out.append("")
+    open(OUT_ROAM, "w").write("\n".join(out))
+
+
 def write_foes(sprites):
     out = ["; GENERATED from assets/monsters.txt by tools/mkfields.py -- do "
            "not edit.",
@@ -591,6 +627,7 @@ def main():
         return
     write_static(sprites)
     write_foes(sprites)
+    write_roam(sprites)
     if not args:
         return
     out = args[0]

@@ -131,7 +131,8 @@ extern unsigned char phase;     /* the back screen's build: PHASE_BUILT
 extern unsigned char speed;     /* pixels a frame: 1 or 2 */
 extern unsigned char enc_always;    /* tests: 1 every roll a fight, and 1
                                        or 2 a dungeon's monsters even with
-                                       OWG_CALM; 3 every roll at sea */
+                                       OWG_CALM; 3 every roll at sea; 4
+                                       the overworld's roaming monsters */
 extern unsigned int  steps;
 extern unsigned char whole, switch_time, roof_time;
 
@@ -174,6 +175,11 @@ void isl_gone(void);            /* the last cell isl_mark() named, fallen
 extern unsigned char isl_fell;  /* and set by it, for the world to say */
 extern unsigned char chest_bit; /* the looted[] bit of the level's first
                                    chest (stlow.s's st_chests()) */
+/* A file of the engine's to its own address (the screen off), tried until
+   it loads; and the name of the last of the engine's own (ow-cpu.tl, which
+   roamcall.s makes ow-cpu.rm). */
+void __fastcall__ fetch(const char *name);
+extern char hi_file[];
 
 /* L, the overlays' (ov_look): what they found, said and taken -- gold or
    draughts -- and a looted[] bit taken (0, and said, if it was before); or

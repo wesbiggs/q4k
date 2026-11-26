@@ -35,7 +35,7 @@ def part_of(obj):
     base = os.path.basename(obj)
     if base in ("ow_dungeon.o", "foe_art.o", "foes.o"):
         return "dungeon"
-    if base in ("ow_isle.o", "genbuild.o", "wfog.o"):
+    if base in ("ow_isle.o", "genbuild.o", "wfog.o", "roamcall.o"):
         return "world"
     if base in ("ow_tgen.o", "ow_town_gen.o", "ow_town_data.o",
                 "ow_town_maps.o"):

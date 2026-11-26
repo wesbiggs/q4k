@@ -95,6 +95,11 @@ typedef struct {
                                    index in the game block's foe_a[] */
 #define OWF_SEA    5            /* what comes up out of the deep sea at
                                    the king's ship (the seafight module) */
+#define OWF_ROAM   6            /* a monster that roamed the overworld up
+                                   to the party (src/ow/roam.s): npc its
+                                   kind (owgame.h's, as OWF_FOE's), or'd
+                                   with the ground << 5 (0 grass, forest,
+                                   swamp, shore, floor) */
 #define OWF_LOOT   0x80         /* or'd in, the tests': a win leaves gear,
                                    and on the overworld a map, every time */
 

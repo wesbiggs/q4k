@@ -155,14 +155,19 @@ static const char *const sea_sprites[] = {
 
 static const char *sea_sprite;
 
-static void pick_sea(void)
+static void __fastcall__ pick_sea(unsigned char which)
 {
     unsigned char top, i, most;
 
-    for (top = 0; top < SEA_KINDS && sea_wanderers[top].from <= party_level;
-         ++top) {
+    if (which < SEA_KINDS) {
+        i = which;              /* (one that roamed up to the ship) */
+    } else {
+        for (top = 0;
+             top < SEA_KINDS && sea_wanderers[top].from <= party_level;
+             ++top) {
+        }
+        i = (unsigned char)(rand() % top);
     }
-    i = (unsigned char)(rand() % top);
     most = (party_level + party_count - 1) / sea_wanderers[i].from;
     if (!most) {
         most = 1;
@@ -278,7 +283,7 @@ static unsigned char spoils(unsigned char kind, unsigned char always)
         s = OWS_GEAR;
     }
     if (G->area == AREA_HOME
-        && (kind == OWF_WANDER || kind == OWF_UNDEAD)
+        && (kind == OWF_WANDER || kind == OWF_UNDEAD || kind == OWF_ROAM)
         && (always || !(rand() % treasure_odds))) {
         for (i = 0; i < OWG_MAPS; ++i) {
             if (!G->tmap[i]) {
@@ -318,6 +323,11 @@ static void fight_music(unsigned char boss)
     }
 }
 
+/* OWF_ROAM's ground, by its npc's top three bits (roam.s's). */
+static const unsigned char roam_ground[] = {
+    T_GRASS, T_FOREST, T_SWAMP, T_SHORE, T_FLOOR,
+};
+
 void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
 {
     Fight *f = FIGHT;
@@ -344,8 +354,12 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
         ground = G->area == AREA_DUNGEON ? T_FLOOR : arg;
         break;
     case OWF_SEA:
-        pick_sea();
+        pick_sea(arg);          /* (0-4 the one that roamed up, else any) */
         ground = T_DEEP;
+        break;
+    case OWF_ROAM:
+        pick_wanderer(0, arg & 31);
+        ground = roam_ground[arg >> 5];
         break;
     case OWF_FOE:
         pick_wanderer(1, OWG_FOE_KIND(G->foe_a[arg], G->foe_b[arg]));
@@ -387,7 +401,8 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
     f->reach  = foe.reach;
     f->kind   = foe.kind;
     f->count  = foes;
-    f->flee   = kind == OWF_WANDER || kind == OWF_UNDEAD || kind == OWF_FOE;
+    f->flee   = kind == OWF_WANDER || kind == OWF_UNDEAD || kind == OWF_FOE
+                || kind == OWF_ROAM;
     f->seed   = rand();
     strcpy(f->field, field_of(ground));
     strcpy(f->sprite, kind == OWF_SEA ? sea_sprite : sprite_of(foe.glyph));

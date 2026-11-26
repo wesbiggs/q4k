@@ -11,6 +11,7 @@
  * in. Built with --code-name OVWCODE.
  */
 
+#include <stddef.h>
 #include <stdlib.h>
 #include <c64.h>
 #include <peekpoke.h>
@@ -421,6 +422,30 @@ static unsigned char wf_show(unsigned int x, unsigned char y,
 
 static void show_ships(void);
 
+/* The monsters that roam the overworld (roam.s, under the KERNAL, called
+   through roamcall.s): what roam(op) is told, and what it says. */
+unsigned char __fastcall__ roam(unsigned char op);
+#define R_ENTER 0               /* back on the overworld (the screen off) */
+#define R_CLEAR 1               /* into a place: none */
+#define R_ROLL  2               /* a step's end: their turn, and a roll */
+#define R_MOVE  3               /* a step's end with no roll: their turn */
+#define R_SHOW  4               /* after the ship, among the people */
+#define R_IDLE  5               /* every frame */
+#define R_CAN   8               /* + d: may the hero step that way (0 no;
+                                   a monster there is a fight) */
+/* What roam.s reads for itself, at its own addresses. */
+typedef char roam_level[2 * (offsetof(OwGame, party_level) == 87) - 1];
+typedef char roam_cls[2 * (offsetof(Actor, cls) == 13) - 1];
+typedef char roam_quiet[2 * (offsetof(OwGame, quiet) == 138) - 1];
+typedef char roam_g[2 * (OWG_ADDR == 0xCE37) - 1];
+typedef char roam_ow[2 * (offsetof(OwWorld, ibiome) == 30) - 1];
+typedef char roam_fog[2 * (OWG_FOG == 0xFC00) - 1];
+typedef char roam_calm[2 * (OWG_CALM == 4 && OWG_NATIVE == 16) - 1];
+typedef char roam_home[2 * (ISLE_HOME == 4) - 1];
+typedef char roam_tiles[2 * (T_GRASS == 0x60 && T_FOREST == 0x61
+                             && T_SHORE == 0x65 && T_SWAMP == 0x66
+                             && T_FLOOR == 0x6C && T_DEEP == 0x95) - 1];
+
 /* (x, y), from where the look started, into the box of what changed
    (its edges to be worked out again) and, if it is within the screen of
    it, the box to be drawn. */
@@ -781,6 +806,7 @@ void w_idle(void)
     unsigned int r, t, n = PEEK(0x2A6) ? 312 : 263;     /* PAL or NTSC */
     unsigned char k;
 
+    roam(R_IDLE);               /* the monsters about (or their fight) */
     while (job_head != job_tail && sm_frame == frame) {
         r = VIC.rasterline | ((VIC.ctrl1 & 0x80) << 1);
         t = r <= 250 ? 250 - r : 250 + n - r;
@@ -879,15 +905,15 @@ static unsigned char ship_held(unsigned char s)
 static void show_ships(void)
 {
     sm_npc_n = 0;
-    if (boat || wrapx(ship_x[0] + WORLD_W + 12 - wx) > 24
-        || (unsigned char)(ship_y[0] - wy + 9) > 18) {
-        return;                 /* (one ship: SHIPS) */
+    if (!boat && wrapx(ship_x[0] + WORLD_W + 12 - wx) <= 24
+        && (unsigned char)(ship_y[0] - wy + 9) <= 18) {
+        sm_npc_x[0] = ship_x[0] & 127;  /* (one ship: SHIPS) */
+        sm_npc_y[0] = ship_y[0] & 127;
+        sm_npc_ptr[0] = SHIP_FRAME + 1;
+        sm_npc_col[0] = COLOR_BROWN;
+        sm_npc_n = 1;
     }
-    sm_npc_x[0] = ship_x[0] & 127;
-    sm_npc_y[0] = ship_y[0] & 127;
-    sm_npc_ptr[0] = SHIP_FRAME + 1;
-    sm_npc_col[0] = COLOR_BROWN;
-    sm_npc_n = 1;
+    roam(R_SHOW);               /* and the monsters about */
 }
 
 /* The frame after a step: what it brings into the window, the ships in
@@ -933,6 +959,11 @@ unsigned char __fastcall__ w_can_step(unsigned char d)
 {
     signed char dx = dirdx[d], dy = dirdy[d];
 
+    /* Not while a monster is coming for a fight; and one on that square
+       is a fight now. */
+    if (!roam(R_CAN + d)) {
+        return 0;
+    }
     if (!world_ok(dx, dy)) {
         return 0;
     }
@@ -1010,6 +1041,7 @@ static void w_leave(void)
     if (area != AREA_HOME) {
         return;
     }
+    roam(R_CLEAR);              /* the monsters about stay out here */
     if (after) {
         stream(dirdx[after - 1], dirdy[after - 1]);
         after = 0;
@@ -1079,6 +1111,8 @@ static void back_home(void)
     hx = wx & 127;              /* (show_area() sets them too) */
     hy = wy & 127;
     wf_all();
+    roam(R_ENTER);              /* the monsters: the rest of a fight's, or
+                                   what is about on the screen's edges */
     show_area(wx & 127, wy & 127);
 }
 
@@ -1191,42 +1225,6 @@ static void to_dungeon_if(unsigned char n)
 /* At the end of a step: whatever the square does. Home's places are, in
    isle_fx's order, Millford, the castle, the Hollow Crown, Maldrath's lair
    (which is the dragon, and not here) and a town of its own. */
-/* After a step onto `tile`: something wanders out, now and then, as the
-   game's encounter_roll() has it (out of 200, by the ground; towns never
-   roll, and nor does a ship). Not with OWG_CALM, the tests'. (Here, not in
-   the core: only the overworld rolls.) */
-#define T_ROAD 0x96             /* the overworld set's own (ow_roads.s) */
-
-static void __fastcall__ wander(unsigned char tile)
-{
-    unsigned char chance, force;
-
-    switch (tile) {
-    case T_DEEP:   chance = 6;  break;  /* at sea, off the shallows */
-    case T_ROAD:   chance = 4;  break;  /* half the grass's: safer */
-    case T_GRASS:  chance = 8;  break;
-    case T_SHORE:  chance = 7;  break;
-    case T_FOREST: chance = 12; break;
-    case T_SWAMP:  chance = 16; break;
-    case T_FLOOR:  chance = 5;  break;
-    default:       return;
-    }
-    force = enc_always == 1;    /* (and calm or not) */
-    if (enc_always == 3) {      /* 3: only at sea (nested: cc65 gets this */
-        if (tile == T_DEEP) {   /* wrong as one test with the 1) */
-            force = 1;
-        }
-    }
-    if (force) {
-        chance = 200;
-    } else if (G->quiet & OWG_CALM) {
-        return;
-    }
-    if ((unsigned char)(rand() % 200) < chance) {
-        ow_fight_with(tile == T_DEEP ? OWF_SEA : OWF_WANDER, tile);
-    }
-}
-
 /* The place on the hero's square, if any: its name, with what it is
    (PK_TOWN or PK_DUNGEON) in pk and which in pa. Home's places are, in
    isle_fx's order, Millford, the castle, the Hollow Crown, Maldrath's
@@ -1361,16 +1359,16 @@ void w_arrived(void)
         return;
     }
     name = place_here();
-    if (name) {
-        if (G->quiet & OWG_HIDE) {
-            return;             /* (a message would bring the window back) */
-        }
+    /* The monsters' turn; and off a place, a roll on the edge the step
+       brought into view, for what may be there (roam.s: as the old roll
+       had it, out of 200 by the ground, but the ground rolled for). */
+    roam(name ? R_MOVE : R_ROLL);
+    if (name && !(G->quiet & OWG_HIDE)) {
+        /* (hidden, a message would bring the window back) */
         strcpy(said, name);
         strcat(said, to_enter);
         sm_ink = COLOR_WHITE;
         sm_say(said);
-    } else if (!boat || tile_at(hx, hy) == T_DEEP) {
-        wander(tile_at(hx, hy));    /* (in a ship, only off the shallows) */
     }
 }
 
