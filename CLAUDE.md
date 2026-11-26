@@ -819,15 +819,16 @@ block there, and it must do so after the splash, not at the start of
 fixed addresses (`OW_ICON_MODE`, `OW_ICON_COL`, `OW_ICON_SRC` in
 `include/q4k/ow.h`), and `$CF17` puts back the disk after every load: the
 yellow floppy (a load), the white d20 rolling (the world being built: the
-bootstrap from the end of its loads, `rebuild()` for `N`/`F3`, and a fight
-with no sprite to show, `ow_fight_with()`), or someone's own sprite doubled
+block as the bootstrap copies it, so from the splash's key until the next
+program is up, `rebuild()` for `N`/`F3`, and a fight with no sprite to
+show, `ow_fight_with()`), or someone's own sprite doubled
 and blinking in their colour (the monster a dungeon fight is with, the
 keeper, the person a talk, a shop or an inn is with: `dungeon.c`'s
 `fight()`/`d_bump()`, `town.c`'s `talk_to()`), copied from the engine's VIC
 bank, which nothing changes before the `LOAD`. The disk's and the die's
 pictures are `OW-ICON` (`assets/icons.txt`, `tools/mkicons.py`), which the
 bootstrap loads under the KERNAL at `$FF00` once, after the splash, where
-nothing else is. The icon copies two blocks from where it is told to `$0380`
+nothing else is (through the REU cache, which has an entry for it). The icon copies two blocks from where it is told to `$0380`
 and `$03C0` (blocks 14 and 15, the only place in bank 0 no program's code
 is; the die shows them in turn). Block 15 is the engines' C stack's top, so
 only the stub or the bootstrap (whose stack is at its MAIN's top) may call
@@ -1163,10 +1164,10 @@ there (then the new game's seed is 1, as the goldens have it). `N` skips all
 of this. Golden `openworld-load` is the F3 path. The bootstrap says nothing:
 the screen is black until the picture is up, and from the key until the
 engine has the screen the loading icon is in the middle (`ow_disk_on()`,
-`ow_disk.s`, above): the yellow floppy while it loads its files, then the
-white d20 rolling while it builds the lands (it stands still while home is
-built, with interrupts off), then the floppy again for the next program.
-Only a failed load prints anything.
+`ow_disk.s`, above): the white d20 rolling, through the bootstrap's few
+loads and its building of the lands (it stands still while home is built,
+with interrupts off), until the program after it has loaded. Only a failed
+load prints anything.
 
 **What both engines read and neither changes** is one file, `ow-data`
 (2.8K from `$8800`: the tables every tile set shares, in `OWDATA`, the
