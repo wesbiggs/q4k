@@ -150,9 +150,11 @@ void dungeon_build(unsigned char index, unsigned char level)
     dun_dn_y = ry[i] + rh[i] / 2;
 
     if (index >= NUM_DUNGEONS) {
-        /* A sea cave (q4k/isles.h): its levels, nobody at the bottom. */
+        /* A sea cave (q4k/isles.h): its levels, nobody at the bottom but
+           a chest at the end, where the stairs would have been, which is
+           taken once (its cell's ISL_GONE: the cave is gone with it). */
         local[LOCAL_AT(dun_dn_x, dun_dn_y)] =
-            level >= ISL_DEEP ? T_FLOOR : T_STAIRDN;
+            level >= ISL_DEEP ? T_CHEST : T_STAIRDN;
     } else if (level >= dungeon_deep[index]) {
         /* The bottom: the keeper stands where the stairs would have been --
            unless it has already been killed, which is what holding its stone
@@ -173,7 +175,8 @@ void dungeon_build(unsigned char index, unsigned char level)
        so testing for its tile is safe. */
     dun_chests = 0;
     if (index >= NUM_DUNGEONS) {
-        return;                 /* (a sea cave's: no bits to keep them) */
+        return;                 /* (a sea cave's: no bits to keep them;
+                                   the one at the end is the cave's) */
     }
     n = 1 + (unsigned char)(rand() % DUN_CHESTS);
     for (tries = 0; tries < 24 && dun_chests < n; ++tries) {

@@ -97,6 +97,9 @@ static void need(const char *name, void *at)
    (wf_back). Nonzero if there was a save. */
 #define SAVE_AT ((unsigned char *)0x7000)
 static unsigned char wf_back;
+static unsigned char isl_back;  /* and the islands' places (q4k/isles.h's
+                                   ISL_STATE), after the bits: none in a
+                                   save from before them */
 
 static unsigned char load_save(void)
 {
@@ -107,6 +110,7 @@ static unsigned char load_save(void)
     }
     memcpy(G, SAVE_AT, OWG_SIZE);
     wf_back = n >= OWG_SIZE + OWG_WFOG_SIZE;
+    isl_back = n >= OWG_SIZE + OWG_WFOG_SIZE + ISL_CELLS;
     return 0x80;                /* (the splash's text's offset: ow_splash.s) */
 }
 
@@ -251,8 +255,13 @@ int main(void)
        there, or another game's. A write under the KERNAL reaches the RAM. */
     memset((void *)OWG_FOG, 0, OWG_FOG_SIZE);
     memset((void *)OWG_WFOG, 0, OWG_WFOG_SIZE);    /* nor any land ... */
+    memset((void *)ISL_STATE, 0, ISL_CELLS);        /* ... nor island */
     if (wf_back) {              /* ... but what a save says was seen */
         memcpy((void *)OWG_WFOG, SAVE_AT + OWG_SIZE, OWG_WFOG_SIZE);
+    }
+    if (isl_back) {             /* (and where the party has been) */
+        memcpy((void *)ISL_STATE, SAVE_AT + OWG_SIZE + OWG_WFOG_SIZE,
+               ISL_CELLS);
     }
     OW->seed = lore_seed;
     OW->reu = ow_reu_detect();

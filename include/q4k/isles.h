@@ -49,8 +49,33 @@
    ISL_LAND + the cell (town.c, ow_isles.c). */
 #define ISL_LAND    5
 #define ISL_DEEP    2           /* a sea cave's levels: no keeper at the
-                                   bottom, and no chests (looted[] has no
-                                   bits for them) */
+                                   bottom, and no chests on the way
+                                   (looted[] has no bits for them), only
+                                   the one at the end of the last */
+
+/* What the party has made of each cell's place: a byte a cell (ISL_CELLS),
+   under the KERNAL past the land's fog (owgame.h's OWG_WFOG), written
+   straight through and read with the vault banked in (vault_peek(), or
+   the engine's sm_vcopy()); in the save after the fog's bits, and cleared
+   by the bootstrap with them. ISL_LEVEL: the party's level the first time
+   they went in (0: not yet), which the place is made for -- an island
+   town's shops, a sea cave's monsters and its chest -- rather than for the
+   land the party last left. ISL_GONE: the sea cave's chest was taken and
+   its mouth fell in behind the party, which cannot go in again. */
+#define ISL_STATE   0xFBE0      /* to $FBF7: free to $FBFF, OWG_FOG is next */
+#define ISL_LEVEL   0x0F
+#define ISL_GONE    0x80
+
+/* A place made for level `lv` (1 on) sells and drops what this tier of
+   lands does: shop.c's tiers, 0 home's, 1-4 the continents' in the order
+   the story opens them, which the keepers are fought at about level 4, 6,
+   8 and 10 for (bestiary.c). */
+#define ISL_TIER(lv) ((lv) > 8 ? 4 : ((lv) - 1) >> 1)
+
+/* The level the place the party is in was made for (ISL_LEVEL), if it is
+   an island's, its first visit marked now if it was not before; or 0
+   anywhere else (src/lib/ow_islv.c, for owtown: the shops, the fights). */
+unsigned char isl_level(void);
 
 void isles_make(void);          /* the bootstrap's (ow_isles.c) */
 

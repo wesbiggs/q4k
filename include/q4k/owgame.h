@@ -133,7 +133,8 @@ typedef struct {
    bytes) and then each continent's 64 by 31 (248), below the dungeons',
    in what was the music's room, the same way (and so not in a save
    either: the bootstrap clears it). Out on the open sea everything is
-   seen. */
+   seen. Right after it, at $FBE0, is where the party has been on the
+   islands (q4k/isles.h's ISL_STATE), which goes into the save with it. */
 #define OWG_WFOG       0xF600
 #define OWG_WFOG_HOME  512
 #define OWG_WFOG_ISLE  248

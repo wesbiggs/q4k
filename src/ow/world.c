@@ -1167,10 +1167,17 @@ const unsigned char dungeon_key[NUM_DUNGEONS] = {
     IT_SIGIL, IT_TIDAL, IT_ASHEN
 };
 
+static const char fallen[] = "Its mouth has fallen in.";
+
 static void to_dungeon_if(unsigned char n)
 {
-    if (n >= NUM_DUNGEONS || items & dungeon_key[n]) {  /* (a sea cave's
-                                                           has none) */
+    if (n >= NUM_DUNGEONS) {    /* a sea cave: no key, but once only */
+        if (isl_mark(n - NUM_DUNGEONS) & ISL_GONE) {
+            refuse(fallen);     /* (and drawn as the island's ground) */
+        } else {
+            to_dungeon(n);
+        }
+    } else if (items & dungeon_key[n]) {
         to_dungeon(n);
     } else {
         refuse(sealed);
@@ -1386,6 +1393,9 @@ unsigned char __fastcall__ w_use(unsigned char k)
     }
     if (k != '-' && place_here()) {
         if (pk == PK_TOWN) {
+            if (pa > TOWN_PROC) {       /* an island's: made for the */
+                isl_mark(pa - (TOWN_PROC + 1));     /* level found at */
+            }
             to_town(pa);
         } else {
             to_dungeon_if(pa);

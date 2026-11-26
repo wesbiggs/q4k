@@ -167,7 +167,12 @@ a saved game, which starts the map unseen again.
 
 Out on the open sea between the lands lie small islands, a few in every
 stretch of it, and on one of each group a town or a sea cave: sail there
-and step ashore.
+and step ashore. Each is made for the level your party had the first
+time you went in: its shop sells, and its monsters fight, as the lands for
+that level do.
+A sea cave keeps a chest at its end, with gold and something none of you
+has yet; take it (`L`) and you are back outside, and the cave falls in
+behind you for good.
 
 Every land is ringed by shallows, lighter water a few squares wide, where
 nothing troubles a ship; out on the dark deep sea things come up out of the
