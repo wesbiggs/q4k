@@ -224,10 +224,16 @@ def main():
         f.write("const char *const town_names[NUM_TOWNS] = {\n")
         for t in towns:
             f.write('    "%s",\n' % t.name)
-        # The ids are what the dialogue host knows people and inns by, and
-        # only a conversation needs them: the talk's engine (engine.h).
-        # Spelled out as arrays so that the strings go there too.
-        f.write("};\n\n#pragma rodata-name (push, \"TALKDATA\")\n")
+        # The ids are what the dialogue host knows people and inns by
+        # (TALKDATA), spelled out as arrays so that the strings go there too;
+        # tools/mktalk.py reads inn_ids[] from this file. The names are what
+        # owtown and owtalk show. The engines' town overlay compiles this
+        # file with OW_TOWN (the Makefile's ow_town_data.o), which leaves
+        # both out.
+        f.write("};\n\n/* The people's and the inns' ids and names, for owtown and owtalk:\n"
+                "   not in the engines (OW_TOWN, the Makefile's ow_town_data.o). */\n"
+                "#ifndef OW_TOWN\n"
+                "#pragma rodata-name (push, \"TALKDATA\")\n")
         for n in npc_ids:
             f.write('static const char id_%s[] = "%s";\n' % (n, n))
         for i, _ in inns:
@@ -249,7 +255,8 @@ def main():
         f.write("};\n\nconst char *const inn_names[NUM_INNS] = {\n")
         for _, n in inns:
             f.write('    "%s",\n' % n)
-        f.write("};\n\nconst TownEnt town_ents[NUM_TOWN_ENTS] = {\n")
+        f.write("};\n#endif /* OW_TOWN */\n\n"
+                "const TownEnt town_ents[NUM_TOWN_ENTS] = {\n")
         for x, y, kind, param in ents:
             f.write("    { %2d, %2d, %-8s %s },\n" % (x, y, kind + ",", param))
         f.write("};\n\nconst unsigned char town_ent_first[NUM_TOWNS + 1] = {\n"

@@ -585,7 +585,9 @@ the thread that runs it: `build/ow/ow_isle.o`, `isle_gen.s` assembled with
 `OVTCODE`: towns and the castle, the roofs, the people, the talk's trigger,
 and the town generator and the towns' maps: `ow_tgen.o`, `tgen.s` with
 `OW_TOWN`, and `ow_town_gen.o`, `ow_town_data.o`, compiled into the overlay
-through `build/ow/`)
+through `build/ow/`, also with `OW_TOWN`, which leaves out what the engines
+do not read: the people's and the inns' ids (TALKDATA) and names, and the
+generated towns' inns, `town_gen_inn()`, which owtown and owtalk keep)
 and the dungeon's (`dungeon.c`, `OVDCODE`: the levels and their stairs, with
 its own copy of the game's `dungeon_build()`, `build/ow/ow_dungeon.o`,
 linked ahead of the library so the library's `MAPCODE` copy is not, as

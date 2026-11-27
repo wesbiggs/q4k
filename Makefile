@@ -311,7 +311,10 @@ $(BUILD)/ow/ow_dungeon.o: src/lib/dungeon.c
 # the maps, town_maps.c) in the town's. Linked ahead of the library, so
 # that its MAPCODE copies are not; tools/owslots.py knows them by name.
 # The C ones through build/ow/NAME.s, never src/lib/NAME.s (cl65 writes
-# that for the library's).
+# that for the library's), and with OW_TOWN, which leaves out what the
+# engines do not read: the people's and the inns' ids and names
+# (town_data.c, owtown's and owtalk's) and the generated towns' inns
+# (town_gen.c, owtown's).
 $(BUILD)/ow/ow_isle.o: src/lib/isle_gen.s
 	@mkdir -p $(dir $@)
 	$(CL65) $(ASFLAGS) --asm-define OW_WORLD=1 -c -o $@ $<
@@ -320,7 +323,7 @@ $(BUILD)/ow/ow_tgen.o: src/lib/tgen.s
 	$(CL65) $(ASFLAGS) --asm-define OW_TOWN=1 -c -o $@ $<
 $(BUILD)/ow/ow_town_gen.o $(BUILD)/ow/ow_town_data.o $(BUILD)/ow/ow_town_maps.o: $(BUILD)/ow/ow_%.o: src/lib/%.c
 	@mkdir -p $(dir $@)
-	cc65 $(CFLAGS) --code-name OVTCODE --rodata-name OVTCODE \
+	cc65 $(CFLAGS) -DOW_TOWN --code-name OVTCODE --rodata-name OVTCODE \
 	    --create-full-dep $(@:.o=.d) --dep-target $@ -o $(@:.o=.s) $<
 	ca65 -t c64 -o $@ $(@:.o=.s)
 
