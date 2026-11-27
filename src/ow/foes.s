@@ -816,13 +816,13 @@ paint_row:
 ; --- What the party can see (dungeon.c's fog) ------------------------------
 ;
 ; The classic game's fov.c, the squares' part: a square seen is drawn
-; (WORLD from fog_drawn, the level as built) and its bit set in fog_seen
-; and in the level's in OWG_FOG (fog_at: under the KERNAL, where a write
-; reaches the RAM), and a box of what is new grows round it: one for the
-; squares round the hero, one for each ray and one for their room, so that
-; a corridor seen far off is not one box with what is beside them, which
-; would have the whole of the box between drawn again. Squares are the
-; level's here (0 to DUN_W - 1), not the engine's.
+; (WORLD from fog_drawn, the level as built, in WORLD's last rows: below)
+; and its bit set in fog_seen and in the level's in OWG_FOG (fog_at: under
+; the KERNAL, where a write reaches the RAM), and a box of what is new
+; grows round it: one for the squares round the hero, one for each ray and
+; one for their room, so that a corridor seen far off is not one box with
+; what is beside them, which would have the whole of the box between drawn
+; again. Squares are the level's here (0 to DUN_W - 1), not the engine's.
 
 T_SECRETDOOR = $7C
 T_DARK  = $93                   ; assets/dungeon_tiles.txt's code dark
@@ -838,8 +838,31 @@ ROOMBOX = 5
         .import _sm_rows, _pre_dir, sm_fromreu, _dir, _dirdx, _dirdy
         .importzp ptr2
 
+; The level as built (fog_drawn, DUN_W a row) is in WORLD's rows from
+; FOG_ROW to its end, which a level never reaches: build_area() copies the
+; level into rows 0 to DUN_H - 1 and clears the rest to the set's offmap
+; tile, and fog_dark() fills these rows after that, every time a level is
+; built (the stairs, the way in, and back from another program, which
+; loads the engine again). What is drawn goes no lower than the view with
+; the hero, or L's view, on the level's last row and the text window
+; hidden: sm_oy = 2 * hy - HERO_PY / 8 - 1 (engine.c's place_camera), and
+; 25 character rows from there, two to a square; a step's builds read no row
+; past the camera's at its end, and pre_dir's shift reads only the screen.
+; That is VIEW_ROW (37), and sm_shores() works out its edges from the row
+; below it too, so FOG_ROW leaves one more: the offmap tile there, as
+; before. sm_shores() reads these rows as tiles too (show_area()), so the
+; edges in SHORE's rows from VIEW_ROW + 2 on mean nothing; nothing draws
+; them. Every other reader in a dungeon (passable(), tile_at(), the
+; monsters' `at`, the rays) reads local[], with what is off the level a
+; wall.
+HERO_PY = 84                    ; (engine.h)
+VIEW_ROW = (2 * (DUN_H - 1 + BIAS) - HERO_PY / 8 - 1 + 24) / 2 - BIAS
+FOG_ROW = 40
+        .assert FOG_ROW >= VIEW_ROW + 2, error, "foes.s: fog_drawn is in view"
+        .assert FOG_ROW * 64 + DUN_W * DUN_H <= 64 * 64, error, "foes.s: fog_drawn is past WORLD"
+_fog_drawn = WORLD + FOG_ROW * 64
+
         .segment "OVDBSS"       ; (after the art, in no file)
-_fog_drawn: .res DUN_W * DUN_H  ; the level as built, DUN_W a row
 _fog_seen:  .res FOV_ROW * DUN_H
 
         .segment "OVDCODE"

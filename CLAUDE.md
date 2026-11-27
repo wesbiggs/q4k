@@ -725,8 +725,12 @@ it, so a save does not keep it: the bootstrap clears it (after the splash,
 whose picture is there), and so does the way in from the world, as it does
 the monsters. **The level as built** (`fog_drawn`, 48 by 32, with the
 chests drawn open and the blood: `muster()` comes first) is what a square
-is drawn as once seen; it and `fog_seen` are `OVDBSS`, the dungeon
-overlay's scratch after its art, in no file. **No frame is spent on it
+is drawn as once seen: `WORLD`'s rows 40-63 (`$BA00-$BFFF`), which a level
+(rows 0-31) never reaches, nor does what is drawn (the view, L's too, goes
+no lower than row 37, and its edges read row 38: `foes.s` asserts it);
+`fog_dark()` fills them after `build_area()` every time a level is built,
+so nothing has to keep them. `fog_seen` is `OVDBSS`, the dungeon overlay's
+scratch after its art, in no file. **No frame is spent on it
 when a step ends**, which starts the next and has no room to spare: what
 the hero will see is worked out when the step starts (`d_can_step()` sets
 `fog_due` for the square it goes to) in the first of its frames with
@@ -1286,7 +1290,7 @@ screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
 that the engine's file does not carry 5K of empty screens to the disk. The overlays are 5.9K (world), 7.5K
 (town) and 7.1K (dungeon, its monsters' pictures at the end, and after them
-1.7K of the fog's scratch, in no file) of the slot's
+192 bytes of the fog's scratch, in no file) of the slot's
 9.25K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 14
 bytes in MAIN, which has to stop four short of `$4000`, since cc65's startup pushes `main()`'s arguments there before `sm_stack()` moves the stack (smooth.s asserts it; 2026-11 a MAIN that reached them crashed OW-CPU into BASIC as it started) (the generators went to their overlays, and the REU cache's
 loader came in, and then the corners' multiplexer, 1.4K; the engine no longer links cc65's `conio`: its one message is
