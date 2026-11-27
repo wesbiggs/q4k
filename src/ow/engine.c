@@ -1093,6 +1093,18 @@ static unsigned char glide(void)
     return flip;
 }
 
+/* --- Starting ---------------------------------------------------------- */
+
+/* What runs once as the engine starts (take_block() and start(), and
+   smooth.s's sm_init()) is OWSTART: in the .hi file, past HIGH, at the
+   start of the slot ($5A00), which nothing reads or writes until main()
+   loads the first overlay over it (ov_switch(), after start() returns).
+   So nothing here may be called after that, nor write the slot; and the
+   .hi file is loaded only by main(), never while the engine runs.
+   tools/owslots.py fails a link in which any module but this one calls
+   into OWSTART. */
+#pragma code-name (push, "OWSTART")
+
 /* The game block (owgame.h), which the bootstrap, the party's making or
    another program left: the game, and where it is. The overlays take the
    rest of the bootstrap's hand-off (ow.h). */
@@ -1156,6 +1168,7 @@ static void take_block(void)
     srand(G->game_turn ^ ((unsigned int)seed << 8));
     OWB->mode = OWB_NONE;
 }
+#pragma code-name (pop)
 
 void owg_where(void)
 {
@@ -1206,6 +1219,30 @@ void __fastcall__ ow_leave(const char *name)
     ow_run(name);
 }
 
+#pragma code-name (push, "OWSTART")  /* (above: run once, then loaded over) */
+/* The rest of the start, once the .hi file is in: the file past BSS, the
+   game block, and the interrupt going, with the screen off, before the
+   first overlay (the disk waits for frames; the overlay draws its area and
+   turns the screen on). Returns to main(), whose ov_switch() then loads
+   that overlay over this. */
+static void start(void)
+{
+    hi_file[7] = 't';           /* past BSS (TAIL): ow-cpu.tl (and then
+                                   roamcall.s's ow-cpu.rl) */
+    hi_file[8] = 'l';
+    while (!load3(hi_file)) {
+        load_failed(hi_file, 0);
+    }
+    VIC.bordercolor = COLOR_BLACK;
+    take_block();
+    sm_init();
+    sm_sprite(0);
+    VIC.bgcolor0 = COLOR_BLACK;
+    sm_blank(1);
+    sm_show();
+}
+#pragma code-name (pop)
+
 int main(void)
 {
     unsigned char d, f, flipped;
@@ -1223,33 +1260,19 @@ int main(void)
         for (;;) {
         }
     }
-    /* The engine's code past the screens, $5280-$59FF (OWTOP, HICODE): a
-       file of its own, so that this one is not 5K of empty screens longer.
-       Nothing in it may run before this. */
+    /* The engine's code past the screens, $5280-$59FF (OWTOP, HICODE), and
+       its start-up at the start of the slot (OWSTART, above): a file of its
+       own, so that this one is not 5K of empty screens longer. Nothing in
+       it may run before this. */
     while (!load3(hi_file)) {
         load_failed(hi_file, 0);
     }
-    hi_file[7] = 't';           /* and past BSS (TAIL): ow-cpu.tl (and then
-                                   roamcall.s's ow-cpu.rl) */
-    hi_file[8] = 'l';
-    while (!load3(hi_file)) {
-        load_failed(hi_file, 0);
-    }
-    VIC.bordercolor = COLOR_BLACK;
-    take_block();
+    start();
     /* (Nothing is in OWLOW now, the code run at $0400 that was copied out of
        screen A's space here: the roofs' flood and drawing were, and are in
        the town's overlay. Put some there and the copy has to come back.) */
 
-    /* The interrupt going, with the screen off, before the first overlay:
-       the disk waits for frames. The overlay draws its area and turns the
-       screen on. */
-    sm_init();
-    sm_sprite(0);
-    VIC.bgcolor0 = COLOR_BLACK;
-    sm_blank(1);
-    sm_show();
-    ov_switch();
+    ov_switch();                /* (over start()'s code) */
     st_start();
     if (entering) {
         say_entering();         /* (after the greeting, or the party) */

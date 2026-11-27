@@ -13,6 +13,12 @@ module allowed to name both), and an overlay may not reach the other's. This
 reads each object's imports with od65 and fails if anything else uses a
 symbol an overlay defines in its code (its data, in BSS, stays put and may be
 shared). Then it says how full the slot is.
+
+The engine's start-up (OWSTART: engine.c's start(), smooth.s's sm_init()) is
+in the slot too, before any overlay: it runs once and the first overlay
+loads over it. Only the engine's own module (engine-*.o, whose main() calls
+start() before the first overlay) may call into it; anything else that
+names a symbol in it fails the link as well.
 """
 
 import os
@@ -87,6 +93,29 @@ def main():
             print("   ", b)
         return 1
 
+    # What the core defines in OWSTART: the core's exports at its addresses
+    # (the overlays' code shares them, and ovl.s's labels are the slot's).
+    start = segs.get("OWSTART")
+    early = []
+    if start:
+        once = set()
+        for obj in objs:
+            if part_of(obj) == "core" and os.path.basename(obj) != "ovl.o":
+                once |= {sym for sym in od65(obj, "exports")
+                         if start[0] <= exports.get(sym, -1) <= start[1]}
+        for obj in objs:
+            base = os.path.basename(obj)
+            if base.startswith("engine-"):
+                continue
+            for sym in sorted(od65(obj, "imports") & once):
+                early.append("%s calls %s" % (base, sym.lstrip("_")))
+    if early:
+        print("owslots: reaches into the start-up code (OWSTART), which the "
+              "first overlay loads over:")
+        for b in early:
+            print("   ", b)
+        return 1
+
     sizes = []
     for p, (head, *body) in SEGS.items():
         lo = segs[head][0]
@@ -95,6 +124,8 @@ def main():
     cfg = open(os.path.join(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))), "cfg", "c64-openworld.cfg")).read()
     m = re.search(r"SLOTW:.*size\s*=\s*\$([0-9A-Fa-f]+)", cfg)
+    if start:
+        sizes.append("start-up %d" % (start[1] - start[0] + 1))
     print("owslots: slot at $%04X, %d bytes: %s" % (
         segs["OVWHEAD"][0], int(m.group(1), 16), ", ".join(sizes)))
     return 0

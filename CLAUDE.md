@@ -432,7 +432,7 @@ change is. The keeper
 idles: `st_bob()`, with the hero's idle, swaps his four characters with
 `keeperbob`'s (`$94`) in the character set; his art (`dungeon_tiles.txt`)
 is outlined in grey, since red and brown on a dungeon floor is what the
-blood is. stlow.s, `sm_text_clear` and `font_copy` live in `OWLO`,
+blood is. stlow.s and `sm_text_clear` live in `OWLO`,
 `$0430-$07F7`: **the engine's file starts at `$042E`**, in the KERNAL's text
 screen, which the engine never shows. While anything loads, the disk icon
 (`ow_disk.s`) puts the VIC in extended colour and multicolour at once,
@@ -611,7 +611,9 @@ only through the jump table at the start of the slot (`ovl.s`: `ov_enter`,
 anything, and L's look about the map, `OVU_*`: below), and an
 overlay asks for another by setting `ov_want` and returning, never by
 loading it itself (it would load over its own code). `tools/owslots.py` runs
-after each link and fails it if anything else calls into an overlay's code.
+after each link and fails it if anything else calls into an overlay's code,
+or anything but the engine into its start-up (`OWSTART`, in the slot until
+the first overlay loads: the `.hi` file's, below).
 `owslots.py` knows the generators' copies by name (`part_of()`), and
 `isle_rnd`, which both use, stays in the core (`MAPCODE`, 25 bytes).
 One link makes them all, so `ow-data` (COMMON) is still one file for both
@@ -1288,7 +1290,23 @@ differs). `local[]` (`HIDATA`, the game's font image) is at `$8000` in an
 engine and in no file, and COMMON is `$8800-$9FFF`. An engine is 13.1K (OW-CPU; OW-REU 12.6K), MAIN only: what it has past the
 screens (`VICTOP` and `HIGH`, `$5280-$59FF`) is a file of its own,
 `ow-cpu.hi`/`ow-reu.hi`, which `main()` loads before anything else, so
-that the engine's file does not carry 5K of empty screens to the disk. The overlays are 5.9K (world), 7.5K
+that the engine's file does not carry 5K of empty screens to the disk.
+**What runs once as the engine starts is in that file too**, after HIGH
+(which is filled to its end for it): `OWSTART` (the cfg's `ONSTART`), at
+the start of the slot, which nothing reads or writes until the first
+overlay loads over it: `engine.c`'s `start()` (the `.tl`, `take_block()`,
+the interrupt going) and `smooth.s`'s `sm_init()` with what only it calls
+(the sprite blocks, the corners' pictures, `font_copy`). `main()` loads the
+`.hi`, calls `start()`, and then `ov_switch()` loads the overlay over it,
+so nothing in `OWSTART` may be called after that or write the slot, and
+the `.hi` must never be loaded while the engine runs (only `main()` loads
+it, on every engine start). `ovl.s` asserts where it is; `owslots.py`
+fails a link in which any module but the engine's calls into it, and
+counts it (`start-up`). The slot was chosen over the character set's
+`$4800-$4FFF`: `sm_init()` writes the font at `$4D00` and the sprites at
+`$5000`, so code there would have had 1280 bytes and the file 2688 more
+(over `$4800-$527F`) to load, where the slot costs only the code itself
+(and the REU engine's file `HIGH`'s free bytes, as filler). The overlays are 5.9K (world), 7.5K
 (town) and 7.1K (dungeon, its monsters' pictures at the end, and after them
 192 bytes of the fog's scratch, in no file) of the slot's
 9.25K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 14

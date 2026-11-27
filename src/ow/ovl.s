@@ -12,7 +12,7 @@
 
         .export _ov_enter, _ov_can_step, _ov_arrived, _ov_bump, _ov_after
         .export _ov_idle, _ov_look, _ov_gen, _ov_use
-        .import __SLOTW_START__, __SLOTT_START__, __SLOTD_START__
+        .import __SLOTW_START__, __SLOTT_START__, __SLOTD_START__, __SLOTW_SIZE__
         .assert __SLOTW_START__ = __SLOTT_START__, lderror, "ovl: the overlays must share the slot"
         .assert __SLOTW_START__ = __SLOTD_START__, lderror, "ovl: the overlays must share the slot"
 
@@ -36,6 +36,14 @@ _ov_use         = __SLOTW_START__ + 24     ; + or - (or fire, 1): in, down, up
         .import __VICTOP_START__
         .segment "OWHIADDR"     ; the engine's code past the screens: %O.hi
         .word   __VICTOP_START__
+
+        ; And after HIGH in that file, its start-up (OWSTART: engine.c's
+        ; start()), at the start of the slot, where the first overlay loads
+        ; over it. HIGH is filled to its end, so the file runs on to it.
+        .import __HIGH_START__, __HIGH_SIZE__, __ONSTART_START__, __ONSTART_SIZE__
+        .assert __HIGH_START__ + __HIGH_SIZE__ = __ONSTART_START__, lderror, "ovl: the start-up must follow HIGH in the .hi file"
+        .assert __ONSTART_START__ = __SLOTW_START__, lderror, "ovl: the start-up must be at the start of the slot"
+        .assert __ONSTART_SIZE__ = __SLOTW_SIZE__, lderror, "ovl: the start-up may have the slot, no more"
 
         .import __TAIL_START__
         .segment "OWTLADDR"     ; and past BSS: %O.tl
