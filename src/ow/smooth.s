@@ -2629,6 +2629,7 @@ irq_text:
         bcc     @now            ; once, for the text's first line is next
 @line:  cmp     $D012           ; to the start of the line after
         bcs     @line
+        .assert >* = >@line, error, "irq_text: the line's poll loop crosses a page (a cycle a pass)"
         ldy     #10             ; and into its right border: about 55 cycles
 @wait:  dey
         bne     @wait
