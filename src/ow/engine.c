@@ -602,6 +602,23 @@ void say_entering(void)
     entering = 0;
 }
 
+static void __fastcall__ say_what(const char *s);
+
+#pragma code-name (push, "OWLO")  /* (MAIN, HIGH and the rest are full) */
+/* A talk or a fight just moved the quest on (OW_NEWTASK, which owtalk and
+   owtown set to 1): said, in white, once the window is up, even if it was
+   hidden, since it is what to do next. LSR both tests the flag and clears
+   it, which is what lets this fit. (Its words are in OW-DATA.) */
+void say_new_task(void)
+{
+    __asm__("lsr %w", 0x02F2);          /* OW_NEWTASK */
+    __asm__("bcc %g", none);
+    say_what(s_newtask);
+none:
+    ;
+}
+#pragma code-name (pop)
+
 /* --- What is said, and L ------------------------------------------------
    In the engine's spare memory past the screens (HICODE), strings and all:
    OW-DATA, where constants go, has little room left. */
@@ -616,19 +633,6 @@ static void __fastcall__ say_what(const char *s)
 {
     sm_ink = COLOR_WHITE;
     sm_say(s);
-}
-
-/* A talk or a fight just moved the quest on (OW_NEWTASK, which owtalk and
-   owtown set): said once the window is up, even if it was hidden, since
-   it is what to do next. (Its words are in COMMON, with s_saved's: HIGH
-   is full.) */
-void say_new_task(void)
-{
-    if (OW_NEWTASK) {
-        OW_NEWTASK = 0;
-        sm_ink = COLOR_YELLOW;
-        sm_say(s_newtask);
-    }
 }
 
 /* L found something: draughts or gold, said, and a turn spent. */

@@ -168,27 +168,28 @@ static unsigned char save_version(void)
     return G->magic == OWG_MAGIC;
 }
 
+/* The splash's key, which main() reads too: F2 runs owseed before
+   owparty. 0 when the bootstrap is run again (BSS), as N or owseed do. */
+static unsigned char key;
+static const char run_names[] = "owparty\0owseed";
+
 static void splash(void)
 {
-    unsigned char key = 0, saved;
-
     /* Whether there is a saved game, which the splash offers (F3) only if
        so: read now and again for F3, the picture being loaded over it. */
-    saved = load_save();
-    wf_back = 0;
+    ow_saved = load_save();
     OW->video = ow_video();
     if (OW->video <= OW_NTSC &&
         cbm_load(OW->video == OW_NTSC ? "splash-n" : "splash-p", 8,
                  (void *)OW_SPLASH_AT)) {
-        key = ow_splash(saved);
+        key = ow_splash();
     } else {
         key = title_text();
     }
     /* A new world for a new game, from how long the player took, and a
        party to make for it (src/owparty.c), unless it is the tests' quick
-       start. F2 has owseed ask for a seed first (OW_ASKSEED). */
+       start. */
     lore_seed = 1 + ow_splash_ticks;
-    OW_ASKSEED = key & 0x08;    /* F2: of the keys, only $89 has it */
     disk_resident();
     /* The loading icon's pictures, the disk's and the die's (q4k/ow.h's
        OW_ICON_ART), under the KERNAL, where they stay for the whole game:
@@ -198,6 +199,7 @@ static void splash(void)
     ow_disk_on();
     OW->saved = 0;
     G->magic = 0;
+    wf_back = 0;                /* (as the save at the splash left it) */
     OWB->mode = key == OW_KEY_QUICK ? OWB_QUICK : OWB_NEW;
     if (key == OW_KEY_F3) {
         /* The saved game is the game block, loaded where it lives. */
@@ -322,7 +324,18 @@ int main(void)
         if (OWB->mode != OWB_QUICK) {
             OWB->mode = OWB_NEW;
         }
-        ow_run(OW_ASKSEED ? "owseed" : "owparty");  /* (F2: a seed first) */
+        /* F2: owseed, which asks for a seed first. Of the keys only F2
+           ($89) has bit 3, and 8 is how far the second name is. In
+           assembly, as cc65's sum is longer and the bootstrap is full. */
+        __asm__("lda %v", key);
+        __asm__("and #$08");
+        __asm__("clc");
+        __asm__("adc #<%v", run_names);
+        __asm__("ldx #>%v", run_names);
+        __asm__("bcc %g", sum);
+        __asm__("inx");
+sum:
+        __asm__("jsr %v", ow_run);
     }
     ow_run(OW->reu == OW_REU_OK ? "ow-reu" : "ow-cpu");
     return 0;

@@ -7,8 +7,8 @@
 ; program: the bootstrap (src/openworld.c) loads SPLASH-P or SPLASH-N at
 ; OW_SPLASH_AT, the text and then the picture (tools/mksplash.py), and calls
 ; ow_splash(), which is the kit's splash_show() with only F1 (and SHIFT+F1)
-; and F3 for keys and no time limit; with no saved game, its text is cut to
-; "F1 Start New Game", centred, and F3 does nothing.
+; and F3 for keys and no time limit; with no saved game, its text is only
+; "F1 Start New Game", centred.
 ;
 ; While the picture is up the KERNAL is out, the picture's raster interrupt
 ; has every sprite and most of the frame, and VIC bank 3, $C000-$FFFF, is
@@ -20,7 +20,7 @@
 ; compare the files' magic with ASCII strings, which -t c64 would turn into
 ; PETSCII.
 
-        .export _ow_video, _ow_splash, _ow_splash_ticks
+        .export _ow_video, _ow_splash, _ow_splash_ticks, _ow_saved
 
 TXT       = $4000               ; OW_SPLASH_AT: the .v2t's line's first
                                 ; part alone, centred, for no saved game,
@@ -43,13 +43,12 @@ _ow_video:
         ldx #0
         rts
 
-; unsigned char __fastcall__ ow_splash(unsigned char saved) -- show the
-; picture loaded at OW_SPLASH_AT until F1, SHIFT+F1 or F3 is pressed and let
-; go: OW_KEY_F1, OW_KEY_F2 or OW_KEY_F3, or 0 if what is there is not a
-; picture for this machine. `saved` 0 (no saved game) shows the text's
-; line as far as its first run of two spaces ("F1 Start New Game"),
-; centred, which mksplash.py puts first, and leaves F3 unread. `saved` is
-; $80 if there is one (load_save()'s answer), the text's offset. The text screen, the KERNAL
+; unsigned char ow_splash(void) -- show the picture loaded at OW_SPLASH_AT
+; until F1, SHIFT+F1 or F3 is pressed and let go: OW_KEY_F1, OW_KEY_F2 or
+; OW_KEY_F3, or 0 if what is there is not a picture for this machine.
+; ow_saved 0 (no saved game) shows the text that mksplash.py puts first,
+; "F1 Start New Game" alone and centred; ow_saved $80, which load_save()
+; answers when there is one, is the whole text's offset. The text screen, the KERNAL
 ; and the interrupts are back as they were. ow_splash_ticks is how many
 ; frames it took the player, less whole 256s: the one number at this point
 ; that is not the same on every run.
@@ -59,7 +58,6 @@ _ow_video:
 ; else written there is taken as the key (tools/screendump.py --splash).
 ; Then ow_splash_ticks is 0, so that a test's new game is always the same.
 _ow_splash:
-        sta saved
         lda $02                 ; the picture's display code uses $02, which
         sta save02              ; is half of cc65's stack pointer
         lda #0
@@ -69,7 +67,7 @@ _ow_splash:
         ldy #>PIC
         jsr v2i_show
         bcs @done               ; not a .v2i, or not this machine's: key 0
-        lda saved               ; $80: all of it; 0: just F1, centred
+        lda _ow_saved           ; $80: all of it; 0: just F1, centred
         ldy #>TXT
         jsr v2t_draw            ; (no text if that is not a .v2t)
         jsr v2i_start
@@ -108,19 +106,18 @@ _ow_splash:
 ; 5 (so is the button of a joystick in port 1, which reads as F1); F1 with
 ; the left SHIFT or SHIFT LOCK down (column 1, row 7) is F2, as the KERNAL
 ; has it. (Not the right SHIFT: row 4, as the joystick's button is, which
-; would make it F2.) F3 is not read when there is no saved game.
+; would make it F2.)
 scan:   lda #$fe
         sta $dc00
         lda $dc01
         and #$10
         beq @f1
-        lda saved
-        beq @none
         lda $dc01
         and #$20
-        beq @f3
-@none:  lda #0
-        rts
+        eor #$20                ; 0, Z set: not F3 either
+        beq @no
+        lda #KEY_F3
+@no:    rts
 @f1:    lda #$fd                ; the left SHIFT
         sta $dc00
         lda $dc01
@@ -129,12 +126,18 @@ scan:   lda #$fe
         rts
 @f2:    lda #KEY_F2
         rts
-@f3:    lda #KEY_F3
-        rts
+
+; The bootstrap's MAIN ends in OWDISK's load image, which disk_resident()
+; copies out only after cc65's startup has pushed main()'s argc and argv on
+; the C stack, the four bytes below $4000: it has to stop short of them, as
+; an engine does (src/ow/smooth.s). Here because only the bootstrap links
+; this. (The linker says so.)
+        .import __MAIN_LAST__
+        .assert __MAIN_LAST__ < $4000 - 4, lderror, "the bootstrap's MAIN runs into the four bytes cc65's startup pushes at its top"
 
 save02:           .byte 0
 key:              .byte 0
-saved:            .byte 0
+_ow_saved:        .byte 0
 _ow_splash_ticks: .byte 0
 
         .include "v2i.inc"
