@@ -168,7 +168,12 @@ extern const char owtalk[];     /* "owtalk": a conversation */
 void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg);
 /* Island cell c's place's byte of ISL_STATE (q4k/isles.h), its first
    visit marked with the party's level now if it was not before. */
-unsigned char __fastcall__ isl_mark(unsigned char c);
+unsigned char __fastcall__ isl_mark(unsigned char c);  /* (islmark.s's) */
+void isl_gone(void);            /* the last cell isl_mark() named, fallen
+                                   in, and its chests' bits cleared */
+extern unsigned char isl_fell;  /* and set by it, for the world to say */
+extern unsigned char chest_bit; /* the looted[] bit of the level's first
+                                   chest (stlow.s's st_chests()) */
 
 /* L, the overlays' (ov_look): what they found, said and taken -- gold or
    draughts -- and a looted[] bit taken (0, and said, if it was before); or

@@ -580,7 +580,6 @@ void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg)
 }
 
 
-
 #pragma code-name (pop)
 
 /* "Entering NAME.", for the place just gone into: not with the window

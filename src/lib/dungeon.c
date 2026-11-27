@@ -151,8 +151,7 @@ void dungeon_build(unsigned char index, unsigned char level)
 
     if (index >= NUM_DUNGEONS) {
         /* A sea cave (q4k/isles.h): its levels, nobody at the bottom but
-           a chest at the end, where the stairs would have been, which is
-           taken once (its cell's ISL_GONE: the cave is gone with it). */
+           a chest at the end, where the stairs would have been. */
         local[LOCAL_AT(dun_dn_x, dun_dn_y)] =
             level >= ISL_DEEP ? T_CHEST : T_STAIRDN;
     } else if (level >= dungeon_deep[index]) {
@@ -174,11 +173,19 @@ void dungeon_build(unsigned char index, unsigned char level)
        only. A chest placed earlier this build is the same on every visit,
        so testing for its tile is safe. */
     dun_chests = 0;
+    n = DUN_CHESTS;
     if (index >= NUM_DUNGEONS) {
-        return;                 /* (a sea cave's: no bits to keep them;
-                                   the one at the end is the cave's) */
+        /* A sea cave's: one or two, for the two looted[] bits each of its
+           levels has (src/ow/islmark.s), and on the bottom the one at the
+           end before them, as chest 0. */
+        n = 2;
+        if (level >= ISL_DEEP) {
+            dun_cx[0] = dun_dn_x;
+            dun_cy[0] = dun_dn_y;
+            dun_chests = 1;
+        }
     }
-    n = 1 + (unsigned char)(rand() % DUN_CHESTS);
+    n = dun_chests + 1 + (unsigned char)(rand() % n);
     for (tries = 0; tries < 24 && dun_chests < n; ++tries) {
         i = (unsigned char)(rand() % rooms);
         x = rx[i] + (unsigned char)(rand() % rw[i]);

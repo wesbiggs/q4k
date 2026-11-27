@@ -1080,13 +1080,18 @@ dungeon, "a sea cave", `NUM_DUNGEONS + cell`, both in the game block's
 `place`. A town is made by `tgen.s` as a continent's is, as if its land
 were `ISL_LAND + cell` (`t_enter()` sets `land` for that long, and
 `isle_biome` from it; `owtown` does the same for its inn's name); a sea
-cave is `dungeon_build()` with that index: `ISL_DEEP` (2) levels, nobody
-at the bottom and no chests on the way (`looted[]` has no bits for them),
-and no key (`to_dungeon_if()`). **Each place is made for the party's level
+cave is `dungeon_build()` with that index: `ISL_DEEP` (3) levels, nobody
+at the bottom, one or two chests on each, and no key (`to_dungeon_if()`).
+Its chests use `looted[]` bits no dungeon does (src/ow/islmark.s: the first
+two dungeons' fourth levels', which they do not have, and the two past the
+towns'; `isl_base` in `stlow.s` has each level's first, which
+`st_chests()` sets as `chest_bit` for `d_look()`): only one cave is ever
+open, and they are cleared as it falls in. **Each place is made for the party's level
 when they first went in**, not for the land they last left (which is
 mostly Keldmarch): `ISL_STATE` (`$FBE0`, under the KERNAL past the land's
 fog, a byte a cell, written straight through) holds that level
-(`ISL_LEVEL`, 0 until then), marked by the engine's `isl_mark()` (src/ow/islmark.s) as the
+(`ISL_LEVEL`, 0 until then), marked by the engine's `isl_mark()`
+(src/ow/islmark.s, in OW-DATA: no other part of the engine had room) as the
 party goes in (and by `isl_level()`, `src/lib/ow_islv.c`, owtown's, for a
 game saved inside one before there were marks). `ISL_TIER()` turns it into
 shop.c's tier of lands (0 home's, 1-4 the continents' in the story's order:
@@ -1094,17 +1099,21 @@ levels 1-2, 3-4, 5-6, 7-8, 9 on), which an island town's shops sell from
 (`tier_here()`), and a sea cave's spoils and natives go by; its wanderers
 are chosen for that level too (`spawn()` in `src/ow/dungeon.c`,
 `pick_wanderer()` in `ow_fight.c`). **A sea cave is had once**: at the end
-of its last level, where the stairs would be, is a chest, and L on it
-(`hoard()`, `src/ow/dungeon.c`) sets the cell's `ISL_GONE`, puts the party
-back on the island where they went in and has owtown open it
+of its last level, where the stairs would be, is a chest (chest 0 there,
+bit `ISL_END_BIT`), and L on it (`d_look()`) has owtown open it
 (`OWB_HOARD`: shop.c's `cave_hoard()`): the level x 50 marks, and
 something nobody in the party carries that one of them could use -- a
 blade, mail or a bow of the cave's tier, or a book of a spell no wizard of
 theirs knows and their level allows -- taken up as a monster's arms are
-(`hand_out()`). The cave is gone after: `isl_draw` draws its square as the
-island's ground, and `to_dungeon_if()` would refuse it anyway. `ISL_STATE`
+(`hand_out()`); then back in the cave. The way out is up through every
+level, and out of the first (`d_use()`) the cave falls in: `isl_gone()`
+sets the cell's `ISL_GONE` and `isl_fell`, and the world says "The sea
+cave collapses!" when it is back (`w_enter()`). The cave is gone after:
+`isl_draw` draws its square as the island's ground, which is not a place. `ISL_STATE`
 is in the save after the land's bits (`wf_save()` sends them together),
-cleared by the bootstrap with them; a save from before it has none, and
+cleared by the bootstrap with them (one `memset()` from `OWG_WFOG` to the
+end of `OWG_FOG`, and one `memcpy()` of as much as the save has: the
+bootstrap is full); a save from before it has none, and
 its islands count as not yet visited. `tools/mkowsave.py --world X,Y` starts on any square;
 `openworld-isle` in `tools/test.sh` goes into one of each. **Room**:
 `kept_at()` and `nearest()` went to assembly (`wfog.s`'s OVWCODE part) and

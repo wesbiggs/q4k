@@ -466,6 +466,9 @@ unsigned char __fastcall__ d_use(unsigned char k)
     } else if (depth == 1) {
         sm_npc_n = 0;
         ov_want = OV_WORLD;
+        if (cave_lv) {          /* a sea cave: once through, and gone (the */
+            isl_gone();         /* world draws the island's ground there, */
+        }                       /* and says so) */
     } else {
         --depth;
         dungeon_level(0);
@@ -530,36 +533,27 @@ void d_idle(void)
     fog_ahead();                /* (what is left of the frame after them) */
 }
 
-/* L on the chest at a sea cave's end: its mouth falls in behind the party
-   (ISL_GONE, and the world draws the island's ground there), who are out
-   on the island where they went in, and owtown hands out what is in it
-   (OWB_HOARD: shop.c's cave_hoard(), for the cave's level). */
-static void hoard(void)
-{
-    *(unsigned char *)(ISL_STATE + dun_index - NUM_DUNGEONS)
-        = cave_lv | ISL_GONE;   /* (a write under the KERNAL reaches it) */
-    area = AREA_HOME;
-    wx = out_wx;
-    wy = out_wy;
-    OWB->mode = OWB_HOARD;
-    OWB->arg  = cave_lv;
-    ow_leave(owtown);
-}
-
 /* L: a chest on the hero's square, taken once (its looted[] bit, by the
-   dungeon, the level and which chest, as the game counts them): even odds a
-   draught or gold, the gold worth more with the story and the depth, as the
-   game's look() has it. Anywhere else nothing, or now and then the dead. */
+   dungeon, the level and which chest, as the game counts them: stlow.s's
+   chest_bit): even odds a draught or gold, the gold worth more with the
+   story and the depth, as the game's look() has it. Anywhere else nothing,
+   or now and then the dead. A sea cave's last level's first chest is the
+   one at its end, which owtown hands out (OWB_HOARD: shop.c's
+   cave_hoard(), for the cave's level), and the party carries on from it:
+   the way out is back up through every level. */
 void d_look(void)
 {
     unsigned char i, x = hx - BIAS, y = hy - BIAS;
 
-    if (cave_lv && depth == ISL_DEEP && x == dun_dn_x && y == dun_dn_y) {
-        hoard();                /* (never returns) */
-    }
     for (i = 0; i < dun_chests; ++i) {
         if (dun_cx[i] == x && dun_cy[i] == y) {
-            if (take_bit((dun_index * MAX_DEEP + depth - 1) * DUN_CHESTS + i)) {
+            a = chest_bit + i;
+            if (take_bit(a)) {
+                if (a == ISL_END_BIT) {     /* (no dungeon's but a cave's) */
+                    OWB->mode = OWB_HOARD;
+                    OWB->arg  = cave_lv;
+                    ow_leave(owtown);       /* (never returns) */
+                }
                 if (rand() & 1) {
                     loot_found(1, 1);
                 } else {

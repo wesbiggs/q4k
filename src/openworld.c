@@ -94,12 +94,13 @@ static void need(const char *name, void *at)
    (owgame.h's OWG_WFOG). Loaded where nothing is yet (the roads' grid comes
    later), the block put where it lives; the land's bits wait there for
    main() to put back under the KERNAL once it has cleared the old ones
-   (wf_back). Nonzero if there was a save. */
+   (wf_back, how much of it there is: in a save since the islands' places
+   came, those too, ISL_STATE, which is right after the bits). Nonzero if
+   there was a save. */
 #define SAVE_AT ((unsigned char *)0x7000)
-static unsigned char wf_back;
-static unsigned char isl_back;  /* and the islands' places (q4k/isles.h's
-                                   ISL_STATE), after the bits: none in a
-                                   save from before them */
+static unsigned int wf_back;
+typedef char st_isl_after[2 * (ISL_STATE == OWG_WFOG + OWG_WFOG_SIZE) - 1];
+typedef char st_isl_below[2 * (ISL_STATE + ISL_CELLS <= OWG_FOG) - 1];
 
 static unsigned char load_save(void)
 {
@@ -109,8 +110,7 @@ static unsigned char load_save(void)
         return 0;
     }
     memcpy(G, SAVE_AT, OWG_SIZE);
-    wf_back = n >= OWG_SIZE + OWG_WFOG_SIZE;
-    isl_back = n >= OWG_SIZE + OWG_WFOG_SIZE + ISL_CELLS;
+    wf_back = n - OWG_SIZE;     /* (the engine's saves are no longer) */
     return 0x80;                /* (the splash's text's offset: ow_splash.s) */
 }
 
@@ -251,18 +251,13 @@ int main(void)
         splash();
     }
     OW->magic = 0;              /* until it is all there */
-    /* No dungeon seen yet (owgame.h's OWG_FOG): the splash's picture was
-       there, or another game's. A write under the KERNAL reaches the RAM. */
-    memset((void *)OWG_FOG, 0, OWG_FOG_SIZE);
-    memset((void *)OWG_WFOG, 0, OWG_WFOG_SIZE);    /* nor any land ... */
-    memset((void *)ISL_STATE, 0, ISL_CELLS);        /* ... nor island */
-    if (wf_back) {              /* ... but what a save says was seen */
-        memcpy((void *)OWG_WFOG, SAVE_AT + OWG_SIZE, OWG_WFOG_SIZE);
-    }
-    if (isl_back) {             /* (and where the party has been) */
-        memcpy((void *)ISL_STATE, SAVE_AT + OWG_SIZE + OWG_WFOG_SIZE,
-               ISL_CELLS);
-    }
+    /* No dungeon seen yet (owgame.h's OWG_FOG), nor any land (OWG_WFOG)
+       or island (q4k/isles.h's ISL_STATE), which are below it, with the
+       few free bytes between: the splash's picture was there, or another
+       game's. A write under the KERNAL reaches the RAM. */
+    memset((void *)OWG_WFOG, 0, OWG_FOG + OWG_FOG_SIZE - OWG_WFOG);
+    memcpy((void *)OWG_WFOG, SAVE_AT + OWG_SIZE, wf_back);  /* but what a
+                                                       save says was seen */
     OW->seed = lore_seed;
     OW->reu = ow_reu_detect();
     if (OW->reu && OW_TESTCPU == OW_TESTCPU_ON) {

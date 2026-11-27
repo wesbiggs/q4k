@@ -1084,6 +1084,10 @@ static void back_home(void)
 
 /* Just loaded into the slot: the overworld, round where the hero went in
    (or starts: the core sets out_wx, out_wy from the hand-off block). */
+#pragma rodata-name (push, "OVWCODE")  /* (OW-DATA has no room) */
+static const char fell[] = "The sea cave collapses!";
+#pragma rodata-name (pop)
+
 void w_enter(void)
 {
     if (!taken) {
@@ -1097,6 +1101,10 @@ void w_enter(void)
         memcpy(ibiome, OW->ibiome, sizeof ibiome);
     }
     back_home();
+    if (isl_fell) {             /* out of a sea cave, which is gone now */
+        isl_fell = 0;           /* (islmark.s's isl_gone()) */
+        sm_say(fell);
+    }
 }
 
 /* The refusals' words, in the overlay (OW-DATA has little room). */
@@ -1167,17 +1175,13 @@ const unsigned char dungeon_key[NUM_DUNGEONS] = {
     IT_SIGIL, IT_TIDAL, IT_ASHEN
 };
 
-static const char fallen[] = "Its mouth has fallen in.";
-
 static void to_dungeon_if(unsigned char n)
 {
-    if (n >= NUM_DUNGEONS) {    /* a sea cave: no key, but once only */
-        if (isl_mark(n - NUM_DUNGEONS) & ISL_GONE) {
-            refuse(fallen);     /* (and drawn as the island's ground) */
-        } else {
-            to_dungeon(n);
-        }
-    } else if (items & dungeon_key[n]) {
+    if (n >= NUM_DUNGEONS || items & dungeon_key[n]) {  /* (a sea cave's
+                                                           has none; one
+                                                           fallen in is not
+                                                           here: isl_draw.s
+                                                           draws ground) */
         to_dungeon(n);
     } else {
         refuse(sealed);

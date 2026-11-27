@@ -48,10 +48,12 @@
    + its cell: generated as a continent's are, as if a land of their own,
    ISL_LAND + the cell (town.c, ow_isles.c). */
 #define ISL_LAND    5
-#define ISL_DEEP    2           /* a sea cave's levels: no keeper at the
-                                   bottom, and no chests on the way
-                                   (looted[] has no bits for them), only
-                                   the one at the end of the last */
+#define ISL_END_BIT 9           /* the looted[] bit of the chest at the end
+                                   (src/ow/islmark.s's isl_base) */
+#define ISL_DEEP    3           /* a sea cave's levels: no keeper at the
+                                   bottom, one or two chests on each, and
+                                   the one at the end of the last; gone
+                                   once the party climbs out (ISL_GONE) */
 
 /* What the party has made of each cell's place: a byte a cell (ISL_CELLS),
    under the KERNAL past the land's fog (owgame.h's OWG_WFOG), written
@@ -60,8 +62,9 @@
    by the bootstrap with them. ISL_LEVEL: the party's level the first time
    they went in (0: not yet), which the place is made for -- an island
    town's shops, a sea cave's monsters and its chest -- rather than for the
-   land the party last left. ISL_GONE: the sea cave's chest was taken and
-   its mouth fell in behind the party, which cannot go in again. */
+   land the party last left. ISL_GONE: the party has climbed out of the
+   sea cave and its mouth fell in behind them: it cannot be gone into
+   again, and is drawn as the island's ground. */
 #define ISL_STATE   0xFBE0      /* to $FBF7: free to $FBFF, OWG_FOG is next */
 #define ISL_LEVEL   0x0F
 #define ISL_GONE    0x80
