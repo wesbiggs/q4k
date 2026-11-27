@@ -1306,20 +1306,20 @@ counts it (`start-up`). The slot was chosen over the character set's
 `$4800-$4FFF`: `sm_init()` writes the font at `$4D00` and the sprites at
 `$5000`, so code there would have had 1280 bytes and the file 2688 more
 (over `$4800-$527F`) to load, where the slot costs only the code itself
-(and the REU engine's file `HIGH`'s free bytes, as filler). The overlays are 5.9K (world), 7.5K
-(town) and 7.1K (dungeon, its monsters' pictures at the end, and after them
+(and the REU engine's file `HIGH`'s free bytes, as filler). The overlays are 9.0K (world), 7.7K
+(town) and 7.4K (dungeon, its monsters' pictures at the end, and after them
 192 bytes of the fog's scratch, in no file) of the slot's
-9.25K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU has a little more), measured from the maps: 14
-bytes in MAIN, which has to stop four short of `$4000`, since cc65's startup pushes `main()`'s arguments there before `sm_stack()` moves the stack (smooth.s asserts it; 2026-11 a MAIN that reached them crashed OW-CPU into BASIC as it started) (the generators went to their overlays, and the REU cache's
+9.25K (`make`'s `owslots:` lines). Free, OW-CPU's (OW-REU's where it differs), measured from the maps: 866
+bytes in MAIN (1399 in OW-REU's), which has to stop four short of `$4000`, since cc65's startup pushes `main()`'s arguments there before `sm_stack()` moves the stack (smooth.s asserts it; 2026-11 a MAIN that reached them crashed OW-CPU into BASIC as it started) (the generators went to their overlays, and the REU cache's
 loader came in, and then the corners' multiplexer, 1.4K; the engine no longer links cc65's `conio`: its one message is
 written to the text screen's top row, and the keyboard's buffer is emptied
-with a poke of `$C6`), 17 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 15 in
-OWTOP (`$5280-$53FF`), 3 in HIGH (`$5400-$59FF`, where the text window's
+with a poke of `$C6`), 29 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 15 in
+OWTOP (`$5280-$53FF`), 3 in HIGH (222 in OW-REU's; `$5400-$59FF`, where the text window's
 routines, stlow.s's helpers and the engine's words are), 11 in TAIL
-(`$CCC0-$CE36`, L's look: above), 31 beside the
-world's overlay (12 for OW-REU's; which has the land's fog and the way to
+(`$CCC0-$CE36`, L's look: above), 100 beside the
+world's overlay (81 for OW-REU's; which has the land's fog and the way to
 the monsters about: what more it needs goes in `ow-data`, as
-the fog's did, or TAIL, or under the KERNAL as the islands' drawing is), 1234 beside the town's (for its maps to grow into), 192 beside the dungeon's (the fog took the rest: its scratch, 1.7K, and its code), 32 in BSS (which TAIL could give back), and 175 in COMMON (`$8800-$9FFF`, past `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans; the text window's font, 768 bytes, is there too). String
+the fog's did, or TAIL, or under the KERNAL as the islands' drawing is), 1490 beside the town's (for its maps to grow into), 1536 beside the dungeon's (since the level as built went to WORLD's last rows), 32 in BSS (25 in OW-REU's; which TAIL could give back), and 94 in COMMON (`$8800-$9FFF`, past `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans; the text window's font, 768 bytes, is there too). String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than
