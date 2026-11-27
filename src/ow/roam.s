@@ -16,8 +16,8 @@
 ;
 ;   R_ENTER   back on the overworld, the screen off: the monsters kept if
 ;             this is the square a fight with one of them started on, else
-;             none, and then a roll on each of the screen's four edges (the
-;             R_SHOW after it shows them)
+;             none, and then a roll for every square on the screen but the
+;             hero's and those beside it (the R_SHOW after it shows them)
 ;   R_CLEAR   into a town or a dungeon: none
 ;   R_ROLL    the end of a step that can meet one (as the old roll had it:
 ;             not onto a place, nor in a ship off the deep sea): the turn
@@ -218,6 +218,7 @@ clear:  lda     #0
 :       sta     r_k,x
         dex
         bpl     :-
+reset:  lda     #0              ; (Z clear after: think is not 0)
         sta     pending
         sta     back
         lda     #SLOTS
@@ -245,23 +246,62 @@ enter:  jsr     mode
         sta     r_oy,x
         dex
         bpl     @k
-        lda     #0
-        sta     back
-        sta     pending
-        lda     #SLOTS
-        sta     think
+        jsr     reset
         bne     @done           ; (always)
 @new:   jsr     clear
-        jsr     calm
-        bcs     @done
-        lda     #3
-        sta     e
-@e:     lda     e
-        jsr     edge
-        dec     e
-        bpl     @e
+        jsr     screen
 @done:  inc     changed         ; (shown by the R_SHOW after it)
         rts
+
+; R_ENTER's rolls: every square of the screen, 20 by 11 (220), 73 on each
+; time from anywhere, so that with four the most those it finds first are
+; anywhere on it (ax across, ay down); not the hero's, nor beside it.
+screen: jsr     calm
+        bcs     @rts
+        jsr     _rand
+        and     #7
+        sta     ax
+        sta     ay
+        lda     #220
+        sta     e
+@sq:    lda     ax              ; not the hero's square, nor beside it: a
+        sec                     ; step first, at least
+        sbc     #8
+        cmp     #3
+        bcs     @far
+        lda     ay
+        sbc     #3              ; (carry clear: 4)
+        cmp     #3
+        bcc     @next
+@far:   lda     _hx             ; 9 to the left to 10 right, 5 up and down
+        clc
+        adc     ax
+        sbc     #8              ; (carry clear: 9)
+        sta     cx
+        lda     _hy
+        clc
+        adc     ay
+        sbc     #4
+        sta     cy
+        jsr     spawn
+@next:  lda     ax              ; 73: 13 across and 3 down, mod 20 by 11
+        clc
+        adc     #13
+        cmp     #20
+        bcc     :+
+        sbc     #20
+        inc     ay
+:       sta     ax
+        lda     ay
+        clc
+        adc     #3
+        cmp     #11
+        bcc     :+
+        sbc     #11
+:       sta     ay
+        dec     e
+        bne     @sq
+@rts:   rts
 
 ; --- R_SHOW: the monsters after the people there are --------------------
 
@@ -300,15 +340,12 @@ publish:
 
 ; --- R_ROLL, R_MOVE: the end of a step ------------------------------------
 
-; Aboard or ashore, those of the other kind gone; those off the screen gone
-; too; and a new turn, each banking its speed (one coming for a fight a
+; Those off the screen gone (aboard or ashore, the rest stay: a land's
+; cannot follow the ship, nor the sea's the party ashore); and a new turn, each banking its speed (one coming for a fight a
 ; square's, to follow the hero to where they are now).
 house:  jsr     mode
-        cmp     inship
         sta     inship
-        beq     :+
-        jsr     clear
-:       ldx     #SLOTS - 1
+        ldx     #SLOTS - 1
 @one:   lda     r_k,x
         beq     @n
         lda     r_x,x
@@ -739,6 +776,11 @@ closer: stx     fi
         lda     ay
         cmp     #2
         bcs     @far
+        ldx     fi              ; beside them: a fight, if it is of the
+        lda     r_k,x           ; party's kind (a land's at sea, or the
+        and     #SEA_FLAG       ; sea's ashore, only waits)
+        cmp     inship
+        bne     @stuck
         lda     #2
         rts
 @far:   lda     tx              ; the square the hero is going to, if they

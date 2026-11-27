@@ -302,6 +302,24 @@ u_ow_roam() {
     fi
 }
 
+# Out of a town onto the overworld (roam.s's R_ENTER): a roll for every
+# square on the screen but the hero's and those beside it, so with
+# enc_always=4 (every roll one) Alaric walks out of Millford (at 19,92)
+# to four monsters about, the most there may be, the first at 23,91, well
+# inside the screen's edges, where the old rolls never put one.
+u_ow_roam_out() {
+    got=$(tools/screendump.py dist/openworld.prg --disk dist/openworld.d81 --fastdisk \
+        --splash quick --lbl build/ow-cpu.lbl --poke enc_always=4 --poke wf_sync=1 \
+        --keys "da+ddsds" --settle 30 --until-peek area=0 --until-peek sm_npc_n=4 \
+        --peek area --peek sm_npc_n --peek sm_npc_x --peek sm_npc_y \
+        2>&1 >/dev/null | sed -n 's/.*@ .* = \([0-9]*\) .*/\1/p' | tr '\n' ' ')
+    if [ "$got" = "0 4 23 91 " ]; then
+        result PASS openworld-roam-out
+    else
+        result FAIL openworld-roam-out "area, people, the first one's square: ${got:-?}; not 0 4 23 91"
+    fi
+}
+
 # A fight at sea: enc_always=3 makes every roll in the deep sea a fight
 # (and nothing on land, OWG_CALM's), so walking to the king's ship and
 # sailing east off the shallows meets a sea snake, which the seafight
@@ -521,7 +539,7 @@ run_unit() {
         owarena-arrow-ul) u_arrow ;;
         openworld-save|openworld-quaff|openworld-recolour|openworld-fight|\
         openworld-spoils|openworld-dig|openworld-foes|openworld-keeper|openworld-cache|openworld-roads|\
-        openworld-portrait|openworld-seafight|openworld-look|openworld-isle|openworld-roam)
+        openworld-portrait|openworld-seafight|openworld-look|openworld-isle|openworld-roam|openworld-roam-out)
             [ -f dist/openworld.d81 ] || { result SKIP "$1" "no dist/openworld.d81"; return; }
             case $1 in
                 openworld-save) u_ow_save ;;
@@ -539,6 +557,7 @@ run_unit() {
                 openworld-look) u_ow_look ;;
                 openworld-isle) u_ow_isle ;;
                 openworld-roam) u_ow_roam ;;
+                openworld-roam-out) u_ow_roam_out ;;
             esac ;;
         *)
             if [ -f "tests/golden/$1.txt" ]; then
@@ -553,7 +572,7 @@ run_unit() {
 # last is short and the run does not wait on one long case at the end.
 all_units() {
     echo openworld-save checkisle openworld-foes openworld-fight \
-        openworld-seafight openworld-roam openworld-spoils openworld-recolour
+        openworld-seafight openworld-roam openworld-roam-out openworld-spoils openworld-recolour
     for g in tests/golden/*.txt; do basename "$g" .txt; done
     echo openworld-portrait openworld-look openworld-isle openworld-quaff openworld-dig openworld-keeper openworld-cache \
         openworld-roads owarena-arrow-ul checkmap
