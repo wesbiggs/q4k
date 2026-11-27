@@ -110,7 +110,7 @@ cfg:
   has seen of the land (`OWG_WFOG`: "What the party sees of the land"), and
   `$FC00-$FEFF`, what they have seen of each level of the dungeon they are
   in (`OWG_FOG`: "What the party sees underground"; out of a dungeon, the
-  monsters' other half, to `$FFBD`). Reaching the vault takes the machine to
+  monsters' other half, to `$FFF9`). Reaching the vault takes the machine to
   all-RAM (`$01 = $34`), which takes the KERNAL and the I/O area away, so
   interrupts are off for as long as it lasts and the only code that may run
   is in ordinary RAM and calls nothing of the KERNAL's. An NMI cannot be
@@ -667,7 +667,11 @@ out in the open, with
 no fixed count: after each step on foot or by ship, one roll (the old
 odds, by the ground) for a square one in from the edge the step brought
 into view (a diagonal step, one of its two edges at random), and on the
-way out of a town or a dungeon one for each of the screen's four edges;
+way out of a town or a dungeon one for every square on the screen but the
+hero's and the eight round it (`screen` in `roam.s`: the 20 by 11 visited
+73 apart from a random start, so that when four are found first they are
+anywhere on it; at the usual odds, 8 in 200 on grass, a screen of land
+nearly always has all four);
 a hit puts a monster there, as `battle_wander()` would choose it (or
 `sea_wanderers[]` on the deep sea), if it is not dark, and is the right
 water or land (not dark: a square never seen). Up to four at once,
@@ -675,14 +679,19 @@ beside the ship (the people's sprites); one off the screen is forgotten. Each
 comes for the party at its arena speed, gliding, as a dungeon's does, and
 one beside them is a fight (`OWF_ROAM`, `ow_fight.c`'s `roam_ground[]` for
 the field); won or fled, that one is gone, and the rest stay only if the
-party is back on the same square. Boarding or leaving the ship clears
-them, as going into a place does (`R_CLEAR`). The code is under the
+party is back on the same square. Going into a place clears them
+(`R_CLEAR`); boarding or leaving the ship does not: a land's monster
+cannot follow the ship and a sea's the party ashore, so they fall behind
+and are forgotten off the screen, and one of the other kind beside the
+party only waits (`closer` in `roam.s`); stepping onto one, as off the
+ship onto the shore, is still a fight. The code is under the
 KERNAL in two files of each engine's own: `ow-cpu.rh` at `$EAC0` (the
 tune room above 704 bytes) and `ow-cpu.rl` at `$FC00`, over the
 dungeons' fog, which `roam()` loads again when its signature is gone
 (after a dungeon). It all runs in all-RAM (`sm_guard()` first). With
 `OWG_CALM` nothing comes, unless `--poke enc_always=4` (every roll a
-monster, in spite of it): `openworld-roam` in `tools/test.sh`.
+monster, in spite of it): `openworld-roam` and `openworld-roam-out` in
+`tools/test.sh`.
 `enc_always=1` and `3` are still the old fight at once on every roll.
 What it costs: no more missed frames over `openworld-sail` (calm); with
 `enc_always=4`, 8 steps went from 2 to 3 late on PAL and 4 to 7 on NTSC
