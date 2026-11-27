@@ -332,9 +332,9 @@ $(BUILD)/ow/ow_town_gen.o $(BUILD)/ow/ow_town_data.o $(BUILD)/ow/ow_town_maps.o:
 # object could come out of the other engine's code, or not assemble. So
 # cc65 and ca65 separately, each through a .s of its own in build/.
 # -Ors, not -Osir: -s inlines memcpy and memset of a known length, a loop
-# smaller than the call (108 bytes off engine.c, 35 off town.c, 26 off
-# dungeon.c); -i, which unrolls shifts, makes engine.c, town.c and
-# world.c bigger.
+# smaller than the call (108 bytes off engine.c, 69 off world.c, 35 off
+# town.c, 26 off dungeon.c); -i, which unrolls shifts, makes engine.c,
+# town.c and world.c bigger.
 define OWPART
 $(BUILD)/ow/$(1)-cpu.o $(BUILD)/ow/$(1)-reu.o: $(BUILD)/ow/$(1)-%.o: src/ow/$(1).c
 	@mkdir -p $$(dir $$@)

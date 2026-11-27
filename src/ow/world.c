@@ -32,9 +32,6 @@
 
 void isl_run(void);             /* the islands in the run just loaded (wfog.s) */
 
-/* (The slot is full: memcpy and the like called, not inlined.) */
-#pragma inline-stdfuncs (off)
-
 #define SHIP_FRAME (64 + 8)     /* the ship's sprite frames, facing left and
                                    right, after the hero's six and the
                                    villager's two */
