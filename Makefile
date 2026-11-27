@@ -440,14 +440,17 @@ $(DIST)/openworld.d81: $(DIST)/openworld.prg $(OWENG) $(OWOVL) $(OWFILES) $(DIST
 # with all of them in it, for the tests (screendump.py --reucache).
 # owseed is loaded through it but not kept (the bootstrap has no room for
 # its line in the table): --uncached makes sure no file takes it for theirs.
+# Nor are the overworld's roaming monsters' two halves (%O.rl, %O.rh), for
+# the same reason: the .rh is loaded once a game, the .rl after a dungeon.
 OWCACHE_FILES := $(DIST)/ow-data.prg=ow-data $(DIST)/ow-isl.prg=ow-isles \
     $(DIST)/ow-icon.prg=ow-icon \
     $(DIST)/ow-cpu.prg=ow-cpu $(DIST)/ow-reu.prg=ow-reu \
-    $(foreach e,cpu reu,$(foreach o,hi tl rl rh world town dungeon,$(DIST)/ow-$(e).$(o)=ow-$(e).$(o))) \
+    $(foreach e,cpu reu,$(foreach o,hi tl world town dungeon,$(DIST)/ow-$(e).$(o)=ow-$(e).$(o))) \
     $(DIST)/owtown.prg=owtown $(DIST)/owtalk.prg=owtalk --glob '$(BUILD)/ow/sets/t.*' \
     $(DIST)/fight.prg=fight $(DIST)/seafight.prg=seafight --glob '$(BUILD)/music/m.*' \
     --glob '$(BUILD)/fight/disk/[fs].*' $(DIST)/owparty.prg=owparty \
-    --glob '$(BUILD)/talk/[0-9]*' --uncached owseed
+    --glob '$(BUILD)/talk/[0-9]*' --uncached owseed \
+    $(foreach e,cpu reu,$(foreach o,rl rh,--uncached ow-$(e).$(o)))
 OWCACHE_DEPS := $(DIST)/ow-data.prg $(DIST)/ow-isl.prg $(DIST)/ow-icon.prg $(OWENG) $(OWOVL) $(DIST)/owtown.prg $(DIST)/owtalk.prg \
     $(DIST)/fight.prg $(DIST)/seafight.prg $(DIST)/owparty.prg $(OWSETS) $(BUILD)/music/.stamp \
     $(BUILD)/fight/disk/.stamp $(BUILD)/talk/.stamp tools/mkowcache.py include/q4k/owcache.inc
