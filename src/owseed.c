@@ -4,9 +4,8 @@
  * own.
  *
  * SHIFT+F1 (F2) on the splash screen is a new game whose seed the player
- * types. The splash sets OW_ASKSEED (q4k/ow.h), and the bootstrap
- * (src/openworld.c) builds the lands as for F1, from the seed the splash
- * made, then loads this instead of owparty. It asks for the seed (0-255).
+ * types. The bootstrap (src/openworld.c) builds the lands as for F1, from
+ * the seed the splash made, then loads this instead of owparty. It asks for the seed (0-255).
  * Another one has the bootstrap loaded again to build that world, as N in
  * an engine does, and it runs owparty once it has; RETURN alone, RUN/STOP or
  * the same seed runs owparty now. It is a program of its own because
@@ -26,7 +25,6 @@ int main(void)
     unsigned char k, n = 0;
     unsigned int v = 0;
 
-    OW_ASKSEED = 0;
     VIC.bordercolor = COLOR_BLACK;
     VIC.bgcolor0    = COLOR_BLACK;
     VIC.addr        = 0x17;

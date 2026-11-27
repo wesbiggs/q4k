@@ -1152,13 +1152,13 @@ Millford's gate), or F3, a saved one: `ow-save`, the game block, which the
 disk comes with one of from `tools/mkowsave.py` (seed 7, a lone warrior at
 the castle). The bootstrap loads `ow-save` before the picture to see
 whether there is one (`load_save()`, again for F3, the picture being
-loaded over it); with none, `ow_splash()` shows the
-page's second .v2t instead, which `tools/mksplash.py` makes from the
+loaded over it, into `ow_saved`); with none, `ow_splash()` shows the
+page's first .v2t instead, which `tools/mksplash.py` makes from the
 text's line as far as its first two spaces, centred with spaces ("F1 Start
-New Game"), and does not read F3. SHIFT+F1 (the left SHIFT or SHIFT LOCK: the right one reads as a joystick button; not on the no-picture text screen) is a new game whose seed
+New Game"), and F3 there is F1 (it finds no save to load). SHIFT+F1 (the left SHIFT or SHIFT LOCK: the right one reads as a joystick button; not on the no-picture text screen) is a new game whose seed
 `owseed` (`src/owseed.c`, a program of its own: neither the bootstrap nor
 `owparty` has the room) asks for, 0-255, after the lands are built and
-before `owparty` (`OW_ASKSEED`, `$02F3`): another seed sends it back to the
+before `owparty` (the splash's key, which `main()` keeps): another seed sends it back to the
 bootstrap to build that world, as N in an engine does, which then runs
 `owparty`. `?` shows the
 seed at the top. A talk or a

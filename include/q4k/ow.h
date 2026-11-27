@@ -198,23 +198,19 @@ void ow_roads(void);
 
 /* A talk or a fight (owtalk, owtown) moved the quest on: the engine says
    so in the text window when it has the screen again, and clears it.
-   Zero from a reset, which clears page 2. Past OW_TESTCPU. */
+   1 for that, as the engine tests bit 0 (LSR). Zero from a reset, which
+   clears page 2. Past OW_TESTCPU. */
 #define OW_NEWTASK    (*(unsigned char *)0x02F2)
-
-/* SHIFT+F1 (F2) on the splash: the bootstrap runs owseed (src/owseed.c)
-   before owparty, which asks for the world's seed and clears it. If the seed
-   is another, it sends the bootstrap back to build that world, as N in an
-   engine does, which then runs owparty. Set (or cleared) by the splash.
-   Past OW_NEWTASK. */
-#define OW_ASKSEED    (*(unsigned char *)0x02F3)
 
 unsigned char ow_video(void);
 /* Show the picture at OW_SPLASH_AT until F1, SHIFT+F1 or F3: OW_KEY_F1,
    OW_KEY_F2, OW_KEY_F3, or 0 if there is no picture there for this
-   machine. With `saved` 0 (no OW-SAVE on the disk) the text is only its
-   first part, "F1 Start New Game", centred, and F3 does nothing; else it
-   is $80 (the bootstrap's load_save()). */
-unsigned char __fastcall__ ow_splash(unsigned char saved);
+   machine. With ow_saved 0 (no OW-SAVE on the disk) the text is only its
+   first part, "F1 Start New Game", centred; else it is $80 (the
+   bootstrap's load_save()), and all of it shows. (F3 with no save is F1:
+   the bootstrap finds nothing to load.) */
+unsigned char ow_splash(void);
+extern unsigned char ow_saved;
 extern unsigned char ow_splash_ticks;   /* frames the player took, mod 256 */
 
 /* A saved game is the game block (owgame.h) in OW-SAVE, which the disk
