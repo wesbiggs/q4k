@@ -345,6 +345,13 @@ def blocks():
              [od[0], od[1], "owdata", "data",
               "OW-DATA, untouched (still loaded again on the way out)"],
          ] + top},
+        {"id": "start", "name": "Starting",
+         "sub": "ow-cpu as it starts, before its first overlay",
+         "blocks": low + eng + [
+             B(seg(cpu, "OWSTART"), "owstart", "engine",
+               "Start-up code (from .hi, OWSTART): the game block taken, "
+               "the sprites, corners and font drawn, the interrupt "
+               "started; the first overlay loads over it")] + top},
         {"id": "world", "name": "Overworld", "sub": "ow-cpu + world overlay",
          "blocks": low + eng + [
              B(overlay(cpu, "OVWHEAD", "OVWCODE"), "ovw", "ovw",

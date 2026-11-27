@@ -2164,7 +2164,9 @@ NMI_NTSC = (263 - IRQLINE + MX_NMI) * 65
 
 ; The corners' pictures, into CORNERS: in each row of the top left one, the
 ; first mx_w[row] of its 24 pixels are set; the top right is that from the
-; right, and the bottom two are those upside down.
+; right, and the bottom two are those upside down. (sm_init's, so OWSTART:
+; run once, at the start, then loaded over: engine.c's start().)
+        .segment "OWSTART"
 mx_corners:
         ldy     #0              ; Y: the row
 @row:   lda     #0
@@ -2259,6 +2261,7 @@ mx_corners:
 ; How many of a row's 24 (double) pixels are outside the circle, from the
 ; top: a pixel is, if its middle is more than 48 from (48, 48).
 mx_w:   .byte   19, 16, 13, 12, 10, 9, 8, 7, 6, 5, 4, 4, 3, 2, 2, 2, 1, 1, 1, 0, 0
+        .segment "CODE"
 
 ; The lowest a person's sprite may stand: its sixteen lines end above the
 ; band (from $DD) and the text.
@@ -2727,8 +2730,9 @@ _sm_text_clear:
 ; as the lowercase set's first 96 (screen codes 0-$5F), with a coin, a
 ; draught and an arrow on its last three graphics characters (ow_font, OW-DATA's:
 ; tools/mkowfont.py), into the character set from FONT. Above anything a
-; tile set has (mkoverworld.py keeps them under it), so it is done once.
-; (In OWLO, stlow.s's, for HICODE's room: the engine's file brings it.)
+; tile set has (mkoverworld.py keeps them under it), so it is done once,
+; by sm_init, and is OWSTART's with it.
+        .segment "OWSTART"
 font_copy:
         ldx     #0
 :       lda     ow_font,x
@@ -2741,10 +2745,13 @@ font_copy:
         bne     :-
         rts
 
-        .segment "CODE"
-
 ; void sm_init(void) -- the hero into the VIC's bank. The display stays as
-; it is until sm_show(); a tile set goes in with sm_tileset().
+; it is until sm_show(); a tile set goes in with sm_tileset(). Called once,
+; by engine.c's start(), and with what only it calls (copy8s, mx_corners,
+; font_copy) in OWSTART, at the start of the slot, which the first overlay
+; loads over: it writes the sprite blocks ($5000), the font's characters
+; ($4D00-$4FFF), the corners ($7F00) and the text rows, none of them in
+; OWSTART.
 _sm_init:
         lda     #$10
         sta     den
@@ -2793,6 +2800,8 @@ copy8s:
         dec     cnt
         bne     @l
         rts
+
+        .segment "CODE"
 
 ; void sm_show(void) -- switch the VIC over to the scrolling screen, with the
 ; hero in the middle, and start the interrupt.
