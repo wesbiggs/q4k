@@ -167,6 +167,11 @@ extern const char owtalk[];     /* "owtalk": a conversation */
 /* A fight (OWF_* in ow.h; arg the ground or the dungeon), in owtown.
    Never returns. */
 void __fastcall__ ow_fight_with(unsigned char kind, unsigned char arg);
+/* A file of the engine's to its own address (the screen off), tried until
+   it loads; and the name of the last of the engine's own (ow-cpu.tl, which
+   roamcall.s makes ow-cpu.rl). */
+void __fastcall__ fetch(const char *name);
+extern char hi_file[];
 /* Island cell c's place's byte of ISL_STATE (q4k/isles.h), its first
    visit marked with the party's level now if it was not before. */
 unsigned char __fastcall__ isl_mark(unsigned char c);  /* (islmark.s's) */
@@ -175,11 +180,6 @@ void isl_gone(void);            /* the last cell isl_mark() named, fallen
 extern unsigned char isl_fell;  /* and set by it, for the world to say */
 extern unsigned char chest_bit; /* the looted[] bit of the level's first
                                    chest (stlow.s's st_chests()) */
-/* A file of the engine's to its own address (the screen off), tried until
-   it loads; and the name of the last of the engine's own (ow-cpu.tl, which
-   roamcall.s makes ow-cpu.rl). */
-void __fastcall__ fetch(const char *name);
-extern char hi_file[];
 
 /* L, the overlays' (ov_look): what they found, said and taken -- gold or
    draughts -- and a looted[] bit taken (0, and said, if it was before); or

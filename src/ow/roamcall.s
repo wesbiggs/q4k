@@ -28,40 +28,29 @@ R_CAN   = 8
 _roam:  sta     rop
         ldx     none
         beq     @go0
-        cmp     #R_IDLE
-        beq     @z
-        cmp     #R_SHOW
-        beq     @z
         cmp     #R_CAN
+        bcs     @yes
+        cmp     #R_SHOW         ; (R_SHOW and R_IDLE)
         bcc     @go0
-        lda     #1
-        ldx     #0
-        rts
 @z:     lda     #0
         tax
+        rts
+@yes:   lda     #1
+        ldx     #0
         rts
 @go0:   lda     #0
         sta     tried
 @go:    jsr     _sm_guard
         jsr     vault_enter
-        lda     rm_sig
-        cmp     #$A5
+        ldx     #2              ; both halves' signatures
+@sig:   lda     rm_sig,x
+        cmp     sigs,x
         bne     @gone
-        lda     rm_sig+1
-        cmp     #$5A
-        bne     @gone
-        lda     rm_sig+2
-        cmp     #$C3
-        bne     @gone
-        lda     rm_sig2
-        cmp     #$C3
+        lda     rm_sig2,x
+        cmp     sigs+2,x
         bne     @gone2
-        lda     rm_sig2+1
-        cmp     #$5A
-        bne     @gone2
-        lda     rm_sig2+2
-        cmp     #$A5
-        bne     @gone2
+        dex
+        bpl     @sig
         lda     rop
         jsr     rm_run
         jsr     vault_leave
@@ -85,14 +74,14 @@ _roam:  sta     rop
         ldx     #0
         rts
 @gone:  ldy     #$4C            ; r, l (PETSCII, as cc65 has C's strings)
-        bne     @load           ; (always)
+        .byte   $2C             ; (skips the ldy: two bytes)
 @gone2: ldy     #$48            ; r, h
 @load:  jsr     vault_leave
         lda     rop
-        bne     @zero
+        bne     @z
         lda     tried
         cmp     #2              ; (each file once, at most)
-        bcs     @zero
+        bcs     @z
         inc     tried
         sty     _hi_file+8
         lda     #$52
@@ -101,12 +90,13 @@ _roam:  sta     rop
         ldx     #>_hi_file
         jsr     _fetch
         jmp     @go
-@zero:  lda     #0
-        tax
-        rts
 
-rop:    .byte   0
-rfl:    .byte   0
-rarg:   .byte   0
-tried:  .byte   0
-none:   .byte   0
+        .segment "RODATA"       ; (COMMON: the same in both engines)
+sigs:   .byte   $A5, $5A, $C3, $5A, $A5   ; rm_sig's, and from +2 rm_sig2's
+
+        .segment "BSS"
+rop:    .res    1
+rfl:    .res    1
+rarg:   .res    1
+tried:  .res    1
+none:   .res    1               ; (0 at the engine's start: look first)

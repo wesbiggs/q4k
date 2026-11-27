@@ -7,11 +7,13 @@
 ;
 ; Where it runs: under the KERNAL, in two halves, each a file of its own,
 ; which the world's overlay loads (roamcall.s) when it finds one is not
-; there: ROAM (ROAMCODE, and the records, ROAMBSS) at $FC00, over the
-; dungeon's fog, which means nothing on the overworld (ow-cpu.rl, ow-reu.rl:
-; the first time out, and after a dungeon, whose way in clears the fog);
-; ROAMHI (ROAMHI, with the pictures) at $EAC0, the top of the tune's room,
-; past what a tune may have (ow-cpu.rh, ow-reu.rh: the first time out). The overlay calls rm_run with the machine in
+; there: ROAM (ROAMCODE) at $FC00-$FEFF, over the dungeon's fog, which
+; means nothing on the overworld (ow-cpu.rl, ow-reu.rl: the first time out,
+; and after a dungeon, whose way in clears the fog); ROAMHI (with the
+; pictures) at $EA00, the top of the tune's room, past what a tune may have
+; (ow-cpu.rh, ow-reu.rh: the first time out). The records (ROAMBSS) are at
+; $FFC0, past the loading icon's pictures, in no file: init clears them.
+; Both halves are full. The overlay calls rm_run with the machine in
 ; all-RAM (vault_enter()), interrupts off, with what it is to do in A:
 ;
 ;   R_ENTER   back on the overworld, the screen off: the monsters kept if
@@ -227,7 +229,8 @@ reset:  lda     #0              ; (Z clear after: think is not 0)
 
 ; --- R_ENTER --------------------------------------------------------------
 
-enter:  jsr     mode
+enter:  jsr     init
+        jsr     mode
         sta     inship
         lda     back
         beq     @new
@@ -338,6 +341,8 @@ publish:
         sty     _sm_npc_n
         rts
 
+        .segment "ROAMHI"
+
 ; --- R_ROLL, R_MOVE: the end of a step ------------------------------------
 
 ; Those off the screen gone (aboard or ashore, the rest stay: a land's
@@ -434,6 +439,8 @@ roll:   jsr     house
         jmp     edge
 @rts:   rts
 
+        .segment "ROAMCODE"
+
 ; Carry set if nothing may turn up: OWG_CALM's, unless enc_always is 4.
 calm:   lda     G_QUIET
         and     #OWG_CALM
@@ -453,6 +460,18 @@ mode:   lda     _boat
 :       rts
 
         .segment "ROAMHI"
+
+; The records cleared, the first time out after this half's load: they
+; are in no file (ROAMB, past the loading icon's pictures).
+init:   lsr     fresh           ; (1: now 0, and carry set)
+        bcc     @rts
+        lda     #0
+        ldx     #RECS - 1
+:       sta     r_k,x
+        dex
+        bpl     :-
+@rts:   rts
+fresh:  .byte   1
 
 ; A roll for a square on edge A of the screen, one in: 0 right, 1 left,
 ; 2 down, 3 up, along it at random.
@@ -1094,3 +1113,4 @@ bk:     .res    1
 px:     .res    1
 dx:     .res    1
 dy:     .res    1
+RECS    = * - r_k

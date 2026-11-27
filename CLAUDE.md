@@ -99,18 +99,16 @@ cfg:
   bootstrap builds in place; `$E000-$E7BF`, under the KERNAL, the continent
   the engine keeps (getting in and out of all-RAM is `vault_bank.s`); the
   rest under the KERNAL is the music's, a tune's header at `$E7C0` and the
-  tune at `$E800-$EABF` (see Music), but for `$EAC0-$EFFF`, half of the
+  tune at `$E800-$E9FF` (see Music), but for `$EA00-$EFFF`, half of the
   monsters about on the overworld ("The monsters about on the
   overworld"), `$F000-$F5FF`, the open sea's
   islands ("The open sea's islands"), `$F600-$FBDF`, what the party
   has seen of the land (`OWG_WFOG`: "What the party sees of the land"),
   `$FBE0-$FBF7`, where they have been on the islands (`ISL_STATE`, a byte a
   cell: "The open sea's islands"), and `$FC00-$FEFF`, what they have seen of each level of the dungeon they are
-  in (`OWG_FOG`: "What the party sees underground"). Reaching the vault takes the machine to
-  has seen of the land (`OWG_WFOG`: "What the party sees of the land"), and
-  `$FC00-$FEFF`, what they have seen of each level of the dungeon they are
   in (`OWG_FOG`: "What the party sees underground"; out of a dungeon, the
-  monsters' other half, to `$FFF9`). Reaching the vault takes the machine to
+  monsters' other half), `$FF00-$FFBF`, the loading icon's pictures
+  (`OW-ICON`), and `$FFC0-$FFF9`, the monsters' records. Reaching the vault takes the machine to
   all-RAM (`$01 = $34`), which takes the KERNAL and the I/O area away, so
   interrupts are off for as long as it lasts and the only code that may run
   is in ordinary RAM and calls nothing of the KERNAL's. An NMI cannot be
@@ -685,10 +683,14 @@ cannot follow the ship and a sea's the party ashore, so they fall behind
 and are forgotten off the screen, and one of the other kind beside the
 party only waits (`closer` in `roam.s`); stepping onto one, as off the
 ship onto the shore, is still a fight. The code is under the
-KERNAL in two files of each engine's own: `ow-cpu.rh` at `$EAC0` (the
-tune room above 704 bytes) and `ow-cpu.rl` at `$FC00`, over the
+KERNAL in two files of each engine's own: `ow-cpu.rh` at `$EA00` (the
+tune room above 512 bytes) and `ow-cpu.rl` at `$FC00-$FEFF`, over the
 dungeons' fog, which `roam()` loads again when its signature is gone
-(after a dungeon). It all runs in all-RAM (`sm_guard()` first). With
+(after a dungeon); the records are at `$FFC0-$FFF9`, past the loading
+icon's pictures, in no file, and `init` clears them the first time out
+after the `.rh` is loaded. Both halves are full to a byte or two. The REU
+cache does not keep them (`--uncached` in the Makefile: the bootstrap's
+table had no room for their four lines), so they come from the disk. It all runs in all-RAM (`sm_guard()` first). With
 `OWG_CALM` nothing comes, unless `--poke enc_always=4` (every roll a
 monster, in spite of it): `openworld-roam` and `openworld-roam-out` in
 `tools/test.sh`.
@@ -946,7 +948,7 @@ carries on. "The music carries on", above, is how it crosses programs.
 file loads at `$E7C0`, a 64-byte header that `mksid.py` writes (init, play,
 song count, the volume to restore after a pause, a byte a song for its
 speed), then the tune at its own address, which must be inside
-`$E800-$EABF` (704 bytes: past it are the monsters about on the overworld,
+`$E800-$E9FF` (512 bytes: past it are the monsters about on the overworld,
 `roam.s`'s upper half, then the open sea's islands, `ISL_AREA`, the
 land's fog, `OWG_WFOG`, and the dungeons', `OWG_FOG`; the theme is 470
 bytes; `cfg/sid.cfg` and `mksid.py`'s `AREA_HI` say so). The engine's player is `src/lib/ow_tune.s`, called from
@@ -1290,10 +1292,10 @@ written to the text screen's top row, and the keyboard's buffer is emptied
 with a poke of `$C6`), 17 in OWLO (`$0430-$07F7`, below the BASIC stub: `stlow.s`), 15 in
 OWTOP (`$5280-$53FF`), 3 in HIGH (`$5400-$59FF`, where the text window's
 routines, stlow.s's helpers and the engine's words are), 11 in TAIL
-(`$CCC0-$CE36`, L's look: above), 24 beside the
-world's overlay (5 for OW-REU's; which has the land's fog and the way to
+(`$CCC0-$CE36`, L's look: above), 31 beside the
+world's overlay (12 for OW-REU's; which has the land's fog and the way to
 the monsters about: what more it needs goes in `ow-data`, as
-the fog's did, or TAIL, or under the KERNAL as the islands' drawing is), 1234 beside the town's (for its maps to grow into), 192 beside the dungeon's (the fog took the rest: its scratch, 1.7K, and its code), 38 in BSS (which TAIL could give back), and 175 in COMMON (`$8800-$9FFF`, past `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans; the text window's font, 768 bytes, is there too). String
+the fog's did, or TAIL, or under the KERNAL as the islands' drawing is), 1234 beside the town's (for its maps to grow into), 192 beside the dungeon's (the fog took the rest: its scratch, 1.7K, and its code), 32 in BSS (which TAIL could give back), and 175 in COMMON (`$8800-$9FFF`, past `OWCBSS`'s 164 bytes: the cache's scratch and the multiplexer's plans; the text window's font, 768 bytes, is there too). String
 literals go to RODATA, which is COMMON, whatever `#pragma rodata-name`
 says: what the engine says is `static const char[]` under the pragma. Which
 part a function belongs in is which file it is in: the core's if more than
