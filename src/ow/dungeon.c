@@ -171,11 +171,12 @@ static void __fastcall__ fight(unsigned char n)
 
 /* foes.s: the squares' part. fog_drawn is the level as built (WORLD's rows,
    with the chests opened and the blood, DUN_W a row), what a square is
-   drawn as once it is seen (the rest is the set's `dark`); fog_seen a bit
-   a square (DUN_W / 8 bytes a row), written with the level's in OWG_FOG
-   (fog_at); both in OVDBSS, after the art, in no file. Squares are the
-   level's, not the engine's. */
-extern unsigned char fog_drawn[], fog_seen[];
+   drawn as once it is seen (the rest is the set's `dark`), kept in WORLD's
+   rows 40-63, which a level and its view never reach (foes.s says why);
+   fog_seen a bit a square (DUN_W / 8 bytes a row), written with the
+   level's in OWG_FOG (fog_at), in OVDBSS, after the art, in no file.
+   Squares are the level's, not the engine's. */
+extern unsigned char fog_seen[];
 extern unsigned char *fog_at;
 extern unsigned char fog_ox, fog_oy;            /* the hero */
 extern unsigned char fog_x0, fog_y0, fog_x1, fog_y1;       /* fog_rect's */

@@ -272,7 +272,9 @@ def blocks():
               "REU load cache's scratch, the people's multiplexer, past OW-DATA"),
             [0xA000, 0xAFFF, "shore", "ebss",
              "SHORE: edges of each square (a tile set's file, t.*, on the way in)"],
-            [0xB000, 0xBFFF, "world", "ebss", "WORLD: the 64 by 64 window"],
+            [0xB000, 0xBFFF, "world", "ebss",
+             "WORLD: the 64 by 64 window (in a dungeon, rows 40-63 the level "
+             "as built, for the fog)"],
             B(seg(segs, "ALIGNBSS"), "chcol", "ebss",
               "ow_chcol (page aligned)"),
             B(seg(segs, "BSS"), "ebss", "ebss", "Engine BSS"),
@@ -359,7 +361,7 @@ def blocks():
              B(overlay(cpu, "OVDHEAD", "OVDART"), "ovd", "ovd",
                "Dungeon overlay, its generator and its monsters' pictures"),
              B(seg(cpu, "OVDBSS"), "ovdbss", "ovd",
-               "Dungeon overlay's scratch: the level as drawn, what is seen")]
+               "Dungeon overlay's scratch: what is seen of the level")]
              + top},
         {"id": "owtown", "name": "Text screens",
          "sub": "owtown: shop, inn, party (I), help (?)",
