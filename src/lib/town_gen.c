@@ -14,7 +14,11 @@ extern TownEnt proc_ents[5];
 extern unsigned char proc_n;
 
 static const char *const names[8] = TOWN_NAMES;
+/* The inns' names, and town_gen_inn() below, are owtown's: the engines'
+   town overlay (OW_TOWN, the Makefile's ow_town_gen.o) leaves them out. */
+#ifndef OW_TOWN
 static const char *const inns[4] = INN_NAMES;
+#endif
 
 void town_gen(void)
 {
@@ -35,7 +39,9 @@ const char *town_gen_name(void)
     return names[(lore_seed + TOWN_STRIDE * land) & (TOWN_COUNT - 1)];
 }
 
+#ifndef OW_TOWN
 const char *town_gen_inn(void)
 {
     return inns[(lore_seed + INN_STRIDE * land) & (INN_COUNT - 1)];
 }
+#endif

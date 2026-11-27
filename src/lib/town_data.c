@@ -9,6 +9,9 @@ const char *const town_names[NUM_TOWNS] = {
     "Ashcombe",
 };
 
+/* The people's and the inns' ids and names, for owtown and owtalk:
+   not in the engines (OW_TOWN, the Makefile's ow_town_data.o). */
+#ifndef OW_TOWN
 #pragma rodata-name (push, "TALKDATA")
 static const char id_coyle[] = "coyle";
 static const char id_smith[] = "smith";
@@ -56,6 +59,7 @@ const char *const inn_names[NUM_INNS] = {
     "The Plough and Harrow",
     "The Salt Lantern",
 };
+#endif /* OW_TOWN */
 
 const TownEnt town_ents[NUM_TOWN_ENTS] = {
     { 29,  0, ENT_NPC, 0 },
