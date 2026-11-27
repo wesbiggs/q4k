@@ -913,8 +913,7 @@ void __fastcall__ cave_hoard(unsigned char lv)
     }
     tier_set = NONE;
     textcolor(COLOR_GRAY3);
-    cputsxy(1, y, "As you climb out, the cave falls in");
-    cputsxy(1, y + 1, "behind you.");
+    cputsxy(1, y, "The cave groans around you.");
     textcolor(COLOR_GRAY2);
     cputsxy(1, 22, "Press a key.");
     cgetc();

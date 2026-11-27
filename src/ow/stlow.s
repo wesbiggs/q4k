@@ -38,7 +38,7 @@
         .import _pre_dir, _frame
         .import _dun_chests, _dun_cx, _dun_cy, _dun_index, _depth, _looted
         .import _ow_mt0, _ow_chq, _loot_table, _town_index
-        .export _st_tchests
+        .export _st_tchests, _chest_bit
         .importzp ptr1, ptr2
 
 G_COUNT   = $CE37 + 86          ; the game block's party_count (engine.c
@@ -49,6 +49,7 @@ G_ARROWS  = $CE37 + 95
 G_QUIET   = $CE37 + 138
 OWG_HIDE  = 8
 OWB_LOAD  = 8
+NUM_DUNGEONS = 3                ; (q4k/game.h)
 MAPROWS   = 22                  ; smooth.s's: the map with the window ...
 ALLROWS   = 25                  ; ... and without
 NPC_LIM   = $DC - 15 + 1        ; smooth.s's NPC_YMAX + 1
@@ -88,7 +89,8 @@ dbuf:   .res  5
 nlead:  .byte 0
 sx:     .byte 0
 q:      .byte 0
-bit0:   .byte 0
+_chest_bit: .byte 0
+isl_base: .byte 21, 38, 9       ; a sea cave's levels 1-3: 21-22, 38-39, 9-11
 bitn:   .byte 0
 cnt:    .byte 0
 mx:     .byte 0
@@ -325,7 +327,9 @@ _st_load:
         jmp     _rebuild
 
 s_save_q:  .asciiz "Overwrite save? (Y/N)"     ; (the game's words)
+        .segment "RODATA"       ; (COMMON: OWLO is full)
 s_load_q:  .asciiz "Load game? (Y/N)"
+        .segment "OWLO"
 
 ; st_draw: the window cleared, and the party as a fight's panel has them
 ; (src/fight/fight.c's show_party()).
@@ -563,17 +567,25 @@ mark:   sta     mx
 
 ; void st_chests(void): a dungeon level just built into WORLD: the chests
 ; taken before, by their looted[] bits as d_look() counts them, drawn open.
+; chest_bit, for d_look(), the bit of the level's first: (dun_index *
+; MAX_DEEP + depth - 1) * 3, or a sea cave's, from isl_base: bits a level
+; that no dungeon uses (islmark.s), the last level's first the chest at its
+; end (q4k/isles.h's ISL_END_BIT).
 _st_chests:
-        lda     _dun_index      ; (dun_index * MAX_DEEP + depth - 1) * 3
+        lda     _dun_index
+        cmp     #NUM_DUNGEONS
+        bcs     @cave
         asl     a
         asl     a
-        clc
-        adc     _depth
-        sec
-        sbc     #1
-        sta     bit0
+        adc     _depth          ; (C clear)
+        sbc     #0              ; (C clear: - 1)
+        sta     bitn
         asl     a
-        adc     bit0
+        adc     bitn
+        bcc     @set            ; (always)
+@cave:  ldx     _depth
+        lda     isl_base-1,x
+@set:   sta     _chest_bit
         sta     bitn
         lda     #0
         sta     cnt
@@ -671,3 +683,4 @@ _st_bob:
 ; while the disk icon is showing: the icon's block (ow_disk.s's DISK_BLOCK).
         .segment "OWSPTR"
         .byte   $0E, 0, 0, 0, 0, 0, 0, 0
+

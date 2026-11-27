@@ -25,8 +25,8 @@ void shop_open(unsigned char kind);
 extern unsigned char gear_odds;
 unsigned char __fastcall__ gear_drop(unsigned char r, unsigned char y);
 
-/* The chest at the end of a sea cave found at level `lv` (OWB_HOARD: the
-   cave has fallen in behind the party, src/ow/dungeon.c's hoard()): lv x
+/* The chest at the end of a sea cave found at level `lv` (OWB_HOARD, from
+   src/ow/dungeon.c's d_look(); the party goes back into the cave): lv x
    50 marks, and something nobody in the party has yet that one of them
    could use -- a blade, mail or a bow of the tier of lands that level is
    for, or a spellbook a wizard can follow -- taken up as gear_drop()'s is.
