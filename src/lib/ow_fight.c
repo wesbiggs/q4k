@@ -133,7 +133,8 @@ static void pick_wanderer(unsigned char in_dungeon, unsigned char kind)
 /* What comes up out of the deep sea at the king's ship (OWF_SEA): met
    nowhere else, chosen as the wanderers are, by the party's level, and
    fought on its deck by the seafight module, where they keep to the water.
-   Their sprites by name, since none has a glyph of the game's. */
+   Their sprites by number, from FIGHT_SPR_SEA, since none has a glyph of
+   the game's: a sea snake is the serpent in another colour. */
 #pragma rodata-name (push, "HIDATA")
 static const Wanderer sea_wanderers[] = {
     { 1, { "A sea snake",   8, 3, 1,  6,  6, T_MONSTER, COLOR_CYAN,   14, 1,
@@ -147,13 +148,14 @@ static const Wanderer sea_wanderers[] = {
     { 7, { "A kraken",     40, 10, 5, 40, 40, T_MONSTER, COLOR_PURPLE, 8, 1,
            8, 3, SHOT_WATER } },
 };
-static const char *const sea_sprites[] = {
-    "s.serpent", "s.eagle", "s.seacrab", "s.serpent", "s.kraken",
+static const unsigned char sea_sprites[] = {
+    FIGHT_SPR_SEA, FIGHT_SPR_SEA + 1, FIGHT_SPR_SEA + 2, FIGHT_SPR_SEA,
+    FIGHT_SPR_SEA + 3,
 };
 #pragma rodata-name (pop)
 #define SEA_KINDS (sizeof(sea_wanderers) / sizeof(sea_wanderers[0]))
 
-static const char *sea_sprite;
+static unsigned char sea_sprite;
 
 static void __fastcall__ pick_sea(unsigned char which)
 {
@@ -194,23 +196,14 @@ static const char *field_of(unsigned char tile)
     return "f.grass";
 }
 
-/* Whose sprites, by the glyph the game draws the monster as (owarena.c's
-   sprite_of()). */
-static const char *sprite_of(unsigned char glyph)
+/* Whose sprites, by the glyph the game draws the monster as: the number
+   of their file (FIGHT_SPR_*, as owarena.c's sprite_of()). */
+static unsigned char sprite_of(unsigned char glyph)
 {
-    switch (glyph) {
-    case T_RAT:      return "s.rat";
-    case T_GOBLIN:   return "s.goblin";
-    case T_WOLF:     return "s.wolf";
-    case T_WASP:     return "s.wasp";
-    case T_BANDIT:   return "s.bandit";
-    case T_SKELETON: return "s.skeleton";
-    case T_OGRE:     return "s.ogre";
-    case T_WRAITH:   return "s.wraith";
-    case T_DRAKE:    return "s.drake";
-    case T_DRAGONTL: return "s.dragon";
+    if (glyph >= T_RAT && glyph <= T_DRAGONTL) {
+        return glyph - T_RAT + FIGHT_SPR_BASE;
     }
-    return "s.keeper";
+    return glyph == T_WASP ? FIGHT_SPR_WASP : FIGHT_SPR_KEEPER;
 }
 
 static void line(unsigned char y, unsigned char colour, const char *s)
@@ -405,7 +398,10 @@ void __fastcall__ ow_fight(unsigned char kind, unsigned char arg)
                 || kind == OWF_ROAM;
     f->seed   = rand();
     strcpy(f->field, field_of(ground));
-    strcpy(f->sprite, kind == OWF_SEA ? sea_sprite : sprite_of(foe.glyph));
+    f->sprite[0] = 's';
+    f->sprite[1] = '.';
+    utoa(kind == OWF_SEA ? sea_sprite : sprite_of(foe.glyph), f->sprite + 2,
+         10);
     /* The field and the sprites through the REU cache (ow_cache.s), which
        the module does not link: an empty sprite name tells it they are in. */
     while (!ow_cload(f->field, 0) || !ow_cload(f->sprite, 0)) {

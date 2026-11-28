@@ -13,8 +13,8 @@
 # A second block of the same name is its second frame, which it idles
 # between; drawn once, tools/mkfields.py makes the second by sinking it a
 # row onto its feet. The party's three and the shots are part of the fight
-# (src/fight/fight_data.s); each monster is a file on the disk (s.<name>),
-# loaded for the fight it is in.
+# (src/fight/fight_data.s); each monster is a file on the disk, s.<n> by
+# tools/mkfields.py's SPRITE_NUM, loaded for the fight it is in.
 
 sprite warrior
 ...kk...
