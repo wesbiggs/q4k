@@ -286,7 +286,7 @@ east.
 
 **Fights in the open world** are the multicolour arena's module (below),
 called by `owtown` (`OWB_FIGHT`, `src/lib/ow_fight.c`). The engine rolls
-as `roam.s`'s odds do, out of 200 by the ground, but for a
+as `roam.s`'s odds do (its table, by the ground), but for a
 square coming into view, where a monster then is (below: never in towns;
 not in a dungeon, whose monsters are on the map), sends the keeper (walked into: `d_bump()`) and
 Maldrath's lair (with Dragonbane, before `Q_VICTORY`) the same way, and
@@ -319,7 +319,7 @@ screen's `M` lists them from the land's nearest place, as the game's
 two draughts). `--poke loot_always=128` (the engine's, `OWF_LOOT` in the
 fight's kind) makes a win leave everything it can: `openworld-spoils` in
 `tools/test.sh`; `openworld-dig` pokes a map under the hero and digs. **At sea**: a step of
-the ship's rolls for the deep sea coming into view (6 in 200; the shallows
+the ship's rolls for the deep sea coming into view (its odds are `roam.s`'s; the shallows
 are safe), and what comes up is `ow_fight.c`'s `sea_wanderers[]` (a sea
 snake, a killer eagle, a giant crab, a sea serpent and a kraken, by the
 party's level, with the serpent's, eagle's, sea crab's and kraken's
@@ -666,14 +666,14 @@ room) and `dungeon.c` of the wanderers'
 **The monsters about on the overworld** (`src/ow/roam.s`, called through
 `roamcall.s`'s `roam()` in the world's overlay) are the dungeons' idea
 out in the open, with
-no fixed count: after each step on foot or by ship, one roll (the old
+no fixed count: after each step on foot or by ship, one roll (`roam.s`'s
 odds, by the ground) for a square one in from the edge the step brought
 into view (a diagonal step, one of its two edges at random), and on the
 way out of a town or a dungeon one for every square on the screen but the
 hero's and the eight round it (`screen` in `roam.s`: the 20 by 11 visited
 73 apart from a random start, so that when four are found first they are
-anywhere on it; at the usual odds, 8 in 200 on grass, a screen of land
-nearly always has all four);
+anywhere on it; how many a screen of land holds at the usual odds is
+`roam.s`'s to say);
 a hit puts a monster there, as `battle_wander()` would choose it (or
 `sea_wanderers[]` on the deep sea), if it is not dark, and is the right
 water or land (not dark: a square never seen). Up to four at once,
@@ -1499,7 +1499,7 @@ set and not in `tiles.txt`, so the game never sees one): its shape --
 straight, turn, crossroads, fork -- is its edges (`edges road`), drawn where
 a neighbour is not road nor a town or castle (`join`, a neighbour flag
 bit of its own), and it is open ground, so forest thins and sand frays
-toward it. It rolls for wanderers half as often as grass (4 in 200, `roam.s`). The overworld set is now
+toward it. It rolls for wanderers half as often as grass (`roam.s`'s odds). The overworld set is now
 at 158 characters of the most it may have, **160**: the deep sea is one
 still character, the clouds one, and their edges took the 24 the fringe's
 second variant had (`fringe`'s last two masks are its first two again): the road's interior is the
