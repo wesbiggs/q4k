@@ -110,6 +110,9 @@ all: dirs assets $(PRGS) $(DIST)/openworld.d81 $(BUILD)/owcache.reu $(DIST)/owar
 
 # Assembly cannot see tiles.h; it has its own generated copy of the codes.
 $(BUILD)/lib/isle_gen.o: include/q4k/tiles.inc
+# Nor the REU cache's salt, which tools/mkowcache.py reads too: a new one
+# with an old ow_cache.o never finds a file in the cache.
+$(BUILD)/lib/ow_cache.o: include/q4k/owcache.inc
 
 # --- generated from assets ---------------------------------------------------
 #
