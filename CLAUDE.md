@@ -286,7 +286,7 @@ east.
 
 **Fights in the open world** are the multicolour arena's module (below),
 called by `owtown` (`OWB_FIGHT`, `src/lib/ow_fight.c`). The engine rolls
-as the game's `encounter_roll()` does, out of 200 by the ground, but for a
+as `roam.s`'s odds do, out of 200 by the ground, but for a
 square coming into view, where a monster then is (below: never in towns;
 not in a dungeon, whose monsters are on the map), sends the keeper (walked into: `d_bump()`) and
 Maldrath's lair (with Dragonbane, before `Q_VICTORY`) the same way, and

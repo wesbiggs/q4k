@@ -158,33 +158,4 @@ unsigned char drink_potion(unsigned char who)
     return amount;
 }
 
-unsigned char most_hurt(void)
-{
-    unsigned char i, best = 0xFF, lack = 0;
-
-    for (i = 0; i < party_count; ++i) {
-        if (party[i].hp && party[i].hp_max - party[i].hp > lack) {
-            lack = party[i].hp_max - party[i].hp;
-            best = i;
-        }
-    }
-    return best;
-}
-
-unsigned char encounter_roll(unsigned char tile)
-{
-    unsigned char chance;
-
-    /* Open ground is safer than the places nothing watches. */
-    switch (tile) {
-        case T_GRASS:  chance = 8;  break;
-        case T_SHORE:  chance = 7;  break;
-        case T_FOREST: chance = 12; break;
-        case T_SWAMP:  chance = 16; break;
-        case T_FLOOR:  chance = 5;  break;   /* dungeon corridors */
-        default:       chance = 0;  break;
-    }
-    /* Half what it was: the odds are out of 200 now. */
-    return chance && (unsigned char)(rand() % 200) < chance;
-}
 

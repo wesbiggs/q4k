@@ -131,9 +131,6 @@ extern const Monster       maldrath;
    "A goblin" for one, "5 goblins" for five (src/lib/foes_name.s). */
 void __fastcall__ foes_name(char *out, const char *name, unsigned char n);
 
-/* True if crossing `tile` should bring something out of the scenery. */
-unsigned char encounter_roll(unsigned char tile);
-
 /* What one draught restores to member `who`.
  *
  * A share of their full health, not a fixed number. Twelve points was most of
@@ -148,9 +145,6 @@ unsigned char potion_heal(unsigned char who);
    good. Returns how much it healed, or zero if nothing happened. Shared so
    the in-fight and on-the-map versions cannot drift apart. */
 unsigned char drink_potion(unsigned char who);
-
-/* The living member who is worst hurt, by what they lack; 0xFF if nobody. */
-unsigned char most_hurt(void);
 
 /* Where the randomness comes from.
  *
