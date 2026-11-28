@@ -760,7 +760,7 @@ static void toggles(unsigned char k)
 #pragma code-name (pop)
 
 /* P: a draught for whoever of the party is worst hurt, as the game has it
-   (arms.c's most_hurt() and drink_potion()): a gulp if someone drank, a
+   (arms.c's drink_potion()): a gulp if someone drank, a
    refusal if there is none to drink or nobody hurt. */
 static void quaff(void)
 {
