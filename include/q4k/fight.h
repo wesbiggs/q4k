@@ -40,6 +40,17 @@
 #define FIGHT_NAME   16         /* a monster's name, with its terminator */
 #define FIGHT_FNAME  12         /* a file's */
 
+/* A monster's sprites are the file s.<n> on the disk, n a number, so that a
+   directory says nothing of what is in the game (tools/mkfields.py's
+   SPRITE_NUM, which must agree): for the glyph's monsters, T_RAT to
+   T_DRAGONTL, n is FIGHT_SPR_BASE plus the glyph less T_RAT; then these.
+   From 140, not 0, for the REU cache's sake: no salt of its hash gives
+   s.0 to s.14 and the other files an entry each (tools/mkowcache.py). */
+#define FIGHT_SPR_BASE   140
+#define FIGHT_SPR_WASP   149
+#define FIGHT_SPR_KEEPER 150    /* the keepers, and anything else */
+#define FIGHT_SPR_SEA    151    /* the sea's: serpent, eagle, seacrab, kraken */
+
 typedef struct {
     /* The party, as the game keeps it; health, magic, draughts and arrows
        come back as the fight left them. */
@@ -56,7 +67,7 @@ typedef struct {
     unsigned char flee;                 /* whether the sides are a way out */
     unsigned int  seed;                 /* for rand(): the same fight again */
     char          field[FIGHT_FNAME];   /* "f.grass" */
-    char          sprite[FIGHT_FNAME];  /* "s.rat" */
+    char          sprite[FIGHT_FNAME];  /* "s.140", a rat (FIGHT_SPR_*) */
     /* What came of it. */
     unsigned char foes;                 /* how many there were, for the pay */
     /* The music: a song of the tune under the KERNAL ($E7C0, as music.s and

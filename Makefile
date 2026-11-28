@@ -189,7 +189,8 @@ $(OWSETS): assets/overworld.txt $(wildcard assets/*_tiles.txt) \
 FIELD_SRC := assets/fields.txt assets/monsters.txt assets/field_tiles.txt \
              assets/overworld.txt assets/dungeon_tiles.txt \
              assets/common_tiles.txt assets/tiles.txt tools/mkfields.py \
-             tools/mkoverworld.py tools/figures.py
+             tools/mkoverworld.py tools/figures.py include/q4k/fight.h \
+             include/q4k/tiles.h
 
 $(GEN_FIGHT): $(FIELD_SRC)
 	tools/mkfields.py
@@ -529,9 +530,10 @@ $(DIST)/openworld.prg: $(BUILD)/openworld.o $(BUILD)/ow/owcdir.o $(LIB) $(wildca
 # linked on its own (src/fight/, cfg/c64-fight.cfg, include/q4k/fight.h),
 # with the party's arms out of the library. Its disk holds the arena, the
 # module, and what the module loads for a fight: a field (f.*) and the
-# monster's sprites (s.*), which tools/mkfields.py makes. The music and the
-# effects are the open world's (ow_tune.s from the library, and ow_sfx.o,
-# ahead of the library's sfx.s), called from the fight's interrupt.
+# monster's sprites (s.<n>, numbered), which tools/mkfields.py makes. The
+# music and the effects are the open world's (ow_tune.s from the library,
+# and ow_sfx.o, ahead of the library's sfx.s), called from the fight's
+# interrupt.
 FIGHTOBJ := $(patsubst %,$(BUILD)/fight/%.o,head block fight mux fight_data corners) \
             $(BUILD)/ow/ow_sfx.o
 FIGHT_STAMP := $(BUILD)/fight/disk/.stamp

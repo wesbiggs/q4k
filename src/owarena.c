@@ -8,7 +8,7 @@
  * This program is only the menu, and the example of how a fight is called:
  * it loads the module once (FIGHT, at $5400), and for each fight fills in
  * the block at its head -- the party, the monster's numbers out of the
- * game's own bestiary, which field (f.*) and whose sprites (s.*) -- and
+ * game's own bestiary, which field (f.*) and whose sprites (s.<n>) -- and
  * calls it. The module loads those two files itself, takes the screen, and
  * gives it back with the result. Everything is on dist/owarena.d64.
  *
@@ -111,22 +111,16 @@ static const Monster *entry(unsigned char n)
 }
 
 /* Whose sprites a monster is drawn with, by the glyph the game draws it
-   as: assets/monsters.txt has one for each. */
-static const char *sprite_of(const Monster *m)
+   as: the number of their file, s.<n> (FIGHT_SPR_*, as ow_fight.c's
+   sprite_of()); assets/monsters.txt has one for each. */
+static unsigned char sprite_of(const Monster *m)
 {
-    switch (m->glyph) {
-        case T_RAT:      return "s.rat";
-        case T_GOBLIN:   return "s.goblin";
-        case T_WOLF:     return "s.wolf";
-        case T_WASP:     return "s.wasp";
-        case T_BANDIT:   return "s.bandit";
-        case T_SKELETON: return "s.skeleton";
-        case T_OGRE:     return "s.ogre";
-        case T_WRAITH:   return "s.wraith";
-        case T_DRAKE:    return "s.drake";
-        case T_DRAGONTL: return "s.dragon";
+    unsigned char g = m->glyph;
+
+    if (g >= T_RAT && g <= T_DRAGONTL) {
+        return g - T_RAT + FIGHT_SPR_BASE;
     }
-    return "s.keeper";
+    return g == T_WASP ? FIGHT_SPR_WASP : FIGHT_SPR_KEEPER;
 }
 
 /* A member's colours from their name, as the game's sprite.c's tunic_of()
@@ -312,7 +306,8 @@ static unsigned char fight_with(unsigned char n)
     f->quiet  = 0;
     strcpy(f->field, "f.");
     strcat(f->field, ground_names[g]);
-    strcpy(f->sprite, sprite_of(m));
+    strcpy(f->sprite, "s.");
+    utoa(sprite_of(m), f->sprite + 2, 10);
 
     r = fight_call();
 

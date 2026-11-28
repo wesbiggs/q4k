@@ -49,6 +49,23 @@ FOE_ART = ["rat", "goblin", "wolf", "wasp", "bandit", "skeleton", "ogre",
 ROAM_ART = FOE_ART + ["serpent", "eagle", "seacrab", "kraken"]
 FOE_FRAMES = 1          # src/ow/dungeon.c's: the slot has room for one
 
+# Each monster's sprites are a file on the disk, s.<n>: a number, so that a
+# directory gives nothing away (include/q4k/fight.h's FIGHT_SPR_*, which
+# check_sprite_nums() holds this to), FIGHT_SPR_BASE plus the place here.
+# The glyph's monsters, T_RAT to T_DRAGONTL, by their glyph less T_RAT; then
+# the wasp, the keeper, and the sea's, from FIGHT_SPR_SEA in
+# src/lib/ow_fight.c's sea_sprites[] order.
+SPRITE_NUM = ["rat", "goblin", "wolf", "bandit", "skeleton", "ogre",
+              "wraith", "drake", "dragon", "wasp", "keeper",
+              "serpent", "eagle", "seacrab", "kraken"]
+GLYPH_SPRITES = [("T_RAT", "rat"), ("T_GOBLIN", "goblin"),
+                 ("T_WOLF", "wolf"), ("T_BANDIT", "bandit"),
+                 ("T_SKELETON", "skeleton"), ("T_OGRE", "ogre"),
+                 ("T_WRAITH", "wraith"), ("T_DRAKE", "drake"),
+                 ("T_DRAGONTL", "dragon")]
+NUM_DEFINES = [("FIGHT_SPR_BASE", "rat"), ("FIGHT_SPR_WASP", "wasp"),
+               ("FIGHT_SPR_KEEPER", "keeper"), ("FIGHT_SPR_SEA", "serpent")]
+
 FW, FH = 20, 9
 SCREEN, INFO, CHARS, MONSPR = 0x4000, 0x4400, 0x4800, 0x5000
 MAXCHARS = 128
@@ -399,6 +416,47 @@ def monsters(sprites, order):
     return [n for n in order if n not in skip]
 
 
+def defines(path):
+    out = {}
+    for line in open(os.path.join(ROOT, "include", "q4k", path)):
+        f = line.split()
+        if len(f) >= 3 and f[0] == "#define":
+            try:
+                out[f[1]] = int(f[2], 0)
+            except ValueError:
+                pass
+    return out
+
+
+def check_sprite_nums(sprites, order):
+    """SPRITE_NUM against the C's numbers, and every monster numbered."""
+    tiles, fight = defines("tiles.h"), defines("fight.h")
+    for t, n in GLYPH_SPRITES:
+        if tiles[t] - tiles["T_RAT"] != SPRITE_NUM.index(n):
+            die("SPRITE_NUM has %s at %d, but %s is T_RAT + %d"
+                % (n, SPRITE_NUM.index(n), t, tiles[t] - tiles["T_RAT"]))
+    for d, n in NUM_DEFINES:
+        if fight[d] != fight["FIGHT_SPR_BASE"] + SPRITE_NUM.index(n):
+            die("SPRITE_NUM has %s at %d, but fight.h's %s is "
+                "FIGHT_SPR_BASE + %d" % (n, SPRITE_NUM.index(n), d,
+                                         fight[d] - fight["FIGHT_SPR_BASE"]))
+    if fight["FIGHT_SPR_BASE"] + len(SPRITE_NUM) > 256:
+        die("fight.h's FIGHT_SPR_* must stay under 256 (a byte)")
+    have = monsters(sprites, order)
+    for n in have:
+        if n not in SPRITE_NUM:
+            die("%s has a monster %r that SPRITE_NUM does not number"
+                % (SPRITES, n))
+    for n in SPRITE_NUM:
+        if n not in have:
+            die("SPRITE_NUM numbers %r, which %s does not draw" % (n, SPRITES))
+
+
+def sprite_file(name):
+    return "s.%d" % (defines("fight.h")["FIGHT_SPR_BASE"]
+                     + SPRITE_NUM.index(name))
+
+
 def write_static(sprites):
     out = ["; GENERATED from assets/monsters.txt by tools/mkfields.py -- do "
            "not edit.",
@@ -625,6 +683,7 @@ def main():
     if args and args[0] == "--preview":
         preview(args[1], fields, tiles, sprites, order)
         return
+    check_sprite_nums(sprites, order)
     write_static(sprites)
     write_foes(sprites)
     write_roam(sprites)
@@ -649,9 +708,11 @@ def main():
     for name in monsters(sprites, order):
         size, frames = sprites[name]
         data = b"".join(b for fr in frames for b in blocks(size, fr))
-        open(os.path.join(out, "s." + name), "wb").write(
+        open(os.path.join(out, sprite_file(name)), "wb").write(
             bytes([MONSPR & 255, MONSPR >> 8]) + data)
-    print("mkfields: %d monsters' sprites, s.*" % len(monsters(sprites, order)))
+    print("mkfields: %d monsters' sprites, %s-%s"
+          % (len(monsters(sprites, order)), sprite_file(SPRITE_NUM[0]),
+             sprite_file(SPRITE_NUM[-1])))
 
 
 if __name__ == "__main__":

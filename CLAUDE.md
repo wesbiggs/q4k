@@ -322,8 +322,8 @@ fight's kind) makes a win leave everything it can: `openworld-spoils` in
 the ship's rolls for the deep sea coming into view (6 in 200; the shallows
 are safe), and what comes up is `ow_fight.c`'s `sea_wanderers[]` (a sea
 snake, a killer eagle, a giant crab, a sea serpent and a kraken, by the
-party's level, with sprites `s.serpent`, `s.eagle`, `s.seacrab`,
-`s.kraken`; all but the eagle spit water from afar, `SHOT_WATER`, or bows
+party's level, with the serpent's, eagle's, sea crab's and kraken's
+sprites, `FIGHT_SPR_SEA` on; all but the eagle spit water from afar, `SHOT_WATER`, or bows
 and spells would pick them off from the deck), fought by `seafight`
 (`OWF_SEA`): `src/fight/fight.c` built a third time, with `SEA_FIGHT`
 (the Makefile's `fight_sea.o`), on `f.deck`, the king's ship's deck
@@ -912,8 +912,10 @@ name (the file's room, its length, its address, and a check byte from the
 name, bit 0 set once it is there), the magic and the stamp at `$0800`, the
 rooms from `$0900`. The hash's salt is `include/q4k/owcache.inc`'s, and
 `mkowcache.py` fails the build if two names share an entry (`mkowcache.py
-salt NAMES` lists the salts that work: 1 is chosen with the bootstrap,
-the splash pictures and `ow-save` counted in too). The bootstrap lays the
+salt NAMES` lists the salts that work: 89, with the monsters' sprites
+numbered from 140 because no salt fits them from 0, and no name on the disk
+that the cache does not keep, the bootstrap's, the splash pictures',
+`ow-save`'s and the portraits' included, has a kept file's entry and check). The bootstrap lays the
 directory out (`ow_cinit.s`) unless the REU already has this build's stamp
 (N and F3, and a preloaded image, keep it): the REU's size from a byte
 written to the top of each bank, highest first, read back up until a bank
@@ -1687,8 +1689,11 @@ The module is 17.5K, 14K of it `fight.c` (`-Or`).
   adds a tree and a boulder; the lair and the dungeon room use
   `dungeon_tiles.txt`. The generator refuses a field whose sides are not shut
   but for the middle row, or where the monster cannot reach the party.
-- the monster's sprites, `s.<name>`, at `$5000`: two frames, or eight for a
-  2x2 body (Maldrath is four sprites). `assets/monsters.txt` has the art, in
+- the monster's sprites, `s.<n>`, at `$5000` (a number, so that a directory
+  listing gives no monster away: `tools/mkfields.py`'s `SPRITE_NUM`, which
+  it holds to `fight.h`'s `FIGHT_SPR_*` and `tiles.h`'s glyphs, `T_RAT` on
+  being 0 to 8; `sprite_of()` in `ow_fight.c` and `owarena.c` reckons it):
+  two frames, or eight for a 2x2 body (Maldrath is four sprites). `assets/monsters.txt` has the art, in
   the hero's format (8 double-width pixels by 16; black, light red and its
   own colour, which is the bestiary's, so a cutthroat is a red bandit); drawn
   once, the second frame is the first sunk a row onto its feet. The party's
