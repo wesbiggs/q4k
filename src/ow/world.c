@@ -371,10 +371,10 @@ static void edges(unsigned char x, unsigned char y, unsigned char n,
    what the screen shows, so that a step's new column or row has been seen
    (or not) before the scrolling draws it: a quarter at a time, row by row
    out from the hero, each square seen if the one before it on the way back
-   to the hero was seen and is not a mountain or forest (that one by the
+   to the hero was seen and is not a mountain, forest or swamp (those by the
    slope: across, down, or the diagonal), and the hero's own square seen
    through whatever it is. So a range hides what is behind it, and in a
-   forest only the trees round the hero are seen. A square seen for the
+   forest or a swamp only the squares round the hero are seen. A square seen for the
    first time is drawn (its true tile into WORLD from where the world keeps
    it), its bit set, and the box of what changed grows round it (as offsets
    from the hero); then the edges of that box are worked out again, and

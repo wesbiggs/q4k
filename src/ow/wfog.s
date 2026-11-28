@@ -8,7 +8,7 @@
 ; west, bit 1 north), dx from 0 out to `last`. Each square is seen if the
 ; one before it on the way back to the hero (by the slope: across, down or
 ; the diagonal) was seen and is open (vis[] 2: seen and open, 1: seen and a
-; mountain or forest, 0: not seen); the hero's own is seen through. A
+; mountain, forest or swamp, 0: not seen); the hero's own is seen through. A
 ; square seen that is still dark in WORLD is shown by world.c's wf_hit(),
 ; which takes the square from wf_ux/wf_uy (the world's), wf_at (WORLD's)
 ; and wf_gx/wf_gy (from the hero), and returns its tile.
@@ -124,7 +124,7 @@ _wf_row:
         ora     _wf_dy
         bne     @pred
         lda     #2              ; the hero's own: seen through
-        bne     @store
+        jmp     @store
 @pred:  lda     _wf_dy          ; which square is before it
         asl     a
         cmp     dx
@@ -179,6 +179,8 @@ _wf_row:
         cmp     #T_MOUNTAIN
         beq     :+
         cmp     #T_FOREST
+        beq     :+
+        cmp     #T_SWAMP
         beq     :+
         inx
 :       txa

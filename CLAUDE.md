@@ -790,7 +790,7 @@ from the hero out to 12 squares across and 8 down (two past the screen,
 so that a step's new column has been looked at before the scrolling draws
 it), a quarter at a time and a row at a time out from the hero: a square
 is seen if the one before it on the way back (across, down or the
-diagonal, by the slope) was seen and is not a mountain or forest, and the
+diagonal, by the slope) was seen and is not a mountain, forest or swamp, and the
 hero's own is seen through; so a range hides what is behind it, and in a
 forest only the trees round the hero are seen. A square seen for the
 first time gets its tile from the row as the world keeps it (`wf_fill()`,
