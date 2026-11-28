@@ -1074,7 +1074,7 @@ unpack: lda     r_art,x
 tiles:  .byte   T_DEEP, $96, $60, T_SHORE, T_FOREST, T_SWAMP, T_FLOOR
         .byte   $63, $6A                ; (the road, grass; a pass, a bridge)
 NTILES = * - tiles
-odds:   .byte   6, 4, 8, 7, 12, 16, 5, 0, 0
+odds:   .byte   2, 2, 4, 3, 5, 7, 2, 0, 0
 edge_x: .byte   9, $F8, 0, 0
 edge_y: .byte   0, 0, 4, $FC
 ; ow_fight.c's: the level each wanderer is met from (bestiary.c's), and the
